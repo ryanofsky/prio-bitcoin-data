@@ -1,0 +1,31 @@
+{
+ "assessed_at": "2026-09-18T03:55:57+00:00",
+ "card": "This pull request prevents node crashes caused by cache resizing destroying active LevelDB iterators. Long-running UTXO RPC commands like gettxoutsetinfo and scantxoutset hold LevelDB cursors without holding cs_main; if AssumeUTXO rebalances cache sizes concurrently, ResizeCache destroys the active database wrapper and triggers a LevelDB abort. The change adds shared mutex synchronization primitives to Bitcoin Core, holds a shared lock for cursor lifetimes and compaction, and takes an exclusive lock during cache resizing. Evidence comes from review on PR #35465 where the abort bug was discovered, along with regression tests covering cursor lifetime and lock ordering.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "The PR description notes: \"gettxoutsetinfo, scantxoutset, and dumptxoutset retain LevelDB iterators after releasing cs_main. While those iterators are live, AssumeUTXO cache rebalancing can call ResizeCache(), replace m_db, and cause LevelDB to abort.\"",
+  "The issue was reported during the review of PR #35465 (discussion_r3428902672) and is verified via a regression test in coins_tests.cpp."
+ ],
+ "head_sha": "38b84769608a0c17cd420da8760281471c656449",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35744,
+ "patch_id": "244a5f710c74a5d0",
+ "problem": "RPC commands such as gettxoutsetinfo, scantxoutset, and dumptxoutset keep LevelDB iterators open after releasing cs_main. If AssumeUTXO cache rebalancing triggers ResizeCache() while an iterator is still live, the underlying CDBWrapper is replaced and destroyed, causing LevelDB to abort.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "The PR extends sync.h and sync.cpp with SharedMutex, SharedLock, and non-LIFO lock tracking in DEBUG_LOCKORDER, and converts SignatureCache to use them before applying the shared lock pattern to CCoinsViewDB.",
+ "size": {
+  "additions": 194,
+  "deletions": 49,
+  "files": 9,
+  "test_lines": 114
+ },
+ "summary": "This change introduces shared mutex and lock wrappers into the synchronization primitives and uses them to coordinate coins database access. Each coins database cursor retains a shared lock on the database mutex for its lifetime, while LevelDB compaction also runs under a shared lock. Cache resizing now acquires the database mutex exclusively, preventing AssumeUTXO cache rebalancing from replacing the underlying database wrapper while iterators or compactions are active.",
+ "uncertainties": []
+}

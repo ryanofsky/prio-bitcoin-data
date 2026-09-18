@@ -1,0 +1,245 @@
+{
+ "run": "run:20260918-0314",
+ "pr": "bitcoin/bitcoin#29278",
+ "stage": "seed",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 1,
+ "created": "2026-09-18T03:26:41+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 36530,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2435
+ },
+ "cost_usd": 0.03652875,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"glozow\",\n      \"stance\": \"objection\",\n      \"note\": \"noted maxfeerate should be wallet-only rather than node-wide and caught redundant options and unit mismatches\"\n    },\n    {\n      \"login\": \"luke-jr\",\n      \"stance\": \"neutral\",\n      \"note\": \"commented on making maxfeerate a per-wallet option\"\n    },\n    {\n      \"login\": \"josibake\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK and ACK after reviewing interaction between maxtxfee and maxfeerate\"\n    },\n    {\n      \"login\": \"achow101\",\n      \"stance\": \"support\",\n      \"note\": \"supported having both maxfeerate and maxtxfee, ACKed revision\"\n    },\n    {\n      \"login\": \"murchandamus\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK and ACKed revision, provided detailed feedback on units and error messages\"\n    },\n    {\n      \"login\": \"jonatack\",\n      \"stance\": \"neutral\",\n      \"note\": \"noted requirement for release notes\"\n    },\n    {\n      \"login\": \"yancyribbens\",\n      \"stance\": \"neutral\",\n      \"note\": \"suggested wording nits\"\n    },\n    {\n      \"login\": \"maflcko\",\n      \"stance\": \"neutral\",\n      \"note\": \"grammar nits and process query regarding milestone\"\n    },\n    {\n      \"login\": \"furszy\",\n      \"stance\": \"support\",\n      \"note\": \"light code review ACK\"\n    },\n    {\n      \"login\": \"sedited\",\n      \"stance\": \"neutral\",\n      \"note\": \"milestone and review ping comments\"\n    },\n    {\n      \"login\": \"polespinasa\",\n      \"stance\": \"support\",\n      \"note\": \"Approach ACK and ACK after finding edge case in sendall bump fee handling\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"r:1832875650\",\n      \"kind\": \"approach\",\n      \"harm\": \"Configuring maxfeerate as a node-wide option instead of wallet-only bleeds wallet settings into node RPCs and removes useful mempool RPC options\",\n      \"quote\": \"I don't think that wallet configurations should bleed into how the node RPCs function. Instead, the interaction there should be for wallet to pass it as a param to BroadcastTransaction when the it submits a tx to the node.\",\n      \"blocking\": true,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:1900699310\",\n        \"rc:1467012789\",\n        \"c:1911091517\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:1911091517\",\n      \"settled_by_quote\": \"Made maxfeerate wallet option\"\n    },\n    {\n      \"id\": \"rc:1469372132\",\n      \"kind\": \"correctness\",\n      \"harm\": \"Removing the check for max_fee resulting in feerate below relayMinFee permits users to set unworkable maxtxfee values without startup warnings\",\n      \"quote\": \"I don't think we should remove this check for setting a max_fee that results in fee rates less than the relayMinFee.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:1472785028\",\n        \"rc:1472858661\",\n        \"rc:1477791006\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:1477791006\",\n      \"settled_by_quote\": \"I agree with @josibake suggestion and added a commit that performs the same check in wallet initialization as before.\"\n    },\n    {\n      \"id\": \"rc:1473275731\",\n      \"kind\": \"interface\",\n      \"harm\": \"Replacing descriptive error messages with a generic string obscures which limit (maxtxfee or maxfeerate) was hit\",\n      \"quote\": \"It isn\u2019t clear to me why we would first ship a less descriptive new error message in this PR and then immediately fix it in a follow-up.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:1477810958\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:1477810958\",\n      \"settled_by_quote\": \"However I agree with your comment, I have now added a commit that also checks the fee rate limit in BroadcastTransaction, and changed how sendrawtransaction is implemented, and updated the MAX_FEE_EXCEEDED transaction error type message.\"\n    },\n    {\n      \"id\": \"c:3898336639\",\n      \"kind\": \"correctness\",\n      \"harm\": \"Overestimating virtual size using nBytes causes the wallet to create transactions that later fail the maxfeerate check at broadcast time and mark inputs untrusted\",\n      \"quote\": \"The issue is that in createTransactionInternal, I was using nBytes to calculate the fee rate. This is incorrect because nBytes is the virtual size calculated using CalculateMaximumSignedTx. There are cases where nBytes is overestimated... But when we broadcast the tx, BroadcastTransaction uses the actual transaction vsize and fee... it will turn out to be slightly higher than maxfeerate\",\n      \"blocking\": true,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:3898336639\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:3898336639\",\n      \"settled_by_quote\": \"I fixed this by using GetVirtualTransactionSize to compute the fee rate.\"\n    },\n    {\n      \"id\": \"c:5441203296\",\n      \"kind\": \"correctness\",\n      \"harm\": \"sendall ignores bump fees for unconfirmed inputs when evaluating maxfeerate, causing transaction creation to succeed while broadcast fails silently\",\n      \"quote\": \"sendall's creation-time -maxfeerate check ignores bump fees for unconfirmed inputs, while the broadcast-time check in BroadcastTransaction includes them. When fee_rate is set exactly equal to -maxfeerate and the wallet spends unconfirmed inputs with positive bump fees, the creation check passes... but the broadcast check fails\",\n      \"blocking\": true,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:5655683492\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"r:5213483629\",\n      \"settled_by_quote\": \"ACK f69e56bc1c43ca2bebd4d733bce1afc8de8f58b9\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:1919611531\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Allows independently constraining total transaction weight/cost via maxtxfee and fee rate via maxfeerate\",\n      \"substantive\": true\n    },\n    {\n      \"id\": \"c:1919698019\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Supports adding maxfeerate option to the wallet\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"c:1968930832\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"ACKs revision after testing and review\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:2568254533\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"Approves implementation after unit and description clarifications\",\n      \"substantive\": true\n    },\n    {\n      \"id\": \"c:2610935741\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"ACK on range-diff addressing comments\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:3759991755\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"ACKs revision\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:3780628607\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"Light code review ACK\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:4573538633\",\n      \"verdict\": \"Approach ACK\",\n      \"reason\": \"Approves approach after thorough review by others\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:4627498516\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"ACK after nits addressed\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:4905544607\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"re-ACK after rebase\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"r:5213483629\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"ACK after sendall and feebumper bump fees fix\",\n      \"substantive\": true\n    }\n  ],\n  \"notes\": \"Initial record update for PR 29278. Recorded all substantive claims including the scope of the option, startup sanity checks, vsize calculation discrepancy, and bump fee accounting in sendall, all of which have been resolved.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "glozow",
+    "stance": "objection",
+    "note": "noted maxfeerate should be wallet-only rather than node-wide and caught redundant options and unit mismatches"
+   },
+   {
+    "login": "luke-jr",
+    "stance": "neutral",
+    "note": "commented on making maxfeerate a per-wallet option"
+   },
+   {
+    "login": "josibake",
+    "stance": "support",
+    "note": "Concept ACK and ACK after reviewing interaction between maxtxfee and maxfeerate"
+   },
+   {
+    "login": "achow101",
+    "stance": "support",
+    "note": "supported having both maxfeerate and maxtxfee, ACKed revision"
+   },
+   {
+    "login": "murchandamus",
+    "stance": "support",
+    "note": "Concept ACK and ACKed revision, provided detailed feedback on units and error messages"
+   },
+   {
+    "login": "jonatack",
+    "stance": "neutral",
+    "note": "noted requirement for release notes"
+   },
+   {
+    "login": "yancyribbens",
+    "stance": "neutral",
+    "note": "suggested wording nits"
+   },
+   {
+    "login": "maflcko",
+    "stance": "neutral",
+    "note": "grammar nits and process query regarding milestone"
+   },
+   {
+    "login": "furszy",
+    "stance": "support",
+    "note": "light code review ACK"
+   },
+   {
+    "login": "sedited",
+    "stance": "neutral",
+    "note": "milestone and review ping comments"
+   },
+   {
+    "login": "polespinasa",
+    "stance": "support",
+    "note": "Approach ACK and ACK after finding edge case in sendall bump fee handling"
+   }
+  ],
+  "claims": [
+   {
+    "id": "r:1832875650",
+    "kind": "approach",
+    "harm": "Configuring maxfeerate as a node-wide option instead of wallet-only bleeds wallet settings into node RPCs and removes useful mempool RPC options",
+    "quote": "I don't think that wallet configurations should bleed into how the node RPCs function. Instead, the interaction there should be for wallet to pass it as a param to BroadcastTransaction when the it submits a tx to the node.",
+    "blocking": true,
+    "status": "resolved",
+    "author_replies": [
+     "c:1900699310",
+     "rc:1467012789",
+     "c:1911091517"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:1911091517",
+    "settled_by_quote": "Made maxfeerate wallet option"
+   },
+   {
+    "id": "rc:1469372132",
+    "kind": "correctness",
+    "harm": "Removing the check for max_fee resulting in feerate below relayMinFee permits users to set unworkable maxtxfee values without startup warnings",
+    "quote": "I don't think we should remove this check for setting a max_fee that results in fee rates less than the relayMinFee.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:1472785028",
+     "rc:1472858661",
+     "rc:1477791006"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:1477791006",
+    "settled_by_quote": "I agree with @josibake suggestion and added a commit that performs the same check in wallet initialization as before."
+   },
+   {
+    "id": "rc:1473275731",
+    "kind": "interface",
+    "harm": "Replacing descriptive error messages with a generic string obscures which limit (maxtxfee or maxfeerate) was hit",
+    "quote": "It isn\u2019t clear to me why we would first ship a less descriptive new error message in this PR and then immediately fix it in a follow-up.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:1477810958"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:1477810958",
+    "settled_by_quote": "However I agree with your comment, I have now added a commit that also checks the fee rate limit in BroadcastTransaction, and changed how sendrawtransaction is implemented, and updated the MAX_FEE_EXCEEDED transaction error type message."
+   },
+   {
+    "id": "c:3898336639",
+    "kind": "correctness",
+    "harm": "Overestimating virtual size using nBytes causes the wallet to create transactions that later fail the maxfeerate check at broadcast time and mark inputs untrusted",
+    "quote": "The issue is that in createTransactionInternal, I was using nBytes to calculate the fee rate. This is incorrect because nBytes is the virtual size calculated using CalculateMaximumSignedTx. There are cases where nBytes is overestimated... But when we broadcast the tx, BroadcastTransaction uses the actual transaction vsize and fee... it will turn out to be slightly higher than maxfeerate",
+    "blocking": true,
+    "status": "resolved",
+    "author_replies": [
+     "c:3898336639"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:3898336639",
+    "settled_by_quote": "I fixed this by using GetVirtualTransactionSize to compute the fee rate."
+   },
+   {
+    "id": "c:5441203296",
+    "kind": "correctness",
+    "harm": "sendall ignores bump fees for unconfirmed inputs when evaluating maxfeerate, causing transaction creation to succeed while broadcast fails silently",
+    "quote": "sendall's creation-time -maxfeerate check ignores bump fees for unconfirmed inputs, while the broadcast-time check in BroadcastTransaction includes them. When fee_rate is set exactly equal to -maxfeerate and the wallet spends unconfirmed inputs with positive bump fees, the creation check passes... but the broadcast check fails",
+    "blocking": true,
+    "status": "resolved",
+    "author_replies": [
+     "c:5655683492"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "r:5213483629",
+    "settled_by_quote": "ACK f69e56bc1c43ca2bebd4d733bce1afc8de8f58b9"
+   }
+  ],
+  "support": [
+   {
+    "id": "c:1919611531",
+    "verdict": "Concept ACK",
+    "reason": "Allows independently constraining total transaction weight/cost via maxtxfee and fee rate via maxfeerate",
+    "substantive": true
+   },
+   {
+    "id": "c:1919698019",
+    "verdict": "Concept ACK",
+    "reason": "Supports adding maxfeerate option to the wallet",
+    "substantive": false
+   },
+   {
+    "id": "c:1968930832",
+    "verdict": "ACK",
+    "reason": "ACKs revision after testing and review",
+    "substantive": false
+   },
+   {
+    "id": "r:2568254533",
+    "verdict": "ACK",
+    "reason": "Approves implementation after unit and description clarifications",
+    "substantive": true
+   },
+   {
+    "id": "c:2610935741",
+    "verdict": "ACK",
+    "reason": "ACK on range-diff addressing comments",
+    "substantive": false
+   },
+   {
+    "id": "r:3759991755",
+    "verdict": "ACK",
+    "reason": "ACKs revision",
+    "substantive": false
+   },
+   {
+    "id": "r:3780628607",
+    "verdict": "ACK",
+    "reason": "Light code review ACK",
+    "substantive": false
+   },
+   {
+    "id": "r:4573538633",
+    "verdict": "Approach ACK",
+    "reason": "Approves approach after thorough review by others",
+    "substantive": false
+   },
+   {
+    "id": "r:4627498516",
+    "verdict": "ACK",
+    "reason": "ACK after nits addressed",
+    "substantive": false
+   },
+   {
+    "id": "r:4905544607",
+    "verdict": "ACK",
+    "reason": "re-ACK after rebase",
+    "substantive": false
+   },
+   {
+    "id": "r:5213483629",
+    "verdict": "ACK",
+    "reason": "ACK after sendall and feebumper bump fees fix",
+    "substantive": true
+   }
+  ],
+  "notes": "Initial record update for PR 29278. Recorded all substantive claims including the scope of the option, startup sanity checks, vsize calculation discrepancy, and bump fee accounting in sendall, all of which have been resolved."
+ },
+ "applied": {
+  "changes": [
+   "claim r:1832875650 added (resolved, blocking) by glozow",
+   "claim rc:1469372132 added (resolved) by josibake",
+   "claim rc:1473275731 added (resolved) by murchandamus",
+   "claim c:5441203296 added (resolved, blocking) by polespinasa",
+   "support c:1919611531 added by murchandamus",
+   "support c:1919698019 added by josibake",
+   "support c:1968930832 added by josibake",
+   "support c:2610935741 added by murchandamus",
+   "support r:2568254533 added by murchandamus",
+   "support r:3759991755 added by achow101",
+   "support r:3780628607 added by furszy",
+   "support r:4573538633 added by polespinasa",
+   "support r:4627498516 added by polespinasa",
+   "support r:4905544607 added by polespinasa",
+   "support r:5213483629 added by polespinasa"
+  ],
+  "rejected": [
+   "claim c:3898336639: anchored to the author's own statement"
+  ],
+  "checks": []
+ }
+}

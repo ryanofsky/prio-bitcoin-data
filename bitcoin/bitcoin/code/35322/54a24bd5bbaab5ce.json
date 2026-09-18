@@ -1,0 +1,31 @@
+{
+ "assessed_at": "2026-09-18T03:53:43+00:00",
+ "card": "Streamlines Logger state by replacing a category bitfield, global log level, and mutex-guarded override map with a two-element array of atomic category bitmasks for Debug and Trace levels. This simplifies category management and removes mutex locking and hash lookups when evaluating whether a log message should be emitted. Runtime enabling of categories via RPC or kernel APIs now always defaults to Debug level rather than retaining previous Trace settings. This is an internal logging refactor with minor user-facing RPC behavior changes.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Bitcoin Core has only ~30 log categories and 2 conditional log levels, so a mutex-protected hash map, a bitset, and a separate global level are unnecessary. The added complexity is also harmful: it makes the code harder to follow, and basic operations like setting a category's level require coordinating multiple fields and method calls.'",
+  "Commit 8cd1ee83d1: 'removes mutex locking and hash lookups from log-level checks, and simplifies the Logger interface by dropping multiple enable, disable, and query methods that are no longer necessary.'"
+ ],
+ "head_sha": "a73d23b7762fe99e4ef1a5055e74093787adf9fb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35322,
+ "patch_id": "54a24bd5bbaab5ce",
+ "problem": "`Logger` tracked logging thresholds redundantly across a bitfield, an atomic level, and a hash map protected by a mutex, requiring synchronized updates across multiple fields and acquiring a lock with hash lookups during log-level queries.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "Changes dynamic behavior slightly: categories enabled at runtime via the `logging` RPC or the kernel API are now always enabled at `Debug` level, rather than inheriting a previously set `-loglevel=trace`. Includes a release note explaining this behavior change.",
+ "size": {
+  "additions": 205,
+  "deletions": 196,
+  "files": 14,
+  "test_lines": 166
+ },
+ "summary": "Streamlines internal state in `Logger` by replacing three separate configuration fields\u2014a bitmask of enabled categories, a global log level, and a mutex-guarded hash map of per-category overrides\u2014with an array of two atomic bitmasks representing categories enabled at `Debug` and `Trace` levels. Replaces and removes redundant methods like `EnableCategory`, `DisableCategory`, `LogLevel`, and `GetCategoryMask` in favor of direct atomic bitmask operations in `SetCategoryLogLevel` and `WillLogCategoryLevel`. Also makes log-level checks lock-free without hash map lookups.",
+ "uncertainties": []
+}

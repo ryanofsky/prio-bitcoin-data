@@ -1,0 +1,31 @@
+{
+ "assessed_at": "2026-09-18T03:56:28+00:00",
+ "card": "During initial block download, a node queries only one peer at a time for initial headers synchronization. If an inbound or manual connection responds with an empty headers message\u2014which occurs legitimately if that peer is also syncing\u2014the node does not release the sync slot. Because manual and inbound peers are not subject to automatic outbound eviction or headers timeouts, headers sync can stall indefinitely even if other connected peers have newer blocks. This PR releases inbound and manual peers from the sync slot upon receiving an empty headers response when the chain tip is more than a day old and imposes a retry delay so an eligible replacement can be selected. This fixes issue #34096, verified by an author reproducer demonstrating that two inbound peers cause a sync stall on unpatched nodes.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes issue #34096 ('IBD stalls if addnode peer is in IBD').",
+  "Author provides a minimal reproducer demonstrating that with two inbound peers where the first returns empty headers, an unpatched node stalls for 10 seconds until the test timeout, whereas the patched node immediately falls back to the replacement peer."
+ ],
+ "head_sha": "be1f152ffe18143651ca7456113d6d684b53da17",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35839,
+ "patch_id": "ad5a6e0f7a590b46",
+ "problem": "During initial block download or when the best known header is more than a day old, a node queries only one peer for initial headers sync. If an inbound or manual peer (such as an addnode peer) is also syncing or caught up to the node's tip, it returns a valid empty headers message but remains designated as the active sync peer. Because inbound and manual peers are not subject to automatic outbound eviction and headers timeouts do not release the sync slot, initial sync can stall indefinitely even when other connected peers have the latest chain.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "Small net_processing logic change accompanied by functional test additions covering inbound and manual peer stall scenarios in p2p_initial_headers_sync.py.",
+ "size": {
+  "additions": 62,
+  "deletions": 11,
+  "files": 2,
+  "test_lines": 46
+ },
+ "summary": "Releases inbound and manual peers from the initial headers synchronization slot when they reply to a getheaders request with an empty headers message while the chain tip is more than 24 hours old. It clears the peer's sync state and download deadline while setting a retry delay, allowing another eligible peer to take over headers synchronization. Automatic outbound connections remain unchanged, as they already handle stale peers via eviction and timeouts.",
+ "uncertainties": []
+}

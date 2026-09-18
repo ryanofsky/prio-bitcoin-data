@@ -1,0 +1,34 @@
+{
+ "run": "run:20260918-0349-assess",
+ "pr": "bitcoin/bitcoin#36015",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-18T03:57:42+00:00",
+ "usage": {
+  "input_tokens": 14375,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1087
+ },
+ "cost_usd": 0.0148575,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"TxOrphanage is changed to store orphan transactions in serialized byte form instead of deserialized CTransaction objects, deserializing them only when retrieved for validation or RPC. It also adjusts orphan lookup interfaces such as package candidate selection and announcement processing to operate on txids and wtxids without deserializing candidates unless selected.\",\n  \"problem\": \"The orphanage uses transaction weight as a proxy for memory usage to enforce per-peer and global memory limits. For deserialized transactions with many tiny witness stack elements, vector heap allocation overhead causes real memory consumption to drastically outstrip weight; for example, a standard-weight orphan with 199,000 1-byte witness elements consumes ~11.1MB (28 times its accounted weight limit), allowing peers to bypass orphanage memory caps and mount memory exhaustion attacks.\",\n  \"evidence\": [\n    \"\\\"A transaction of 199,000 1-byte witness elements weighs 398,247WU (i.e. it is of standard weight, and witness standardness cannot be checked while the inputs are missing), but uses 11.1MB of memory: 28 times what is accounted for it, and one such orphan can be retained per peer.\\\" (PR description and commit 933a9f95af)\",\n    \"\\\"Otherwise a peer holding ~40MB of witness-heavy orphans (many tiny witness elements, each a separate heap allocation once deserialized) could make a single call cost ~0.9s of CPU and ~700MB of memory.\\\" (commit 0557bc81d5)\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Changes several TxOrphanage methods to work on ID structs rather than full CTransactionRef instances to avoid accidental deserialization overhead during 1P1C candidate evaluation. The largest implementation and test files (src/node/txorphanage.cpp and src/test/orphanage_tests.cpp) were truncated from the patch.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"This PR modifies TxOrphanage to store orphan transactions in serialized form, deserializing them only when handed out for processing. The orphanage relies on transaction weight to bound memory usage, but heap overhead for deserialized witness stacks allows standard-weight transactions with many small witness elements to consume up to 28 times more memory than accounted for (11.1MB instead of ~400KB per peer). By storing serialized bytes, a transaction's memory footprint is strictly bounded by its weight, closing an orphan-based memory exhaustion vector without rejecting valid standard transactions.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": []\n}",
+ "result": {
+  "summary": "TxOrphanage is changed to store orphan transactions in serialized byte form instead of deserialized CTransaction objects, deserializing them only when retrieved for validation or RPC. It also adjusts orphan lookup interfaces such as package candidate selection and announcement processing to operate on txids and wtxids without deserializing candidates unless selected.",
+  "problem": "The orphanage uses transaction weight as a proxy for memory usage to enforce per-peer and global memory limits. For deserialized transactions with many tiny witness stack elements, vector heap allocation overhead causes real memory consumption to drastically outstrip weight; for example, a standard-weight orphan with 199,000 1-byte witness elements consumes ~11.1MB (28 times its accounted weight limit), allowing peers to bypass orphanage memory caps and mount memory exhaustion attacks.",
+  "evidence": [
+   "\"A transaction of 199,000 1-byte witness elements weighs 398,247WU (i.e. it is of standard weight, and witness standardness cannot be checked while the inputs are missing), but uses 11.1MB of memory: 28 times what is accounted for it, and one such orphan can be retained per peer.\" (PR description and commit 933a9f95af)",
+   "\"Otherwise a peer holding ~40MB of witness-heavy orphans (many tiny witness elements, each a separate heap allocation once deserialized) could make a single call cost ~0.9s of CPU and ~700MB of memory.\" (commit 0557bc81d5)"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Changes several TxOrphanage methods to work on ID structs rather than full CTransactionRef instances to avoid accidental deserialization overhead during 1P1C candidate evaluation. The largest implementation and test files (src/node/txorphanage.cpp and src/test/orphanage_tests.cpp) were truncated from the patch.",
+  "changed_since_previous": "",
+  "card": "This PR modifies TxOrphanage to store orphan transactions in serialized form, deserializing them only when handed out for processing. The orphanage relies on transaction weight to bound memory usage, but heap overhead for deserialized witness stacks allows standard-weight transactions with many small witness elements to consume up to 28 times more memory than accounted for (11.1MB instead of ~400KB per peer). By storing serialized bytes, a transaction's memory footprint is strictly bounded by its weight, closing an orphan-based memory exhaustion vector without rejecting valid standard transactions.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": []
+ }
+}

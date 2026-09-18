@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-18T03:50:11+00:00",
+ "card": "Implements runtime parsing and startup validation for `ALLOW_BOOL`, `ALLOW_INT`, and `ALLOW_STRING` argument flags in `ArgsManager`. Currently, arguments lack strict type validation, causing type-coercion footguns like negated options resolving to string \"0\" or duplicate configuration file assignments being silently ignored. This change rejects malformed typed inputs at startup and throws internal errors on mismatched getter calls, while keeping existing arguments under `ALLOW_ANY` until migrated. It serves as the foundation for multiple follow-up PRs adding compile-time and runtime option checking (#17580, #17783, #22978).",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#17580",
+   "#17783",
+   "#17493",
+   "#17581",
+   "#22978"
+  ]
+ },
+ "evidence": [
+  "Commit d42d26dba5 notes past bugs caused by untyped coercion: 'negated settings will return \"\" empty strings instead of \"0\" strings (in the past the \"0\" strings caused strangeness like \"-nowallet\" options creating wallet files named \"0\")'.",
+  "Commit 933c856094 describes stricter validation: 'a double negated option like -nosetting=0 is treated like an error instead of true, and an unrecognized bool value like -setting=true is treated like an error instead of false. And if a non-list setting is assigned multiple times in the same section of a configuration file, the later assignments trigger errors instead of being silently ignored.'",
+  "Author description highlights the non-breaking rollout approach: 'This change has no effect on behavior because the new ArgsManager flags added here are not used outside of tests yet.'"
+ ],
+ "head_sha": "50c8a100c9a82c56571972de1e041380efef2b0b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 16545,
+ "patch_id": "5d543263b3d06c46",
+ "problem": "Command-line arguments and configuration settings historically underwent minimal type validation during parsing, resulting in subtle coercion footguns (such as `-nofoo` returning the string `\"0\"`, which previously caused `-nowallet` to create a wallet named `\"0\"`). Additionally, conflicting duplicate assignments in configuration files are silently ignored, and developers can invoke incompatible accessors (e.g. `GetIntArg` on a non-integer argument) without runtime enforcement.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "The PR introduces type validation infrastructure and internal `logic_error` assertions in `ArgsManager`, but leaves all current production arguments configured as `ALLOW_ANY`. A majority of the diff (+425 lines) consists of unit tests in `src/test/argsman_tests.cpp` illustrating the typed flag behaviors.",
+ "size": {
+  "additions": 851,
+  "deletions": 90,
+  "files": 9,
+  "test_lines": 564
+ },
+ "summary": "Implements parsing and validation logic for `ALLOW_BOOL`, `ALLOW_INT`, and `ALLOW_STRING` argument flags in `ArgsManager`. Adds startup validation for typed settings, prevents ambiguous or invalid values (such as double negations or duplicate config keys for non-list arguments), and enforces flag consistency across `GetArg` helper methods at runtime. Does not convert existing options away from `ALLOW_ANY`, restricting functional changes to tests and future flag adoptions.",
+ "uncertainties": []
+}

@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-09-18T03:52:26+00:00",
+ "card": "This PR modifies index initial synchronization to process block ranges and batch LevelDB writes into memory rather than writing to disk on every block. Currently, per-block flushing creates excessive disk I/O, particularly on HDDs, and frequent cs_main locking during NextSyncBlock degrades node responsiveness during initial block download. The author claims this reduces disk write operations, decreases generated database files, and cuts lock contention while laying groundwork for parallel indexing in #26966. The PR initially depended on merged PR #34897.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [
+   "#34897"
+  ],
+  "enables": [
+   "#26966"
+  ]
+ },
+ "evidence": [
+  "Author notes in PR description: 'Batch DB writes instead of flushing per block, which improves sync time on HDD due to the reduced number of disk write operations.'",
+  "Author notes: 'cuts down cs_main contention by reducing the number of NextBlockSync calls (instead of calling it for every block, we will call it once per block window), making the node more responsive (IBD and validation) while indexes sync up.'",
+  "Author states it reduces the number of generated LevelDB files and serves as pre-work for parallel index sync in #26966."
+ ],
+ "head_sha": "1497086cdb0e64df861100e0715ffd975d4c41cf",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff",
+  "benchmark_numbers"
+ ],
+ "number": 34489,
+ "patch_id": "nopatch",
+ "problem": "During initial sync, indexes write to disk for every processed block and take the cs_main lock for each block in NextSyncBlock. On spinning disks, this results in high I/O overhead and excessive LevelDB file generation, while the lock contention slows down concurrent block validation and IBD.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "The PR refactors index loop iteration in BaseIndex and its subclasses, separating block range batch writes from commit checkpointing logic.",
+ "size": {
+  "additions": 300,
+  "deletions": 74,
+  "files": 11,
+  "test_lines": null
+ },
+ "summary": "Batches index database writes into windows of blocks rather than committing to LevelDB on every block during initial sync. Updates the index synchronization loop and NextSyncBlock to operate on configurable block ranges instead of single blocks, reducing cs_main lock acquisitions.",
+ "uncertainties": [
+  "No diff was provided to verify the implementation details of CDBBatch usage and block window computation.",
+  "No benchmark numbers or disk I/O measurements are provided in the PR description to quantify the sync speedup on HDD."
+ ]
+}

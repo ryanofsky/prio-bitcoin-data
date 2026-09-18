@@ -1,0 +1,29 @@
+{
+ "archive_input_hash": "dcdddba990c0d5b3",
+ "assessed_at": "2026-09-17T15:59:18+00:00",
+ "card": "This PR fixes a race condition in the internal HTTP server where HTTPRemoteClient::m_keep_alive was updated outside m_send_mutex. For pipelined requests where a keep-alive request is followed by a connection-closing request, the I/O thread could observe an empty buffer and a disabled keep-alive flag between requests, disconnecting the client and dropping the second reply. The fix guards m_keep_alive with m_send_mutex and includes a deterministic mock-socket regression test. winterrdog provided a concept ACK supporting the lock synchronization, and the PR is ready for review.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [],
+ "head_sha": "dc8fb12509830a914e122f5ca9d7de35c03d9cc3",
+ "model": "archive:openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36259,
+ "patch_id": "55e33c72e77d74a1",
+ "problem": "When a client pipelines a keep-alive request followed by a 'Connection: close' request, the worker handling the second request clears `m_keep_alive` before taking `m_send_mutex`. If the I/O thread drains the first response in between, it observes an empty buffer with keep-alive disabled and disconnects the client before the second response can be queued, dropping it.",
+ "repo": "bitcoin/bitcoin",
+ "run": "archive",
+ "scope_notes": "",
+ "size": {
+  "additions": 156,
+  "deletions": 3,
+  "files": 3,
+  "test_lines": 144
+ },
+ "summary": "Synchronizes `HTTPRemoteClient::m_keep_alive` updates with `m_send_buffer` by moving the assignment inside `m_send_mutex` and switching the field from `std::atomic_bool` to `bool GUARDED_BY(m_send_mutex)`. Also adds a regression unit test simulating the race condition.",
+ "uncertainties": []
+}

@@ -1,0 +1,35 @@
+{
+ "run": "run:20260918-0349-assess",
+ "pr": "bitcoin/bitcoin#36149",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-18T03:58:25+00:00",
+ "usage": {
+  "input_tokens": 6920,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 981
+ },
+ "cost_usd": 0.00886875,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Keep pruned blocks in `m_blocks_unlinked` and re-add them during block index loading even when their block data is missing. Before updating a block's `nSequenceId` upon re-receiving transactions, erase it from `setBlockIndexCandidates` to prevent multiset order corruption. Update `CheckBlockIndex` assertions and enable out-of-chain block pruning in the `block_index_tree` fuzz target.\",\n  \"problem\": \"When a node prunes a block whose parent's transactions have not yet been received, removing the block from `m_blocks_unlinked` prevents `m_chain_tx_count` from ever being computed if that missing parent arrives later (e.g., via `getblockfrompeer`). This puts the node into an inconsistent state, returns incorrect RPC data, and triggers assertion failures in `CheckBlockIndex`. Furthermore, re-downloading a pruned block mutates its `nSequenceId` while it resides in `setBlockIndexCandidates`, corrupting the set's sort order.\",\n  \"evidence\": [\n    \"Closes issue #31512 ('validation: CheckBlockIndex can fail in combination with pruning') and issue #36021 ('validation: Assertion failed: ((pindexFirstNeverProcessed == nullptr || pindex == snap_base) == pindex->HaveNumChainTxs())')\",\n    \"Author notes the sequence ID corruption: 'nSequenceId is one of the sort keys of setBlockIndexCandidates, so changing it for a block that currently is in one of these sets corrupts their ordering, after which lookups for other entries can fail.'\",\n    \"Author notes the fuzzer impact: 'This was one of two reasons, the fuzz target block_index_tree couldn't cover pruning of blocks not in the main chain.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"This PR retains pruned blocks in `m_blocks_unlinked` across disk flushes and restarts, and removes candidates from `setBlockIndexCandidates` before modifying `nSequenceId` when block data is re-received. When parent blocks arrived out-of-order after a child block had been pruned, `m_chain_tx_count` failed to update, leading to internal state inconsistency and `CheckBlockIndex` assertion crashes (#31512, #36021). Mutating `nSequenceId` in-place also corrupted candidate set ordering. These fixes resolve the assertion failures and allow the `block_index_tree` fuzzer to prune out-of-chain blocks without crashing.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": []\n}",
+ "result": {
+  "summary": "Keep pruned blocks in `m_blocks_unlinked` and re-add them during block index loading even when their block data is missing. Before updating a block's `nSequenceId` upon re-receiving transactions, erase it from `setBlockIndexCandidates` to prevent multiset order corruption. Update `CheckBlockIndex` assertions and enable out-of-chain block pruning in the `block_index_tree` fuzz target.",
+  "problem": "When a node prunes a block whose parent's transactions have not yet been received, removing the block from `m_blocks_unlinked` prevents `m_chain_tx_count` from ever being computed if that missing parent arrives later (e.g., via `getblockfrompeer`). This puts the node into an inconsistent state, returns incorrect RPC data, and triggers assertion failures in `CheckBlockIndex`. Furthermore, re-downloading a pruned block mutates its `nSequenceId` while it resides in `setBlockIndexCandidates`, corrupting the set's sort order.",
+  "evidence": [
+   "Closes issue #31512 ('validation: CheckBlockIndex can fail in combination with pruning') and issue #36021 ('validation: Assertion failed: ((pindexFirstNeverProcessed == nullptr || pindex == snap_base) == pindex->HaveNumChainTxs())')",
+   "Author notes the sequence ID corruption: 'nSequenceId is one of the sort keys of setBlockIndexCandidates, so changing it for a block that currently is in one of these sets corrupts their ordering, after which lookups for other entries can fail.'",
+   "Author notes the fuzzer impact: 'This was one of two reasons, the fuzz target block_index_tree couldn't cover pruning of blocks not in the main chain.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "",
+  "card": "This PR retains pruned blocks in `m_blocks_unlinked` across disk flushes and restarts, and removes candidates from `setBlockIndexCandidates` before modifying `nSequenceId` when block data is re-received. When parent blocks arrived out-of-order after a child block had been pruned, `m_chain_tx_count` failed to update, leading to internal state inconsistency and `CheckBlockIndex` assertion crashes (#31512, #36021). Mutating `nSequenceId` in-place also corrupted candidate set ordering. These fixes resolve the assertion failures and allow the `block_index_tree` fuzzer to prune out-of-chain blocks without crashing.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": []
+ }
+}

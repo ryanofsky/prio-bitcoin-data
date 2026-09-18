@@ -1,0 +1,35 @@
+{
+ "assessed_at": "2026-09-18T03:55:43+00:00",
+ "card": "This pull request removes the runtime error mode (M_ERROR) from ValidationState and routes runtime and fatal system errors through util::Expected with a new kernel::FatalError type. Previously, BlockValidationState conflated block invalidity with system failures such as disk write errors, requiring non-validating operations like InvalidateBlock and ActivateBestChain to take validation state parameters just to report fatal errors. The change simplifies validation return types and unblocks a cleaner return architecture in PR 35570, addressing issues raised in prior validation refactoring discussions.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#35570"
+  ]
+ },
+ "evidence": [
+  "PR description notes: 'Wrong abstraction for non-validating functions. FlushStateToDisk, DisconnectTip, ActivateBestChain, PreciousBlock, and InvalidateBlock do no block validation, but each takes a BlockValidationState out-param to report any runtime error.'",
+  "PR description references previous review discussions in #33856 and #35570 advocating for removing the M_ERROR state to untangle consensus validity from runtime errors."
+ ],
+ "head_sha": "66a84761580f0d98387eaa9e8bd83d8f7a973dbc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "rest_of_diff"
+ ],
+ "number": 35646,
+ "patch_id": "93b32766f003dd93",
+ "problem": "BlockValidationState conflates consensus or policy validation failures with runtime system errors like disk write failures via an internal `M_ERROR` state. As a result, non-validating chainstate methods (such as `ActivateBestChain`, `InvalidateBlock`, and `FlushStateToDisk`) had to take `BlockValidationState` out-parameters solely for runtime errors, and validating functions like `ConnectBlock` forced callers to distinguish three distinct outcomes packed into a single object.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "Touches 41 files across validation, blockstorage, kernel, and test suites. Alters public signatures of major validation methods (ConnectBlock, AcceptBlock, ProcessNewBlock, ActivateBestChain), updates the ValidationSignals::BlockChecked interface, and removes INTERNAL_ERROR from the kernel C API.",
+ "size": {
+  "additions": 617,
+  "deletions": 384,
+  "files": 41,
+  "test_lines": 328
+ },
+ "summary": "Separates fatal runtime errors from consensus and policy invalidity by eliminating the `M_ERROR` state from `ValidationState`. Validation and block storage operations now return `util::Expected<T, kernel::FatalError>` to handle system and runtime failures, leaving `BlockValidationState` strictly for valid versus invalid outcomes. The change also adjusts internal interfaces, tests, and the kernel C API accordingly.",
+ "uncertainties": []
+}

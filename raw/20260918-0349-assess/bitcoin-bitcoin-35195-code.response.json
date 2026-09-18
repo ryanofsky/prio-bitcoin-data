@@ -1,0 +1,35 @@
+{
+ "run": "run:20260918-0349-assess",
+ "pr": "bitcoin/bitcoin#35195",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-18T03:53:10+00:00",
+ "usage": {
+  "input_tokens": 7720,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1061
+ },
+ "cost_usd": 0.00976875,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Removes the `noexcept` specification from `SaltedOutpointHasher::operator()` to induce `libstdc++`'s `std::unordered_map` to cache hash codes within node structures. This effectively reverts PR #16957, trading a node-size memory increase of one `size_t` for reduced SipHash recomputations during UTXO map operations. A unit test is also added to check invocability and the `libstdc++` fast-hash trait.\",\n  \"problem\": \"In `libstdc++`, `std::unordered_map` omits cached hash codes in bucket nodes when the hash functor is marked `noexcept`, forcing table lookups and rehashing in `CCoinsMap` to repeatedly recompute outpoint hashes with SipHash. While PR #16957 introduced `noexcept` to reduce memory usage per node by about 9%, it introduced a runtime penalty.\",\n  \"evidence\": [\n    \"Author's benchmarks show reindex-chainstate and IBD completing approximately 2% to 3% faster with cached hash codes across different `-dbcache` settings.\",\n    \"Author reports up to ~11% speedup during AssumeUTXO loading (`loadtxoutset`), which isolates the coins cache performance from block validation overhead.\",\n    \"Author's Massif profiling showed memory usage was roughly neutral at moderate `-dbcache` values, but increased at very high cache sizes (24.11 GB to 25.49 GB peak RSS).\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Relies on implementation-defined behavior in libstdc++ where non-noexcept fast hash functions cause unordered containers to store cached hash values in nodes. The unit test uses the internal libstdc++ header `<bits/functional_hash.h>` and `std::__is_fast_hash` under `__GLIBCXX__`.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"This PR marks SaltedOutpointHasher as noexcept(false) to prompt libstdc++ unordered containers to cache hash codes in their nodes. This intentionally reverses the tradeoff made in PR #16957, prioritizing CPU speed over per-node memory savings in the UTXO cache. The author's benchmarks demonstrate a 2% to 3% runtime improvement during IBD and reindex-chainstate, and up to an 11% speedup during AssumeUTXO loading, at the cost of higher peak memory on very large dbcache configurations.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": []\n}",
+ "result": {
+  "summary": "Removes the `noexcept` specification from `SaltedOutpointHasher::operator()` to induce `libstdc++`'s `std::unordered_map` to cache hash codes within node structures. This effectively reverts PR #16957, trading a node-size memory increase of one `size_t` for reduced SipHash recomputations during UTXO map operations. A unit test is also added to check invocability and the `libstdc++` fast-hash trait.",
+  "problem": "In `libstdc++`, `std::unordered_map` omits cached hash codes in bucket nodes when the hash functor is marked `noexcept`, forcing table lookups and rehashing in `CCoinsMap` to repeatedly recompute outpoint hashes with SipHash. While PR #16957 introduced `noexcept` to reduce memory usage per node by about 9%, it introduced a runtime penalty.",
+  "evidence": [
+   "Author's benchmarks show reindex-chainstate and IBD completing approximately 2% to 3% faster with cached hash codes across different `-dbcache` settings.",
+   "Author reports up to ~11% speedup during AssumeUTXO loading (`loadtxoutset`), which isolates the coins cache performance from block validation overhead.",
+   "Author's Massif profiling showed memory usage was roughly neutral at moderate `-dbcache` values, but increased at very high cache sizes (24.11 GB to 25.49 GB peak RSS)."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Relies on implementation-defined behavior in libstdc++ where non-noexcept fast hash functions cause unordered containers to store cached hash values in nodes. The unit test uses the internal libstdc++ header `<bits/functional_hash.h>` and `std::__is_fast_hash` under `__GLIBCXX__`.",
+  "changed_since_previous": "",
+  "card": "This PR marks SaltedOutpointHasher as noexcept(false) to prompt libstdc++ unordered containers to cache hash codes in their nodes. This intentionally reverses the tradeoff made in PR #16957, prioritizing CPU speed over per-node memory savings in the UTXO cache. The author's benchmarks demonstrate a 2% to 3% runtime improvement during IBD and reindex-chainstate, and up to an 11% speedup during AssumeUTXO loading, at the cost of higher peak memory on very large dbcache configurations.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": []
+ }
+}

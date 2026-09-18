@@ -1,0 +1,31 @@
+{
+ "assessed_at": "2026-09-18T03:51:27+00:00",
+ "card": "Specializes single-byte stream operations and optimizes SizeComputer paths across serialization primitives. Currently, single-byte serialization invokes generic buffer checks and memcpy operations, and SizeComputer executes unnecessary endianness conversions when calculating sizes. The PR adds fixed-extent single-byte write and read methods to streams and hashers, and short-circuits SizeComputer passes in serialize.h. Microbenchmarks from the author indicate an 11% to 29% reduction in block serialization time and a ~2% speedup in full IBD to height 880,000.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's nanobench results report SerializeBlock latency improving from ~195 \u00b5s to ~174 \u00b5s on AppleClang and from ~867 \u00b5s to ~615 \u00b5s on GCC 13, with SizeComputerBlock dropping from ~12.0 \u00b5s to ~10.2 \u00b5s on AppleClang and ~30.9 \u00b5s to ~25.6 \u00b5s on GCC.",
+  "Author's 3-run hyperfine IBD benchmark to block height 880,000 reports bitcoind running '1.02 \u00b1 0.02 times faster' (mean wall time reduced from 33,647s to 33,062s)."
+ ],
+ "head_sha": "41ef25fcbaf2c3d14f901ef3f56311a2d396a3d8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 31868,
+ "patch_id": "47217d2b1f73ae34",
+ "problem": "Generic serialization routines impose small per-element overheads that accumulate during high-volume operations like block serialization and Initial Block Download (IBD). Single-byte writes (e.g. booleans, VarInt prefix bytes, and int8 types) invoke general stream buffering or memcpy, while SizeComputer pointlessly computes endian transformations when only the byte length matters.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "Touches core serialization logic in serialize.h, stream interfaces in streams.{h,cpp}, and cryptographic hash wrappers in sha256.{h,cpp} and hash.h, alongside new microbenchmarks in checkblock.cpp.",
+ "size": {
+  "additions": 234,
+  "deletions": 98,
+  "files": 11,
+  "test_lines": 51
+ },
+ "summary": "Optimizes primitive serialization and serialized size calculation across Bitcoin Core's stream, crypto, and serialization primitives. It adds single-byte write and read overloads using fixed-extent spans (std::span<..., 1>) across AutoFile, DataStream, VectorWriter, and SHA-256 contexts to bypass general buffer allocations and memcpy calls. In addition, it consolidates primitive integer serialization using C++20 concepts and if constexpr, allowing SizeComputer to advance byte offsets directly without performing endianness conversions.",
+ "uncertainties": []
+}

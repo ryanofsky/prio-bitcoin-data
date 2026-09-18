@@ -1,0 +1,31 @@
+{
+ "assessed_at": "2026-09-18T03:59:45+00:00",
+ "card": "Ensures descriptor key expansion starts at range_start rather than index 0 during wallet top-ups. Currently, importing a descriptor with a range [N, M] derives and tracks all keys from 0 to M, causing O(M) import times, potential hangs or massive memory use for high range starts, and state divergence where scriptPubKeys below N are temporarily treated as owned until the wallet is reopened. The author notes that importing a 10-key range starting at index 600,000 drops from 19.5 seconds to 0.09 seconds.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description benchmarks: 'Importing wpkh(xpub/0/*) with \"range\": [600000, 600009] into a blank watch-only wallet goes from 19.5s to 0.09s on this machine.'",
+  "PR description explains behavioral inconsistency: 'Load() only expands [range_start, range_end), so those scriptPubKeys stop being IsMine the next time the wallet is opened, and a transaction picked up for one of them during the import rescan is no longer credited to the wallet.'"
+ ],
+ "head_sha": "4d2dc3c327fe5293e481b2a80805adfeb16ba642",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36245,
+ "patch_id": "cb995e51d9c31eb0",
+ "problem": "When importing a descriptor with a range [N, M], TopUpWithDB begins deriving keys from index 0 up to M instead of N to M. This causes import costs to scale with M instead of the range length M - N, falsely marks scriptPubKeys below N as IsMine during import, drops those scriptPubKeys upon reopening the wallet (causing rescanned transactions below N to lose IsMine status), and causes active descriptors to re-expand their range on reload due to an inconsistent cached index counter.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 43,
+  "deletions": 3,
+  "files": 2,
+  "test_lines": 37
+ },
+ "summary": "Start descriptor key expansion in TopUpWithDB at the descriptor's range_start rather than index 0, and record the actual cached index instead of incrementing from -1. This ensures newly imported descriptors with non-zero range starts do not derive or track keys outside their specified range.",
+ "uncertainties": []
+}

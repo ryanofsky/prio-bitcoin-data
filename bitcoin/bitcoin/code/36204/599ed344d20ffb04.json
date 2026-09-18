@@ -1,0 +1,32 @@
+{
+ "assessed_at": "2026-09-18T03:58:37+00:00",
+ "card": "Adds a completion deadline timer to the HTTP server to disconnect clients that do not finish sending a complete request within the timeout window. Currently, -rpcservertimeout only tracks idle time between reads, so a slowloris-style client trickling bytes can hold a connection slot indefinitely; occupying all connection slots (default 16) blocks legitimate RPC clients before authentication is checked. The author notes that because the RPC port binds to localhost by default, this serves primarily as a local robustness fix against connection exhaustion.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description explains the vulnerability: \"The -rpcservertimeout timer only measures inactivity. Every read from a client resets it, so a client that keeps sending bytes without ever completing a request can hold the connection for ever. Connection slots are capped by default 16 or by -rpcmaxconnections. Once those slots are taken, the server stops accepting new connections.\"",
+  "A new functional test (check_trickled_request_timeout in test/functional/interface_http.py) demonstrates that with -rpcmaxconnections=1, trickling a request byte-by-byte blocks subsequent RPC calls until the new request deadline closes the stalled socket.",
+  "Author notes the scope and impact: \"The impact is low because RPC port binds to localhost by default, so this is a robustness fix rather than a remotely exploitable security issue.\""
+ ],
+ "head_sha": "99e880356bac7ab6b0ed9f3fb1ff5cfdab4a4266",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36204,
+ "patch_id": "599ed344d20ffb04",
+ "problem": "The existing -rpcservertimeout only measures inactivity, resetting every time bytes are read from a socket. A client trickling bytes without ever sending a complete HTTP request can hold a connection slot indefinitely without triggering authentication. A small number of such connections can exhaust all available slots (default 16, or -rpcmaxconnections), preventing legitimate RPC clients from connecting.",
+ "repo": "bitcoin/bitcoin",
+ "run": "run:20260918-0349-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 250,
+  "deletions": 12,
+  "files": 4,
+  "test_lines": 193
+ },
+ "summary": "Adds a completion deadline to the internal HTTP server to disconnect clients that take too long to finish sending a request. The deadline timer starts on the first byte of a request, expires after the duration set by -rpcservertimeout, and is not reset by subsequent reads. The deadline is cleared once request parsing completes, deferred while worker threads process a request, restarted while response bytes are sent, and disabled when -rpcservertimeout is zero.",
+ "uncertainties": []
+}

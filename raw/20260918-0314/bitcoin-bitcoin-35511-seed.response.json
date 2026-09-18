@@ -1,0 +1,162 @@
+{
+ "run": "run:20260918-0314",
+ "pr": "bitcoin/bitcoin#35511",
+ "stage": "seed",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 1,
+ "created": "2026-09-18T03:33:00+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13034,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9988
+ },
+ "cost_usd": 0.0472305,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"sedited\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK\"\n    },\n    {\n      \"login\": \"l0rinc\",\n      \"stance\": \"objection\",\n      \"note\": \"requested changes over the monolithic PR size and raised concerns on serialization encapsulation and value semantics\"\n    },\n    {\n      \"login\": \"janb84\",\n      \"stance\": \"objection\",\n      \"note\": \"found and provided a regression test for an IPC Cap'n Proto serialization bug where CAmount fields were lost\"\n    },\n    {\n      \"login\": \"ryanofsky\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK; suggested using std::quantity multiplication syntax and exploring splitting up the commits\"\n    },\n    {\n      \"login\": \"maflcko\",\n      \"stance\": \"neutral\",\n      \"note\": \"asked about MAX_MONEY bounds and suggested how commits could be split or formatted as scripted diffs\"\n    },\n    {\n      \"login\": \"Sjors\",\n      \"stance\": \"neutral\",\n      \"note\": \"suggested introducing the literal via a scripted diff or standalone PR\"\n    },\n    {\n      \"login\": \"optout21\",\n      \"stance\": \"objection\",\n      \"note\": \"supported the class concept but objected to literal-only construction and disallowing integer comparisons\"\n    },\n    {\n      \"login\": \"purpleKarrot\",\n      \"stance\": \"objection\",\n      \"note\": \"opposed user-defined literals in favor of multiplication syntax and outlined consensus invariant restrictions\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"rc:3396163565\",\n      \"kind\": \"correctness\",\n      \"harm\": \"IPC Cap'n Proto serialization only overwrote a local copy, failing to write CAmount values into the message and resulting in zeroed output.\",\n      \"quote\": \"Current code gets a local copy, overrides the local copy and local copy gets destroyed at the end of the function. Nothing is written back to the Cap'n Proto message.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:3398153775\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:3401837725\",\n      \"settled_by_quote\": \"yeah test was for proving the bug not the intention to add it so i'm glad you altered it somewhat !\"\n    },\n    {\n      \"id\": \"c:4740188131\",\n      \"kind\": \"approach\",\n      \"harm\": \"Restricting construction to literals and forbidding direct integer comparison causes friction and hinders migration across the codebase.\",\n      \"quote\": \"However, to be constructible only from `_sats` literals, and to be comparable only against other `CAmount` seems a bit of an overkill to me, and it hinders introduction (large change).\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:4741612688\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:4741612688\",\n      \"settled_by_quote\": \"I briefly experimented with having an operator int64_t() method and allowing comparisons against integers. What I ran into a lot was that the compiler couldn't resolve the resulting ambiguities.\"\n    },\n    {\n      \"id\": \"c:4765530904\",\n      \"kind\": \"interface\",\n      \"harm\": \"User-defined literals for amount units have known pitfalls and deviate from emerging C++ quantity standards that prefer unit multiplication syntax.\",\n      \"quote\": \"Which is absolutely true and convinces me to vote against a `_sat` UDL.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:4809818861\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:5407105124\",\n      \"settled_by_quote\": \"Latest push removes the `_sats` UDL. Instead the commits get by on `CAmount{<literal>}` until the end, when a `sats` unit is defined and applied as `<literal>*sats`.\"\n    },\n    {\n      \"id\": \"rc:3494097004\",\n      \"kind\": \"interface\",\n      \"harm\": \"Placing CAmount serialization outside the class in serialize.h breaks type encapsulation.\",\n      \"quote\": \"Could we rather encapsulate the serialization inside the new type?\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:3505561954\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:3505561954\",\n      \"settled_by_quote\": \"Agreed, thanks for pushing back on this. (Edit: Fixed in later push).\"\n    },\n    {\n      \"id\": \"r:4475868693\",\n      \"kind\": \"scope\",\n      \"harm\": \"Transitioning the entire codebase to the new CAmount class in a single monolithic PR is too risky and onerous to review compared to an incremental rollout.\",\n      \"quote\": \"As mentioned by others, I am also not comfortable with taking such a large change in one step. I would prefer introducing a new amount type first, with a few focused examples, and then converting call sites gradually.\",\n      \"blocking\": true,\n      \"status\": \"open\",\n      \"author_replies\": [\n        \"r:4599764409\"\n      ],\n      \"fix_pushed\": false,\n      \"settled_by_id\": \"\",\n      \"settled_by_quote\": \"\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:4679584491\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"\",\n      \"substantive\": false\n    },\n    {\n      \"id\": \"c:4712614640\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"New CAmount implementation seems simple and clean and adds safety benefits.\",\n      \"substantive\": true\n    }\n  ],\n  \"notes\": \"Initial record for the PR. l0rinc filed a Changes Requested review objecting to replacing CAmount everywhere in one massive PR rather than introducing the class incrementally; this remains open. Objections regarding IPC serialization, type encapsulation in serialize.h, and the proposed _sats literal were resolved.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "sedited",
+    "stance": "support",
+    "note": "Concept ACK"
+   },
+   {
+    "login": "l0rinc",
+    "stance": "objection",
+    "note": "requested changes over the monolithic PR size and raised concerns on serialization encapsulation and value semantics"
+   },
+   {
+    "login": "janb84",
+    "stance": "objection",
+    "note": "found and provided a regression test for an IPC Cap'n Proto serialization bug where CAmount fields were lost"
+   },
+   {
+    "login": "ryanofsky",
+    "stance": "support",
+    "note": "Concept ACK; suggested using std::quantity multiplication syntax and exploring splitting up the commits"
+   },
+   {
+    "login": "maflcko",
+    "stance": "neutral",
+    "note": "asked about MAX_MONEY bounds and suggested how commits could be split or formatted as scripted diffs"
+   },
+   {
+    "login": "Sjors",
+    "stance": "neutral",
+    "note": "suggested introducing the literal via a scripted diff or standalone PR"
+   },
+   {
+    "login": "optout21",
+    "stance": "objection",
+    "note": "supported the class concept but objected to literal-only construction and disallowing integer comparisons"
+   },
+   {
+    "login": "purpleKarrot",
+    "stance": "objection",
+    "note": "opposed user-defined literals in favor of multiplication syntax and outlined consensus invariant restrictions"
+   }
+  ],
+  "claims": [
+   {
+    "id": "rc:3396163565",
+    "kind": "correctness",
+    "harm": "IPC Cap'n Proto serialization only overwrote a local copy, failing to write CAmount values into the message and resulting in zeroed output.",
+    "quote": "Current code gets a local copy, overrides the local copy and local copy gets destroyed at the end of the function. Nothing is written back to the Cap'n Proto message.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:3398153775"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:3401837725",
+    "settled_by_quote": "yeah test was for proving the bug not the intention to add it so i'm glad you altered it somewhat !"
+   },
+   {
+    "id": "c:4740188131",
+    "kind": "approach",
+    "harm": "Restricting construction to literals and forbidding direct integer comparison causes friction and hinders migration across the codebase.",
+    "quote": "However, to be constructible only from `_sats` literals, and to be comparable only against other `CAmount` seems a bit of an overkill to me, and it hinders introduction (large change).",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "c:4741612688"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:4741612688",
+    "settled_by_quote": "I briefly experimented with having an operator int64_t() method and allowing comparisons against integers. What I ran into a lot was that the compiler couldn't resolve the resulting ambiguities."
+   },
+   {
+    "id": "c:4765530904",
+    "kind": "interface",
+    "harm": "User-defined literals for amount units have known pitfalls and deviate from emerging C++ quantity standards that prefer unit multiplication syntax.",
+    "quote": "Which is absolutely true and convinces me to vote against a `_sat` UDL.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "c:4809818861"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:5407105124",
+    "settled_by_quote": "Latest push removes the `_sats` UDL. Instead the commits get by on `CAmount{<literal>}` until the end, when a `sats` unit is defined and applied as `<literal>*sats`."
+   },
+   {
+    "id": "rc:3494097004",
+    "kind": "interface",
+    "harm": "Placing CAmount serialization outside the class in serialize.h breaks type encapsulation.",
+    "quote": "Could we rather encapsulate the serialization inside the new type?",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:3505561954"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:3505561954",
+    "settled_by_quote": "Agreed, thanks for pushing back on this. (Edit: Fixed in later push)."
+   },
+   {
+    "id": "r:4475868693",
+    "kind": "scope",
+    "harm": "Transitioning the entire codebase to the new CAmount class in a single monolithic PR is too risky and onerous to review compared to an incremental rollout.",
+    "quote": "As mentioned by others, I am also not comfortable with taking such a large change in one step. I would prefer introducing a new amount type first, with a few focused examples, and then converting call sites gradually.",
+    "blocking": true,
+    "status": "open",
+    "author_replies": [
+     "r:4599764409"
+    ],
+    "fix_pushed": false,
+    "settled_by_id": "",
+    "settled_by_quote": ""
+   }
+  ],
+  "support": [
+   {
+    "id": "c:4679584491",
+    "verdict": "Concept ACK",
+    "reason": "",
+    "substantive": false
+   },
+   {
+    "id": "c:4712614640",
+    "verdict": "Concept ACK",
+    "reason": "New CAmount implementation seems simple and clean and adds safety benefits.",
+    "substantive": true
+   }
+  ],
+  "notes": "Initial record for the PR. l0rinc filed a Changes Requested review objecting to replacing CAmount everywhere in one massive PR rather than introducing the class incrementally; this remains open. Objections regarding IPC serialization, type encapsulation in serialize.h, and the proposed _sats literal were resolved."
+ },
+ "applied": {
+  "changes": [
+   "claim rc:3396163565 added (resolved) by janb84",
+   "claim c:4740188131 added (resolved) by optout21",
+   "claim c:4765530904 added (resolved) by purpleKarrot",
+   "claim rc:3494097004 added (resolved) by l0rinc",
+   "claim r:4475868693 added (open, blocking) by l0rinc",
+   "support c:4679584491 added by sedited",
+   "support c:4712614640 added by ryanofsky"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

@@ -1,0 +1,109 @@
+{
+ "run": "run:20260918-0314",
+ "pr": "bitcoin/bitcoin#35354",
+ "stage": "seed",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 1,
+ "created": "2026-09-18T03:31:03+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10085,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5622
+ },
+ "cost_usd": 0.02864625,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"sedited\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to handling the race condition in BaseIndex and suggested moving logic to net_processing\"\n    },\n    {\n      \"login\": \"ajtowns\",\n      \"stance\": \"objection\",\n      \"note\": \"argued that getcfheaders/getcfcheckpt must be handled as well and suggested pausing the peer instead of queueing out-of-order\"\n    },\n    {\n      \"login\": \"mzumsande\",\n      \"stance\": \"objection\",\n      \"note\": \"supported addressing the race in net_processing but objected to modifying index internals when GetSummary suffices\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:4763387253\",\n      \"kind\": \"approach\",\n      \"harm\": \"Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers\",\n      \"quote\": \"Reading through this, I don't think this should be handled on the index level.\",\n      \"blocking\": true,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:5106448059\",\n        \"c:5186487219\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:5186487219\",\n      \"settled_by_quote\": \"Added deferring of a response, we store the racing request in a PendingCFilterRequest struct in a Peer and then check it in SendMessages.\"\n    },\n    {\n      \"id\": \"rc:3759737064\",\n      \"kind\": \"interface\",\n      \"harm\": \"Touching index internals violates separation of concerns when GetSummary already exposes sufficient state\",\n      \"quote\": \"Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:3785273391\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:3785273391\",\n      \"settled_by_quote\": \"Removed IsRacing, now using GetSummary. No changes in GetSummary were required.\"\n    },\n    {\n      \"id\": \"c:5305915719\",\n      \"kind\": \"scope\",\n      \"harm\": \"Handling only getcfilters leaves getcfheaders and getcfcheckpt unhandled, which are responsible for most disconnects in practice\",\n      \"quote\": \"Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:5331744681\",\n        \"c:5427136075\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:5331744681\",\n      \"settled_by_quote\": \"Yes, all three cbf messages should be handled the same way.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:5127234440\",\n      \"verdict\": \"\",\n      \"reason\": \"Compact filter calculations are slow enough that races occur occasionally even for peers not on high-bandwidth compact block relay, so the issue is worth handling\",\n      \"substantive\": true\n    },\n    {\n      \"id\": \"c:5130725304\",\n      \"verdict\": \"\",\n      \"reason\": \"Agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects and avoid delaying getblocktxn responses\",\n      \"substantive\": true\n    }\n  ],\n  \"notes\": \"All initial objections regarding index coupling and scope have been resolved. The author adopted ajtowns's peer-pausing approach across all three BIP 157 message types and benchmarked the overhead.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "sedited",
+    "stance": "objection",
+    "note": "objected to handling the race condition in BaseIndex and suggested moving logic to net_processing"
+   },
+   {
+    "login": "ajtowns",
+    "stance": "objection",
+    "note": "argued that getcfheaders/getcfcheckpt must be handled as well and suggested pausing the peer instead of queueing out-of-order"
+   },
+   {
+    "login": "mzumsande",
+    "stance": "objection",
+    "note": "supported addressing the race in net_processing but objected to modifying index internals when GetSummary suffices"
+   }
+  ],
+  "claims": [
+   {
+    "id": "c:4763387253",
+    "kind": "approach",
+    "harm": "Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers",
+    "quote": "Reading through this, I don't think this should be handled on the index level.",
+    "blocking": true,
+    "status": "resolved",
+    "author_replies": [
+     "c:5106448059",
+     "c:5186487219"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:5186487219",
+    "settled_by_quote": "Added deferring of a response, we store the racing request in a PendingCFilterRequest struct in a Peer and then check it in SendMessages."
+   },
+   {
+    "id": "rc:3759737064",
+    "kind": "interface",
+    "harm": "Touching index internals violates separation of concerns when GetSummary already exposes sufficient state",
+    "quote": "Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:3785273391"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:3785273391",
+    "settled_by_quote": "Removed IsRacing, now using GetSummary. No changes in GetSummary were required."
+   },
+   {
+    "id": "c:5305915719",
+    "kind": "scope",
+    "harm": "Handling only getcfilters leaves getcfheaders and getcfcheckpt unhandled, which are responsible for most disconnects in practice",
+    "quote": "Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "c:5331744681",
+     "c:5427136075"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:5331744681",
+    "settled_by_quote": "Yes, all three cbf messages should be handled the same way."
+   }
+  ],
+  "support": [
+   {
+    "id": "c:5127234440",
+    "verdict": "",
+    "reason": "Compact filter calculations are slow enough that races occur occasionally even for peers not on high-bandwidth compact block relay, so the issue is worth handling",
+    "substantive": true
+   },
+   {
+    "id": "c:5130725304",
+    "verdict": "",
+    "reason": "Agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects and avoid delaying getblocktxn responses",
+    "substantive": true
+   }
+  ],
+  "notes": "All initial objections regarding index coupling and scope have been resolved. The author adopted ajtowns's peer-pausing approach across all three BIP 157 message types and benchmarked the overhead."
+ },
+ "applied": {
+  "changes": [
+   "claim c:4763387253 added (resolved, blocking) by sedited",
+   "claim rc:3759737064 added (resolved) by mzumsande",
+   "claim c:5305915719 added (resolved) by ajtowns",
+   "support c:5127234440 added by ajtowns",
+   "support c:5130725304 added by mzumsande"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

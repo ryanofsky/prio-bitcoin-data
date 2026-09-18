@@ -1,0 +1,174 @@
+{
+ "run": "run:20260918-0314",
+ "pr": "bitcoin/bitcoin#34374",
+ "stage": "seed",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 1,
+ "created": "2026-09-18T04:13:46+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15183,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6061
+ },
+ "cost_usd": 0.034116,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"ryanofsky\",\n      \"stance\": \"support\",\n      \"note\": \"Concept and approach ACK; provided rebase branches, suggested separating move-only commits and removing indirection overhead\"\n    },\n    {\n      \"login\": \"ajtowns\",\n      \"stance\": \"objection\",\n      \"note\": \"Raised concerns regarding std::function overhead, global initialization order regressions, and conditional evaluation of LogInfo arguments\"\n    },\n    {\n      \"login\": \"purpleKarrot\",\n      \"stance\": \"objection\",\n      \"note\": \"Objected to singleton pattern usage in the logger and questioned the multi-connection logging interface\"\n    },\n    {\n      \"login\": \"w0xlt\",\n      \"stance\": \"objection\",\n      \"note\": \"Found potential resource leaks and a mutex deadlock risk if bad_alloc occurs during callback registration\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"rc:2720705368\",\n      \"kind\": \"approach\",\n      \"harm\": \"LogInfo called during global initialization prior to InitLogger() could fail or misbehave with a shared dispatcher\",\n      \"quote\": \"This seems like a regression. With this approach you can't assume LogInfo called during global initialization won't be called prior to InitLogger()\",\n      \"blocking\": true,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:2721990582\",\n        \"rc:2729164905\",\n        \"c:3801642121\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:2729164905\",\n      \"settled_by_quote\": \"I've changed the approach to your suggestion, so marking this as resolved.\"\n    },\n    {\n      \"id\": \"rc:2720709919\",\n      \"kind\": \"approach\",\n      \"harm\": \"Unnecessary performance overhead in log-checking paths caused by std::function indirection\",\n      \"quote\": \"Jumping through a std::function when we could just be checking an atomic bitfield doesn't seem like a good approach.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:2721327278\",\n        \"rc:2736442108\",\n        \"rc:3981133644\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:3981133644\",\n      \"settled_by_quote\": \"The indirection is gone, and this PR now doesn't touch util/node logging (including logging statement evaluation) at all\"\n    },\n    {\n      \"id\": \"rc:2734793117\",\n      \"kind\": \"correctness\",\n      \"harm\": \"Breaks code that relies on side-effects inside logging arguments if LogInfo argument evaluation is made conditional\",\n      \"quote\": \"I think your latest implementation (a4e8f3c8d6763a95c1804fc40781b379e6127b66) is dangerously wrong, btw -- LogInfo() etc currently always evaluate their arguments\",\n      \"blocking\": true,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:2736442108\",\n        \"rc:2737382315\",\n        \"c:3812232408\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:2749146860\",\n      \"settled_by_quote\": \"The easiest way to ensure any potential/accidental side-effects don't make the behaviour brittle is to always evaluate the logging statements, which is what our code currently does\"\n    },\n    {\n      \"id\": \"c:3803203999\",\n      \"kind\": \"interface\",\n      \"harm\": \"Unnecessary complexity from supporting multi-connection callbacks and userdata when the logger is internally global\",\n      \"quote\": \"I doubt that there is an actual use case for multiple logging connections. The logger is global internally and can be handled as global by clients as well\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"c:3804631039\"\n      ],\n      \"fix_pushed\": false,\n      \"settled_by_id\": \"c:3804631039\",\n      \"settled_by_quote\": \"I think this concern is orthogonal to the changes proposed in this PR, so I think that conversation might be better had e.g. in #30342 ?\"\n    },\n    {\n      \"id\": \"rc:2730355874\",\n      \"kind\": \"approach\",\n      \"harm\": \"Using singletons introduces viral coupling across kernel components\",\n      \"quote\": \"Now everybody should understand why singletons are *viral* and therefore should be forbidden. I have zero tolerance for such code.\",\n      \"blocking\": true,\n      \"status\": \"open\",\n      \"author_replies\": [\n        \"rc:2731541954\"\n      ],\n      \"fix_pushed\": false,\n      \"settled_by_id\": \"\",\n      \"settled_by_quote\": \"\"\n    },\n    {\n      \"id\": \"rc:3984322784\",\n      \"kind\": \"correctness\",\n      \"harm\": \"Memory leak of user_data and connection allocation if std::bad_alloc is thrown during callback registration\",\n      \"quote\": \"RegisterCallback() and LogDebug() can also throw std::bad_alloc. btck_LoggingConnection can be a smart pointer.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:3988186475\",\n        \"rc:4006655804\",\n        \"c:5679317242\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"rc:4006655804\",\n      \"settled_by_quote\": \"Fixed by wrapping user data in a RAII UserData wrapper, and the callback in a RAII CallbackHandle wrapper.\"\n    },\n    {\n      \"id\": \"rc:4030551866\",\n      \"kind\": \"correctness\",\n      \"harm\": \"Deadlock if std::bad_alloc during list insertion destroys temporary callback while holding the logger mutex and user_data destruction interacts with the logger\",\n      \"quote\": \"If that callback destroys another logging connection, it tries to acquire the same mutex and deadlocks, preventing btck_logging_connection_create from returning nullptr.\",\n      \"blocking\": false,\n      \"status\": \"resolved\",\n      \"author_replies\": [\n        \"rc:4034240501\",\n        \"c:5712024212\"\n      ],\n      \"fix_pushed\": true,\n      \"settled_by_id\": \"c:5712024212\",\n      \"settled_by_quote\": \"Force-pushed to address a (hard to reach) deadlock issue flagged by @w0xlt\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:3813719678\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Major concept and approach ACK. This seems thoughtfully implemented to be minimally disruptive to existing code while rationalizing the kernel logging API\",\n      \"substantive\": true\n    }\n  ],\n  \"notes\": \"Objections from ajtowns (std::function overhead, side effects, init ordering) and w0xlt (bad_alloc leaks and callback mutex deadlock) were resolved with pushed fixes. purpleKarrot's objection against singletons remains open as the author asked for alternatives without follow-up.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "ryanofsky",
+    "stance": "support",
+    "note": "Concept and approach ACK; provided rebase branches, suggested separating move-only commits and removing indirection overhead"
+   },
+   {
+    "login": "ajtowns",
+    "stance": "objection",
+    "note": "Raised concerns regarding std::function overhead, global initialization order regressions, and conditional evaluation of LogInfo arguments"
+   },
+   {
+    "login": "purpleKarrot",
+    "stance": "objection",
+    "note": "Objected to singleton pattern usage in the logger and questioned the multi-connection logging interface"
+   },
+   {
+    "login": "w0xlt",
+    "stance": "objection",
+    "note": "Found potential resource leaks and a mutex deadlock risk if bad_alloc occurs during callback registration"
+   }
+  ],
+  "claims": [
+   {
+    "id": "rc:2720705368",
+    "kind": "approach",
+    "harm": "LogInfo called during global initialization prior to InitLogger() could fail or misbehave with a shared dispatcher",
+    "quote": "This seems like a regression. With this approach you can't assume LogInfo called during global initialization won't be called prior to InitLogger()",
+    "blocking": true,
+    "status": "resolved",
+    "author_replies": [
+     "rc:2721990582",
+     "rc:2729164905",
+     "c:3801642121"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:2729164905",
+    "settled_by_quote": "I've changed the approach to your suggestion, so marking this as resolved."
+   },
+   {
+    "id": "rc:2720709919",
+    "kind": "approach",
+    "harm": "Unnecessary performance overhead in log-checking paths caused by std::function indirection",
+    "quote": "Jumping through a std::function when we could just be checking an atomic bitfield doesn't seem like a good approach.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:2721327278",
+     "rc:2736442108",
+     "rc:3981133644"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:3981133644",
+    "settled_by_quote": "The indirection is gone, and this PR now doesn't touch util/node logging (including logging statement evaluation) at all"
+   },
+   {
+    "id": "rc:2734793117",
+    "kind": "correctness",
+    "harm": "Breaks code that relies on side-effects inside logging arguments if LogInfo argument evaluation is made conditional",
+    "quote": "I think your latest implementation (a4e8f3c8d6763a95c1804fc40781b379e6127b66) is dangerously wrong, btw -- LogInfo() etc currently always evaluate their arguments",
+    "blocking": true,
+    "status": "resolved",
+    "author_replies": [
+     "rc:2736442108",
+     "rc:2737382315",
+     "c:3812232408"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:2749146860",
+    "settled_by_quote": "The easiest way to ensure any potential/accidental side-effects don't make the behaviour brittle is to always evaluate the logging statements, which is what our code currently does"
+   },
+   {
+    "id": "c:3803203999",
+    "kind": "interface",
+    "harm": "Unnecessary complexity from supporting multi-connection callbacks and userdata when the logger is internally global",
+    "quote": "I doubt that there is an actual use case for multiple logging connections. The logger is global internally and can be handled as global by clients as well",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "c:3804631039"
+    ],
+    "fix_pushed": false,
+    "settled_by_id": "c:3804631039",
+    "settled_by_quote": "I think this concern is orthogonal to the changes proposed in this PR, so I think that conversation might be better had e.g. in #30342 ?"
+   },
+   {
+    "id": "rc:2730355874",
+    "kind": "approach",
+    "harm": "Using singletons introduces viral coupling across kernel components",
+    "quote": "Now everybody should understand why singletons are *viral* and therefore should be forbidden. I have zero tolerance for such code.",
+    "blocking": true,
+    "status": "open",
+    "author_replies": [
+     "rc:2731541954"
+    ],
+    "fix_pushed": false,
+    "settled_by_id": "",
+    "settled_by_quote": ""
+   },
+   {
+    "id": "rc:3984322784",
+    "kind": "correctness",
+    "harm": "Memory leak of user_data and connection allocation if std::bad_alloc is thrown during callback registration",
+    "quote": "RegisterCallback() and LogDebug() can also throw std::bad_alloc. btck_LoggingConnection can be a smart pointer.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:3988186475",
+     "rc:4006655804",
+     "c:5679317242"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "rc:4006655804",
+    "settled_by_quote": "Fixed by wrapping user data in a RAII UserData wrapper, and the callback in a RAII CallbackHandle wrapper."
+   },
+   {
+    "id": "rc:4030551866",
+    "kind": "correctness",
+    "harm": "Deadlock if std::bad_alloc during list insertion destroys temporary callback while holding the logger mutex and user_data destruction interacts with the logger",
+    "quote": "If that callback destroys another logging connection, it tries to acquire the same mutex and deadlocks, preventing btck_logging_connection_create from returning nullptr.",
+    "blocking": false,
+    "status": "resolved",
+    "author_replies": [
+     "rc:4034240501",
+     "c:5712024212"
+    ],
+    "fix_pushed": true,
+    "settled_by_id": "c:5712024212",
+    "settled_by_quote": "Force-pushed to address a (hard to reach) deadlock issue flagged by @w0xlt"
+   }
+  ],
+  "support": [
+   {
+    "id": "c:3813719678",
+    "verdict": "Concept ACK",
+    "reason": "Major concept and approach ACK. This seems thoughtfully implemented to be minimally disruptive to existing code while rationalizing the kernel logging API",
+    "substantive": true
+   }
+  ],
+  "notes": "Objections from ajtowns (std::function overhead, side effects, init ordering) and w0xlt (bad_alloc leaks and callback mutex deadlock) were resolved with pushed fixes. purpleKarrot's objection against singletons remains open as the author asked for alternatives without follow-up."
+ },
+ "applied": {
+  "changes": [
+   "claim rc:2720705368 added (resolved, blocking) by ajtowns",
+   "claim rc:2720709919 added (resolved) by ajtowns",
+   "claim rc:2734793117 added (resolved, blocking) by ajtowns",
+   "claim c:3803203999 added (resolved) by purpleKarrot",
+   "claim rc:2730355874 added (open, blocking) by purpleKarrot",
+   "claim rc:3984322784 added (resolved) by w0xlt",
+   "claim rc:4030551866 added (resolved) by w0xlt",
+   "support c:3813719678 added by ryanofsky"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

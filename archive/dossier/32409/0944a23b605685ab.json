@@ -1,0 +1,109 @@
+{
+ "number": 32409,
+ "input_hash": "0944a23b605685ab",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6721,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3248
+ },
+ "cost_usd": 0.024367299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Suppress the Windows debug-runtime abort message box so failing asserts in test/fuzz binaries don't hang CI with a popup"
+   ],
+   "reviewability": [
+    "Paused: fanquake asked in August 2026 whether this is obsoleted by the merged UCRT switch (#33593), no author reply since"
+   ],
+   "agreement": [
+    "Disputed: fanquake gave a concept NACK saying the code is undocumented and unused in-tree, hodlinator gave a conditional concept ACK (hodlinator, fanquake)",
+    "Author has responded repeatedly but the core objection that nothing in-tree actually sets the env var remains open"
+   ],
+   "categories": []
+  },
+  "summary": "Adds an MSVC-specific hook in setup_common.cpp that, when the SUPPRESS_ABORT_MESSAGE environment variable is set, calls _set_abort_behavior(0, _WRITE_ABORT_MSG) to prevent a debug-runtime abort() from popping up a blocking message box. The intent is to stop failing asserts in Windows MSVC-built test/fuzz binaries from causing CI timeouts. The 17-line change only takes effect when the env var is externally set, which is not currently done anywhere in the in-tree CI configuration.",
+  "problem": "On Windows, MSVC debug-runtime builds show a blocking message box when abort() fires (e.g. from a failing assert), which stalls unattended CI runs until a human dismisses it. This affects contributors and CI maintainers running MSVC debug test/fuzz binaries, but only in out-of-tree nightly CI so far; in-tree CI does not build with the debug runtime.",
+  "discussion": {
+   "open_concerns": [
+    "fanquake: the code is unused in-tree (no CI here sets SUPPRESS_ABORT_MESSAGE) and undocumented, questioning why it should be merged at all \u2014 unresolved, last raised 2026-08-19 with no author reply since",
+    "fanquake: whether this is obsoleted by #33593's move to the UCRT runtime for Windows release binaries \u2014 unanswered",
+    "sedited/hodlinator: suggested simplifying to a plain _MSC_VER/_DEBUG guard instead of an extra env var, since nothing in-tree consumes it \u2014 not implemented"
+   ],
+   "resolved_concerns": [
+    "maflcko's initial concern about inconsistent behavior across MSVC vs mingw-w64/other binaries was clarified as MSVC-specific behavior, and the analogous bitcoind.cpp assert-handling precedent was pointed out by the author",
+    "commit message wording (\"On Windows\" vs MSVC-specific) was addressed via a follow-up push and PR description update"
+   ],
+   "author_status": "silent since 2026-04-29 (140 days), leaving fanquake's 2026-08-19 question about #33593 unanswered"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "fanquake asked on 2026-08-19 whether this PR is obsoleted by the merged #33593 (UCRT runtime switch) and whether the env var is actually used anywhere; the author has not replied since 2026-04-29, well past the 7-day threshold for a material open question."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "fanquake gave an explicit concept NACK because the code is unused in-tree and undocumented; hodlinator gave a conditional concept ACK contingent on MSVCRT still being used in CI; the core objection remains unresolved.",
+   "reason": "fanquake's objection is a concrete harm claim (dead/undocumented code with no in-tree consumer) that the author has not fully rebutted; hodlinator's support is conditional and could flip given the #33593 UCRT change.",
+   "evidence": [
+    "fanquake (2026-02-18): 'What is the status of this? (NACK) given this is still undocumented and unused in this repository.'",
+    "hodlinator (2026-02-18): 'Concept ACK as long as we run binaries built with the proprietary Microsoft runtime on CI... I might be less positive if UCRT turns out to not exhibit this behavior.'",
+    "sedited (2026-03-25): 'I'm also not sure about adding this without anything actually using it.'",
+    "fanquake (2026-08-19): asks if this is obsoleted by #33593, unanswered since."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "nothing currently blocked; would only matter if a future out-of-tree or in-tree CI job sets SUPPRESS_ABORT_MESSAGE for MSVC debug-runtime test/fuzz binaries"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Labeled Windows; the change targets CI reliability for MSVC debug-runtime test/fuzz binaries in Windows CI jobs.",
+    "band": "P4",
+    "reason_tag": "CI reliability",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because the fix addresses a real but narrow CI annoyance (debug-runtime abort message boxes stalling unattended runs, as shown in the linked hebasto/bitcoin-core-nightly CI logs) but the mechanism is not wired into any in-tree CI job, so it currently has zero effect on the project's actual CI reliability; fanquake notes 'this isn't being used anywhere in our CI'."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies src/test/util/setup_common.cpp, the shared test/fuzz setup used across the test framework.",
+    "band": "P4",
+    "reason_tag": "unused hook",
+    "score": 0.12,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because it is a narrow, currently-inert addition to shared test setup code that only helps a hypothetical MSVC debug-runtime CI configuration, and reviewers including fanquake and sedited question whether it should be added before any consumer exists in-tree."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether #33593 (merged UCRT runtime switch for Windows release binaries) makes this PR's MSVC-specific behavior moot was raised by fanquake but never answered, which materially affects the PR's residual value.",
+   "Unclear whether any out-of-tree nightly CI actually consumes SUPPRESS_ABORT_MESSAGE today or only plans to."
+  ],
+  "card": "This PR adds an MSVC-specific hook in setup_common.cpp that suppresses the Windows debug-runtime's blocking abort() message box when the SUPPRESS_ABORT_MESSAGE environment variable is set, aiming to stop failing asserts in MSVC debug test/fuzz binaries from stalling CI. The problem is real for out-of-tree nightly MSVC CI (author shows before/after CI logs), but no in-tree CI job currently sets the variable, so fanquake gave a concept NACK calling the code 'undocumented and unused in this repository,' while hodlinator gave a conditional concept ACK. The author has been silent since 2026-04-29, leaving fanquake's 2026-08-19 question about whether the recently merged #33593 (UCRT runtime switch) obsoletes this PR unanswered. Review is currently paused pending that reply, and the change is marginal in both build and tests categories given its lack of an in-tree consumer."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

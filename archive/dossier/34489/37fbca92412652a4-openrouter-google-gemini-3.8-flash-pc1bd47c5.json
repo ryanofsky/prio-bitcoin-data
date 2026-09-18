@@ -1,0 +1,401 @@
+{
+ "number": 34489,
+ "input_hash": "37fbca92412652a4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:27:13+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 69952,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8607
+ },
+ "cost_usd": 0.08474024999999999,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Batch database writes during index initial sync to reduce disk I/O and cs_main contention",
+    "Improve node responsiveness during sync and lay the groundwork for parallelized index sync"
+   ],
+   "reviewability": [
+    "Merge conflict with current master needs rebase",
+    "Author and contributor are actively coordinating the rebase"
+   ],
+   "agreement": [
+    "Concept supported for reducing lock contention, write amplification, and LevelDB files (arejula27, optout21, polespinasa)",
+    "Unresolved blocking objection: shutdown during a batch can persist inconsistent in-memory state and corrupt index on restart (l0rinc)"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it speeds up initial sync for I/O-constrained nodes and reduces cs_main lock contention during sync",
+      "Fixes LevelDB file proliferation in coinstatsindex and unblocks parallel index sync in #26966"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Unranked because the PR modifies only optional index infrastructure rather than consensus or validation logic"
+     ]
+    }
+   ]
+  },
+  "summary": "Batches LevelDB writes across configurable block ranges during index initial sync rather than committing block by block. Modifies NextSyncBlock to return ranges of blocks, decoupling block traversal from cs_main lock acquisition. Adds unit tests covering interrupted sync and reorg handling with batched writes.",
+  "problem": "During initial sync, indexes flush writes to disk after every block and hold cs_main frequently, causing heavy I/O overhead on mechanical disks and lock contention that impairs node responsiveness.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc requested changes noting that batching lets in-memory state advance ahead of persisted data, causing Commit() during an interrupt to write advanced state (e.g. m_muhash in coinstatsindex) with a stale locator and corrupt the index on restart",
+    "l0rinc noted blockfilterindex writes flat files too eagerly relative to LevelDB batching",
+    "Merge conflicts and semantic collisions with recently merged index changes (#34897, #35531, #35847)"
+   ],
+   "resolved_concerns": [
+    "arejula27 caught an issue where early exit in ProcessBlocks bypassed interrupt handling; furszy added an explicit check and unit test coverage",
+    "sipa and furszy clarified that iterator reordering in an early commit does not alter execution behavior"
+   ],
+   "author_status": "Active; furszy acknowledged the race condition on 2026-08-23 and is coordinating the rebase with arejula27."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts against master and requires adaptation to recent index refactors (#34897, #35531, #35847)."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "fjahr",
+     "stance": "question",
+     "note": "asked about batch size optimization, benchmarks, and encapsulation of ProcessBlock"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "objection",
+     "note": "requested changes over crash/interrupt consistency between in-memory state and the chain locator"
+    },
+    {
+     "login": "hebasto",
+     "stance": "neutral",
+     "note": "pointed out an include issue for IWYU"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "inquired about CI run times and noted test flakiness"
+    },
+    {
+     "login": "Jhackman2019",
+     "stance": "support",
+     "note": "verified clean build and passing tests on ARM64"
+    },
+    {
+     "login": "bvbfan",
+     "stance": "neutral",
+     "note": "pointed out a nonexistent function reference"
+    },
+    {
+     "login": "optout21",
+     "stance": "support",
+     "note": "reviewed code, asked clarifying questions, and gave crACK"
+    },
+    {
+     "login": "arejula27",
+     "stance": "support",
+     "note": "concept ACK, identified an interrupt edge case with reproduction, offered rebase help"
+    },
+    {
+     "login": "sedited",
+     "stance": "question",
+     "note": "asked questions regarding BlockBatch struct and memory pressure under batching"
+    },
+    {
+     "login": "sipa",
+     "stance": "neutral",
+     "note": "confirmed that the iterator swap commit introduces no behavior change"
+    },
+    {
+     "login": "polespinasa",
+     "stance": "support",
+     "note": "concept ACK with minor code review comments"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "l0rinc",
+     "kind": "correctness",
+     "harm": "In-memory index state advances ahead of disk writes, causing shutdown Commit() to persist advanced state with a stale locator and corrupt the index on restart",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-03-09: 'The most serious issue seems to me that Commit() during interrupt writes advanced m_muhash alongside a stale locator, which causes CoinStatsIndex::CustomInit to reject the index as corrupted on restart.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "arejula27",
+     "kind": "correctness",
+     "harm": "Early return in ProcessBlocks bypassed the interrupt handling path, skipping expected recovery",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-02-14: 'Returning false here causes the interrupt to be handled incorrectly... As a result, the expected recovery path is skipped.'",
+     "resolution_evidence": "2026-02-14: arejula27 confirmed 'Nice catch. Pushed an update that fixes it and adds test coverage... I think the test implemented for the scenario is enough.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "optout21",
+     "reason": "crACK after explanations on batching logic and lock contention reduction",
+     "substantive": true
+    },
+    {
+     "reviewer": "arejula27",
+     "reason": "Concept ACK citing massive upgrade potential when paired with parallelization in #26966",
+     "substantive": true
+    },
+    {
+     "reviewer": "polespinasa",
+     "reason": "Concept ACK during code review",
+     "substantive": false
+    }
+   ],
+   "state": "Blocked",
+   "summary": "Blocked: blocking objection open with no author reply (l0rinc)",
+   "reason": "Broad support exists for the concept and benchmarked gains, but l0rinc has an open blocking review regarding state corruption on shutdown which the author has acknowledged but not yet patched.",
+   "evidence": [
+    "l0rinc requested changes on 2026-03-09 regarding m_muhash and locator desync on interrupted sync",
+    "furszy noted on 2026-08-23 that 'there is just one missing check regarding the race condition that we should consider properly'",
+    "optout21 gave crACK on 2026-02-09",
+    "arejula27 gave concept ACK on 2026-02-12 and 2026-02-14"
+   ],
+   "model_state": "Disputed",
+   "derivation": "blocking objection open with no author reply (l0rinc)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Disputed",
+    "derived": "Blocked",
+    "objections": [
+     {
+      "reviewer": "arejula27",
+      "kind": "correctness",
+      "harm": "Early return when ProcessBlocks fails bypassed m_interrupt handling, skipping expected locator commit and recovery on restart",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-02-14: 'Returning false here causes the interrupt to be handled incorrectly... This early return prevents execution from reaching line 226, where the correct interrupt-handling logic resides.'",
+      "resolution_evidence": "2026-02-14: furszy pushed fix: 'Nice catch. Pushed an update that fixes it and adds test coverage.' and arejula27 accepted: 'Nice, if you agree, you can mark this thread as resolved then'"
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "In-memory state advances ahead of persisted data during batching, meaning Commit() on interrupt writes advanced m_muhash alongside a stale locator, causing CoinStatsIndex to reject the index as corrupted on restart",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-03-09: 'The most serious issue seems to me that Commit() during interrupt writes advanced m_muhash alongside a stale locator, which causes CoinStatsIndex::CustomInit to reject the index as corrupted on restart.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "safety",
+      "harm": "Unbounded while loop in ProcessBlocks could infinite loop or crash if start and end block pointers are reversed or on different forks",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-03-09: 'When can block be nullptr here? Wouldn\\'t it be a fatal error if we walk past genesis? And what if the caller mixes up begin and end? Or if start and end have valid heights but are on different forks... a serious mess-up could cause an infinite loop'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "optout21",
+      "reason": "crACK after code review, clarification of batching invariants, and test coverage additions",
+      "substantive": false
+     },
+     {
+      "reviewer": "arejula27",
+      "reason": "Concept ACK, massive upgrade especially in combination with parallelization proposal #26966",
+      "substantive": true
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "Concept ACK during PR review club",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "fjahr",
+      "stance": "question",
+      "note": "asked about the batch size choice, benchmark results, and keeping ProcessBlock around"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "objection",
+      "note": "requested changes due to corrupted index state on shutdown/interrupt and unsafe loop bounds"
+     },
+     {
+      "login": "hebasto",
+      "stance": "neutral",
+      "note": "noted an IWYU header issue that was fixed elsewhere"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "inquired about commit-by-commit test runs and unrelated CI failure"
+     },
+     {
+      "login": "Jhackman2019",
+      "stance": "neutral",
+      "note": "reported clean build and passing unit/functional index tests on ARM64"
+     },
+     {
+      "login": "bvbfan",
+      "stance": "neutral",
+      "note": "pointed out a call to a non-existent function"
+     },
+     {
+      "login": "optout21",
+      "stance": "support",
+      "note": "reviewed the code, clarified batching invariants, and gave crACK"
+     },
+     {
+      "login": "arejula27",
+      "stance": "support",
+      "note": "concept ACKed, identified an interrupt recovery bug that was fixed, and helped test/rebase"
+     },
+     {
+      "login": "sedited",
+      "stance": "question",
+      "note": "asked questions about BlockBatch, range logic, and memory pressure"
+     },
+     {
+      "login": "sipa",
+      "stance": "neutral",
+      "note": "clarified that a commit reordering a local variable swap cannot change behavior"
+     },
+     {
+      "login": "polespinasa",
+      "stance": "support",
+      "note": "concept ACKed and offered minor review comments"
+     }
+    ],
+    "corrections": [],
+    "summary": "Disputed: l0rinc requests changes over index corruption on interrupted shutdown and loose loop invariants; author acknowledges race condition needs handling while rebasing",
+    "usage": {
+     "input_tokens": 29496,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3803
+    }
+   },
+   "first_read": {
+    "state": "Disputed",
+    "model_state": "Disputed",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "In-memory index state advances ahead of disk writes, causing shutdown Commit() to persist advanced state with a stale locator and corrupt the index on restart",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-03-09: 'The most serious issue seems to me that Commit() during interrupt writes advanced m_muhash alongside a stale locator, which causes CoinStatsIndex::CustomInit to reject the index as corrupted on restart.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "arejula27",
+      "kind": "correctness",
+      "harm": "Early return in ProcessBlocks bypassed the interrupt handling path, skipping expected recovery",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-02-14: 'Returning false here causes the interrupt to be handled incorrectly... As a result, the expected recovery path is skipped.'",
+      "resolution_evidence": "2026-02-14: arejula27 confirmed 'Nice catch. Pushed an update that fixes it and adds test coverage... I think the test implemented for the scenario is enough.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "optout21",
+      "reason": "crACK after explanations on batching logic and lock contention reduction",
+      "substantive": true
+     },
+     {
+      "reviewer": "arejula27",
+      "reason": "Concept ACK citing massive upgrade potential when paired with parallelization in #26966",
+      "substantive": true
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "Concept ACK during code review",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#26966 index: initial sync speedup, parallelize process"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Touches src/index/base.cpp, src/index/base.h, src/index/blockfilterindex.cpp, and src/index/txindex.cpp to alter how optional indexes sync.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Initial sync of optional indexes takes many hours. Benchmarks demonstrate an 11% to 28% sync speedup on HDD for txindex and txospenderindex, alongside reducing coinstatsindex LevelDB file counts from 144 to 10. Decoupling block iteration from lock acquisition also reduces cs_main contention and is an explicit prerequisite for parallelizing index sync in #26966."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Does not change consensus or mandatory chainstate validation logic; touches only the optional index framework in src/index/.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The UTXO Db and Indexes label applies here strictly for the index framework, not validation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR batches LevelDB writes across configurable block ranges during index initial sync, replacing per-block writes and reducing cs_main lock contention. Benchmarks show an 11% to 28% speedup on HDD for txindex and txospenderindex, a reduction in coinstatsindex LevelDB files from 144 to 10, and groundwork for multithreaded sync in #26966. The PR is in draft and needs a rebase against recent index changes. While concept agreement is positive, l0rinc holds an open blocking review regarding state corruption if interrupted mid-batch, which the author is currently coordinating to resolve."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.03638325
+}

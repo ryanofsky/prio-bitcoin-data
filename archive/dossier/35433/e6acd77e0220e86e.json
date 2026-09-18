@@ -1,0 +1,181 @@
+{
+ "number": 35433,
+ "input_hash": "e6acd77e0220e86e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27092,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3997
+ },
+ "cost_usd": 0.0484833,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Deprecate the replaceable argument across wallet/RPC transaction creation calls since fullrbf makes explicit opt-in signalling unnecessary.",
+    "Users can still use the old behavior via -deprecatedrpc=bip125 until removal next release."
+   ],
+   "reviewability": [
+    "Needs rebase and has many open review threads from polespinasa with concrete correctness and test-coverage issues not yet addressed.",
+    "Author has been active but several substantive comments from 2026-08-12 remain unresolved as of last activity."
+   ],
+   "agreement": [
+    "Concept ACK from polespinasa, but polespinasa has raised multiple unresolved substantive issues: dead/duplicated deprecation checks, dropped test coverage for replaceable=False, and doc inconsistencies across commits (polespinasa).",
+    "achow101 flagged incorrect release-note section and behavior bugs that were fixed, but newer review rounds surfaced fresh issues.",
+    "No explicit NACK, but review is ongoing and incomplete (polespinasa, achow101, maflcko, w0xlt)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it follows through on the RBF-argument deprecation begun in #34917/#35405, removing a redundant and now-meaningless user-facing option across many wallet RPCs.",
+      "Unblocks eventual removal of legacy RBF signalling code across the wallet RPC surface, reducing long-term maintenance burden, but is not urgent fund-safety work."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it changes the argument contract and help text of createrawtransaction, createpsbt, and several send RPCs, which callers depend on, warranting careful compatibility review.",
+      "Discipline around the deprecation error path (throw vs silently ignore) directly affects how external tools using these RPCs must adapt."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P3 because release notes for RPC deprecations need to be accurate and complete, and reviewers found placement and RPC-categorization errors that could mislead readers.",
+      "Purely descriptive text change with no functional risk beyond clarity."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because moving a comment about MAX_BIP125_RBF_SEQUENCE into util/rbf.h is a minor documentation-adjacent cleanup with no behavioral effect.",
+      "Does not unblock other work; purely cosmetic relocation of a code comment."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR marks the `replaceable` argument as deprecated across ten wallet and raw-transaction RPCs (createrawtransaction, fundrawtransaction, createpsbt, walletcreatefundedpsbt, send, sendtoaddress, sendmany, sendall, bumpfee, psbtbumpfee), requiring `-deprecatedrpc=bip125` to continue using it. It updates RPC help text, adds deprecation-error throws, updates release notes, and reworks the `wallet_deprecated_rbf.py` functional test to cover the new behavior across RPCs. It follows on from the earlier deprecation of the `bip125-replaceable` output field in PR #34917 and the closed PR #35405.",
+  "problem": "Opt-in RBF signalling via the `replaceable` argument is now largely redundant since fullrbf has been the default network policy since Bitcoin Core v28, so the argument is dead weight for wallet RPC users and a maintenance burden for the project heading toward removal, per issue #32661.",
+  "discussion": {
+   "open_concerns": [
+    "polespinasa (2026-08-12): dead/duplicated deprecation check in FundTransaction possibly redundant with per-RPC checks.",
+    "polespinasa (2026-08-12): test coverage for replaceable=False dropped for bumpfee, sendall, send, sendtoaddress, sendmany and not restored elsewhere.",
+    "polespinasa (2026-08-12): commits are not atomically correct, since FundTxDoc marks the arg deprecated for RPCs whose check is added only in a later commit.",
+    "polespinasa (2026-08-12): current negative test only checks the error message if an exception happens, not that the exception is actually raised, unlike createrawtransaction/createpsbt tests.",
+    "polespinasa (2026-08-12): a comment in rpc_psbt.py test is now inaccurate about 'explicitly enabled' RBF.",
+    "polespinasa: createpsbt/createrawtransaction are misclassified as Wallet RPCs in the updated release note.",
+    "w0xlt (2026-08-12): sendtoaddress help examples still pass the deprecated replaceable option by default, misleading users."
+   ],
+   "resolved_concerns": [
+    "maflcko's concern about a misplaced/unrelated comment move was addressed by splitting into its own commit.",
+    "achow101's concerns about incorrect release-note section header and incorrectly changing default from true to DEFAULT_WALLET_RBF were fixed by rkrux.",
+    "achow101's request that deprecation should throw rather than silently ignore was implemented across the RPCs.",
+    "achow101's objection to an unnecessary rbf_node rename commit was dropped by the author."
+   ],
+   "author_status": "active, addressing review as of 2026-08-12, but multiple review threads from the same date remain open"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked needs_rebase and mergeable_state is dirty. Beyond the mechanical rebase, polespinasa left several substantive comments on 2026-08-12 (dead code, dropped test coverage, atomicity of commits, weak negative-path testing) that have not yet been addressed by the author, so a review right now risks being partly invalidated by the next round of fixes."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACK from polespinasa, but the same reviewer has repeatedly found concrete correctness and coverage gaps (dead code, missing replaceable=False tests, inconsistent commit atomicity) across multiple review rounds that remain unresolved.",
+   "reason": "No blocking NACK exists, and achow101's and maflcko's earlier substantive concerns were addressed, but polespinasa's newest round of comments (2026-08-12) about dropped test coverage and possibly-dead deprecation-check code have not yet had an author response, so the PR is not yet in a stable positive state.",
+   "evidence": [
+    "polespinasa: 'concept ACK' but 'the way it is done the deprecation might be invisible for the users' (resolved by adding throws)",
+    "achow101: 'The deprecation should be throwing if the option is set, not silently ignoring it' (addressed)",
+    "polespinasa (2026-08-12): 'testing bumpfee with replaceable = False is removed and not added in any other place later. This removes test coverage.' (open)",
+    "polespinasa (2026-08-12): 'I think this is dead and duplicated code' regarding FundTransaction's check (open, author says fundrawtransaction didn't have the check previously but consolidated)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Further removal of the deprecated -walletrbf option and replaceable arguments in a future release cycle",
+    "progress on closing issue #32661 (redundant opt-in RBF wallet config and RPC parameters)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies wallet RPC argument handling (src/wallet/rpc/spend.cpp) for send, sendtoaddress, sendmany, sendall, bumpfee, psbtbumpfee, fundrawtransaction, walletcreatefundedpsbt, plus wallet functional tests. Carries the Wallet label.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because this continues a deliberate multi-PR project (#34917, #35405, #32661) to remove redundant opt-in RBF signalling now that fullrbf is default network policy, described by the author as making 'this user option unnecessary'. It has moderate leverage toward eventually removing legacy RBF code paths but is not urgent since the deprecated path remains usable via -deprecatedrpc=bip125."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes argument semantics, help text, and error behavior of createrawtransaction and createpsbt in src/rpc/rawtransaction.cpp, both non-wallet RPC machinery.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because changing the compatibility contract of widely used RPCs (createrawtransaction, createpsbt) to throw on a previously accepted argument affects every external caller, warranting compatibility-focused review as raised implicitly by w0xlt's and polespinasa's comments about help text and error consistency."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Substantially rewrites doc/release-notes-34917.md (+18/-4) to document the new deprecation, and updates RPC help text throughout.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because accurate release notes matter for users relying on -deprecatedrpc=bip125, but reviewers found the notes still misclassify createpsbt/createrawtransaction as wallet RPCs (polespinasa), showing the doc work is not yet settled but not high-stakes."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Moves a comment explaining MAX_BIP125_RBF_SEQUENCE into src/util/rbf.h, a five-line addition with no behavior change.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because it is a pure comment relocation with no functional effect, explicitly flagged by maflcko as initially unrelated to the PR's purpose until split into its own commit."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the several open 2026-08-12 review comments from polespinasa will require another round of force-pushes that meaningfully change the diff before it is stable for review.",
+   "Whether the FundTransaction deprecation check is actually dead/duplicate code as polespinasa suspects, which would need code-level verification.",
+   "How the project intends to reconcile this PR's release note with the still-open #35442 and other related PRs referenced in the timeline."
+  ],
+  "card": "This PR deprecates the `replaceable` argument across ten wallet and raw-transaction creation RPCs (createrawtransaction, fundrawtransaction, createpsbt, walletcreatefundedpsbt, send, sendtoaddress, sendmany, sendall, bumpfee, psbtbumpfee), requiring `-deprecatedrpc=bip125` to keep using it, continuing the project's move away from opt-in RBF signalling now that fullrbf is default network policy (issue #32661). It has a concept ACK from polespinasa, but the same reviewer's 2026-08-12 comments flag dropped test coverage for `replaceable=False`, possibly dead/duplicated deprecation-check code, and non-atomic commits, none of which have an author response yet. The PR needs a rebase (mergeable_state dirty) and has seen 20 force-pushes and 8 commits since June 2026, reflecting substantial rework already. It is not blocking or blocked by any other open PR directly but builds on the closed #35405 and interacts with the still-open #35442. Priority is moderate across wallet and rpc as a durable but non-urgent cleanup of a redundant user option, and low in docs and utils where the changes are incidental."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

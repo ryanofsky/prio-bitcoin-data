@@ -1,0 +1,105 @@
+{
+ "number": 36040,
+ "input_hash": "c4fa2165503eed6a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20066,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2460
+ },
+ "cost_usd": 0.033772300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops the wallet's bumpfee feature from setting a replacement transaction's locktime older than the original",
+    "Fixes a wallet privacy leak (fingerprint) described in issue #26526"
+   ],
+   "reviewability": [
+    "Ready, actively reviewed with fresh ACKs after the latest push",
+    "Author has been responsive and iterated through many rounds of feedback and force-pushes"
+   ],
+   "agreement": [
+    "Strong support after extensive review, with molnard and nervana21 giving ACK and tACK on the latest commit (molnard, nervana21)",
+    "polespinasa gave an early approach ACK before later refinements (polespinasa)",
+    "Several correctness edge cases (stale tip, minimum_height above block_height, off-by-one bounds) were raised and fixed by the author over multiple iterations",
+    "No open unresolved objections remain, though molnard's architectural alternative (moving logic to feebumper.cpp) was considered and dropped by mutual agreement"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it closes a real but narrow privacy leak affecting only bumpfee users whose replacement locktime falls below the original",
+      "Fixes a fingerprinting vector estimated at under 2% of RBF replacements per the author's data analysis, a real but modest-value privacy improvement"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes DiscourageFeeSniping and the bumpfee (CreateRateBumpTransaction) code path so that a fee-bumped replacement transaction's locktime is never set below the original transaction's locktime, adding a new minimum_height parameter to CoinControl and DiscourageFeeSniping. It closes issue #26526, where bitcoind's anti-fee-sniping locktime randomization could occasionally 'backdate' a replacement transaction's locktime below the original's, creating a wallet fingerprint. The PR includes new unit tests in feebumper_tests.cpp and spend_tests.cpp validating the bounds of the new logic including stale-chain and out-of-range minimum_height cases.",
+  "problem": "Bitcoin Core's anti-fee-sniping locktime randomization can occasionally produce a bumpfee replacement transaction with a locktime older than the transaction it replaces, an unusual and unrealistic pattern that observers can use to fingerprint the transaction as coming from Core or Electrum's bumpfee feature. This affects privacy-conscious wallet users who use RBF fee bumping, though the author's data analysis shows it affects under 2% of replaced RBF transactions.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Off-by-one error in the backdating range calculation (nervana21), fixed by author in a later push",
+    "Missing handling for stale-chain plus minimum_height-above-tip cases (molnard, nervana21), fixed by author",
+    "Architectural question of whether the invariant belongs in CCoinControl/DiscourageFeeSniping vs feebumper.cpp (molnard proposed alternative); molnard ultimately agreed author's approach fits better",
+    "Weak/flaky functional test (polespinasa, molnard) replaced with deterministic unit tests using a fixed RNG seed",
+    "Test bound errors (block_height-100 vs block_height-99) identified by molnard and fixed by author",
+    "Various commit message typos and code style nits, all addressed"
+   ],
+   "author_status": "active, addressed review, last activity 2026-09-15/16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has gone through many rounds of review and iteration, with the latest commit (e34f9340d6) receiving a full ACK from molnard and a tACK with only minor nits from nervana21. No material open requests remain unaddressed; the author has been consistently responsive, pushing fixes within days of each review round."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support after extensive iteration, with ACK from molnard and tACK from nervana21 on the latest commit; earlier architectural and correctness concerns were resolved by author fixes.",
+   "reason": "Multiple reviewers (molnard, nervana21, polespinasa) engaged deeply across many rounds, raising real correctness issues (off-by-one bounds, stale-tip edge cases, an architectural alternative) that the author addressed each time, ending in explicit ACK/tACK on the final commit with no standing objections.",
+   "evidence": [
+    "molnard: 'ACK e34f9340d615976b1398e6ead0ab8d2bda24907c ... Checked the code and ran the tests - all good.'",
+    "nervana21: 'tACK e34f9340d615976b1398e6ead0ab8d2bda24907c ... left minor, non-blocking nits'",
+    "molnard proposed moving the invariant to feebumper.cpp; later said 'I think the extra complexity of the separation outweighs its benefits here'",
+    "polespinasa gave 'Approach ACK' earlier in the review"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #26526 (bumpfee locktime backdating fingerprint)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "The PR modifies wallet-internal CoinControl, feebumper.cpp, and spend.cpp logic governing fee-bumping and anti-fee-sniping locktime behavior, core wallet transaction-construction code.",
+    "band": "P3",
+    "reason_tag": "privacy fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real but narrow privacy leak in bumpfee's locktime handling that could fingerprint replacement transactions as coming from Core/Electrum bumpfee. The author's own data analysis states 'on average there are only about 200-300 hundred replacements backdating per week... less than 2% of all the transactions that have been replaced', indicating real but modest-value user impact, mainly felt by privacy-conscious RBF users rather than the broader wallet user base."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the final agreed-upon implementation fully closes all edge cases (e.g., reorg scenarios) was not exhaustively re-verified by reviewers after the last push, though ACK/tACK were given on the final commit.",
+   "No maintainer (non-contributor) has yet reviewed; all engaged reviewers are CONTRIBUTOR-level, so broader project consensus on merging is not yet established."
+  ],
+  "card": "This PR fixes a wallet privacy leak where Bitcoin Core's bumpfee RBF replacement could get a locktime older than the original transaction's, due to anti-fee-sniping's random backdating, making such replacements fingerprintable as Core/Electrum bumpfee traffic (closes #26526). The author's data shows this affects under 2% of RBF replacements weekly, a real but narrow privacy issue affecting fee-bumping users. The PR went through extensive review across many weeks, with reviewers molnard, nervana21, and polespinasa raising and getting fixed several off-by-one and edge-case bugs (stale tip, minimum_height above block_height) and a considered-but-rejected architectural alternative. It now has ACK from molnard and tACK from nervana21 on the latest commit, with no open objections, and the author has been consistently responsive. No dependencies on other PRs are noted."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

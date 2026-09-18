@@ -1,0 +1,129 @@
+{
+ "number": 36182,
+ "input_hash": "472ed4173509eb68",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:58:21+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43060,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2663
+ },
+ "cost_usd": 0.04228125,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fall back to block-based fee estimates when mempool fee estimation is unavailable or warming up",
+    "Prevent estimatesmartfee failures and severe fee underestimations after node restarts"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Recent push addressed feedback on fallback simplicity and warmup behavior"
+   ],
+   "agreement": [
+    "Strong support for falling back to block policy when mempool data is insufficient (achow101, sedited)",
+    "Tested ACK on recent iteration with minor style follow-up (polespinasa)",
+    "Technical questions around cache handling and window-clearing logic addressed (willcl-ark, davidgumberg)",
+    "External LDK and node operator reports confirm real-world pain point (instagibbs, tankyleo)"
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P2 because it fixes an immediate usability regression where estimatesmartfee fails for an hour after startup",
+      "Protects users and L2 protocols from severe underbidding when a restarted node has an empty mempool"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request updates the fee estimation manager to fall back to the block-policy fee estimator whenever the mempool-policy estimator cannot produce an estimate. It also introduces a warmup period following a cold start or failed mempool reload, suppressing floor fee rate estimates from an empty mempool and falling back to block policy instead.",
+  "problem": "After node startup or cold restart without a persisted mempool, the mempool fee estimator has insufficient block observations and returns errors, causing default estimatesmartfee calls to fail for an hour or more even though the block policy estimator is ready. Additionally, an unpopulated mempool can cause the estimator to prematurely return the minimum relay fee floor, leading to transactions underbidding during high-fee periods.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Whether to retain partial historical block stats across a cold restart was resolved in favor of clearing them and using an explicit warmup period.",
+    "Ensured combined mode falls back to block policy on both low coverage and insufficient data errors rather than surfacing errors.",
+    "Updated init to avoid treating shutdown-interrupted mempool loads as load failures."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch cleanly implements the agreed fallback strategy and has passing CI with extensive functional test coverage."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Broad concept and approach consensus across 5+ contributors, with tested approval from polespinasa.",
+   "reason": "Multiple maintainers and contributors agree that falling back to block policy is the correct behavior when mempool estimation is not ready. Concerns regarding the window clearing and warmup duration were addressed by the author with real-world test data.",
+   "evidence": [
+    "achow101: 'Concept ACK... it makes sense to fallback to block policy if it is available and mempool policy is not.'",
+    "polespinasa: 'ACK a623083db1... Reviewed again, don't have anything to say'",
+    "instagibbs: 'got a report from LDK dev this is happening, where block estimates are working but mempool is not'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Modifies mempool fee rate estimation logic in src/policy/fees/ and estimator management.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it resolves an active user and downstream L2 issue where estimatesmartfee fails or severely underbids after node restarts. Without this fallback, users updating to v32 or restarting their nodes encounter unexpected estimation outages and risk transaction delays from artificially floored fee rates."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only touches src/rpc/fees.cpp to update the help string describing the fallback behavior; the RPC interface and argument structures are unchanged.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change to RPC files is purely descriptive documentation of fee estimator behavior."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "src/init.cpp changes are minimal wiring to pass mempool load failure state to the fee estimator manager.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The init edits are mechanical call-site updates for fee manager notifications rather than utility library changes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies the fee estimation manager to fall back to the block-policy fee estimator when the mempool estimator is not ready or has insufficient data, rather than returning an error. It also introduces a warmup mechanism that prevents a newly started or unpersisted mempool from returning the minimum relay fee floor when the mempool is sparse. Downstream L2 projects such as LDK and node operators reported facing estimation errors and stalls on restarts, making this a high-value bug fix targeted for v32 backport. The PR is in a clean, reviewable state with broad concept support and an ACK."
+ },
+ "raw_text": null
+}

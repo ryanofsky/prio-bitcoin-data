@@ -1,0 +1,220 @@
+{
+ "number": 35675,
+ "input_hash": "3561518962f14e99",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 44040,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7303
+ },
+ "cost_usd": 0.0819613,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Consolidate scattered block-template creation, submission, and tip-waiting logic into one BlockTemplateManager class.",
+    "Removes NodeContext::mining and duplicate copies of template data, and lets RPC and tests bypass the IPC mining interface entirely.",
+    "Framed by the author as a pure refactor that preserves existing behavior."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "Five reviewers have re-ACKed the latest rebase and no material blocking question is open; a reviewer's suggestion to drop the fuzz-test commit is non-blocking follow-up, not a review blocker."
+   ],
+   "agreement": [
+    "Strong support from multiple maintainers/contributors with concrete reasons across many review rounds (Sjors, pablomartin4btc, w0xlt, enirox001).",
+    "Nonblocking criticism that the new fuzz harness doesn't effectively exercise BlockTemplateManager and should be reworked or split out, not yet addressed (marcofleon)."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it is the architectural groundwork for two stacked mining PRs (memory-load tracking #33922 and fee-inflow tracking #35581) that explicitly build on it.",
+      "It also removes redundant template-data copies and simplifies the mining boundary, though it is described as behavior-preserving rather than fixing a bug."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it reroutes getblocktemplate, waitfor* and generateblock internals off the Mining interface directly onto BlockTemplateManager, cutting several template-data copies.",
+      "It is an internal correctness/performance cleanup with no new caller-facing capability, though one reviewer noted getmininginfo now throws instead of silently defaulting before chainstate load, a minor stricter-behavior change."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member for this rubric: the added fuzz target and test-utility changes pin BlockTemplateManager behavior specifically, which belongs to the mining area rather than general test infrastructure.",
+      "No changes to shared test framework capabilities are the point of this PR."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member: init.cpp and context.h changes are mechanical wiring to plug BlockTemplateManager into node startup/shutdown ordering, not a change to shared utility behavior."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "Not a member: the one wallet fuzz file change only resets/recreates the block template manager to keep the fuzz harness consistent, with no wallet-behavior change."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "Not a member: the single-line IWYU enforcement addition follows mechanically from adding a new source file and is not itself a build-system change."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces node::BlockTemplateManager, a new class that owns block template creation, submission, and mining tip-wait helpers, replacing scattered logic previously spread across NodeContext, miner.cpp, the interfaces::Mining implementation, and RPC. RPC methods (getblocktemplate, generateblock, waitfor*) and tests now call BlockTemplateManager directly instead of going through the IPC-facing Mining interface, removing NodeContext::mining/EnsureMining and eliminating several redundant CBlock/vector copies along the way. A new fuzz target for BlockTemplateManager::CreateNewTemplate() is added. The author describes it as intended to be a pure refactor that preserves existing behavior.",
+  "problem": "Mining-related state and helper functions (template creation, submission, tip-waiting) were duplicated and dispersed across NodeContext, miner.cpp, the mining interface, and RPC, making it hard to reason about and extend. This scattering is a concrete blocker for planned follow-up work (per-call memory tracking in #33922, fee-inflow tracking in #35581) that needs a single owner for template state.",
+  "discussion": {
+   "open_concerns": [
+    "marcofleon (2026-09-16) argues the new fuzz harness mostly tests BlockAssembler-via-fuzzed-mempool behavior rather than BlockTemplateManager itself, and that WaitTipChanged/WaitAndCreateNewBlock/CooldownIfHeadersAhead/SubmitBlock paths are barely exercised with zero timeouts; he suggests dropping the last fuzz commit and doing it as a separate, reworked PR, explicitly calling this non-blocking for the refactor.",
+    "enirox001 raised a design note that SubmitBlockStateCatcher logic is now duplicated in three places (BlockTemplateManager, rpc/mining.cpp, util/mining.cpp) and could be unified in mining_types.h, explicitly deferred to a follow-up PR."
+   ],
+   "resolved_concerns": [
+    "Sjors' early requests for smaller commits, naming (BlockCreateArgs, m_block_create_args), IWYU enforcement for new files, and avoiding redundant copies were implemented across several force-pushes.",
+    "pablomartin4btc's finding that CreateBlockTemplateManager() was called in ChainTestingSetup's constructor before chainstate activation (would crash on CreateNewBlock) was fixed by moving the call after LoadVerifyActivateChainstate() in each path.",
+    "w0xlt caught that the rebase after #34672 had reverted some of that PR's SubmitBlock changes; fixed.",
+    "w0xlt caught a missing block_template_manager reset/recreate in wallet/test/fuzz/fees.cpp; fixed."
+   ],
+   "author_status": "active, most recently force-pushed 2026-09-13 to rebase after a conflict flag from Sjors, and received fresh re-ACKs from Sjors, pablomartin4btc, w0xlt, and enirox001 on 2026-09-14/16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR was rebased on 2026-09-13 and immediately re-ACKed by four reviewers (Sjors, pablomartin4btc, w0xlt, enirox001) with no reported regressions. The one open comment (marcofleon's fuzz-harness critique) is explicitly non-blocking and about a commit the reviewer suggests splitting out, not about the core refactor."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Strong multi-reviewer support (Sjors, pablomartin4btc, w0xlt, enirox001 all re-ACKed the final commit) with one standing, unaddressed but explicitly non-blocking criticism from marcofleon that the added fuzz harness doesn't effectively test BlockTemplateManager and should be reworked separately.",
+   "reason": "Five distinct reviewers engaged across many rounds with substantive rationale (architecture clarity, removal of node.mining, copy avoidance); the only unresolved point is a test-quality critique the critic himself frames as a follow-up, not a blocker to merging.",
+   "evidence": [
+    "Sjors: 'ACK 9a663e7032...' and later 're-ACK e8b283c35a...' after rebase",
+    "pablomartin4btc: 're-ACK e8b283c35a... Clean rebase since my last review'",
+    "w0xlt: 'reACK e8b283c35a...'",
+    "enirox001: 'reACK ...e8b283c35a'",
+    "marcofleon: 'I don't think this is a blocker for the refactor. I would just drop the last commit and PR it separately' (fuzz harness concerns, unaddressed as of 2026-09-16)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#33922 (mining: add getMemoryLoad() and track template non-mempool memory footprint) is stacked on this PR",
+    "#35581 (node: add block template manager and track waitNext fee inflow) is stacked on this PR and shares commits with it",
+    "Revives the goal of #32547 (avoid copying template CBlocks) via the getblocktemplate copy-avoidance commits added during review"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Only a single mechanical line adding the new source file to the IWYU-enforcement regex in ci/test/03_test_script.sh; the PR is not about build/CI infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build-category PR; the CI script edit is incidental follow-through from adding node/block_template_manager.cpp, not a build-system change in itself."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Labeled Mining; introduces node::BlockTemplateManager, moves BlockAssembler/SubmitBlock/tip-wait logic under it, and rewrites the interfaces::Mining implementation and RPC mining paths to use it.",
+    "band": "P2",
+    "reason_tag": "unblocks #33922/#35581",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "The PR is explicitly a prerequisite for two other open mining PRs that build fee-inflow and memory-tracking features on top of it ('shares_commits_with #33922, #35581'), and it removes NodeContext::mining plus several redundant template-data copies, per Sjors' and pablomartin4btc's review comments. It carries no direct correctness fix or new user feature, which caps it below P1."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Substantively rewrites rpc/blockchain.cpp (waitfornewblock/waitforblock/waitforblockheight) and rpc/mining.cpp (getblocktemplate, generateblock) to call BlockTemplateManager directly instead of the Mining interface, and removes several data copies in getblocktemplate.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Sjors' review added commits to avoid copying transactions, fees, and coinbase data in getblocktemplate ('there's now an opportunity to avoid copies, like #32547 tried to do'), a real but modest performance win for a hot RPC method; pablomartin4btc noted getmininginfo now throws rather than silently defaulting pre-chainstate-load, a minor stricter-behavior change with no reported practical impact."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds a fuzz target for BlockTemplateManager and updates several test-setup files (setup_common.cpp, fuzz reset paths) to construct/reset the manager.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests-category exclusion, a test that pins one area's behavior (here, BlockTemplateManager, a mining concept) belongs to that area rather than test infrastructure; marcofleon's review agrees the harness is really exercising BlockAssembler/mining behavior, not generic test-framework capability."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "init.cpp gains ordering/wiring for the new block_template_manager alongside mempool/chainman teardown and creation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These are mechanical lifecycle-wiring edits required by moving mining state out of NodeContext, not a change to shared utility behavior (logging, args, primitives) in its own right."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "src/wallet/test/fuzz/fees.cpp gains a reset/recreate of block_template_manager to stay consistent with the mempool reset it already performed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely a mechanical fuzz-harness fix (caught by w0xlt) needed because the manager now holds a mempool reference; no wallet behavior changes."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the final fuzz-test commit (block_template_manager.cpp) will be dropped or reworked per marcofleon's late review, which would shrink the diff but not change the refactor's mining-category priority.",
+   "Exact downstream urgency of #33922/#35581 (how soon they are expected to land) is not stated beyond 'shares_commits_with', so the leverage factor is an estimate from the stack relationship rather than an explicit deadline."
+  ],
+  "card": "This PR introduces node::BlockTemplateManager, consolidating block-template creation, submission, and tip-wait logic that was previously scattered across NodeContext, miner.cpp, the interfaces::Mining implementation, and RPC, and routes RPC methods and tests through it directly instead of the IPC mining interface. The author frames it as a pure, behavior-preserving refactor; its strongest evidence of importance is that it is an explicit prerequisite for two other open mining PRs (#33922 memory-load tracking, #35581 fee-inflow tracking) that share commits with it and build on this foundation, plus incidental removal of several redundant template-data copies in getblocktemplate. Review state is strong: five distinct reviewers (Sjors, pablomartin4btc, w0xlt, enirox001, and marcofleon) engaged across many rounds, with re-ACKs on the latest rebase (e8b283c35a) from four of them. The one open thread is marcofleon's non-blocking critique that the newly added fuzz harness doesn't effectively test BlockTemplateManager and should be split into a separate, reworked PR. No dependency blocks this PR from merging; it instead blocks other stacked mining work."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

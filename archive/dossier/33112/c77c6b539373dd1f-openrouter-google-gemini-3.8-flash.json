@@ -1,0 +1,130 @@
+{
+ "number": 33112,
+ "input_hash": "c77c6b539373dd1f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T17:11:37+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 31916,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2381
+ },
+ "cost_usd": 0.03286575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow Bitcoin Core wallets to combine external hardware signers with hot private keys",
+    "Enable toggling external signer support on existing descriptor wallets without manual reloads"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "Clean merge base with all prior review comments and test issues resolved"
+   ],
+   "agreement": [
+    "Strong support from multiple wallet contributors across review iterations",
+    "Prior objections around descriptor reloading and hot-key signing were addressed and tested on hardware (jeanpablojp, PraneethGunas, rkrux, adyshimony)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it removes strict architectural constraints that prevented combining hardware signers with hot keys or multisig in descriptor wallets",
+      "Unblocks hybrid signing setups and downstream MuSig2 wallet workflows"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request relaxes constraints on the `external_signer` wallet flag in Bitcoin Core. It removes the requirement that external signer wallets must have private keys disabled, makes the `external_signer` flag mutable via `setwalletflag` (automatically reloading the wallet when toggled), ensures blank signer wallets do not auto-import keys, and allows the wallet to sign with internal keys before delegating remaining inputs to the external signer.",
+  "problem": "Previously, the `external_signer` flag forced a wallet to be watch-only and immutable from creation, which blocked multisig or MuSig2 setups where the node holds both a hot key and relies on an external signer device.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp noted that toggling `external_signer` on an existing wallet caused descriptor SPKM mismatches unless reloaded; author addressed this by triggering an automatic wallet reload on flag change.",
+    "jeanpablojp noted lack of `ENABLE_EXTERNAL_SIGNER` guards in `setwalletflag`; author added compile guards.",
+    "PraneethGunas found that importing hot keys into an external signer wallet caused `FillPSBT` to fail on hardware signers; author updated `FillPSBT` to sign local keys first, which PraneethGunas verified on a Ledger Flex."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased, passing CI, and has addressed all raised concerns from previous review rounds."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on design and implementation; objections resolved and verified with hardware testing (rkrux, PraneethGunas, adyshimony, achow101).",
+   "reason": "Multiple maintainers and contributors have expressed Concept ACKs and tested ACKs. Specific edge cases around hot-key fallback and wallet reloading were addressed by the author and verified by the reviewers.",
+   "evidence": [
+    "achow101 Concept ACK",
+    "rkrux tested ACK on earlier commits and re-ACKed after revisions",
+    "adyshimony tested Qt and CLI workflows and gave ACK",
+    "PraneethGunas tested on Ledger Flex hardware and confirmed fix for hot descriptor signing"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "MuSig2 multisig support with external signers"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies core wallet flags, descriptor script pubkey managers, and wallet RPCs.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it unlocks new hybrid key-management capabilities for external signers and unblocks future MuSig2 wallet workflows. PraneethGunas noted that this 'greatly helps unblock using external signers and hot keys in the same wallet for a multisig setup'."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes to wallet RPCs (`setwalletflag`, `createwallet`) are wallet-specific rather than changes to generic RPC server infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Wallet RPC changes belong primarily to the wallet category."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Moves a mock signer path helper to test framework and adds tests for wallet signer functionality.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The functional test modifications serve specifically to pin the wallet external signer changes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR relaxes constraints on external signer wallets in Bitcoin Core by allowing private keys to remain enabled and making the external_signer flag mutable via setwalletflag. This enables hybrid setups where a wallet contains both hot keys and external signer keys, which is a required prerequisite for MuSig2 and multisig hardware signer integration. Reviewers had previously flagged issues with SPKM construction during flag toggling and hot key PSBT signing, both of which have been resolved and verified with physical hardware testing. The PR is clean and ready for final review."
+ },
+ "raw_text": null
+}

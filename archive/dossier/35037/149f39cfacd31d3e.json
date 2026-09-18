@@ -1,0 +1,97 @@
+{
+ "number": 35037,
+ "input_hash": "149f39cfacd31d3e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 38747,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4480
+ },
+ "cost_usd": 0.0625533,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets operators cap how many clients each -ipcbind listener accepts, e.g. -ipcbind=unix:/path,max-connections=8, instead of one global limit.",
+    "Also makes the node reserve file descriptors correctly for each IPC listener and its connection slots at startup."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "Latest push addressed outstanding nits and three reviewers re-ACKed the current revision."
+   ],
+   "agreement": [
+    "Strong support with concept ACKs from Sjors and kevkevinpal and code review ACKs from ryanofsky and Eunovo.",
+    "xyzconstant and ViniciusCestarii found real fd-overflow and parsing edge cases during review, all of which the author fixed and both re-ACKed the fix (xyzconstant, ViniciusCestarii).",
+    "No open objections remain."
+   ],
+   "categories": []
+  },
+  "summary": "Adds support for per-address connection limits on -ipcbind, using a syntax like -ipcbind=unix:/path,max-connections=8, instead of a global -ipcmaxconnections option. It introduces ipc::ListenAddress to carry an address and its connection cap through interfaces::Ipc and ipc::Protocol, reserves file descriptors for each configured listener and its connection slots during startup validation, and adds unit and functional test coverage for the parser and for connection limiting over unix sockets.",
+  "problem": "IPC listeners previously had no way to bound simultaneous client connections per address, and file descriptor accounting for IPC did not account for listener connections at all, creating potential for unbounded resource use or descriptor-count miscalculation. Node operators exposing IPC to multiple kinds of clients (GUI vs mining clients) want independent limits rather than one global cap.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky suggested making parseListenAddress a virtual method living in the IPC library rather than bitcoin_common, to avoid linking IPC-specific parsing into bitcoind; author agreed this is reasonable as a followup, not blocking.",
+    "xyzconstant noted a large per-address max-connections value can still reduce automatic P2P connection slots to zero; author and reviewers agreed this is a pre-existing, broader issue outside this PR's scope."
+   ],
+   "resolved_concerns": [
+    "Multiple integer overflow/underflow bugs in the fd-reservation aggregate check found by xyzconstant were fixed by capping MAX_CONNECTIONS to 256 and reordering the check.",
+    "Windows-path ambiguity with a ':' options separator (ryanofsky) fixed by switching to a comma-delimited syntax with URL-encoding for paths containing commas.",
+    "Test-suite naming collision (xyzconstant) and various parser edge cases (Eunovo, ViniciusCestarii) were all addressed with fixes and added test coverage.",
+    "Regression in the listen-address log line losing the resolved socket path (ViniciusCestarii) was fixed."
+   ],
+   "author_status": "active, addressing review incrementally through 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The latest force push (2026-09-16) removed a stale comment after a long series of substantive review rounds; three reviewers (Eunovo, ViniciusCestarii, xyzconstant) re-ACKed the current revision on 2026-09-14/15 with no unresolved requests outstanding."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: concept ACKs from Sjors and kevkevinpal, code review approvals from ryanofsky and Eunovo, and re-ACKs from ViniciusCestarii and xyzconstant after fixes; no open objections.",
+   "reason": "Multiple reviewers with concrete rationale (ryanofsky preferred this approach over the global -ipcmaxconnections alternative in #34978 because it allows per-purpose limits) approved the code, and every substantive concern raised (overflow bugs, parsing ambiguity, log regression) was fixed and acknowledged by the reviewer who raised it.",
+   "evidence": [
+    "ryanofsky: 'Code review ACK ... This fixes a gap in descriptor accounting, and adds a helpful connection limiting feature, and is nicely implemented.'",
+    "Eunovo: 'ACK ... LGTM, left some nits.'",
+    "ViniciusCestarii: 're-ACK 39b1c5a22c845857709d4e95d4205e0901e85b09'",
+    "xyzconstant: 're-ACK 39b1c5a22c845857709d4e95d4205e0901e85b09 ... Nice changes'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced as a cleaner alternative to #34978 (init: reserve file descriptors for IPC connections), which this PR effectively supersedes for the connection-limit use case."
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Directly modifies IPC listener binding (-ipcbind), ipc::Protocol::listen, interfaces::Ipc, and adds ipc::ListenAddress/ipc/types.h and ipc/listen.cpp; carries the IPC label.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it adds a concrete, requested capability (per-listener connection caps) that ryanofsky called a better alternative to the global -ipcmaxconnections option in #34978, useful for differentiating limits between GUI and mining IPC clients as the multiprocess project grows. It also fixes real integer overflow/underflow bugs in the new fd-reservation logic found during review by xyzconstant, which could otherwise crash the node at startup (`Assertion 'min_fd >= 0' failed`) or silently under-reserve descriptors. It does not unblock a category-critical project and is not itself required for any blocked PR, keeping it below P1."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the future direction of making parseListenAddress virtual (proposed by ryanofsky as a followup) will be required before merge or left as-is.",
+   "Whether the pre-existing issue of IPC fd reservations starving P2P connection slots to zero (noted by xyzconstant) will be addressed as part of this PR or a separate followup, which does not change this PR's own priority."
+  ],
+  "card": "This PR extends -ipcbind to accept an inline ,max-connections=<n> option so operators can cap simultaneous client connections per IPC listener address, instead of one global -ipcmaxconnections option as proposed in the competing #34978. It also fixes file-descriptor reservation accounting for IPC listeners, closing integer overflow and underflow bugs that reviewer xyzconstant demonstrated could crash the node at startup or silently mis-reserve descriptors. The five-month review thread (7 distinct reviewers) surfaced and resolved numerous concrete issues: Windows-path ambiguity in the options syntax, parser edge cases, a fd-overflow assertion crash, and a log-line regression, and the latest revision has fresh re-ACKs from ViniciusCestarii, xyzconstant, and approvals from ryanofsky and Eunovo. No open objections remain and the PR appears ready for a final merge-oriented review. It has no hard dependency on other open PRs but is referenced as a cleaner alternative to #34978."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

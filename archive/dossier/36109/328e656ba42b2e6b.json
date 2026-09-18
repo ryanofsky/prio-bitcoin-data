@@ -1,0 +1,90 @@
+{
+ "number": 36109,
+ "input_hash": "328e656ba42b2e6b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6218,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2656
+ },
+ "cost_usd": 0.0209043,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Hardens shared test helpers that rebuild block templates for arbitrary parents so future tests can't silently produce invalid blocks (wrong difficulty, subsidy, or too-short coinbase scripts)."
+   ],
+   "reviewability": [
+    "Paused: a reviewer flagged a real edge-case bug (mempool fee assignment) and proposed extra test coverage 8+ days ago with no author reply yet."
+   ],
+   "agreement": [
+    "Concept ACK from one reviewer (jeanpablojp) who built and tested every commit.",
+    "Same reviewer raised an unresolved but nonblocking concern that overwriting the coinbase output can drop mempool fees in an edge case not yet exercised by any test, and offered a one-line fix plus draft tests for both the target and coinbase changes (jeanpablojp).",
+    "No author response yet to either point."
+   ],
+   "categories": []
+  },
+  "summary": "This PR extracts and shares the logic that rebuilds a block template for an arbitrary parent (used by BuildChain and MinerTestingSetup::Block) into a single RebuildBlockForParent helper, fixing three latent test-helper bugs: a stale work target, a stale coinbase subsidy, and an unpadded low-height coinbase script that would violate the minimum length. None of the current callers trigger these bugs, so no existing test currently fails; the change is preventative hardening for future test cases.",
+  "problem": "Test helpers that attach active-tip block templates to arbitrary parents copy fields (work target, subsidy, script length) that describe the wrong block once the parent changes, which would silently produce invalid test blocks for any future test that crosses a halving, retargets, or forks below height 17. This affects Bitcoin Core contributors writing new validation/mining-related functional or unit tests using these helpers.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp: using assignment instead of adjustment for the coinbase output means fees present in the original mempool-templated block are dropped; not yet hit by any test but real, suggested using .use_mempool=false at the call site instead as a simpler fix.",
+    "jeanpablojp: proposed two additional unit tests (rebuild_block_for_parent_target, rebuild_block_for_parent_coinbase) to cover the new nBits/subsidy/padding logic that currently has no direct test coverage; removing any of the three new lines still leaves existing suites green."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-08-28, no response to reviewer's 2026-09-08 comments"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "A reviewer raised a concrete, material concern on 2026-09-08 (the coinbase-output overwrite silently drops mempool fees in an untested edge case) and proposed both a simpler fix and new regression tests; 8 days have passed (over the 7-day threshold) with no author response, so review of the current code could be invalidated by a forthcoming change."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACK from jeanpablojp, but they flagged an unresolved, nonblocking correctness gap (fee-dropping edge case) and proposed tests; author has not replied.",
+   "reason": "The reviewer's fee-loss observation is a real harm even though it doesn't currently break any test, and they raised it as a suggestion rather than a blocker, which the agreement rubric maps to Mild when unresolved.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK... Built each commit and ran the unit tests'",
+    "jeanpablojp: 'This is an assignment rather than an adjustment, so the template's fees go with it... Would .use_mempool = false ... be simpler?'",
+    "jeanpablojp: 'Removing the target, subsidy or padding line here leaves ... green, so nothing on that side covers what the branch changes' with proposed test code",
+    "No author reply as of assessment"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Follow-up work on #35847 (test: move more tests to baseindex_tests) that motivated this hardening"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The PR modifies src/test/util/mining.cpp/.h, shared test helper code used by multiple test suites, and src/test/validation_block_tests.cpp; it is squarely test-framework hardening with the Tests label.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Fixes latent bugs in shared block-building test helpers (stale nBits/subsidy, unpadded coinbase script) that would otherwise produce invalid blocks in future tests crossing a halving or forking below height 17, per the commit messages ('this prevents future invalid test cases rather than fixing an existing failure'). No current test is broken, and reviewer jeanpablojp notes the new logic itself has no direct test coverage yet, which caps the priority at worthwhile-but-deferrable."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the fee-dropping edge case jeanpablojp identified is purely theoretical or could bite a near-term test PR is unclear without more context on planned uses of MinerTestingSetup::Block.",
+   "No visibility into whether the author intends to respond soon; author_silent_days=20 overall but the specific review thread is only 8 days old."
+  ],
+  "card": "Small (S) test-only PR by l0rinc that extracts and hardens the shared logic for rebuilding a block template onto an arbitrary parent, fixing latent bugs where the copied work target, coinbase subsidy, and coinbase script length could describe the wrong block. No existing test currently fails; the commits state this 'prevents future invalid test cases rather than fixing an existing failure.' Reviewer jeanpablojp gave a Concept ACK after building and testing each commit, but also flagged an unresolved edge case where the new coinbase-output assignment can silently drop mempool fees, and proposed two additional unit tests to cover the previously-untested target/coinbase logic; the author has not responded in 8+ days. Priority within tests is P3: worthwhile hardening of shared test infrastructure, but narrow in scope and not blocking any other work. Reviewability is Paused pending the author's response to the material fee-loss concern and test-coverage suggestion."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

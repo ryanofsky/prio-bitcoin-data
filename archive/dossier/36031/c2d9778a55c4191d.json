@@ -1,0 +1,100 @@
+{
+ "number": 36031,
+ "input_hash": "c2d9778a55c4191d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8769,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3037
+ },
+ "cost_usd": 0.0253603,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Removes the unused mapMasterKeys multi-key mechanism from the wallet, replacing it with a single m_encryption_key.",
+    "Clarifies and simplifies wallet encryption key handling for maintainers."
+   ],
+   "reviewability": [
+    "Ready to review now, no blockers.",
+    "Author responded to review findings and pushed an update, and a reviewer has since crACKed the latest commit."
+   ],
+   "agreement": [
+    "Strong support with several concept ACKs and a crACK on the final commit (theStack, rkrux, w0xlt, davidgumberg).",
+    "jeanpablojp found an edge case where a legacy blank-wallet bug could leave two encryption keys, causing this PR to reject the wallet on load, author judged the scenario near-impossible to hit in practice and jeanpablojp did not push back (jeanpablojp, achow101)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it is a maintainability and clarity cleanup in a fund-safety-adjacent area, removing a never-implemented multi-passphrase feature that has caused confusion.",
+      "Enforces a data invariant (one encryption key) that was already assumed in most code paths, reducing risk of subtle bugs rather than fixing an active one.",
+      "No user-facing feature or bug fix, benefit is durability of the codebase for maintainers."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes CWallet::mapMasterKeys, a data structure originally added to support multiple wallet-encryption passphrases, a feature that was never actually implemented. It replaces it with a single std::optional<CMasterKey> m_encryption_key, moves the master-key ID into CMasterKey itself, and makes loading a wallet with more than one encryption key a corruption error. The database record format is unchanged.",
+  "problem": "The wallet has carried unused multi-key encryption infrastructure since 2011 (PR #352) with no clear rationale and no way to actually use multiple keys, leading to inconsistent single-key assumptions scattered through the code. This creates ongoing confusion for wallet maintainers reasoning about encryption-key handling.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp found that a legacy blank-wallet bug (present in v0.19.1) could produce a wallet with two mkey records, which this PR would then refuse to load or migrate instead of silently carrying both records forward as before; author considers the scenario practically nonexistent (~0 affected users) and declined to add a more complex fix for it now.",
+    "davidgumberg suggested (as an out-of-scope remark) that old mkey records could be renamed rather than deleted, not acted on."
+   ],
+   "resolved_concerns": [
+    "vicjuma raised that CMasterKey::m_id defaults to 1 which could collide oddly; confirmed via a functional test that non-standard IDs are preserved correctly, and gave Approach ACK."
+   ],
+   "author_status": "active, addressed review with a force-push and responded to the blank-wallet edge case with a rationale; no further pushback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failures, no rebase needed, and the author has already responded to and force-pushed against review feedback. The one open finding (legacy blank-wallet duplicate mkey edge case) was answered by the author with a rationale that the critic did not contest, and a subsequent reviewer (davidgumberg) crACKed the current commit as safe."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Multiple concept ACKs and a crACK with no unresolved objection; jeanpablojp's edge-case finding was answered by the author and not pursued further (jeanpablojp, davidgumberg, theStack, rkrux, w0xlt).",
+   "reason": "Several reviewers (theStack, rkrux with a 'Strong Concept ACK', w0xlt) support the concept, vicjuma gave an Approach ACK after verifying behavior with a test, and davidgumberg gave a crACK stating 'the worst that can happen is that some wallet edge case has not been taken into account and will fail to load on startup, which is fine.' jeanpablojp's discovered legacy-wallet duplicate-key scenario was addressed by achow101's rationale and not escalated.",
+   "evidence": [
+    "rkrux: 'Strong Concept ACK ... I don't see a good reason to have multiple keys or passphrases to encrypt the wallet going forward.'",
+    "davidgumberg: crACK, 'From a high-level this change is safe'",
+    "jeanpablojp: found duplicate-mkey wallets from a legacy bug now fail to load; achow101 replied the scenario affects approximately 0 users and declined a more complex fix",
+    "vicjuma: 'Approach ACK' after confirming m_id handling via a functional test"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies wallet.cpp, wallet.h, walletdb.cpp, walletdb.h, and crypter.h, changing how the wallet stores and loads its encryption key, a core wallet-internal data structure.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Primarily a maintainability cleanup: removes a decades-old unused multi-passphrase mechanism and enforces an invariant (single encryption key) already assumed elsewhere, per the description: 'mapMasterKeys was introduced in #352 without a clear rationale ... this functionality was never implemented.' It touches the fund-safety-adjacent encryption path but does not fix an active bug or add user value; the one discovered edge case (legacy duplicate mkeys) is judged by the author and reviewers as affecting essentially no users."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the blank-wallet duplicate-mkey edge case found by jeanpablojp could realistically affect any deployed wallets remains unverified beyond the author's estimate.",
+   "Whether the tests category should include this PR given vicjuma's proposed functional test was not incorporated into the PR itself; treated as non-member since the test exists only in review comments."
+  ],
+  "card": "This PR removes the legacy mapMasterKeys multi-key structure from the wallet (added in 2011 for a never-implemented multi-passphrase feature) and replaces it with a single optional m_encryption_key, tightening the invariant that a wallet has at most one encryption key. It is a wallet-internals cleanup rather than a bug fix or new feature: no consensus, fund-safety bug, or performance issue is being fixed, though the change does touch the encryption-key load/write path. Reviewer jeanpablojp found that a rare legacy blank-wallet bug from v0.19.1 could produce wallets with two mkey records that this PR would now reject on load instead of silently tolerating; author achow101 judged the affected population to be approximately zero and declined further work, and the reviewer did not push back. The PR has several concept ACKs, an Approach ACK backed by a verification test, and a crACK from davidgumberg calling the change safe, with no unresolved objections. It is ready for review now, with no CI or rebase issues, and no known dependencies."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,220 @@
+{
+ "number": 35820,
+ "input_hash": "23f5e2f84c55c4e8",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23346,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6683
+ },
+ "cost_usd": 0.058167300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Rewrite several fixed-duration calculations (bans, PoW timing, assumevalid, relay ages, rolling fee halflife) to use std::chrono types instead of raw integers.",
+    "Removes implicit-unit comments and adds characterization tests to pin exact numeric values through the refactor."
+   ],
+   "reviewability": [
+    "Stale: PR needs a rebase and has been force-pushed six times as review comments were addressed.",
+    "No open material request is being ignored, but the branch is not currently mergeable."
+   ],
+   "agreement": [
+    "Concept ACK with a stated reason for the clarity benefit (janb84).",
+    "Skepticism that the change adds real type safety or clarity, treated as nonblocking (stickies-v).",
+    "Approach objections about violating util/time.h guidance and count_seconds cast to int were addressed by reworking the PR (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because it only changes how consensus_timespan/spacing literals are represented in kernel/chainparams.cpp, not the kernel API or boundary.",
+      "No consumer or kernel-project milestone depends on this representation change."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P4 because ROLLING_FEE_HALFLIFE becomes a typed duration but the decay math and constant value are unchanged.",
+      "Purely representational; existing decay test already pins the value."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because relay-age and ban-time constants gain chrono types but keep identical numeric behavior.",
+      "No DoS or relay-correctness improvement is claimed or evidenced."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because mockscheduler and getchaintxstats keep the same external behavior, only internal typing changes.",
+      "No caller-visible interface or compatibility change."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the assumevalid two-week threshold and MAX_FUTURE_BLOCK_TIME keep their exact values, guarded by new characterization tests.",
+      "Some leverage in reducing risk of future unit-mixing bugs, but no current consensus defect is fixed."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because anti-fee-sniping and rebroadcast age constants are only re-expressed in chrono, with identical thresholds.",
+      "No fund-safety or user-facing wallet behavior changes."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR is a broad refactor that rewrites numerous fixed-duration calculations across the codebase (GUI time formatting, peer bans, scheduler forwarding, PoW target timing, assumevalid horizon, mempool rolling-fee halflife, relay age limits) to use std::chrono types instead of raw integer seconds. It adds several characterization tests (PoW timing, assumevalid threshold, ROLLING_FEE_HALFLIFE) to pin exact numeric values through the change, and keeps integer interfaces intact where converting them would broaden the diff. The stated goal is purely representational clarity: making implicit time units explicit in the type system rather than in comments, with no intended behavior change.",
+  "problem": "Several duration constants and calculations (ban times, relay-age limits, PoW spacing, assumevalid thresholds) are expressed as raw integers with units documented only in comments, which the author argues risks mixing unrelated integer values and obscures intent for readers less familiar with the surrounding code (janb84: 'It will even provide less proficient in C++ users to read consensus code').",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v is unconvinced the change adds real value beyond cosmetics ('I don't find this harder to read'), a nonblocking sentiment rather than a harm.",
+    "PR still needs a rebase (label: Needs rebase) after the latest force-push on 2026-08-18."
+   ],
+   "resolved_concerns": [
+    "maflcko's objection that some conversions (e.g. TicksSeconds/count_milliseconds casts) violate util/time.h guidance and add no real type safety was addressed by the author reworking and narrowing the changes (l0rinc: 'I reworked the branch so durations remain typed where the surrounding APIs already support chrono... I like it a lot better this way').",
+    "maflcko's confusion about an unrelated ODR-related description was resolved when the author removed that wording from the PR description.",
+    "janb84's NIT suggestions to further typify some constants were partially accepted and partially left as-is by design."
+   ],
+   "author_status": "active, last force-pushed 2026-08-18 to rebase after a merged dependency (#35852)"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries the 'Needs rebase' label and mergeable_state is unknown; six force-pushes show active rework but the branch currently cannot be merged cleanly. No open material reviewer request is being ignored; the last unresolved concern (maflcko's approach objection) was addressed by a subsequent rework."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from janb84 for clarity; maflcko's approach objections were addressed by rework; stickies-v remains unconvinced of the value but treats it as nonblocking.",
+   "reason": "One reviewer (janb84) explicitly wants the change for a stated reason (readability for less-experienced C++ readers) and no current unresolved harm blocks it; maflcko's specific technical objections (violating util/time.h guidance, misleading PR description) were resolved through rework and clarification; stickies-v's skepticism is a 'not worth it' opinion, not a stated harm, so it does not lower the state.",
+   "evidence": [
+    "janb84: 'Concept ACK ... I like the clarity/readability this changes gives.'",
+    "stickies-v: '~0, ... I don't find this harder to read', nonblocking.",
+    "maflcko: 'This seems like a step in the wrong direction... the correct approach would be...' \u2014 addressed by l0rinc's subsequent rework.",
+    "l0rinc: 'Thanks for the suggestion, I reworked the branch so durations remain typed where the surrounding APIs already support chrono...'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced as a follow-up observation from work in #35792 (merged); rebased on top of merged #35852; no other PR is described as blocked on this one."
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Touches src/kernel/chainparams.cpp, changing how nPowTargetTimespan and nPowTargetSpacing are expressed (chrono literal divided by 1s) without changing values.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Purely a representational change to chainparams constants with pinned identical values via new sanity-check assertions; it does not touch the kernel API surface or boundary that the kernel category cares about, and no kernel consumer or project milestone is cited as depending on it."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Changes ROLLING_FEE_HALFLIFE in txmempool.h/.cpp from an int to std::chrono::seconds, with the decay math unchanged.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Type-only change to an existing constant already pinned by an existing decay test and a new characterization assertion (43,200 seconds); no policy, DoS, or fee-estimation behavior changes."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes STALE_RELAY_AGE_LIMIT, HISTORICAL_BLOCK_AGE in net_processing.cpp, MAX_UPLOAD_TIMEFRAME in net.cpp, and DEFAULT_MISBEHAVING_BANTIME in banman.h to chrono types with identical numeric values.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No relay, DoS-resistance, or ban-time behavior changes are claimed; commit messages describe this as 'keeping units visible', a readability change with values held constant."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes mockscheduler's delta parsing in rpc/node.cpp and getchaintxstats's block-count math in rpc/blockchain.cpp to use typed durations and PowTargetSpacing() accessor.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Both RPCs keep their existing external contract (same limits, same results); this is an internal typing change with no caller-facing effect and no reported caller confusion driving it."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes MAX_FUTURE_BLOCK_TIME in chain.h, the assumevalid two-week threshold and future-block check in validation.cpp, and the future-block check in node/chainstate.cpp to chrono types, adding characterization tests to pin the exact values.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Touches consensus-adjacent constants (assumevalid horizon, future-block tolerance) which raises the stakes of any mistake, but the author added characterization tests specifically to pin exact numeric behavior (commit: 'characterize assumevalid work threshold ... Make the assumevalid test hit exactly two weeks of equivalent work'), and no functional change is intended or reported; value is mainly reduced risk of future unit-mixing bugs, which is a minor, unmeasured leverage."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes the anti-fee-sniping tip-age constant in wallet/spend.cpp and the rebroadcast age comparison in wallet/wallet.cpp to derive from chrono literals divided by 1s, keeping the same integer values.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No change to fund safety, privacy, or rebroadcast timing behavior; MAX_ANTI_FEE_SNIPING_TIP_AGE and the 5-minute rebroadcast window keep identical values, just re-derived from chrono literals."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project maintainers actually want broad chrono-typing refactors of this kind is disputed in the thread itself (stickies-v, maflcko vs janb84, author); this affects Agreement more than priority, but the split view suggests the final direction could still change materially.",
+   "Diff size and touch count across many unrelated subsystems could mean maintainers ask for the PR to be split (janb84 suggested splitting by risk, which the author partially did); this isn't reflected in the current single-PR reviewability assessment.",
+   "No explicit answer from stickies-v after the author's rework was found in the given discussion, so it's unclear if stickies-v's skepticism persists or has softened."
+  ],
+  "card": "This PR is a repository-wide refactor by l0rinc that re-expresses fixed-duration constants (peer ban times, PoW target timing, assumevalid horizon, relay age limits, mempool rolling-fee halflife) as std::chrono types instead of raw integers, with no intended behavior change and new characterization tests pinning the exact numeric values. The stated problem is readability and avoiding mixing unrelated integer values across time-based constants; janb84 gave a concept ACK for the clarity benefit, while stickies-v and maflcko questioned whether the change adds real safety or clarity, with maflcko's specific technical objections resolved by the author reworking the approach. It touches kernel/chainparams.cpp, txmempool, net_processing.cpp, rpc/node.cpp and blockchain.cpp, validation.cpp, chain.h, and wallet files, but in each area the change is purely representational with values held constant, so it ranks low (P4) everywhere it applies. The PR currently needs a rebase (label: Needs rebase) after six force-pushes, most recently to rebase on a newly merged dependency, #35852. No other PR is reported as depending on this one merging."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

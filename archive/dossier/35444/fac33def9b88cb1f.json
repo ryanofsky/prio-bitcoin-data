@@ -1,0 +1,101 @@
+{
+ "number": 35444,
+ "input_hash": "fac33def9b88cb1f",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16596,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3168
+ },
+ "cost_usd": 0.033842300000000006,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Converts the descriptor wallet's internal mutex from a recursive lock to a plain lock, splitting public locking entry points from internal lock-held helpers.",
+    "Reduces the risk of subtle locking bugs (recursion masking ordering issues) as part of the project-wide effort to remove RecursiveMutex usage (issue #19303).",
+    "No wallet behavior, RPC output, or on-disk format is intended to change."
+   ],
+   "reviewability": [
+    "Ready to review now, code is clean and mergeable with no open material requests.",
+    "Two concept ACKs already given and minor nits were addressed; only pending item is a routine rebase after a maintainer ping."
+   ],
+   "agreement": [
+    "Strong support: pablomartin4btc gave a detailed concept ACK after reviewing commit by commit, and hebasto also concept-ACKed with no objections.",
+    "A subtle question about atomicity of two separate locked reads in listdescriptors was raised and resolved by the author's explanation (pablomartin4btc, w0xlt).",
+    "A readability nit was addressed with a follow-up push (pablomartin4btc, w0xlt)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it hardens the locking discipline of DescriptorScriptPubKeyMan, reducing the chance of subtle recursive-lock bugs that could cause hangs or inconsistent state, but it fixes no known active bug.",
+      "Part of the broader RecursiveMutex removal project (#19303), giving it some leverage for future lock-safety work across the codebase, though this instance stands on its own."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR converts DescriptorScriptPubKeyMan's internal mutex from a RecursiveMutex to a non-recursive Mutex, part of the project-wide effort tracked in issue #19303 to remove recursive locking. It splits public self-locking entry points from internal lock-held helper methods, removes external LOCK(cs_desc_man) call sites in wallet.cpp, rpc code, and fuzz harnesses, and moves address-availability notifications outside the lock so synchronous GUI callbacks can safely re-enter. A final scripted-diff commit renames cs_desc_man to m_desc_mutex to match project naming conventions, and a new regression test covers notification ordering under various operations.",
+  "problem": "Recursive mutexes can mask lock-ordering bugs and make it harder to reason about correctness; the project is systematically removing them (#19303) to reduce the risk of subtle deadlocks or reentrancy bugs in wallet code that maintainers and future contributors would otherwise have to debug.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "pablomartin4btc questioned whether removing the shared lock around two descriptor reads in listdescriptors could break atomicity; author explained cs_wallet is held across both calls, resolving the concern.",
+    "pablomartin4btc suggested a readability improvement in addhdkey(); author implemented it in a follow-up push."
+   ],
+   "author_status": "active, rebased most recently on 2026-09-15 after a maintainer ping"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Mergeable and CI passing, with prior review nits already addressed in pushes. The only recent activity was a rebase; no material open request is blocking review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Two concept ACKs (pablomartin4btc, hebasto) with detailed rationale from pablomartin4btc and no objections; minor concerns were resolved.",
+   "reason": "pablomartin4btc reviewed commit-by-commit and gave a substantive concept ACK stating the split between public self-locking methods and internal helpers makes sense; hebasto affirmed with a plain concept ACK. No unresolved criticism remains.",
+   "evidence": [
+    "pablomartin4btc: 'Concept ACK. I reviewed the commits individually... the split... makes sense to me'",
+    "hebasto: 'Concept ACK.'",
+    "pablomartin4btc raised an atomicity question in listdescriptors; w0xlt explained cs_wallet covers both reads, no pushback.",
+    "pablomartin4btc's readability nit in addhdkey was implemented by w0xlt."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on issue #19303's project-wide removal of RecursiveMutex usage"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies DescriptorScriptPubKeyMan locking in src/wallet/scriptpubkeyman.{h,cpp} and related wallet call sites; carries the Wallet label.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Non-recursive mutexes reduce the risk of subtle reentrancy or lock-ordering bugs in descriptor operations, a real but preventive benefit rather than a fix for an observed failure ('No wallet database format, RPC behavior, keypool semantics, or external signer behavior is intended to change' per description). It is part of the broader #19303 RecursiveMutex removal effort, giving it modest leverage, but no user-facing bug or feature is at stake, keeping it in the worthwhile-but-deferrable band."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the notification-reordering behavior (moving NotifyCanGetAddressesChanged emission outside the lock) could introduce a subtle behavior change for GUI callbacks was only partially explored in review; no reviewer flagged a concrete harm, but it is a nontrivial semantic change beyond pure mutex-type conversion.",
+   "The five force-pushes suggest ongoing rework; it's unclear if all reviewer comments from June were fully re-validated against the September rebase."
+  ],
+  "card": "This PR converts DescriptorScriptPubKeyMan's cs_desc_man from a RecursiveMutex to a plain non-recursive Mutex, part of the project-wide #19303 effort to eliminate recursive locking in Bitcoin Core. It splits public self-locking entry points from lock-held internal helpers, removes external LOCK() call sites across wallet.cpp, RPC code, and fuzz harnesses, and relocates address-availability notifications outside the lock so synchronous callbacks can safely re-enter; a scripted-diff renames the mutex to m_desc_mutex. Two maintainers (pablomartin4btc, hebasto) gave concept ACKs, with pablomartin4btc reviewing commit-by-commit and one atomicity question resolved by the author's explanation that cs_wallet already covers the relevant reads. The PR is clean and mergeable, having just been rebased, with no open objections. It solves no active bug but preventively reduces the risk of subtle lock-ordering issues in wallet descriptor code, making it worthwhile but deferrable within the wallet category."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

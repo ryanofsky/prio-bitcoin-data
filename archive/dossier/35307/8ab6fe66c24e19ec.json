@@ -1,0 +1,135 @@
+{
+ "number": 35307,
+ "input_hash": "8ab6fe66c24e19ec",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9703,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4277
+ },
+ "cost_usd": 0.0324943,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a crash and a false 'corrupted database' failure when the assumeutxo snapshot base block was already stored on disk before the snapshot loaded.",
+    "Lets background validation resume normally instead of demanding a wasted -reindex."
+   ],
+   "reviewability": [
+    "Ready to review, the flagged concern was answered by the author and nobody has revisited the rework since."
+   ],
+   "agreement": [
+    "One reviewer questioned how often this edge case is hit (mzumsande); author explained the trigger path and rationale, no further pushback.",
+    "No other reviewer input; support has not been affirmed beyond that exchange."
+   ],
+   "categories": []
+  },
+  "summary": "Fixes a bug where a node that has the assumeutxo snapshot base block on disk before loadtxoutset() runs can no longer make progress: background validation either hits a cursor assertion and aborts, or a restart triggers a false 'Corrupted block database' error demanding a reindex. The fix keeps the snapshot base block classified in the normal blockfile range rather than the ASSUMED range, adjusts FlushChainstateBlockFile, stops VerifyDB before disconnecting a snapshot base it cannot actually disconnect, and keeps the base in m_blocks_unlinked until its parents are processed. Functional test coverage is added for the base-already-on-disk scenario including a restart, and the wallet prune-height test is adjusted to match.",
+  "problem": "Node operators (or software) that submit the snapshot base block locally via submitblock before calling loadtxoutset() end up in a state that either crashes the node (assertion failure) or bricks it on restart with a misleading 'reindex' message, even though the block database is not actually corrupt.",
+  "discussion": {
+   "open_concerns": [
+    "mzumsande questioned how common/motivated this scenario is, since normal P2P sync would already have the node close to the snapshot height; author clarified it is specifically about local submitblock/import before snapshot activation, not the common p2p path"
+   ],
+   "resolved_concerns": [
+    "Author explained the trigger clearly and reviewer did not push back further"
+   ],
+   "author_status": "active, most recently rebased and clarified the bug's real-world manifestation on 2026-08-19"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No open mechanical blockers: CI passes, no rebase needed. The one reviewer question from May was answered by the author with a concrete rationale and no further objection was raised; the PR has since been reworked and rebased (2026-08-19) without new review input."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "mzumsande questioned the scenario's relevance; author's explanation went unchallenged but also unconfirmed as sufficient",
+   "reason": "Only one reviewer has engaged, raising a nonblocking question about how often this state is reached rather than a harm from the fix itself. The author's rationale (submitblock before loadtxoutset, not the p2p path) was not disputed further, but nobody has affirmatively endorsed the fix either.",
+   "evidence": [
+    "mzumsande: 'why would someone load a snapshot when they already downloaded the block...'",
+    "shuv-amp: clarified the trigger is local submitblock/import before snapshot activation, and framed the PR as making an already-reachable state not abort"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly changes block/undo file storage classification (BlockfileTypeForHeight, FlushChainstateBlockFile, m_blockfile_cursors) in blockstorage.cpp/h, and carries the 'Block storage' label.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes an assertion crash in WriteBlockUndo and a false corruption message that sends operators to an unnecessary reindex, per the description: 'The block database is not corrupt, so the reindex that message asks for is wasted work.' The trigger condition is narrow (base block submitted locally before loadtxoutset), which keeps this from being P1."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes chainstate block-index candidate logic (PopulateBlockIndexCandidates), VerifyDB's disconnect walk near the snapshot base, and FlushStateToDisk's flush-file selection, all core to assumeutxo background validation correctness.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Prevents background validation from asserting/aborting and from VerifyDB attempting an impossible disconnect of the snapshot base, per the author: 'the base does have data, and no undo data... so the walk goes into it and the disconnect fails.' Reviewer mzumsande's question about how commonly this state arises supports treating it as a real but edge-case correctness fix rather than a mainline hazard, hence P2 not P1."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes to mempool acceptance, policy, or fee estimation code; all changes are in blockstorage/validation chainstate management and assumeutxo tests.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; the PR does not touch mempool policy or data structures."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only test/functional/wallet_assumeutxo.py is touched, and only to adjust a prune-height assertion so the test still exercises the intended backup-recovery scenario after the blockstorage behavior change; no wallet code or wallet-facing behavior changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical test adjustment following from the blockstorage change, not a wallet-area change in its own right."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "How frequently the triggering scenario (submitblock of the snapshot base before loadtxoutset) actually occurs in practice; reviewer mzumsande questioned this and the author's answer, while plausible, is unverified by others.",
+   "Whether the fix fully resolves the underlying invariant issues or only the two specific failure modes described; no second reviewer has examined the reworked version."
+  ],
+  "card": "This PR fixes a real bug where a node that already has the assumeutxo snapshot base block on disk (e.g. via a local submitblock) before loadtxoutset() runs gets stuck: background validation either asserts and aborts (WriteBlockUndo cursor assertion) or, on restart, fails VerifyDB and tells the operator to reindex a database that is not actually corrupt. The fix reclassifies the snapshot base into the normal blockfile range, adjusts chainstate flush and VerifyDB logic accordingly, and keeps the base in m_blocks_unlinked until its parents are processed, with new functional test coverage for the scenario. The only reviewer (mzumsande) questioned how commonly this state is reached since normal p2p sync would already have the node near the snapshot height; the author clarified it applies specifically to local block submission before snapshot activation, and that explanation went unchallenged. The PR has been reworked and rebased several times, most recently 2026-08-19, with no further review since May. No PR dependency, but it touches areas that conflict with several other open PRs reworking blockstorage/validation error handling (#35731, #35714, #35646, #29700)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

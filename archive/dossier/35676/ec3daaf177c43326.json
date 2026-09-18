@@ -1,0 +1,150 @@
+{
+ "number": 35676,
+ "input_hash": "ec3daaf177c43326",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10923,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5314
+ },
+ "cost_usd": 0.038899300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make CheckDiskSpace and FlatFileSeq::Open abort the program when they hit a rare, previously-uncaught filesystem exception.",
+    "Aims for consistent behavior instead of ad hoc crashes at different call sites."
+   ],
+   "reviewability": [
+    "Ready to review now, the diff is small and stable, no CI or rebase issues.",
+    "The real open question is architectural (abort vs graceful shutdown) and is being actively debated, not a stale or paused PR."
+   ],
+   "agreement": [
+    "Disputed: several members (sedited, josibake, furszy) argue aborting is the wrong layer for this decision and that graceful shutdown should be attempted instead.",
+    "optout21 leans toward a soft NACK on the abort approach, preferring error logging without aborting.",
+    "Author (maflcko) is actively engaging point by point but no consensus has been reached.",
+    "Concept ACKs came early from furszy and l0rinc before the deeper disagreement surfaced."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P1 because this is exactly a policy decision blocking related work: two other open PRs (#35003, #34132) touch the same I/O-error-handling question and conflict with this one.",
+      "Resolving how CheckDiskSpace/FlatFileSeq failures are handled affects crash-vs-shutdown behavior across the whole node, a core utils primitive."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because the abort path directly affects blockfilterindex reliability when its underlying storage becomes unavailable, and the new test option exercises index file chunking behavior.",
+      "Indexes are one of the concrete places this exception can fire (per the description), making correctness here felt by users of blockfilterindex/txindex-style features."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a category member because the new functional test pins specific I/O-error behavior for blockstorage/index code rather than adding general test framework capability."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes CheckDiskSpace and FlatFileSeq::Open abort the process via std::abort() when they hit a rare, previously-uncaught filesystem exception (e.g. querying disk space or creating a directory fails), instead of letting an uncaught exception terminate the program less predictably. It adds logging of the underlying OS error before aborting and a new functional test (feature_io_errors.py) exercising three I/O-failure scenarios: scheduler disk-space check, blockfilterindex chunk allocation, and block file allocation. A new -test=blockfilterindex_small_chunks option is added to make the filter index allocate new file chunks more easily in tests.",
+  "problem": "Bitcoin Core currently has inconsistent behavior when I/O operations like checking free disk space or creating directories throw unexpected exceptions: some call sites crash uncleanly with unhandled std::terminate, others silently swallow errors. Users hitting rare hardware issues (e.g. an unplugged external drive) get an unpredictable and hard-to-diagnose failure mode, and reviewers/maintainers face inconsistent error-handling patterns across the codebase.",
+  "discussion": {
+   "open_concerns": [
+    "Whether aborting the process (vs. attempting a best-effort clean shutdown/flush) is the right response to rare I/O exceptions in CheckDiskSpace/FlatFileSeq::Open (sedited, josibake, furszy, optout21).",
+    "Whether the fix belongs at this low-level primitive layer or should be handled by callers/thread boundaries catching exceptions (josibake, sedited).",
+    "Overlap and conflict with #35003 and #34132, which take a different, more graceful approach to I/O error handling in overlapping code paths; author argues those PRs remain incomplete and risk leaving mixed handling behavior."
+   ],
+   "resolved_concerns": [
+    "Initial concern about the FlatFileSeq comment location was addressed by the author moving the fix in a later push (2026-07-10)."
+   ],
+   "author_status": "active, most recent reply 2026-07-15 engaging with sedited/josibake/optout21's objections"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failures, no rebase issues, and the author is actively pushing and replying (last activity 2026-07-15). The core disagreement is architectural, not a known incoming rewrite that would invalidate a code review of the current diff."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: josibake, sedited, furszy and optout21 argue aborting is the wrong layer/approach for rare I/O exceptions; author disagrees and is actively engaging without resolution.",
+   "reason": "Multiple members raised a substantive, unresolved objection (abort vs graceful shutdown) that they treat as a real design flaw, and the author has responded extensively but no agreement has been reached; optout21 leans NACK on the approach.",
+   "evidence": [
+    "josibake: 'This now conflates a program logic question... with an actual programming bug... I don't think this is the way to do it.'",
+    "furszy: 'I don't think a low-level unclean shutdown is the right approach... could be remotely triggerable abortion.'",
+    "sedited: 'I think this is also close to impossible to guarantee [that crashing is fine]... I find the problem as sketched in #35003... much more likely and bad.'",
+    "optout21: 'I have a weak inclination towards N.A.C.K-ing the approach... higher-level context-aware error handling is preferable against low-level context-free abort.'",
+    "maflcko (author): 'I think the problem here is that we need to decide whether it is fine for a rare IO failure to lead to a crash. If not, then there won't be an easy fix available.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Resolving the abort-vs-graceful-shutdown policy question that #35003 and #34132 also depend on, per author: 'My main concern is that 35003 will be merged and the stuff isn't followed-up on... in this area, we need to fix all issues (or at least agree on how to fix them).'"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly changes blockfilterindex.cpp behavior on disk errors and adds a test option affecting FlatFileSeq chunking used by the filter index; the triggering exception in the description originates from blockfilterindex.",
+    "band": "P2",
+    "reason_tag": "decision needed",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it changes how blockfilterindex responds to disk failures, a data-integrity-adjacent concern for the indexes category ('an index that... corrupts on crash is worse than no index'). The change is disputed but the underlying reliability question is real: description shows a filesystem_error thrown from a blockfilterindex event handler."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new feature_io_errors.py test pins specific I/O-error behavior of blockstorage and blockfilterindex rather than adding general test-framework capability, so per the category file it belongs to those areas, not tests.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category definition: tests that pin one area's behavior belong to that area, not the test-infrastructure category."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Labeled 'Utils/log/libs'; the core change is to src/util/fs_helpers.cpp (CheckDiskSpace) and src/flatfile.cpp (FlatFileSeq::Open), both shared low-level primitives explicitly listed as utils paths.",
+    "band": "P1",
+    "reason_tag": "decision needed",
+    "score": 0.8,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "P1 because the discussion shows this PR's underlying question, how rare I/O exceptions should be handled, blocks progress on two other open PRs (#35003, #34132) that conflict with it and take a different approach; author states 'we need to decide whether it is fine for a rare IO failure to lead to a crash... otherwise many parts of the codebase need to be touched.' This is exactly the P1 criterion of a decision preventing meaningful progress on a category-defining error-handling effort."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the broader I/O-error-handling effort (spanning #35003, #34132, and this PR) truly counts as a 'category-defining project' for utils, or is better read as three competing point-fixes; I leaned toward treating the blocking decision as P1-worthy given explicit cross-PR conflict and stalled progress cited by participants.",
+   "Whether reviewability should be downgraded given the depth of unresolved architectural disagreement; I treated it as Ready since no one has said 'wait' and the author remains actively engaged, per the rule that approach disputes affect Agreement, not Reviewability."
+  ],
+  "card": "This PR makes CheckDiskSpace and FlatFileSeq::Open abort the process on rare, previously-uncaught filesystem exceptions (e.g. an external drive being unplugged), aiming for consistent error handling instead of ad hoc crashes. The problem it targets is real but very rare, and the change is heavily disputed: josibake, sedited, furszy, and optout21 argue that a low-level primitive shouldn't decide to abort and that graceful shutdown or exception propagation to a higher layer is safer, while the author (maflcko) argues that anything short of full, consistent handling across all call sites is pointless. This dispute is tied to two conflicting open PRs, #35003 and #34132, which take a more graceful approach to overlapping I/O error handling, and the author explicitly frames this as a decision the project needs to make before related work can proceed cleanly. The code itself is small, stable, and mergeable, so review of the current diff is not wasted, but the PR is stuck on an unresolved policy question rather than code quality."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

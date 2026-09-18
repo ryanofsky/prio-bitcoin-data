@@ -1,0 +1,93 @@
+{
+ "number": 35422,
+ "input_hash": "5641aa5a99e1e29c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:11+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14262,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2539
+ },
+ "cost_usd": 0.0147435,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent potential crashes in libsecp256k1 by requiring that MuSig2 secret nonces are successfully generated before partial signing can be attempted."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "The author adopted reviewer suggestions and CI is green."
+   ],
+   "agreement": [
+    "Reviewers clarified libsecp requirements and suggested simplifying the implementation, which the author adopted (achow101, real-or-random).",
+    "No formal ACKs yet following the author update."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it hardens the MuSig2 cryptographic helper against undefined behavior or crashes from uninitialized secret nonces.",
+      "The issue was observed in fuzz testing rather than normal execution, so impact is limited to API safety and robustness."
+     ]
+    }
+   ]
+  },
+  "summary": "Defers allocation of the underlying secure memory for `MuSig2SecNonce` until `secp256k1_musig_nonce_gen` succeeds so that `IsValid()` accurately reflects a generated nonce. Additionally guards `CreateMuSig2PartialSig` to fail early if an uninitialized nonce is supplied, and adds regression test coverage for the nonce lifecycle.",
+  "problem": "Previously, `MuSig2SecNonce` pre-allocated memory upon construction, making `IsValid()` return true before nonce generation took place. Attempting a partial sign with an uninitialized nonce caused libsecp256k1 to crash or invoke undefined behavior.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "achow101 pointed out normal execution should not store failed nonces and suggested setting the unique_ptr in CreateMuSig2Nonce rather than maintaining extra state; author adopted this approach.",
+    "real-or-random clarified that libsecp crashes on uninitialized structs because they are invalid representations rather than due to BIP 327 64-byte zero checks; author updated the PR motivation accordingly."
+   ],
+   "author_status": "Active; addressed review feedback and force-pushed updates."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author incorporated reviewer feedback, tests pass, and no blockers are open."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "Reviewer comments from achow101 and real-or-random were addressed by the author, but no formal ACKs have been posted yet.",
+   "reason": "Reviewers provided architectural suggestions and technical clarifications rather than outright concept approval, and the author addressed all feedback in subsequent pushes without further objections.",
+   "evidence": [
+    "achow101 suggested setting the unique_ptr after successful nonce generation instead of tracking boolean state.",
+    "real-or-random clarified libsecp256k1 expectations regarding valid secnonce pointers.",
+    "nervana21 updated the PR to incorporate achow101's design and real-or-random's clarifications."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Touches MuSig2 cryptographic wrappers and signing helpers in src/musig.cpp and src/musig.h.",
+    "band": "P3",
+    "reason_tag": "crash fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Prevents crashes or undefined behavior when partial signing with uninitialized MuSig2 nonces. While existing production code paths do not typically trigger this, the bug was caught during fuzzing, and enforcing proper lifecycle invariants improves cryptographic API safety."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request ensures that MuSig2 secret nonces allocate secure memory and report as valid only after successful nonce generation, preventing uninitialized nonces from being passed to libsecp256k1 partial signing functions. Passing an uninitialized nonce previously triggered a crash or undefined behavior in libsecp256k1, which was surfaced during fuzz testing. Reviewers discussed the correct abstraction boundaries and suggested creating the secure unique_ptr upon nonce generation, which the author implemented. The code is ready for review and awaiting re-review from commenters."
+ },
+ "raw_text": null
+}

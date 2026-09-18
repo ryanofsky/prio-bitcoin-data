@@ -1,0 +1,147 @@
+{
+ "number": 35591,
+ "input_hash": "f84aa1de102a1865",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 32475,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5169
+ },
+ "cost_usd": 0.0597263,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Full working implementation of Erlay (BIP 330) transaction relay, added as a fallback low-bandwidth connection type to resist eclipse attacks on tx relay.",
+    "Author explicitly says the whole PR is a reference implementation, not meant to merge, to validate the design before splitting into smaller reviewable PRs."
+   ],
+   "reviewability": [
+    "Not currently mergeable: needs rebase and conflicts with six other open PRs.",
+    "Author is still actively iterating and has flagged unresolved design questions, so a full review now would likely be invalidated by later restructuring."
+   ],
+   "agreement": [
+    "One reviewer (brunoerg) engaged deeply via mutation testing and flagged a real DoS concern (31s decode time for a maximal sketch), which the author acknowledged but has not yet fixed (sr-gi).",
+    "Author is actively addressing feedback and explicitly asks reviewers to weigh in on open design decisions (sr-gi).",
+    "No objections to the overall direction; open questions are about specifics of the mechanism, not whether Erlay should exist."
+   ],
+   "categories": []
+  },
+  "summary": "This PR is a full end-to-end implementation of Erlay (BIP 330), adding dedicated low-bandwidth 'outbound-full-reconciliation' connections that a node falls back to for transaction relay if it suspects it is being eclipsed on its normal connections. It implements the reconciliation handshake, sketch construction/decoding, extension rounds, eviction and connection-accounting changes, new protocol messages, and extensive new tests/benchmarks. The author explicitly marks it '[DO NOT MERGE]': its purpose is to validate the design end-to-end before splitting it into smaller PRs for real review.",
+  "problem": "Bitcoin's current transaction relay (flooding to all peers) wastes bandwidth and, more importantly, an eclipsed node can be starved of transaction announcements if an attacker controls all its connections; Erlay adds set-reconciliation-based relay to give a bandwidth-cheap fallback channel that is harder to fully eclipse. Node operators with limited bandwidth and the wider network's censorship/eclipse resistance are the intended beneficiaries.",
+  "discussion": {
+   "open_concerns": [
+    "Whether OUTBOUND_FULL_RECONCILIATION should count as a full-outbound connection for eviction/seeding purposes (author went ahead with 'yes' but invites reconsideration)",
+    "Whether sketch extensions are worth keeping now that reconciliation is a fallback rather than the primary relay path",
+    "A malicious peer sending a maximal sketch can force ~2.3s (8.8s with extension) of single-threaded decode time, a potential DoS vector (brunoerg), not yet mitigated by capacity limits",
+    "Whether reconciliation should be negotiated via BIP-434 instead of repurposing sendtxrcncl",
+    "A possible race allowing one extra reconciliation connection during v2-to-v1 transport downgrade (brunoerg), noted but deferred by author"
+   ],
+   "resolved_concerns": [
+    "BIP330 success-byte parsing nit (must be 0/1) - fixed by author to mirror BIP152 handling",
+    "Author addressed most of brunoerg's mutation-testing coverage gaps for the non-extension path with new unit/functional tests"
+   ],
+   "author_status": "active, force-pushed as recently as 2026-09-04 and continuing to rework eviction/accounting logic in response to review"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is flagged needs_rebase with a dirty mergeable state and conflicts with six other open PRs (#36167, #35561, #35522, #34743, #28690, #27052); the author is also still actively restructuring core pieces (connection accounting, eviction), most recently on 2026-09-04, and has said the DoS-relevant sketch-capacity limiting question is still open."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive engagement overall, but brunoerg's DoS concern about ~31s sketch-decode time is acknowledged by the author yet unfixed, and several design questions (full-outbound status, extensions) remain explicitly undecided.",
+   "reason": "The single active reviewer's substantive concerns are being worked through collaboratively rather than disputed; no one objects to the concept, but a concrete harm (decode-time DoS) has not yet been mitigated in code.",
+   "evidence": [
+    "brunoerg: 'I got 31.2 seconds on my machine... Wondering if a malicious peer could use it to cause a DoS'",
+    "sr-gi: 'I think limiting the size of the sketch (and potentially getting rid of extensions) will make it less of an issue' (fix proposed, not yet implemented)",
+    "sr-gi: 'I'd appreciate your input on whether OUTBOUND_FULL_RECONCILIATION should be considered full outbound, and on whether extensions are worth keeping' (open question)",
+    "brunoerg's mutation-testing report identified test gaps, largely addressed by author in subsequent pushes"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on Erlay project tracking issue #30249",
+    "Smaller, focused follow-up PRs the author intends to split this into for actual review/merge"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Core subject is a new P2P connection type, message set, and relay behavior (net.cpp, net.h, net_processing.cpp, protocol.h, and multiple new p2p functional tests); this is squarely p2p infrastructure and DoS/eclipse-resistance territory.",
+    "band": "P2",
+    "reason_tag": "decision needed",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Erlay addresses eclipse resistance and bandwidth efficiency for tx relay, a long-tracked project (issue #30249, RFC #34542) with real security value if adopted. However this specific PR is explicitly a non-mergeable reference implementation meant to be split up, and several core design questions (full-outbound accounting, extension rounds, negotiation mechanism, sketch DoS bound) remain unresolved per the author's own list, which keeps it from category-critical status; it is strategically important groundwork rather than a decided, landable change."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/net.cpp changes (a doc string addition and a new addconnection type string) are mechanical follow-ons of the new connection type defined in net.h/connection_types.h, not a substantive RPC change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; the RPC touch is incidental to the p2p feature."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new functional tests (p2p_reqtxrcncl.py, p2p_txrecon_*.py) and unit tests pin the behavior of the new Erlay reconciliation protocol specifically, which the tests category explicitly assigns to the area under test rather than to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per the tests category's own exclusion for area-specific tests; counted under p2p instead."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "init.cpp gets a small argument-doc update and a conditional to set the new connection option; this is a mechanical follow-on of the p2p feature, not a change to shared logging/argument infrastructure itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; too small and derivative to count as a utils change."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether this exact PR will ever be reviewed as a whole or purely serves as a reference before being split; priority assessment here treats the underlying problem (Erlay) as the subject per the rubric even though the PR itself says DO NOT MERGE.",
+   "How the eventual smaller split PRs will be scoped, which will determine actual per-category review load."
+  ],
+  "card": "This is a full, explicitly 'DO NOT MERGE' implementation of Erlay (BIP 330) bandwidth-efficient transaction relay, adding new low-bandwidth 'outbound-full-reconciliation' connections as an eclipse-resistance fallback for tx propagation. It solves a long-standing, tracked problem (issue #30249): a node can be starved of transaction announcements if all its connections are captured by an attacker, and reconciliation gives a cheap redundant channel. The author states it exists to validate the whole design before splitting it into smaller reviewable PRs, and several core design questions remain open, including whether reconciliation connections count as full-outbound and whether a maximal sketch's ~2.3-8.8s decode time is an acceptable DoS surface (raised by brunoerg, unresolved). The PR needs a rebase, is marked dirty/conflicting with six other open PRs, and is under active, ongoing rework by the author as recently as September 2026. Reviewing this specific diff is of limited direct value since it will be superseded by the planned split, but the underlying Erlay work is strategically significant for the p2p/eclipse-resistance category."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

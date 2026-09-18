@@ -1,0 +1,137 @@
+{
+ "number": 26966,
+ "input_hash": "ee6e6ad681f2e958",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 67812,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6982
+ },
+ "cost_usd": 0.10412830000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up initial sync of the block filter index and tx index by processing blocks with a configurable pool of worker threads instead of one at a time.",
+    "Users who enable -blockfilterindex or -txindex today wait hours; author reports up to 6x faster sync on SSD with -indexworkers=N.",
+    "Also introduces a reusable generic ThreadPool utility other subsystems (HTTP server, mining input fetcher) are already planning to build on."
+   ],
+   "reviewability": [
+    "Not ready to review right now: PR is a draft, needs rebase, and the author paused it on 2026-02-01 saying he will rebase once the standalone thread-pool PR (#33689) lands.",
+    "Author has been silent on the substantive design questions for months while working on that dependency."
+   ],
+   "agreement": [
+    "Several members gave Concept ACKs and one gave an Approach ACK, but l0rinc ran cross-platform benchmarks and issued an Approach NACK because txindex parallel sync is measurably slower (3-13%) than sequential on his machines (l0rinc).",
+    "andrewtoth independently reproduced the txindex slowdown on a 32-vCPU box (andrewtoth).",
+    "Author engaged extensively, agreed to split the thread pool into its own PR and to investigate the regression, but the txindex approach question is not yet resolved (furszy, l0rinc)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds parallel processing to the initial sync of the block filter index and transaction index by introducing a general-purpose ThreadPool and splitting index block processing into a concurrent 'process' phase and a sequential 'post-process' phase. A new -indexworkers=<n> flag lets users spawn worker threads (shared across indexes) that read blocks/undo data and build filters or tx records concurrently, then commit results in order where required. The author reports up to a 6.4x speedup for blockfilterindex initial sync on SSD; txindex parallelism shows mixed results across testers' hardware.",
+  "problem": "Building the block filter index or tx index from scratch currently processes one block at a time, reading blocks, undo data, and headers sequentially from disk, which can take many hours (multiple testers report 5-13+ hours) and blocks users who want to enable these indexes on an already-synced node.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc's Approach NACK: rigorous hyperfine benchmarks across three machines (SSD, HDD, ARM) show txindex parallel sync is 3-13% slower than sequential master, not faster, and this went unnoticed for years; he asked for the work to be split into small, reviewable PRs starting with a minimal 2-thread blockfilterindex-only implementation.",
+    "andrewtoth independently confirmed a txindex slowdown with -indexworkers=15 on a 32-vCPU machine and suggested disabling parallel sync for txindex.",
+    "mzumsande and l0rinc both suggested extracting the generic ThreadPool into its own PR so it can be reviewed/merged independently of the more complex index-parallelization logic.",
+    "Reviewers (ryanofsky, andrewtoth, mzumsande) raised numerous ThreadPool correctness questions (memory ordering of m_interrupt, redundant checks, Stop() semantics, shared_ptr avoidance) resolved through iterative pushes but reflecting the subtlety of the concurrency code.",
+    "ismaelsadeeq reported an intermittent segfault while running the PR on mainnet with -indexworkers=4; author found and fixed a subtle use-after-destruction bug but the report highlights fragility."
+   ],
+   "resolved_concerns": [
+    "Sequencing/design comments from sedited, ryanofsky, ismaelsadeeq, andrewtoth on ThreadPool internals were addressed with code changes.",
+    "mzumsande's earlier suggestion to reduce cs_main lock contention and generalize the parallel-sync mechanism to txindex was implemented.",
+    "The index_reorg_crash test was removed because the new design makes the scenario it guarded against impossible, unopposed."
+   ],
+   "author_status": "Drafted since 2026-02-01: furszy stated he is pausing this PR while extracting the ThreadPool into #33689 (HTTP worker-queue replacement) and will rebase once that merges; last force-push 2026-02-02, no substantive discussion since."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Rebase after #33689",
+   "reason": "The author explicitly said he is holding this PR until the standalone ThreadPool work in #33689 lands, then will rebase and continue: 'Drafted while work continues on #33689. Once the thread pool is included, I'll rebase this one and continue moving forward' (furszy, 2026-02-01). The PR is also marked needs_rebase and draft, and conflicts with several other open PRs including the author's own follow-up #34489."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc's Approach NACK, backed by detailed cross-platform benchmarks showing txindex parallel sync is slower not faster, remains open even though the author engaged at length and andrewtoth corroborated the regression independently.",
+   "reason": "Multiple members gave Concept ACKs and ryanofsky gave an Approach ACK after a deep review pass, but l0rinc's later Approach NACK identifies a concrete harm (a shipped feature that regresses txindex performance) that the author has not yet fixed, only promised to investigate/split out.",
+   "evidence": [
+    "l0rinc (Approach NACK): 'txindex parallelization appears to be broken (showing 3-13% slowdowns rather than speedups), and this went unnoticed for years' with hyperfine benchmarks on 3 machines.",
+    "andrewtoth independently measured txindex ~7% slower than master with -indexworkers=5 on an SSD-backed node.",
+    "furszy responded with counter-benchmarks showing large txindex speedups on his own hardware and disagreed the code is 'critical index infrastructure', but did not resolve the discrepancy and agreed to split the ThreadPool into a separate PR.",
+    "ryanofsky: 'Approach ACK ... Seems like a nice design and good approach' after reviewing most of the code.",
+    "pinheadmz: code review ACK and re-ACK after building/testing on macOS and Debian and running a 900k-block mainnet sync comparison."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    33689
+   ],
+   "enables": [
+    "#34489 (index: batch db writes during initial sync) builds directly on this PR's two-phase process/post-process groundwork, per author's description ('Work is currently happening on #34489')",
+    "Reusable generic ThreadPool intended for the HTTP server worker queue (#33689) and the mining/validation parallel input-fetcher work (#31132), per andrewtoth's and furszy's discussion"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly changes BaseIndex sync internals, BlockFilterIndex and TxIndex processing, and adds the -indexworkers option; carries the 'UTXO Db and Indexes' label.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it targets exactly what the indexes rubric calls out as high-impact: initial sync time, which users of these indexes feel directly as multi-hour builds. Author and testers (Sjors, pinheadmz) measured multi-hour to sub-hour speedups for blockfilterindex on SSD (e.g. Sjors: 35m15s to 4m26s), but l0rinc's and andrewtoth's benchmarks show txindex parallel sync can be slower than sequential, so the realized benefit is uneven across the two indexes it touches. It also lays groundwork for batched DB writes (#34489) that would benefit sequential syncs too."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a new fuzz target (test/fuzz/threadpool.cpp) and a large unit test suite (test/threadpool_tests.cpp) for the generic ThreadPool utility, plus new index sync tests; the ThreadPool tests are framework-level, not pinning one area's behavior.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because the new fuzz harness caught a real timeout/deadlock-adjacent bug in ThreadPool::Stop() during overnight fuzzing (sedited's report, 2025-09-16), which is the kind of realistic-regression coverage the tests rubric values, but the tests exist to support one PR's new utility rather than covering a widely-used high-risk path."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Introduces src/util/threadpool.h, a new general-purpose threading primitive under src/util, independent of index logic; other efforts (HTTP worker queue #33689, validation input fetcher #31132) are already adopting it.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 3
+    },
+    "rationale": "P2 because a correct, reusable ThreadPool reduces a burden multiple areas carry (andrewtoth: 'I'm using the ThreadPool here in #31132' and cherry-picked it into the input-fetcher work; furszy: plans to replace the HTTP server's WorkQueue with it in #33689). Extensive review of memory-ordering and shutdown-safety details (ryanofsky, andrewtoth, mzumsande) shows this is exactly the kind of primitive where subtle bugs matter node-wide, which the utils rubric ranks first."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the txindex parallel-sync regression found by l0rinc and andrewtoth will be fixed, disabled, or left as an opt-in footgun affects how the 'indexes' band should ultimately land, but does not change current priority per the rules.",
+   "Unclear whether #33689 (the dependency this PR is now waiting on) has actually merged before this assessment's data cutoff; facts list it as merged 2026-02-11 which postdates the PR's last known activity (2026-02-02), so the Paused state may already be stale by the time this is read.",
+   "Not certain whether the eventual split-out ThreadPool PR fully supersedes the version reviewed here, which would affect how much of the current review discussion still applies."
+  ],
+  "card": "This long-running PR (opened 2023, still draft) parallelizes the initial sync of Bitcoin Core's block filter index and transaction index using a new generic ThreadPool, aiming to cut multi-hour index builds down dramatically (author and Sjors measured up to 6-16x speedups for blockfilterindex on SSD). However, l0rinc's rigorous cross-platform benchmarks found txindex parallel sync is actually 3-13% slower than sequential master, an Approach NACK that andrewtoth independently corroborated, and which the author has not yet resolved. The PR also introduces a reusable ThreadPool utility that other in-flight work (HTTP worker queue refactor #33689, validation input-fetcher #31132) is already adopting. As of 2026-02, the author has paused this draft, explicitly waiting to rebase once the standalone ThreadPool extraction lands in #33689. It has multiple Concept ACKs and one Approach ACK from experienced reviewers (ryanofsky, pinheadmz) but the open approach dispute over txindex performance keeps it Disputed rather than clearly mergeable."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,135 @@
+{
+ "number": 35187,
+ "input_hash": "72b79ae6dd840a20",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22941,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5947
+ },
+ "cost_usd": 0.0540823,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a kernel C API to validate a block against a caller-supplied set of coins instead of the full UTXO set",
+    "Lets external tools (miners, indexers, alternative clients) check a block's validity without running a full node with the complete chainstate"
+   ],
+   "reviewability": [
+    "Needs rebase before merge, and a broader API-design debate (callback vs a dedicated coins container) is still open",
+    "Nothing blocks reviewing the validation logic itself, but expect the interface shape to keep moving"
+   ],
+   "agreement": [
+    "Several concept and approach ACKs (yuvicc, nervana21, w0xlt) and no outright NACK",
+    "ajtowns proposed a different API shape (btck_CoinsDb instead of a lookup callback) to avoid nondeterminism and copies, unresolved (ajtowns, purpleKarrot)",
+    "ismaelsadeeq did a thorough code review ACK on an earlier commit and helped simplify the approach",
+    "optout21 flagged that ConnectBlock's assumevalid/script-check interaction with this new entry point may need a dedicated test (nervana21 raised the same concern), unaddressed"
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a new kernel C API, btck_chainstate_manager_validate_block, that lets a caller validate a block using a caller-provided set of spent coins instead of the node's own UTXO set. It introduces a CoinsViewBlock class that fetches coins via a callback, wires this through ChainstateManager::ValidateBlock (calling CheckBlock, ContextualCheckBlock, and ConnectBlock with fJustCheck=true), and adds supporting C API endpoints (outpoint creation/equality, coin creation, coinbase check). Extensive kernel wrapper and test additions accompany the change, exercising the new path against regtest blocks.",
+  "problem": "External software that wants to validate a Bitcoin block (miners building on top of Stratum-like flows, alternative light clients, independent verifiers) currently has no way to do so through the kernel library without maintaining a full UTXO set, forcing them to run a complete node just to check one block's validity.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns and purpleKarrot argue the callback-based coin lookup risks nondeterminism/inconsistency and unnecessary copying, and propose a btck_CoinsDb container type instead; not implemented",
+    "nervana21 asks whether ConnectBlock's assumevalid/script-check-skip logic should be forced off when called via this new entry point; unanswered",
+    "optout21 suggests a direct (non-kernel) test for ChainstateManager::ValidateBlock and a test exercising a full caller-side UTXO set rather than just the block's own undo data; unaddressed",
+    "BIP30 cannot be fully checked through this path (documented limitation, but noted as an edge case in review)"
+   ],
+   "resolved_concerns": [
+    "Switched from two flattened arrays (outpoints+coins) to a callback-based fetch, addressing purpleKarrot/ismaelsadeeq's concern about double-copying the UTXO set",
+    "Height overflow validation added to btck_coin_create per ismaelsadeeq's comment",
+    "Redundant block-txid intra-block-spend check removed per ismaelsadeeq's comment",
+    "Various documentation nits (confirmation height wording, log message clarity) addressed in the 2026-08-06 push"
+   ],
+   "author_status": "active, last pushed/replied 2026-08-28, but has not responded to ajtowns's broader API-shape proposal or nervana21's assumevalid question (open since 2026-08-06 and 2026-09-09 respectively)"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Labeled Needs rebase and mergeable_state is dirty; additionally the fundamental API shape (callback vs. a dedicated coins-container type) is still under debate between ajtowns and purpleKarrot as of 2026-08-11, so the interface surface reviewers see may still change."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Multiple concept/approach ACKs (yuvicc, nervana21, w0xlt, ismaelsadeeq) and a thorough code-review ACK from ismaelsadeeq, but ajtowns's proposal for a different coin-container API (avoiding copies and nondeterministic lookups) remains unresolved and nonblocking.",
+   "reason": "No NACKs exist and the design has iterated substantially in response to review (two-array -> callback), earning real support. ajtowns's structural counter-proposal is a real, still-open concern about the interface's correctness/efficiency properties, but ajtowns has not framed it as a hard block and the author has kept moving the PR forward with smaller fixes instead of engaging that thread directly since 2026-08-11.",
+   "evidence": [
+    "ismaelsadeeq: 'Code review ACK ... I did not find any issue, these are just minor comments'",
+    "w0xlt and yuvicc/nervana21: Approach ACK / Concept ACK",
+    "ajtowns: 'ConceptACK, approach = nearly, but not quite ... I think it should be possible to design this in a way that doesn't require copying the utxo set'",
+    "purpleKarrot pressed ajtowns on determinism/dead-code-path concerns, discussion trailed off without resolution",
+    "nervana21 (2026-09-09) raised an unanswered question about assumevalid/script-check interaction with the new ValidateBlock entry point"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "External kernel consumers (e.g. rust-bitcoinkernel) building block-validation-without-full-node tooling, as demonstrated by alexanderwiederin's external test harness",
+    "Related design work in the closed #32317 (separating UTXO access from validation) and open #36066 (check-only ConnectBlock), which this PR's ConnectBlock usage overlaps with"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Primary subject: adds new btck_chainstate_manager_validate_block and supporting C API/wrapper types (Coin, OutPoint, coinbase check) to bitcoinkernel.h/.cpp and bitcoinkernel_wrapper.h; kernel label applied.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 3,
+     "leverage": 2
+    },
+    "rationale": "Delivers exactly the kind of API completeness the kernel category prioritizes: 'validating blocks ... without requiring a full UTXO set,' a stated use case that external consumers are already prototyping against (alexanderwiederin's rust-bitcoinkernel test). Held back from P1 because the interface shape is still actively disputed (ajtowns's btck_CoinsDb counter-proposal), meaning the API surface reviewed today may not be the one that ships."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool policy, acceptance, or relay code is touched; this is about block-level UTXO validation via the kernel, unrelated to unconfirmed-transaction handling.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; no mempool files or policy logic are changed."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds a new public ChainstateManager::ValidateBlock method in validation.h/.cpp that invokes CheckBlock, ContextualCheckBlock, and ConnectBlock(fJustCheck=true) against caller-supplied coins, a new validation-facing entry point requiring validation expertise to review correctly.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Does not alter existing consensus rules or chainstate behavior (existing ConnectBlock/CheckBlock logic is reused unchanged), so it is not a validation-critical change, but nervana21's open question about assumevalid/script-check interaction ('should there instead be some logic that forces a script_check_reason when ValidateBlock calls ConnectBlock') shows a real correctness question specific to validation semantics that a validation reviewer, not just a kernel reviewer, should weigh in on."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the eventual API will look like the current callback design or ajtowns's proposed btck_CoinsDb container, which affects how much of the current diff survives review",
+   "Whether nervana21's assumevalid/script-check concern reflects an actual correctness gap or is already handled elsewhere in ConnectBlock",
+   "Exact weight to give the still-open design debate when scoring reviewability vs treating it as ordinary iterative review"
+  ],
+  "card": "Adds a kernel C API (btck_chainstate_manager_validate_block) letting external callers validate a block against a caller-supplied set of spent coins instead of the node's full UTXO set, by wiring a new ChainstateManager::ValidateBlock into CheckBlock/ContextualCheckBlock/ConnectBlock. This serves external kernel consumers (e.g. miners, light validators, the rust-bitcoinkernel project) who want to check block validity without running a full node's UTXO set, a stated kernel-library use case; alexanderwiederin built and validated an external Rust test harness against the current design. Review has been substantial and mostly positive (concept/approach ACKs from yuvicc, nervana21, w0xlt, a thorough code-review ACK from ismaelsadeeq), but ajtowns still argues the callback-based coin lookup should be replaced with a dedicated in-memory coins-container type to avoid copies and nondeterminism, and that thread trailed off unresolved. The PR needs a rebase (mergeable_state dirty, Needs rebase label) and nervana21 raised an unanswered question about how ConnectBlock's assumevalid script-check skip interacts with this new entry point. No dependency PRs block it, though it overlaps conceptually with the closed #32317 and open #36066 on separating UTXO access from validation."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

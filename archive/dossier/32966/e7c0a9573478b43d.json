@@ -1,0 +1,248 @@
+{
+ "number": 32966,
+ "input_hash": "e7c0a9573478b43d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43765,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7950
+ },
+ "cost_usd": 0.0849213,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds wallet support for receiving BIP-352 Silent Payments: a new sp() descriptor, scanning logic, and change-address selection so wallets can generate and detect silent payment outputs.",
+    "Solves the lack of first-party silent payment support in Bitcoin Core, letting users receive with a single reusable address without leaking it on-chain."
+   ],
+   "reviewability": [
+    "Not reviewable right now: marked Needs rebase, based on two still-open prerequisite PRs (#35301, #35302), and blocked externally on an unresolved libsecp256k1 issue before the new crypto module can ship in a release.",
+    "A material test-review comment from rkrux (2026-06-27) has gone unanswered for well over a week."
+   ],
+   "agreement": [
+    "Sustained, substantive multi-year review from josibake and Sjors with concrete design pushback (scan-key modeling, fast-rescan behavior, change-address logic) that the author iteratively addressed (Eunovo).",
+    "Bug reports from macgyver13 during backup/restore testing were fixed and confirmed working (macgyver13).",
+    "No unresolved blocking objections, but scope was narrowed with labels functionality explicitly deferred to a follow-up (josibake, Eunovo).",
+    "Latest partial review from rkrux (2026-06-27) raised only nits, pending the stacked PRs landing first."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it delivers a major, long-requested privacy feature (BIP-352 receiving) with fund-safety and backup/recovery implications that reviewers actively tested (Sjors, macgyver13).",
+      "Not P1 because it is still an evolving new feature, not a fix for an existing regression or urgent fund-safety bug, and remains draft after 15+ months of design iteration."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it vendors a new libsecp256k1 silentpayments module and adds BIP-352 crypto primitives (common/bip352.*, CKey::ComputeBIP352Key) whose correctness matters if they land, backed by BIP-352 test vectors.",
+      "Impact is currently capped by an external blocker: the secp256k1 primitives cannot be released upstream until bitcoin-core/secp256k1#1799 is resolved (per Eunovo)."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it changes the TransactionAddedToMempool validation-interface signature to pass spent coin data, rippling through zmq, fee estimation, and fuzz tests, which is infrastructure other listeners must adopt.",
+      "Not higher because the change itself is plumbing to enable wallet scanning, not a consensus-correctness fix."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because it only adds a SilentPaymentHRP() accessor and a new chainparams field, a small, low-risk addition to the kernel-adjacent chainparams API."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because RPC-facing changes are limited to plumbing (createwallet's silent_payments param, descriptor info text) with no new externally-requested RPC surface being the point of the PR."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR implements the receiving side of BIP-352 Silent Payments for the Bitcoin Core wallet: a new sp() descriptor type, a SilentPaymentsDescriptorScriptPubKeyMan that scans blocks for silent payment outputs, wallet/GUI options to create silent-payments wallets, and logic to prefer silent-payment change addresses when spending to silent-payment or taproot destinations. It also vendors a new silentpayments module into the libsecp256k1 subtree and adds BIP-352 primitives, tests, and functional tests. Labels support is explicitly incomplete and deferred to a follow-up PR.",
+  "problem": "Bitcoin Core wallet users currently have no first-party way to receive payments to a reusable address without exposing linkage on-chain; Silent Payments (BIP-352) solves this, and this PR is the receiving half of that long-tracked project (issue #28536).",
+  "discussion": {
+   "open_concerns": [
+    "A material test-review comment from rkrux (2026-06-27, hardcoded descriptor checksum, duplicate helper function) is unanswered.",
+    "Whether the silent-payments wallet flag should be mutable via setwalletflag or auto-set on descriptor import remains undecided (Sjors, Eunovo, no final resolution).",
+    "Labels functionality is intentionally incomplete, deferred to a follow-up PR (josibake, Eunovo)."
+   ],
+   "resolved_concerns": [
+    "Design disagreement over modeling the scan key as a CKey vs a custom type was resolved by introducing ScankeyPubkeyProvider/SpDescriptor, which josibake confirmed simplified the code substantially.",
+    "Multiple import/backup/restore bugs found by macgyver13 (import warnings, missing SP addresses after import) were fixed and confirmed resolved.",
+    "Fast-rescan behavior for silent-payments wallets was clarified and documented as an intentional limitation (josibake, Eunovo, Sjors)."
+   ],
+   "author_status": "Active but currently blocked, last force-push 2026-05-16, no reply since to a 2026-06-27 review comment; author has stated the project is externally blocked on an unresolved libsecp256k1 issue (#1799)."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Explicitly labeled Needs rebase with a dirty mergeable state, and it depends on two still-open prerequisite PRs (#35301, #35302) whose changes it is stacked on. A 2026-06-27 review comment from rkrux is also unanswered well past the 7-day threshold, and the PR is externally blocked on an unresolved libsecp256k1 issue before the new crypto module can be released.'"
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Sustained substantive support from josibake and Sjors with design pushback addressed over 15+ months; labels functionality is a standing acknowledged gap deferred to a follow-up.",
+   "reason": "No unresolved blocking objections were found; disagreements over implementation approach (scan-key type, change-address logic, fast rescan) were worked through collaboratively, and reported bugs were fixed and confirmed. The remaining caveat is explicitly reduced scope (no labels) and an open, unanswered process question about wallet-flag mutability.",
+   "evidence": [
+    "josibake: 'Looking good! Really nice to see you were able to remove a lot of custom code...'",
+    "Sjors: tested import/rescan/send flows and reported concrete bugs, later confirmed fixed by macgyver13",
+    "josibake/Eunovo: explicitly deferred Silent Payments label functionality to a follow-up PR",
+    "Eunovo: cites bitcoin-core/secp256k1#1799 as the major blocker for landing the crypto primitives"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35301,
+    35302
+   ],
+   "enables": [
+    "Completion of the broader Silent Payments wallet project tracked in issue #28536, alongside the sending-side work in #35301/#28201"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Adds a method to interfaces::Wallet/Chain (silentPaymentsEnabled, undo-data loading), but the PR is about wallet functionality, not IPC mechanics, per the category's own exclusion rule.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: interfaces::Wallet/Chain additions here serve the wallet feature, not the IPC mechanism itself."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds SilentPaymentHRP() and a silent_payment_hrp field to CChainParams, a small kernel/chainparams API addition.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P4 because the kernel-adjacent chainparams change is a minor, low-risk data field addition with no bearing on kernel API stability or boundary correctness."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches block_policy_estimator.cpp/h only to update a function signature (adding spent_coins param) that follows mechanically from the validationinterface change elsewhere.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the mempool file changes are mechanical call-site updates, not policy changes."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds silent_payments param to createwallet, updates getdescriptorinfo test coverage, and a V0SilentPaymentDestination visitor in rpc/util.cpp.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because RPC changes are thin plumbing around wallet functionality rather than new RPC surface driven by external demand."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New tests (bip352_tests.cpp, wallet_silentpayments_*.py, secp256k1 vectors) pin the behavior of the wallet/crypto feature itself rather than test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per the category's own carve-out: area-specific tests belong to their area (wallet/utils), not test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds common/bip352.cpp/h, CKey::ComputeBIP352Key, and vendors a new silentpayments module into the libsecp256k1 subtree with BIP-352 test vectors.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it introduces new cryptographic primitives and a subtree module whose correctness matters, but the module cannot yet ship upstream: 'The major blocker is bitcoin-core/secp256k1#1799' (Eunovo), capping near-term impact."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes the TransactionAddedToMempool validationinterface signature to add spent-coin data, touching validation.cpp, validationinterface.cpp/h, and every listener (zmq, fee estimator, fuzz harnesses).",
+    "band": "P3",
+    "reason_tag": "unblocks #32966",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because the interface change is leverage for wallet scanning rather than a consensus-correctness fix; it ripples across several listeners and needs careful review even though it changes no validation rule."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Core of the PR: new sp() descriptor, SilentPaymentsDescriptorScriptPubKeyMan, scanning, change-address logic, wallet RPCs and GUI options for silent payments.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 3,
+     "leverage": 2
+    },
+    "rationale": "P2 because it delivers a substantial, long-requested privacy feature with fund-safety and backup implications that reviewers actively verified end-to-end (Sjors: 'I managed to send some coin and checked that the change went back to the descriptor'), but it is not yet a released or urgent fix and remains an evolving draft after 15+ months of design churn."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the eventual merged version will still carry the same secp256k1 module and API shape given the external blocking issue is unresolved.",
+   "How the project will finally decide the mutability of the silent-payments wallet flag, which affects wallet UX.",
+   "Exact scope split between this PR and the still-open prerequisite PRs (#35301, #35302) makes it hard to assess this PR's diff in complete isolation."
+  ],
+  "card": "This draft PR implements the receiving side of BIP-352 Silent Payments for Bitcoin Core: a new sp() descriptor, a scanning ScriptPubKeyMan, silent-payment-aware change selection, and a vendored libsecp256k1 silentpayments module with BIP-352 test vectors. It solves the lack of native support for a privacy-preserving reusable payment address, a feature many users and the project's own long-running Silent Payments tracking issue (#28536) have wanted. Review has been substantive and largely positive for 15+ months (josibake, Sjors, macgyver13 testing backup/restore and fixing real bugs), with labels support explicitly deferred to a follow-up. It is currently Stale: marked Needs rebase, stacked on two still-open prerequisite PRs (#35301, #35302), and the author says the real blocker is an unresolved upstream libsecp256k1 issue before the new crypto primitives can ship in a release."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

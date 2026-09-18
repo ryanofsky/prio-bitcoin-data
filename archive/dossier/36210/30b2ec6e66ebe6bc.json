@@ -1,0 +1,94 @@
+{
+ "number": 36210,
+ "input_hash": "30b2ec6e66ebe6bc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6126,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 1666
+ },
+ "cost_usd": 0.0158623,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Include the OS error (errno/strerror) in exception messages when AutoFile or BufferedFile read/write/ignore operations fail.",
+    "Lets callers that surface exception text to logs or users see why an I/O failure actually happened, not just a fixed generic string."
+   ],
+   "reviewability": [
+    "Ready to review, author already fixed the musl CI failure by reworking the test to force a genuine kernel-level EBADF instead of relying on libc-internal checks."
+   ],
+   "agreement": [
+    "No reviewer comments yet beyond CI failure fixed by author (pablomartin4btc)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it improves error message clarity for streams/logging without fixing a known bug or blocking anything critical.",
+      "Benefit is developer/debugging convenience: better diagnostics when I/O fails, useful mainly to whoever wires it into a caller like the referenced #35492 wallet dump path.",
+      "Not a correctness or security fix and no other area depends on it merging first."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR captures errno and folds SysErrorString() into the exception messages thrown by AutoFile::write(), write_buffer(), read() (via detail_fread), ignore(), and BufferedFile::Fill() when they hit a genuine (non-EOF) I/O failure. Currently these throw a fixed generic string like \"AutoFile::write: write failed\" that discards the OS-level reason. The PR adds a test asserting the OS error is now present, and the author already fixed a musl-CI test failure by switching the failure-forcing technique to a genuine kernel EBADF rather than a libc-internal precheck.",
+  "problem": "AutoFile/BufferedFile exception messages discard the errno explaining why an fread/fwrite call failed, so any caller (including logs or user-facing errors) that surfaces e.what() loses diagnostic detail. This was noticed while reviewing #35492, which will want to surface this detail when a wallet dump aborts.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "musl CI failure due to test relying on a libc-internal precheck that doesn't set errno; author reworked the test to force a genuine kernel-level EBADF, confirmed fixed."
+   ],
+   "author_status": "active, addressed CI failure with a force-push"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No open review comments; the only issue (musl CI failure) was already fixed by the author with a force-push reworking the test to use a genuine kernel-level failure instead of a libc precheck."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer has commented on the PR substance yet, only CI status.",
+   "reason": "distinct_reviewers is 0 and no review comments exist beyond the author's own CI-fix note.",
+   "evidence": [
+    "No reviews recorded; only author comments about fixing the Alpine/musl CI failure."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Improves error detail available once #35492 (wallet: fail dump on incomplete writes) is wired to surface AutoFile exception text"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes are entirely within src/streams.cpp/streams.h (AutoFile/BufferedFile), which is shared serialization/I/O infrastructure covered by utils.",
+    "band": "P3",
+    "reason_tag": "error detail",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Improves diagnostic clarity for I/O failures across AutoFile/BufferedFile consumers, described by the author as motivated by wanting callers like the wallet dump path in #35492 to surface the real OS error rather than a generic message. It is not fixing a functional bug or security issue itself, just message content, and no other PR yet depends on it merging (the wiring is described as out of scope for both PRs pending whichever lands first)."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether #35492 actually depends on this PR merging first is unclear; the description says wiring is deferred regardless of merge order.",
+   "No reviewer engagement yet to confirm the project wants this specific approach (errno capture right after the call) versus another mechanism."
+  ],
+  "card": "This PR makes AutoFile and BufferedFile I/O failure exceptions include the OS errno/strerror detail instead of a fixed generic string, so callers that log or surface e.what() get the real reason a read/write failed. It originated from review of #35492 (wallet dump abort on incomplete writes), which will want to surface this detail once its dump.cpp rework lands. The author already fixed an Alpine/musl CI failure by reworking the test to force a genuine kernel-level EBADF rather than relying on a libc-internal precheck that musl doesn't set errno for. No reviewers have commented on the substance yet. The change is a diagnostics improvement, not a correctness or security fix, and nothing is known to block review right now."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

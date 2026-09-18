@@ -1,0 +1,116 @@
+{
+ "number": 36049,
+ "input_hash": "c220a7ad70449370",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:44+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12839,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3472
+ },
+ "cost_usd": 0.02264925,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent bitcoind from crashing via std::terminate on block storage write errors",
+    "Allow the node to run normal shutdown cleanup and report clean storage error messages"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "No blockers or open review requests"
+   ],
+   "agreement": [
+    "Concept supported with independent confirmation of the bug (w0xlt)",
+    "Initial question on whether crash was unavoidable answered (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes broken exception semantics in BufferedWriter",
+      "Prevents destructor retries during exception unwinding without altering normal usage"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it ensures controlled node shutdown when local storage is full",
+      "Affects only the error path during block and undo file writes"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request ensures that write failures during block and undo serialization trigger standard storage error handling rather than terminating the process with std::terminate. It updates `BufferedWriter::flush()` to clear its buffer position before delegating the write, preventing retry during exception unwinding, and adds explicit `flush()` calls in `BlockManager::WriteBlock` and `WriteBlockUndo`.",
+  "problem": "When the underlying storage runs out of space or encounters an I/O error during block serialization, buffered write failures throw an exception from inside BufferedWriter's non-throwing destructor. This bypasses normal storage error reporting and clean shutdown, terminating bitcoind abruptly via std::terminate.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth questioned why terminating was an issue if storage errors require node exit anyway; author clarified that std::terminate bypasses graceful shutdown and error logging"
+   ],
+   "author_status": "active, replied to early review questions"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, and CI is passing. Discussion raised an alternative design approach from a reviewer but does not block review of this PR."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from w0xlt confirming the bug; author resolved andrewtoth's inquiry on shutdown behavior.",
+   "reason": "Reviewers agree the bug exists and should be addressed. w0xlt independently encountered the failure and confirmed the need for a fix, while andrewtoth's inquiry about whether terminating was acceptable was resolved by the author.",
+   "evidence": [
+    "andrewtoth asked why crashing via terminate was a problem if storage errors require stopping anyway",
+    "l0rinc explained that terminating bypasses graceful shutdown cleanup and diagnostic messages",
+    "w0xlt gave Concept ACK, reporting they ran into the identical bug and created a similar branch"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies `BufferedWriter` in `src/streams.h` to avoid exception escape during buffered write flushes.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes an exception safety bug in `BufferedWriter::flush()`. By resetting `m_buf_pos` before calling `write_buffer()`, it prevents the destructor from attempting a second write while an exception is already in flight."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Alters block and undo file write routines in `src/node/blockstorage.cpp` to explicitly flush before stream destruction.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Ensures block storage write failures (e.g. disk full) exit gracefully through normal validation error paths instead of aborting the process abruptly. The change only affects failure recovery paths when block storage writes fail."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Fixes an issue where block or undo write failures (such as running out of disk space) trigger std::terminate due to exceptions thrown during BufferedWriter destruction. By clearing the buffer index before writing and explicitly calling flush in BlockManager, errors can flow through normal node storage error handlers and shutdown cleanly. w0xlt gave a Concept ACK confirming they hit the same bug, and the PR is ready for code review."
+ },
+ "raw_text": null
+}

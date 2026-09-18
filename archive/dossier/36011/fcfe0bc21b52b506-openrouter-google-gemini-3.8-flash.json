@@ -1,0 +1,93 @@
+{
+ "number": 36011,
+ "input_hash": "fcfe0bc21b52b506",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T17:11:54+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14525,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2539
+ },
+ "cost_usd": 0.020415,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Destroy disconnected signal callbacks immediately instead of deferring cleanup",
+    "Prevent resource retention and shutdown hangs when callbacks hold IPC proxies"
+   ],
+   "reviewability": [
+    "Ready",
+    "Author noted follow-up simplifications may be possible but the current patch is complete"
+   ],
+   "agreement": [
+    "Substantive discussion with no objections (maflcko)",
+    "Reviewer acknowledged the fix is necessary for multiprocess GUI shutdown"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes unpredictable callback lifetime and shutdown hangs in btcsignals",
+      "Deferred destruction currently leaks resources until later connections garbage-collect them",
+      "Unblocks clean multiprocess GUI shutdown without being urgent for single-process releases"
+     ]
+    }
+   ]
+  },
+  "summary": "Destroys callback objects in `btcsignals` immediately upon disconnection or `scoped_connection` destruction, matching `boost::signals2` semantics. Signals manage slot lifetime via atomic shared ownership to remain safe during concurrent emissions while allowing immediate release once executions finish, and adds characterization tests.",
+  "problem": "Disconnected `btcsignals` callbacks currently remain alive until the entire signal is destroyed or another connection triggers garbage collection. When callbacks hold resources with side effects upon release (such as `mp::EventLoopRef` in multiprocess Bitcoin), shutdown hangs or deadlocks occur.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, passes CI, and has clear test coverage. The author noted possible internal simplifications (such as removing redundant liveness flags), but these are open design considerations rather than pending reworks."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "maflcko recognized the necessity for multiprocess GUI; no objections raised",
+   "reason": "maflcko acknowledged that the existing garbage collection logic does not work for multiprocess GUI, and both agree there is no urgency for the immediate release.",
+   "evidence": [
+    "maflcko: 'Too bad it doesn't work for the mp-gui. I guess this can slip the next major release, as there is no rush, right?'",
+    "ryanofsky: 'Yeah no rush, and there are also some potential simplifications this change could allow.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#10102"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes core utility signal handling logic in src/util/btcsignals.h and its unit tests.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Fixes unpredictable resource lifetime and shutdown deadlocks when callbacks hold IPC event loop references. While essential for the multiprocess GUI branch (#10102), the author and reviewer agreed there is 'no rush' for the main release cycle, making this a worthwhile and deferrable bug fix."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR updates btcsignals to destroy disconnected callback objects eagerly rather than waiting for future connect() calls to garbage collect them, matching boost::signals2 semantics. This resolves shutdown deadlocks in multiprocess Bitcoin (#10102) where callbacks holding event loop references prevented bitcoin-node from exiting. The change is fully tested and reviewable, though the author and reviewers note there is no rush for the current release."
+ },
+ "raw_text": null
+}

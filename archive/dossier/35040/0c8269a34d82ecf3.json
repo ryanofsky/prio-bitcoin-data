@@ -1,0 +1,166 @@
+{
+ "number": 35040,
+ "input_hash": "0c8269a34d82ecf3",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20917,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4917
+ },
+ "cost_usd": 0.0469083,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Refactors local network address bookkeeping (mapLocalHost, AddLocal, GetLocalAddress etc) out of net.cpp/CNode into a new LocalAddressManager class",
+    "Part of the ongoing net / net_processing split project, no behavioral change intended"
+   ],
+   "reviewability": [
+    "Not reviewable right now: author (theuni) marked the PR draft after hitting a nontrivial circular-dependency problem and has not returned since 2026-04-16",
+    "CI is failing and the branch needs a rebase on top of that"
+   ],
+   "agreement": [
+    "Only light substantive discussion so far, mostly about file naming and placement",
+    "maflcko suggested the new file belongs under node/ rather than top-level, no objection to the approach itself (maflcko, fjahr)",
+    "No one has raised a concern about correctness or design of the extraction"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it is a pure internal reorganization of local-address logic with no stated behavioral change, valuable mainly as groundwork for the larger net/net_processing split project (#33958)",
+      "Its main leverage is unblocking future, more substantive refactors (moving addrLocal into Peer, options-based construction) rather than fixing a present bug or vulnerability"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR extracts local-network-address management (mapLocalHost, AddLocal/RemoveLocal/SeenLocal/IsLocal/GetLocalAddress and GetReachabilityFrom) out of net.cpp and CNode into a new LocalAddressManager class, with a global instance (g_localaddressman) used everywhere the old free functions were. It also introduces a netglobals.h/.cpp file to hold fDiscover/fListen/strSubVersion and break a circular dependency. The author states explicitly there is no behavioral change; this is groundwork for the larger net/net_processing split project (#33958).",
+  "problem": "Local address logic was tightly coupled to CNode and net.cpp globals, making it hard to test in isolation and blocking the broader effort to separate net from net_processing. Maintainers working on that split project feel this coupling as a persistent obstacle to incremental, reviewable refactors.",
+  "discussion": {
+   "open_concerns": [
+    "Author hit a non-trivial circular-dependency problem while doing the extraction and converted the PR to draft to investigate (2026-04-10), and has not returned since a force-push on 2026-04-16",
+    "maflcko suggested the new file should live under node/ (matching node/eviction.cpp, node/txorphanage.cpp) rather than at the top level; unclear if this has been acted on"
+   ],
+   "resolved_concerns": [
+    "fjahr's typo nit about the PR title (LocalAddressManger) was acknowledged with humor, non-substantive"
+   ],
+   "author_status": "silent since 2026-04-16 after saying they were investigating a circular-dependency issue"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing, needs rebase",
+   "reason": "CI is failing and the branch needs a rebase (both labeled on the PR). The author also went into draft mode saying the circular-dependency fix was non-trivial and has been silent since the last force-push on 2026-04-16, well past the 60-day stale threshold."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive but shallow: only file-placement/naming feedback (maflcko, fjahr), no objection to the extraction itself.",
+   "reason": "No reviewer has raised a harm or blocking objection to the change; the only substantive comment (maflcko on file location) is a style/organization suggestion, not a disagreement about the change's purpose.",
+   "evidence": [
+    "maflcko: 'You are adding a new file to bitcoin_node lib, so it should be in the node folder, like ... node/eviction.cpp'",
+    "fjahr: typo nit on PR title, non-substantive",
+    "theuni: 'The fix for the circular dependency problem here is non-trivial. Converting to draft while I investigate.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Part of the net/net_processing split project (issue #33958); described as groundwork for later steps: moving addrLocal into Peer, options-based LocalAddressManager construction, and eventually storing the manager in NodeContext"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Only touches interfaces/node.h with a single forward-declaration of LocalServiceInfo, a mechanical follow-on from the header move; no IPC mechanics are changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the interfaces/node.h edit is a one-line forward declaration required by the type relocation, not a change to IPC interface mechanics."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Substantively restructures net.cpp/net_processing.cpp local-address code (mapLocalHost, AddLocal/RemoveLocal/SeenLocal/IsLocal/GetLocalAddress, GetReachabilityFrom) into a new class, and changes how PeerManagerImpl and CConnman look up and register local addresses. This is core p2p machinery.",
+    "band": "P3",
+    "reason_tag": "cleanup, unblocks #33958",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because the author states explicitly 'this PR does not change any current behavior' -- it is a structural refactor, not a fix or feature. Its value is as groundwork for the larger net/net_processing split (issue #33958) and for making local-address logic independently testable, which is real but not urgent leverage rather than a direct user- or security-facing improvement."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/net.cpp is updated to call g_localaddressman->GetAll() instead of reading mapLocalHost directly, purely following the class introduction with no interface or output change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site update required by the LocalAddressManager introduction elsewhere; getnetworkinfo's output and behavior are unchanged, so this does not make the PR an RPC-area change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Fuzz harness and setup_common.cpp changes (test/fuzz/net.cpp, test/fuzz/netaddress.cpp, test/util/setup_common.cpp) adapt to the new LocalAddressManager API; net_tests.cpp reorganizes existing local-address tests.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These test changes pin the behavior of the p2p local-address area specifically, not the general test framework, so per the category definition they belong with p2p rather than tests infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Adds netglobals.h/.cpp holding fDiscover, fListen, and strSubVersion, described by the author as 'a simple and temporary work-around for the circular dependency introduced by LocalAddressManager' that will be eliminated in a follow-up.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The new globals file is net-specific plumbing to resolve a circular dependency created by this p2p refactor, not general-purpose shared infrastructure, and the author labels it a temporary workaround rather than a utils contribution."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the 'author_silent_days: 153' in signals is accurate given last_author_activity is listed as 2026-04-16, only a week after creation; if the author has actually been active more recently the Stale/Paused framing could shift.",
+   "Whether maflcko's file-location suggestion was addressed in a later force-push; the discussion log does not show a follow-up confirmation.",
+   "Whether the referenced conflicts with several other open PRs (e.g. #34806, #32394) will require significant rework once this PR is revived."
+  ],
+  "card": "This PR extracts local-network-address bookkeeping (mapLocalHost, AddLocal/RemoveLocal/GetLocalAddress, GetReachabilityFrom) out of net.cpp and CNode into a new LocalAddressManager class, as groundwork for the larger net/net_processing split project (issue #33958). The author states explicitly there is no behavioral change, and review discussion so far is limited to file naming and placement (maflcko, fjahr), with no substantive objection. The PR is draft, CI is failing, needs rebase, and the author went silent after saying a circular-dependency problem in the extraction was 'non-trivial' and required investigation, so review right now risks being invalidated by a pending rework. It conflicts with several other open PRs touching net.cpp/net.h. Priority in p2p is moderate: it is useful preparatory refactoring but carries no direct correctness, security, or user-facing benefit on its own."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

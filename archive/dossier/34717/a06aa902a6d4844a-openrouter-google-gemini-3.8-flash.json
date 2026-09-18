@@ -1,0 +1,97 @@
+{
+ "number": 34717,
+ "input_hash": "a06aa902a6d4844a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:18:05+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21174,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4613
+ },
+ "cost_usd": 0.03317925,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Remove the redundant m_getaddr_sent flag from peer connection tracking",
+    "Allow outbound peer self-announcements to relay normally while relying on message size limits to block address dump relay"
+   ],
+   "reviewability": [
+    "Author has been silent for 71 days following unresolved design questions regarding privacy and relay token abuse."
+   ],
+   "agreement": [
+    "Concept NACK citing risk of malicious peers abusing address relay tokens (taki-abedesselam)",
+    "Unresolved questions on whether relaying initial self-announcements leaks outbound topology (ajtowns, Crypt-iQ)",
+    "Tested approvals welcoming the code simplification and removal of broken state logic (danielabrozzoni, w0xlt)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it cleans up an internal state flag that stopped working as intended after earlier self-announcement changes.",
+      "The behavioral change is minor and only affects relay of initial self-announcements and rare small address responses."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes the `m_getaddr_sent` boolean flag from `Peer` and the corresponding check in `ProcessAddrs`. The flag was intended to prevent relaying responses to `GETADDR`, but since self-announcements were separated into their own message in #34146, the first self-announcement clears the flag before the `GETADDR` response arrives, rendering the check ineffective. As a result, the initial self-announcement is now relayed immediately, while large `GETADDR` responses remain suppressed by the existing check that message size is 10 addresses or fewer.",
+  "problem": "The `m_getaddr_sent` flag creates misleading state and suppresses relay of the first self-announcement from outbound peers without effectively preventing small `GETADDR` response relays.",
+  "discussion": {
+   "open_concerns": [
+    "taki-abedesselam Concept NACKed, arguing that removing the flag lets malicious peers abuse the 1000-token GETADDR allowance to forward unsolicited addresses.",
+    "ajtowns and Crypt-iQ raised potential privacy concerns regarding relaying initial self-announcements and small GETADDR responses, discussing whether separate message types or age inflation are needed."
+   ],
+   "resolved_concerns": [
+    "Removal of the redundant functional test assertion was clarified after review questions from Bortlesboat and danielabrozzoni."
+   ],
+   "author_status": "silent since 2026-07-08 (71 days) after summarizing open questions on self-announcement privacy and GETADDR relay behavior"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 71 days",
+   "reason": "The author has been inactive for 71 days exceeding the 60-day project threshold, leaving open conceptual questions regarding privacy and potential address relay token abuse."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: taki-abedesselam Concept NACKs over relay token abuse; privacy questions remain open despite ACKs from w0xlt and danielabrozzoni",
+   "reason": "Reviewers are divided. While w0xlt and danielabrozzoni approved the change as a clean fix for broken state logic, taki-abedesselam objected with a Concept NACK over token abuse concerns, and ajtowns and Crypt-iQ highlighted unanswered privacy and design questions.",
+   "evidence": [
+    "taki-abedesselam: Concept NACK, stating that removing m_getaddr_sent allows peers to abuse the +1000 token GETADDR allocation to relay unsolicited addresses",
+    "ajtowns: questioned the utility and privacy implications of relaying outbound self-announcements, suggesting alternative filtering or age inflation",
+    "Crypt-iQ: asked whether relaying GETADDR responses or initial self-announcements leaks network topology",
+    "danielabrozzoni and w0xlt: ACKed the removal because the size <= 10 check already guards address relay and the flag was ineffective"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Touches peer message handling in src/net_processing.cpp and functional test test/functional/p2p_addr_relay.py.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Removing m_getaddr_sent cleans up broken internal state tracking that failed to accomplish its design purpose after #34146. As mzumsande noted, 'the flag was already unnecessary before (due to the <10 criterion)... improves logic that was already broken before', representing a worthwhile but minor P2P cleanup."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 34717 removes the m_getaddr_sent peer flag, which was intended to suppress relaying GETADDR responses but was rendered ineffective after self-announcements were split into separate messages in #34146. Removing it allows initial outbound self-announcements to relay while continuing to rely on a size check (<= 10 addresses) to block bulk address relay. Reviewers agree the flag is broken, but the PR is disputed due to a Concept NACK from taki-abedesselam concerning relay token abuse and unresolved privacy questions from ajtowns and Crypt-iQ. Review is currently stale as the author has been silent for 71 days."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,127 @@
+{
+ "number": 35780,
+ "input_hash": "5f354a5834b573d6",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:52+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18472,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3610
+ },
+ "cost_usd": 0.0273915,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent aborted HTTP connections on Windows after request parsing errors",
+    "Ensure clients receive 400 and 413 error responses before the socket closes"
+   ],
+   "reviewability": [
+    "Needs rebase against master due to merge conflicts with #35829"
+   ],
+   "agreement": [
+    "Concept ACK from multiple reviewers (pinheadmz, frankomosh, winterrdog, hodlinator)",
+    "Approach feedback suggests integrating lingering close into the new HTTPRequest state machine (pinheadmz, winterrdog)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it resolves an intermittent connection abort on Windows during malformed or oversized requests",
+      "Eliminates an intermittent CI failure in interface_http without altering standard RPC semantics"
+     ]
+    }
+   ]
+  },
+  "summary": "Implements a lingering close mechanism in the HTTP server when rejecting requests during parsing (such as HTTP 400 Bad Request or HTTP 413 Content Too Large). It adds a Sock::ShutdownSend() wrapper to half-close the send side after flushing the error response, allowing remaining unread inbound data to be drained up to a 1-second timeout before terminating the connection.",
+  "problem": "When the HTTP server encounters a parse or size error, closing the socket immediately while unread data remains in the operating system receive buffer triggers a TCP RST on Windows (issue #35632). This reset discards the queued HTTP response before the client reads it, resulting in a connection abort rather than an informative HTTP error response and causing flaky functional tests.",
+  "discussion": {
+   "open_concerns": [
+    "pinheadmz and winterrdog questioned the approach of handling lingering close connection flags manually rather than integrating with the HTTPRequest state machine merged in #35735",
+    "Merge conflict with #35829 (hodlinator provided an rebase branch)"
+   ],
+   "resolved_concerns": [
+    "Explanation provided on why force_close and m_disconnect must operate in sequence to allow the response flush before socket teardown"
+   ],
+   "author_status": "Silent for 24 days since force-pushing on 2026-08-24; PR is marked draft and needs rebase."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master (specifically with #35829) and carries the Needs rebase label."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACKed by multiple contributors; design discussions open regarding state machine integration",
+   "reason": "Reviewers broadly agree that preventing Windows TCP resets on parse errors is desirable, though pinheadmz and winterrdog recommended refining the implementation approach.",
+   "evidence": [
+    "pinheadmz: 'Concept ACK on lingering close to be more polite to clients and improve test determinism. However I am not convinced about the approach.'",
+    "winterrdog: 'concept ACK... request state machine handles the HTTP side, and only minimal connection-level state is needed for the final TCP drain'",
+    "hodlinator: 'Concept ACK... here is a suggestion for how to rebase'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies core connection lifecycle and response delivery in src/httpserver.cpp and src/httpserver.h.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it addresses an edge-case bug where Windows HTTP clients receive an ungraceful TCP reset instead of a 400 or 413 HTTP error code. The issue was observed as an intermittent CI failure in interface_http.py (#35632), making it a worthwhile reliability improvement for Windows users and test stability."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes in src/test/ are mechanical stub implementations of Sock::ShutdownSend() on FuzzedSock and ZeroSock.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change testing frameworks or test harnesses apart from mechanical mock overrides for a new socket method."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The addition of Sock::ShutdownSend() in src/util/sock is a single thin helper specifically for the HTTP server.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The Sock addition is an incidental utility change serving the RPC HTTP server logic rather than an independent utility improvement."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request implements a lingering close for the HTTP server when rejecting requests due to malformed headers (400) or excessive payloads (413). On Windows, closing a socket with unread data in the kernel buffer causes a TCP reset that aborts the connection before the client reads the error response, intermittently failing CI tests like interface_http.py. The patch flushes the reply, half-closes the send channel, and drains remaining inbound bytes until EOF or a 1-second timeout. Reviewers have Concept ACKed the change, but the implementation approach remains under discussion and the branch currently requires a rebase against master."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,153 @@
+{
+ "number": 35662,
+ "input_hash": "7fe8297043f5795b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15892,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5161
+ },
+ "cost_usd": 0.043103300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes PrecomputedTransactionData safe by construction, so a sighash cache object can never exist half-initialized or be reused across transactions.",
+    "Also removes an unnecessary txdata allocation on the assumevalid fast path (closes a previously separate PR, #35663)."
+   ],
+   "reviewability": [
+    "Ready. Author reworked per reviewer feedback, force-pushed the redesign, then rebased and said it is 'ready for review again' as of 2026-08-05."
+   ],
+   "agreement": [
+    "Reviewer sedited initially leaned NACK, arguing the default-construct-then-Init pattern was a latent misuse risk (sedited).",
+    "Author agreed and reworked the PR to remove default construction and public Init entirely, exactly as sedited suggested.",
+    "No pushback or re-review from sedited since the rework; treated as resolved by fix.",
+    "Only one reviewer has engaged so far."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it hardens PrecomputedTransactionData against a theoretical stale-cache reuse hazard rather than a demonstrated bug, and folds in a small allocation-avoidance fix for the assumevalid path (#35663).",
+      "Sedited: 'we should never be hitting a code path where re-initialization is possible' \u2014 the fix removes that path outright rather than patching a live bug."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because the kernel C API's public signature is unchanged; the change is a mechanical adaptation of bitcoinkernel.cpp's internal call to the new constructor, not new API surface or capability."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes the default-constructible, reusable PrecomputedTransactionData type in favor of construction that always ties the object to one transaction, eliminating a public Init() reuse path that could leave stale sighash cache state. It updates all call sites (validation, wallet feebumper, psbt, signet, kernel API, tests, fuzz targets) to use the new constructor or an std::optional<PrecomputedTransactionData> where construction must be deferred. As part of this, validation's ConnectBlock() and CheckInputScripts() now store txdata lazily, which also avoids allocating unused txdata during the assumevalid fast path, closing a separate previously-opened PR (#35663).",
+  "problem": "PrecomputedTransactionData could be default-constructed and later filled with a public Init(), leaving a reuse path where an object could exist without transaction-specific data or have its internal readiness flags (notably m_spent_outputs_ready) inconsistent with what was actually cached. This is a latent correctness hazard for anyone maintaining or calling into script verification code, even though no live bug from it has been demonstrated.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "sedited's design objection to the reusable Init() pattern was resolved by the author removing default construction and public Init() entirely, matching exactly what sedited proposed; no further objection was raised."
+   ],
+   "author_status": "active, last activity 2026-08-05 (rebase and re-ping for review)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failure, no rebase needed, and the author explicitly said the PR is 'ready for review again' after rebasing on 2026-08-05. The one substantive design objection was already addressed by a rework in the prior push."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "sedited's design objection was resolved when the author reworked the PR to remove default construction and Init() entirely, matching the suggested fix; no reviewer has commented since.",
+   "reason": "Only one reviewer engaged; their concrete objection was addressed with the exact change they proposed, and there was no pushback. No independent endorsement has yet been given to the reworked version.",
+   "evidence": [
+    "sedited: 'I'm tending NACK here... I think we should seriously reconsider whether this data can be initialized at construction.'",
+    "l0rinc: 'I'll rework this so that PrecomputedTransactionData is always built for one transaction and has no public reinitialization path.'",
+    "l0rinc (after push): 'This is indeed a lot nicer, thanks for the push. What do you think?' \u2014 no reply recorded since."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "closes/covers #35663 (avoid preallocating unused txdata during assumevalid), which was closed in favor of this PR"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Touches src/kernel/bitcoinkernel.cpp, updating btck_precomputed_transaction_data_create to use the new constructor; the public C API shape is unchanged.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Mechanical adaptation of internal kernel code to a changed C++ constructor signature; no new capability, no API break, no consumer waiting on it. l0rinc's commit message describes only the call-site update, not a kernel-API change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "CheckInputScripts and CheckInputsFromMempoolAndCache signatures change type from PrecomputedTransactionData to std::optional<...>, which is used by both mempool and block validation, but the PR does not change any mempool policy, acceptance, or eviction behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mempool-policy semantics change; the touched functions live in validation.cpp but the category explicitly separates consensus validity plumbing from mempool policy."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Most test edits (script_tests, sighash_tests, script_assets_tests, fuzz targets, txvalidationcache_tests) are mechanical adaptations to the new constructor signature, plus one new unit test pinning PrecomputedTransactionData's constructor behavior for the script/validation area.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the category definition, tests that pin one area's behavior (here, script/sighash caching) belong to that area, not test infrastructure; nothing here changes the test framework, fuzzing harness, or CI machinery itself."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Carries the Consensus label, changes CheckInputScripts and ConnectBlock's txdata handling in validation.cpp, and a reviewer required understanding validation/script-cache internals to review it (sedited's design objection).",
+    "band": "P3",
+    "reason_tag": "hardening",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Removes a latent misuse hazard around stale sighash cache state, described in the PR body: 'The old Init() guard only checked m_spent_outputs_ready... even though force=true cached the BIP143... hashes.' No live bug is demonstrated (sedited: 'we should never be hitting a code path where re-initialization is possible'), so this is hardening rather than a fix for an observed failure. It also closes #35663, avoiding an unnecessary txdata allocation during the assumevalid fast path in ConnectBlock."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether sedited, the only reviewer to comment, is satisfied with the reworked (fully non-default-constructible) design, since there has been no re-review after the 2026-07-09 push or the 2026-08-05 rebase.",
+   "Whether the mempool, tests, and wallet categories should be considered non-members is a judgment call, since the PR does touch files under mempool-adjacent validation code and wallet/feebumper.cpp, but only mechanically.",
+   "Whether project maintainers view the underlying hazard as purely theoretical (as sedited implied) or as worth prioritizing higher; no second opinion has been given."
+  ],
+  "card": "This PR makes PrecomputedTransactionData non-default-constructible so a sighash/txdata cache object can never exist half-initialized or be reused across a different transaction, removing a latent misuse hazard the author's description attributes to the old Init()-based reuse pattern. It also folds in #35663, avoiding an unnecessary txdata allocation on the assumevalid fast path in ConnectBlock. The one reviewer to comment, sedited, initially leaned NACK on the reusable-Init design; the author reworked the PR to exactly the design sedited suggested, and there has been no further review since. The PR is Ready to review: no CI failures, no rebase needed, author rebased and pinged for review as of 2026-08-05. Its importance is P3 in validation: it addresses a hazard sedited himself frames as one that 'should never' be hit in practice, so it is hardening rather than a fix for an observed bug, with a small side benefit of closing #35663's allocation-avoidance goal. It also mechanically touches kernel, wallet, and test code, which are low-priority adaptations rather than substantive changes to those areas."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

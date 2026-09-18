@@ -1,0 +1,127 @@
+{
+ "number": 34213,
+ "input_hash": "065214809125ae43",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9438,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3365
+ },
+ "cost_usd": 0.0276693,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Preserve saved peer anchors when network activity is disabled or when the node is stopped in that state.",
+    "Prevents accidental loss of eclipse-attack protection when users toggle networkactive off."
+   ],
+   "reviewability": [
+    "Ready, latest push addressed all outstanding review comments and was approved.",
+    "No open material questions remain as of the latest review round."
+   ],
+   "agreement": [
+    "Strong support after extensive review, no unresolved objections (danielabrozzoni, willcl-ark, bensig, Bortlesboat, waketraindev).",
+    "Design evolved significantly through discussion including a data-race fix and anchor-limit correction, all addressed by the author (danielabrozzoni, w0xlt, willcl-ark)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because losing anchors weakens eclipse-attack resilience on restart, a real though narrow security property (danielabrozzoni's analysis).",
+      "Fixes a genuine bug affecting users who disable networking, not a hypothetical."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the only rpc-facing change is a documentation note added to setnetworkactive explaining the anchor interaction.",
+      "No behavioral or interface change to the RPC itself."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug where disabling network activity (via -networkactive=0 or setnetworkactive false) causes the node's saved block-relay-only anchor peers to be lost, since anchors.dat gets overwritten with an empty list on shutdown. It introduces a mutex-guarded m_anchors that is populated from current block-relay-only connections when the network is deactivated, consumed only while the network is active, and used as a fallback source when dumping anchors.dat at shutdown if there are no live connections. The PR went through several approach revisions after extensive review, including fixing a data race around fNetworkActive and correcting an anchor-count/ordering bug found by reviewers.",
+  "problem": "Users who disable network activity and then cleanly shut down lose their previously-saved anchor peers, weakening the node's eclipse-attack defense on the next restart. This affects anyone using -networkactive=0 or the setnetworkactive RPC, as reported first-hand by the author and reproduced by danielabrozzoni.",
+  "discussion": {
+   "open_concerns": [
+    "Whether anchors should also be reloaded/refreshed when network is disconnected due to loss of internet (not just explicit networkactive=0) remains an open question, deferred as a follow-up by consensus.",
+    "Whether to restore anchors automatically when network is later re-enabled via setnetworkactive true was raised by luke-jr; author deferred to a follow-up."
+   ],
+   "resolved_concerns": [
+    "Data race between setting fNetworkActive and capturing current connections, found by danielabrozzoni, fixed by capturing anchors before flipping the flag.",
+    "Anchor ordering/count mismatch when saving more than MAX_BLOCK_RELAY_ONLY_ANCHORS peers, found by w0xlt, fixed with a resize.",
+    "ThreadOpenConnections still consuming/popping anchors while network inactive, found by willcl-ark, fixed by skipping the anchor branch entirely when inactive.",
+    "Test structure and commit ordering nits from danielabrozzoni, addressed by reordering commits and consolidating tests."
+   ],
+   "author_status": "active, most recently addressed willcl-ark's approval-round comment on 2026-09-14"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Latest push (ddf033054f) addressed all outstanding comments including willcl-ark's data-consumption bug and w0xlt's anchor-count issue; willcl-ark approved the resulting code on 2026-09-15 with no open material questions remaining."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: willcl-ark approved after his concerns were fixed, danielabrozzoni gave a detailed concept ACK, others (bensig, Bortlesboat) ACKed; no standing objections.",
+   "reason": "Multiple maintainers engaged substantively over months, all raised issues were fixed by the author, and the final approval came from the reviewer who found the last bug.",
+   "evidence": [
+    "willcl-ark: 'Looks pretty nice to me now, thanks for addressing my comments' then 'ACK ddf033054f'",
+    "danielabrozzoni: 'Concept ACK. I think this is a good improvement... I can't find any additional surface of attack introduced here'",
+    "bensig and Bortlesboat both left tested ACKs on earlier commits",
+    "w0xlt and willcl-ark's found bugs were both fixed by the author in later force-pushes"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Possible follow-up work on restoring anchors automatically when network is re-enabled (mentioned by author and luke-jr)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes net.cpp connection/anchor management (m_anchors, SetNetworkActive, ThreadOpenConnections, StopNodes), core p2p subject matter, labeled P2P.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "danielabrozzoni characterized the underlying issue as low risk but real: losing anchors reduces the eclipse-attack protection anchors are meant to provide on restart, though she couldn't identify a practical exploit path. The bug is genuine and user-affecting (author hit it themselves), but the security impact is modest since exploiting it requires an attacker to already control network toggling."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Author agreed to add documentation to the setnetworkactive RPC help text explaining the anchor interaction, per w0xlt's request, touching src/rpc/net.cpp.",
+    "band": "P4",
+    "reason_tag": "docs",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The rpc-facing portion is limited to a documentation clarification for setnetworkactive; no RPC interface or behavior change, so it carries little independent weight in this category."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the open conflict with #34486 (willcl-ark's own PR reducing local network activity when networkactive=0) will require rework here, though willcl-ark approved this PR after that PR was opened, suggesting no blocking conflict currently.",
+   "Whether the deferred follow-up work (auto-restoring anchors on re-enable, handling internet-loss without networkactive flag) will be required before this is considered complete by reviewers."
+  ],
+  "card": "This PR fixes a real bug where disabling network activity (via -networkactive=0 or setnetworkactive) causes bitcoind to overwrite anchors.dat with an empty list on shutdown, silently discarding the node's saved eclipse-attack-resistant peer anchors. It adds a mutex-guarded m_anchors store populated from live block-relay-only connections at deactivation time, and used as a fallback when dumping anchors at shutdown. Review was extensive over many months: danielabrozzoni gave a detailed security analysis calling it low-risk but worthwhile, and multiple reviewers (willcl-ark, w0xlt) found and got fixed a data race and an anchor-ordering bug in later revisions. The PR is now approved by willcl-ark with no open objections, though it has an open conflict with willcl-ark's own related PR #34486. Priority is moderate: it protects a real but narrow security property (eclipse resistance on restart) rather than fixing an actively exploited hole."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

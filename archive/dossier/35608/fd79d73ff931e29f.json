@@ -1,0 +1,112 @@
+{
+ "number": 35608,
+ "input_hash": "fd79d73ff931e29f",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6971,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2991
+ },
+ "cost_usd": 0.0233323,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up the deterministic-fuzz-coverage dev tool by comparing merged profdata before rendering full llvm-cov reports.",
+    "Cuts a slow fuzz-determinism check from tens of minutes to a fraction of that for large corpora."
+   ],
+   "reviewability": [
+    "Ready to review, both raised nits have been addressed or explicitly declined by a maintainer."
+   ],
+   "agreement": [
+    "Strong support: tested ACK with reproduced benchmarks (jeanpablojp) and approval (maflcko).",
+    "A raised edge case about a misconfigured build slipping through was explicitly judged out of scope by a maintainer (maflcko), and the raiser did not push back (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it meaningfully speeds up a niche developer script (2.9x-3.2x, cutting a 1h50m run to 26 minutes) but only benefits contributors running fuzz coverage determinism checks, not deployments or end users."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR optimizes contrib/devtools/deterministic-fuzz-coverage by comparing merged .profdata files before rendering full llvm-cov show reports. Because identical profdata implies identical coverage output, the expensive llvm-cov rendering step is skipped entirely for the common case where fuzz coverage is deterministic, falling back to the old render-and-diff behavior only when profdata differs. The pass/fail result is unchanged.",
+  "problem": "The tool previously rendered a full llvm-cov show report for every fuzz input on both runs and diffed them, even though almost all inputs produce deterministic coverage, wasting the most expensive step of the process. Contributors running this tool (e.g. during PR review of #35809) experienced multi-hour runs on large corpora like process_message.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko's nit to de-duplicate check_diff/run_profile/render_cov was partially addressed; author kept profdata_eq separate for readability, no further pushback.",
+    "jeanpablojp's concern that a build missing -fcoverage-mapping would now pass silently was addressed by maflcko's rationale that this is a dev-only script and the logic should not be complicated for misconfigured builds; jeanpablojp did not push back."
+   ],
+   "author_status": "active, last activity 2026-09-03 addressing review feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No known blockers; author has responded to and addressed or the project has explicitly resolved all raised nits. A related conflicting PR (#35809) exists but does not require waiting to review this one's logic."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Tested ACK from jeanpablojp with reproduced benchmark numbers, and approval from maflcko; a raised edge case was explicitly deemed out of scope by maflcko without pushback.",
+   "reason": "Two reviewers engaged substantively: jeanpablojp reproduced the speedup and confirmed identical pass/fail results, and maflcko approved with only a style nit. jeanpablojp's later concern about a misconfigured build was resolved by maflcko's rationale that the script should not add hand-holding logic, and jeanpablojp did not object further.",
+   "evidence": [
+    "jeanpablojp: 'Ran both versions on qa-assets... same PASS on both, and the new flow rendered zero reports.'",
+    "maflcko: 'lgtm, left a nit to slim this down a bit' (review APPROVED)",
+    "jeanpablojp raised a build-flag edge case; maflcko: 'I think it is fine to not hold their hands with extra logic here.' No further reply from jeanpablojp."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Faster fuzz coverage determinism checks, referenced as used during review of #35809 (contrib: add deterministic fuzz coverage mode)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "This changes a standalone Rust dev tool for fuzz coverage determinism checking, not the CMake build, depends system, Guix, or CI configuration itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build-system or CI-configuration change; excluded from this category despite touching a contrib script sometimes used in coverage workflows."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Labeled 'Scripts and tools'; the PR modifies contrib/devtools/deterministic-fuzz-coverage/src/main.rs, a developer helper script.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Benchmarks show a 2.9x-3.2x speedup on real qa-assets corpora (process_message: 719s to 247s in the PR's own numbers, and 1h50m to 26m per jeanpablojp's independent reproduction), a major performance improvement for this tool. However it is a niche, single-purpose developer script used only by contributors running fuzz coverage determinism checks, not a widely-relied-upon operator tool, so it ranks as worthwhile but not strategically important."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers intend deterministic-fuzz-coverage to be treated as 'build/tests' infrastructure rather than 'tools'; the category files place contrib dev scripts under tools, which is followed here.",
+   "Impact of the noted conflict with #35809 (same author, open PR) on merge order was not discussed in the thread."
+  ],
+  "card": "This PR optimizes the contrib/devtools/deterministic-fuzz-coverage Rust tool by comparing merged .profdata files before falling back to the expensive llvm-cov show rendering step, skipping rendering entirely when profdata is identical (a sufficient condition for deterministic coverage). It solves a real pain point for contributors: jeanpablojp independently reproduced the benchmark and found process_message runtime dropping from 1h50m to 26 minutes with identical pass/fail results. The PR has a tested ACK and an approval, with one style nit partially addressed and one edge-case concern explicitly resolved by a maintainer as out of scope. It is Ready for merge-oriented review, with Strong agreement, and is a niche developer-tool improvement (P3 in tools) rather than a broadly user-facing change. It conflicts with the same author's open PR #35809 which should be considered for merge ordering."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

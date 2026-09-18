@@ -1,0 +1,232 @@
+{
+ "number": 32387,
+ "input_hash": "f544bbe067c89c05",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43772,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6690
+ },
+ "cost_usd": 0.0786283,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make the multiprocess IPC feature (bitcoin-node/bitcoin-gui with -ipcconnect) build and run correctly on Windows.",
+    "Lets Windows users eventually benefit from the process-separation project instead of only Unix/macOS users."
+   ],
+   "reviewability": [
+    "Not reviewable as a finished change right now: the PR is explicitly marked DO NOT MERGE, is based on three unmerged upstream libmultiprocess PRs, and needs a rebase.",
+    "Author is still actively iterating (31 force-pushes) but no reviewer has looked since April 2025."
+   ],
+   "agreement": [
+    "Concept ACK only, with no stated rationale (hebasto).",
+    "No objections raised, but also no substantive review of the current code since the single early concept ACK."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it extends platform coverage for the process-separation project's IPC binaries to Windows, which the project has flagged as a goal (tracking issue #28722).",
+      "Windows IPC has no real consumers yet (bitcoin-mine/#30437 still open), so the near-term user benefit is limited despite the strategic value."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P3 because it wires Windows CI, vcpkg, and depends to build IPC/capnproto, expanding what the existing Windows build supports rather than fixing a currently broken supported platform.",
+      "No release-integrity or reproducibility risk since IPC on Windows is opt-in and gated behind a feature flag."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it adds Windows-specific asyncio/socket plumbing to the functional test framework so IPC tests can run on Windows, and adds new libmultiprocess unit tests (connect_tests, util_tests).",
+      "This unblocks meaningful IPC-on-Windows coverage but only once the underlying feature itself is mergeable."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it fixes real bugs in the bitcoin wrapper's Windows exec path (missing .exe extension, wrong error codes, child process never waited on), which would otherwise break the wrapper on Windows.",
+      "These fixes only matter once IPC-on-Windows ships; today they have no live consumer."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes concrete correctness hazards in SpawnProcess/socket utilities on Windows (a named-pipe hang when a child dies before connecting, a MinGW thread_local use-after-free workaround).",
+      "These are confined to Windows-only code paths not yet exercised by any shipped feature, limiting the present-day blast radius."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds Windows support to the multiprocess IPC subsystem so that bitcoin-node, bitcoin-gui, and related tools can build, spawn child processes, and communicate over sockets on Windows. It touches the vendored libmultiprocess subtree directly (with an explicit DO NOT MERGE warning since this bypasses the normal subtree update process), Windows-specific process spawning and socket code in src/util, CI/build/vcpkg/depends configuration for Windows+IPC, and functional test framework changes to support IPC tests on Windows. It is explicitly a draft, based on three still-unmerged upstream libmultiprocess pull requests, and has been iterated on with 31 force-pushes over 16+ months.",
+  "problem": "Bitcoin Core's process-separation project (tracking issue #28722) currently only supports IPC/multiprocess features on Unix-like platforms; Windows users cannot use bitcoin-node/bitcoin-gui or the -ipcconnect features. This PR removes that platform gap, addressing libmultiprocess issues #53 and #114 referenced in the description.",
+  "discussion": {
+   "open_concerns": [
+    "PR is based on three unmerged upstream libmultiprocess PRs (#231, #317, #318); until those land upstream, this PR cannot be finalized.",
+    "The subtree lint check is disabled with an explicit 'DO NOT MERGE' commit warning because the PR modifies the libmultiprocess subtree directly for testing.",
+    "Author has stated other multiprocess PRs (e.g. #30437, #32297) should be merged first to give this PR meaningful test coverage and a real consumer.",
+    "Needs rebase per current metadata."
+   ],
+   "resolved_concerns": [
+    "Sjors's suggestion to combine with #31756/#30437 for easier testing was acknowledged by the author as reasonable but not a blocker."
+   ],
+   "author_status": "active (31 force-pushes through 2026-08-15) but PR deliberately kept in draft pending upstream/dependency PRs"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Blocked on unmerged upstream PRs",
+   "reason": "The author explicitly marked a commit 'WARNING: DO NOT MERGE' and the PR is based on three still-open upstream libmultiprocess pull requests (#231, #317, #318); it also needs a rebase and conflicts with over a dozen other open PRs. Reviewing the current diff risks being invalidated once those upstream PRs land and the subtree sync is redone."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from hebasto with no stated rationale, and no objections since; no reviewer has re-engaged with the code since April 2025.",
+   "reason": "Only one reviewer (hebasto) has weighed in, giving a bare Concept ACK. Sjors offered testing suggestions but no verdict. No one has objected to the approach or found a harm, but the review is very thin given the PR's size and duration.",
+   "evidence": [
+    "hebasto (member): 'Concept ACK.'",
+    "Sjors (member): suggested combining with #31756 and #30437 for easier testing, no objection raised.",
+    "Author (ryanofsky): repeatedly stated other multiprocess PRs should be prioritized/merged first, keeping this in draft by choice."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    30437,
+    32297,
+    35084
+   ],
+   "enables": [
+    "Windows builds of bitcoin-node/bitcoin-gui and IPC functional tests, feeding into the process-separation project (#28722)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Changes CI configs (ci-windows.py, ci-windows-cross.py), vcpkg.json, depends/Makefile and capnp.mk, and CMakeLists.txt to enable IPC in Windows builds.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Enables a new optional feature (IPC) on an already-supported platform (Windows) rather than fixing existing supported-platform breakage. 'Fix: extend VCPKG_MANIFEST_FEATURES to ipc;tests;wallet' (commit message) shows incremental build fixes rather than a release-integrity issue."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Core subject of the PR: Windows support for the multiprocess/IPC stack, including libmultiprocess subtree changes, ipc/process.cpp, ipc/capnp/protocol.cpp.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Directly advances the stated process-separation project goal by adding platform coverage for a supported OS ('These changes make IPC features work on windows, resolving libmultiprocess#53 and #114', description). It also fixes concrete correctness/hang bugs discovered while porting (named-pipe connect hang, socket error mapping). However it has no live consumer yet and is explicitly kept in draft by the author pending higher-priority multiprocess work ('other multiprocess PRs should have higher priority', ryanofsky)."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Only touches interface_ipc_mining.py to broaden an exception catch for Windows socket errors; does not change mining template logic or the Mining interface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the mining test touch is a mechanical adaptation for Windows sockets, not a change to mining behavior."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only removes static bitcoin-cli-res.rc resource file as part of consolidating Windows resource generation; no RPC interface or behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the touched file is a build resource artifact, not RPC/REST/ZMQ code or behavior."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds Windows AF_UNIX asyncio support to test_framework/ipc_util.py, updates test_node.py for stale socket cleanup, adds mptest connect_tests.cpp/util_tests.cpp.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Extends the functional test framework and libmultiprocess unit tests to work on Windows so IPC tests can run there at all, unblocking future IPC test coverage on that platform: 'Python's asyncio doesn't support create_unix_connection() on Windows. Implement it by patching asyncio.ProactorEventLoop...' (commit message). Test-only value, not itself catching a regression yet."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Substantively changes src/bitcoin.cpp (the bitcoin wrapper) exec logic for Windows path/extension and error handling.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes real bugs that would break the bitcoin wrapper tool on Windows: '_wspawnvp requires the full filename including \".exe\"...' and msvcrt returning EINVAL instead of ENOENT (commit bc7abc5/1bb9ee9). Matters once the wrapper is used on Windows with IPC, which is not yet a shipped default."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Substantial changes to src/util/exec.cpp and src/util/fs.h, and heavy Windows-specific additions to util.cpp/util.h in libmultiprocess (SpawnProcess, SocketPair, ExecVp) though most of the latter lives under src/ipc/libmultiprocess rather than src/util proper.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes concrete safety hazards in process-spawning primitives: a named-pipe connect hang when a child exits early ('If the child exits or crashes before connecting, ConnectNamedPipe blocks forever with no recovery path', commit df65470), and a MinGW thread_local use-after-free causing heap corruption (commit 4e9cf61). These are exactly the kind of subtle, node-wide-risk bugs the utils category flags, but confined to new Windows-only code paths with no current shipped consumer."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this PR should be treated as effectively blocked pending three separate upstream libmultiprocess PRs, or whether those are close enough to landing that a rebase is imminent.",
+   "Whether the intentional disabling of the subtree-link lint check (marked DO NOT MERGE) should itself be flagged as a blocking hazard independent of code review readiness.",
+   "Extent to which review effort here should wait on #30437/#32297 landing first, per the author's own stated preference, versus reviewing the Windows-porting mechanics in parallel.",
+   "Relative weight to give the many small Windows-specific correctness fixes (hangs, error-code mapping) since none have an existing user today."
+  ],
+  "card": "This draft PR (open 504 days, 31 force-pushes) ports the multiprocess IPC subsystem to Windows, letting bitcoin-node/bitcoin-gui and -ipcconnect eventually work there, as part of the process-separation project (#28722). It touches the vendored libmultiprocess subtree directly, Windows process-spawning/socket code in src/util, Windows CI/vcpkg/depends wiring, and the functional test framework, fixing real bugs along the way (a named-pipe connect hang, a MinGW use-after-free, wrapper exec bugs) but is explicitly marked 'DO NOT MERGE' because it is based on three still-open upstream libmultiprocess PRs (#231, #317, #318) and needs rebase. Review activity is thin: a single Concept ACK from hebasto in April 2025 and no reviewer engagement since, while the author has kept iterating and has stated other multiprocess PRs (#30437, #32297) should land first. The strongest evidence of importance is that it directly extends the process-separation project's stated platform coverage goal, but there is no current live consumer of IPC-on-Windows, so urgency is moderate rather than critical."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,281 @@
+{
+ "number": 35646,
+ "input_hash": "1670c0b7efbb444f",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26219,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8908
+ },
+ "cost_usd": 0.0721653,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Separates fatal/runtime errors from BlockValidationState using util::Expected",
+    "Aims to stop conflating consensus-invalidity with disk/system errors across validation, blockstorage, and kernel code",
+    "Intended as groundwork for a related refactor (#35570) that changes validation methods to return BlockValidationState"
+   ],
+   "reviewability": [
+    "CI is currently failing on the latest push",
+    "Multiple concrete review comments about possible behavior changes (BlockChecked not fired on error, dropped NONFATAL_UNREACHABLE checks) remain without a visible author reply in the thread"
+   ],
+   "agreement": [
+    "Concept ACK from optout21, explicitly withheld from a full ACK pending several unresolved review comments (optout21)",
+    "maflcko questioned whether splitting and then re-flattening the error types is worthwhile at all, partially answered by a design change but no confirmation from maflcko since (maflcko)",
+    "optout21 flagged specific behavior-change risks (BlockChecked skipped on error, dropped NONFATAL_UNREACHABLE checks) that appear unaddressed as of the latest push (optout21)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it reorganizes error handling across ConnectBlock/AcceptBlock/ActivateBestChain without fixing a known bug or unblocking a concrete project yet",
+      "Reviewer-flagged risk that BlockChecked notifications are silently skipped on fatal error is a correctness concern worth watching, but the refactor itself is speculative (RFC) and its value is disputed by a maintainer"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it removes INTERNAL_ERROR from the public C API surface (btck_ValidationMode), a technical API change flagged by a reviewer",
+      "Author notes bitcoinkernel has not yet released, which limits the real-world impact of this API change"
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it changes how fatal errors surface through SubmitBlock/GenerateBlock's reason/debug output, affecting external miners and RPC callers",
+      "A reviewer flagged uncertainty about whether previously-'inconclusive' error cases now report differently, which is unresolved"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it touches error mapping in submitblock/generateblock/invalidateblock paths that downstream RPC callers rely on",
+      "Reviewer noted at least one behavior nuance (pre-change ActivateBestChain error was silently ignored) that needs checking for regressions"
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P3 because it changes block/undo write and read functions in node/blockstorage to return util::Expected instead of sentinel values",
+      "A reviewer questioned whether a specific null-position error branch was dropped, which bears on block storage correctness that indexes depend on"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes the M_ERROR mode from BlockValidationState and instead threads fatal/runtime errors through a new util::Expected<T, kernel::FatalError> return type across validation.cpp, node/blockstorage, the kernel C API, mining, RPC, and their call sites. It touches 41 files (+617/-384) across 5 commits and updates dozens of tests and benchmarks to match the new signatures. The stated goal is to stop conflating consensus-invalidity results with disk/system runtime errors in the same object, and to lay groundwork for a related refactor (#35570).",
+  "problem": "BlockValidationState currently mixes two unrelated failure modes: consensus/policy invalidity (its actual purpose) and runtime errors (disk write failures, system errors) via M_ERROR. This forces every caller of ConnectBlock, AcceptBlock, ProcessNewBlock, and other functions to unwrap three possible outcomes from one object, and forces functions that never validate anything (FlushStateToDisk, DisconnectTip, ActivateBestChain) to take a BlockValidationState purely to report runtime errors.",
+  "discussion": {
+   "open_concerns": [
+    "optout21: 'there is a behavior change here in case of Error: previously BlockChecked was called, and now it isn't' - flagged twice, unresolved in visible thread",
+    "optout21: 'Why not keeping the NONFATAL_UNREACHABLE checks?' - unresolved",
+    "optout21: uncertainty in node/miner.cpp about whether the Error case previously mapped to 'inconclusive' and whether that behavior is preserved - unresolved",
+    "optout21: the blockPos.IsNull() branch with a specific error return may have been dropped - unresolved",
+    "maflcko: questioned whether splitting fatal errors out and then flattening them back to strings at RPC boundaries is worthwhile at all; author proposed a FatalError type in response but no confirmation from maflcko since 2026-07-08",
+    "optout21 suggested breaking the large commit into smaller pieces for easier review; not done"
+   ],
+   "resolved_concerns": [
+    "Author addressed the exceptions-vs-return-value and type-safety question by introducing a move-only kernel::FatalError type constructed only via Raise(), addressing maflcko's compile-time-guarantee suggestion",
+    "Minor scope/typo nits from optout21 (local variable scope, 'occured' typo) are cosmetic, not blocking"
+   ],
+   "author_status": "active, force-pushed most recently on 2026-09-17 and said 'Ready for review' on 2026-09-08, but no visible reply to optout21's itemized behavior-change concerns from that same review round"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is currently failing on the latest commit (66a8476158), and several concrete behavior-change concerns from optout21's 2026-09-08 review (BlockChecked not fired on error, dropped NONFATAL_UNREACHABLE checks, possible loss of a specific error branch in blockstorage) do not have a visible author response, making current review at risk of being invalidated by fixes."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "optout21 gives Concept ACK but explicitly withholds a full ACK pending unresolved review comments about possible behavior changes; maflcko's challenge to the whole approach is only partially answered.",
+   "reason": "optout21's 2026-09-08 review says 'Reviewed again, generally looks good... Therefore not upgrading my Concept ACK to a proper acknowledgement as of now,' citing specific unresolved items including a likely behavior change where BlockChecked is skipped on fatal error. maflcko separately questioned the value of the whole split-then-flatten design; the author's redesign into a distinct FatalError type addressed part of this but drew no confirmation.",
+   "evidence": [
+    "optout21 (2026-09-08): 'I think there is a behavior change here in case of Error: previously BlockChecked was called, and now it isn't.'",
+    "optout21 (2026-09-08): 'not upgrading my Concept ACK to a proper acknowledgement as of now'",
+    "maflcko (2026-07-07/08): '...splitting them up and then flattening them down again seems pointless?'",
+    "yuvicc (2026-07-16): introduced kernel::FatalError type in response to maflcko's compile-time-guarantee suggestion"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Author states this 'would also pave a long term fix for #35570' (returning BlockValidationState from validation methods instead of a boolean)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Substantively changes node/blockstorage.h/.cpp: WriteBlock, FindUndoPos, and WriteBlockUndo now return util::Expected instead of sentinel FlatFilePos/bool values, and a reviewer flagged a possibly-dropped null-position error branch.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "optout21 raised: 'It seems to me, that the (blockPos.IsNull()) branch with the specific error return should be kept' - an unresolved correctness question about disk-write error handling, but the change is a type-safety refactor rather than a fix for an observed data-integrity bug."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "interfaces/mining.h changes are documentation comments only, not IPC serialization or connection-handling mechanics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No change to the IPC mechanism itself."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Removes btck_ValidationMode_INTERNAL_ERROR from the public C API (bitcoinkernel.h/.cpp) and INTERNAL_ERROR from the C++ wrapper, an API-surface change flagged explicitly by a reviewer.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "optout21: 'Isn't this an API change technically? If so, consider a release note for it.' Author notes 'bitcoinkernel hasn't released yet,' which limits real-world impact of the API removal."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool policy or acceptance-rule files are touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not in scope of this PR."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Changes node/miner.cpp, node/miner.h, and rpc/mining.cpp so SubmitBlock's reason/debug output can now carry a fatal internal-error message rather than only a BIP22 rejection reason.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "optout21: 'It's not clear to me that this does not introduce new error reasons... I have the impression that the Error case previously resulted in \"inconclusive\"' - a flagged, unresolved risk to what external miners/pools see on failure, but no reported live bug motivates the change."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net_processing.cpp changes (+16/-12) are mechanical call-site updates for ProcessNewBlock's new Expected-returning signature, not a change to p2p protocol or relay behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical fallout from the API change elsewhere, per the membership rule for mechanical edits."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes error handling and mapping in rpc/blockchain.cpp and rpc/mining.cpp (invalidateblock, submitblock, generateblock paths), which affects what error strings/codes callers receive.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "optout21 noted 'pre-change error from ActivateBestChain was ignored' as a behavior note needing verification; author claims 'existing RPC behavior is preserved' but this is not independently confirmed in the thread."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test changes (validation_block_tests.cpp, baseindex_tests.cpp, txindex_tests.cpp, fuzz/block.cpp, etc.) pin the behavior of validation, indexes, and kernel specifically rather than the test framework itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per category definition, area-specific tests belong to that area, not to test infrastructure."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-chainstate.cpp change is a mechanical removal of the INTERNAL_ERROR switch case, following from the kernel API change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical fallout, and the file is already covered under kernel."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Core rewrite of validation.cpp/.h (+156/-155, +24/-26) changing the return types and error-handling of ConnectBlock, AcceptBlock, ActivateBestChain, DisconnectTip, InvalidateBlock, and related functions; carries the maintainers' Validation label.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "optout21 flagged a likely behavior change where 'BlockChecked was called, and now it isn't' on fatal error paths, a correctness-adjacent concern in chainstate/validation error handling. But the PR is labeled Brainstorming/RFC and a maintainer (maflcko) questioned whether the split-then-reflatten design is worthwhile at all, meaning the underlying problem's importance is itself contested rather than settled."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the flagged behavior changes (BlockChecked skipped on fatal error, dropped NONFATAL_UNREACHABLE checks, possibly-dropped blockPos.IsNull() branch) are real regressions or reviewer misreadings is unresolved in the visible discussion",
+   "Whether maflcko's skepticism about the overall value of the split (given everything gets flattened back to strings at RPC boundaries) has been satisfied is unclear, since there's no follow-up from maflcko after the FatalError redesign",
+   "Signals report waiting_on_author_days=0 and author_silent_days=0 despite optout21's itemized concerns from 2026-09-08 appearing unanswered as of the 2026-09-17 push; it's possible replies exist that weren't captured in the provided discussion excerpt"
+  ],
+  "card": "This PR (RFC, Brainstorming label) reworks BlockValidationState to remove its M_ERROR mode, routing fatal/runtime errors instead through a new util::Expected<T, kernel::FatalError> type across validation.cpp, node/blockstorage, the kernel C API, mining, and RPC (+617/-384 across 41 files). The stated problem is that BlockValidationState conflates consensus-invalidity with disk/system errors, forcing every caller to unwrap three outcomes from one object; the author also frames it as groundwork for a related PR, #35570. The strongest evidence of importance is contested: reviewer optout21 gives only a qualified Concept ACK, flagging specific likely behavior changes (BlockChecked skipped on fatal error, dropped NONFATAL_UNREACHABLE checks) that remain unresolved, while maintainer maflcko questioned whether splitting errors out and then flattening them back to strings at RPC boundaries is worthwhile at all. CI is currently failing on the latest push, and the itemized review concerns from 2026-09-08 have no visible author reply as of the most recent force-push on 2026-09-17. No hard dependency blocks this PR, but it conflicts with numerous other open validation/mempool/mining PRs touching the same files, and it is explicitly positioned as enabling groundwork for #35570."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,116 @@
+{
+ "number": 35722,
+ "input_hash": "55564212eeb07b30",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10736,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3971
+ },
+ "cost_usd": 0.0319973,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Cache BSD SDK archives separately from the CI image build cache, so image cache misses don't force re-downloading multi-hundred-MB SDK archives from FreeBSD/NetBSD/OpenBSD mirrors.",
+    "Reduces load on those third-party archive servers and speeds up CI image rebuilds."
+   ],
+   "reviewability": [
+    "Needs a rebase before further review, code is otherwise a self-contained refactor of cache/mount logic.",
+    "A maintainer pinged for rebase on 2026-09-16 and the author has been silent since 2026-08-04."
+   ],
+   "agreement": [
+    "Mild, inconclusive discussion: a maintainer suggested fallback mirrors as an alternative and asked whether failures were actually logged (maflcko).",
+    "Author admitted no concrete failure logs, framing this mainly as avoiding needless re-downloads (willcl-ark).",
+    "No objection to merging, but no strong endorsement either, and the exchange trailed off unresolved."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it targets CI reliability and reduces avoidable load on external SDK archive servers, a real but modest recurring friction.",
+      "Author could not point to concrete failure logs, only redundant downloads on cache misses, which tempers the urgency.",
+      "Overlaps with another open PR (#35754) touching the same SDK caching area, raising the chance of duplicated or conflicting work."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves BSD SDK (NetBSD/FreeBSD/OpenBSD) download-and-extract logic out of the CI image build step and into a separate script run after the container starts, and caches the SDK archives independently of the image build cache. It also unifies how cache source/destination paths are defined and mounted in ci/test/02_run_container.py for both Docker and host-folder modes. The stated goal is to avoid re-downloading large SDK archives whenever the image-build cache is invalidated, reducing load on upstream archive mirrors and CI flakiness from those downloads.",
+  "problem": "CI jobs sometimes need to re-download BSD SDK archives when the image-build cache is missed, which can delay or fail jobs and adds unnecessary load on external archive servers; this affects CI maintainers and anyone waiting on BSD CI jobs to complete.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko suggested an alternative of adding fallback mirrors (as depends does) instead of separate caching, and asked whether there were CI logs showing actual download failures; the author had none to point to, weakening the failure-severity claim though the redundant-download rationale stands.",
+    "PR needs a rebase (mergeable_state dirty, Needs rebase label) and conflicts with open PR #35754 which also touches SDK verification/caching."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-08-04, pinged for rebase on 2026-09-16 with no response"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a Needs rebase label and has mergeable_state dirty, and the author has been silent for 43 days despite a rebase ping from a maintainer on 2026-09-16."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "No one has fully endorsed or opposed the approach; maflcko raised an alternative (fallback mirrors) and asked for evidence of failures, which the author could not fully substantiate, and the thread went quiet without resolution.",
+   "reason": "Discussion is exploratory rather than a clear-cut objection or endorsement, and it ended without either side following up.",
+   "evidence": [
+    "maflcko: 'An alternative would be to add fallback mirrors (like in depends)... Do you recall any CI logs where the download failed?'",
+    "willcl-ark: 'I do not, it was just the re-downloading them needlessly which prompted this change.'",
+    "sedited: 'Ping for rebase.' with no author response since."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner separation of SDK caching that #35754 (SDK update/verification/lint-lock PR) may build on or conflict with"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies CI cache actions, environment configuration, and the container run script for BSD SDK handling; matches the build category's CI configuration scope directly.",
+    "band": "P3",
+    "reason_tag": "CI reliability",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it targets CI reliability and reduces avoidable reliance on external archive servers, per the description's stated goal of 'reducing reliance and load we have on archive servers.' However, the author could not cite concrete failure logs when asked by maflcko, only redundant downloads on cache misses, which caps this below P2. It also overlaps with the open PR #35754 touching the same SDK area, which could make part of this redundant or need reconciliation."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Despite the Tests label, the change is CI image/cache infrastructure for BSD SDK handling, which the build category covers; it does not touch the test framework, functional test runner, or fuzzing harness that the tests category is about.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the category rule states a labeled PR whose subject is CI/build infra goes to build, not tests, since it does not change test-framework machinery."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the overlap with #35754 means this PR should be closed, rebased on top of it, or merged independently is unclear from the discussion alone.",
+   "No concrete evidence (logs, failure counts) was provided to quantify how often the redundant SDK downloads actually cause CI delays or failures."
+  ],
+  "card": "This PR moves BSD SDK (NetBSD/FreeBSD/OpenBSD) archive download/extraction out of the CI image build step into a post-container-start script, and caches the SDK archives independently so an image-build cache miss no longer forces re-downloading large SDK archives from external mirrors. The stated motivation is reducing unnecessary re-downloads and load on archive servers, though the author admitted to maflcko that there are no concrete logs of actual CI failures from this, only observed redundant downloads. The PR needs a rebase (dirty mergeable state, Needs rebase label) and the author has been silent since 2026-08-04 despite a rebase ping. It also conflicts with open PR #35754, which touches SDK verification and caching in the same area, raising a risk of duplicated work. No reviewer has objected to the approach, but none has strongly endorsed it either; the discussion consists of an alternative suggestion (fallback mirrors) that went unresolved."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,126 @@
+{
+ "number": 35774,
+ "input_hash": "15478c4a693445ca",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5696,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2716
+ },
+ "cost_usd": 0.0206823,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds CI testing of macOS arm64 binaries that are cross-built with depends",
+    "Fixes silent breakages like test_bitcoin-qt segfaulting because these binaries were never run natively"
+   ],
+   "reviewability": [
+    "Ready, author rebased onto #35838 as requested on 2026-09-11",
+    "Earlier reviewer questions about cache design and a stray script change were resolved by the author"
+   ],
+   "agreement": [
+    "Concept ACK from fanquake, who wants macOS to have native testing of cross-built binaries like Windows already does",
+    "maflcko raised questions about caching vs GitHub artifacts and cache sizing but stated no strong opinion",
+    "No open objections, discussion is settled on approach"
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it closes a real testing gap: macOS cross-built binaries (used for release-like builds) were shipping untested, and this already caught a live regression (#35771)",
+      "Improves CI reliability for a supported platform without being release-critical infrastructure itself"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P2 because it adds native execution of previously-untested cross-built binaries, directly preventing the kind of silent breakage described in the linked issue #35771",
+      "Framework-level CI change that benefits every future macOS cross-build change, not a one-off test"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new CI job that runs macOS arm64 test_bitcoin and test_bitcoin-qt binaries, which are currently cross-built via depends but never executed, on native macOS hardware. It splits the macOS-cross-to-arm64 build out of the existing CI matrix into its own job so the new native-test job does not have to wait on the full matrix, and adds cache options (enable-cross-os-archive, enable-cross-arch-archive) to share the built binaries between the Linux cross-build job and the macOS native-test job.",
+  "problem": "Cross-built macOS binaries are currently produced but never run, so regressions like test_bitcoin-qt segfaulting when built via depends (issue #35771) go undetected until reported by users or downstream. This affects anyone relying on the macOS release-style builds passing CI as a signal of correctness.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko questioned using cache instead of GitHub artifacts for binary transfer; author explained Warp lacks an artifact action and GHA artifact upload/download has been unreliable, no further pushback",
+    "maflcko asked about a stray change to ci/test/00_setup_env_mac_cross.sh; author said it was unintentional and dropped it in the next push",
+    "maflcko noted the job must be pinned to record-frozen-commit for determinism; author said 'Done, ready for next push'",
+    "fanquake asked the PR be rebased on top of #35838; author rebased on 2026-09-11"
+   ],
+   "author_status": "active, most recently rebasing per request on 2026-09-11"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR was rebased on 2026-09-11 per fanquake's request to build on top of #35838, and prior reviewer questions (caching approach, stray script edit, frozen-commit pinning) were addressed in earlier pushes with no follow-up objections."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: fanquake gave concept ACK citing the analogous need for Windows-style native testing of cross-built binaries, and maflcko's caching/design questions were answered without pushback.",
+   "reason": "fanquake explicitly wants this given the precedent of #35771, and no reviewer has raised an unresolved harm; maflcko's caching-approach question is a design curiosity, not a blocking objection.",
+   "evidence": [
+    "fanquake: 'Concept ACK given #35771. Similar to Windows, we should have a CI that is natively testing the release-like cross built bins.'",
+    "maflcko: 'No strong opinion. I just wonder if artifacts are also slow and if inconsistent handling is worth it.'",
+    "willcl-ark explained the cache-vs-artifact choice and dropped the unrelated script change after being asked"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35838
+   ],
+   "enables": [
+    "ongoing CI reliability work for macOS cross builds, referenced by #35771"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Changes CI workflow structure and caching to test macOS cross-built binaries, squarely CI/build infrastructure with the Tests label but touching .github/workflows/ci.yml and cache actions.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it closes a real gap where cross-built macOS binaries silently break, as evidenced by the linked issue #35771 where test_bitcoin-qt segfaulted undetected; fanquake explicitly endorses extending native testing to cross-built binaries as already done for Windows. It is not P1 because it addresses CI signal quality rather than a shipping defect or blocking regression."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Labeled Tests and is entirely about test infrastructure: adding a CI job to execute previously-untested binaries, matching the category's framework/coverage scope rather than testing a specific area's behavior.",
+    "band": "P2",
+    "reason_tag": "test coverage",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it adds coverage for a previously blind spot (cross-built macOS binaries), directly motivated by a real regression that slipped through (#35771), and improves CI signal reliability that other contributors depend on when working on macOS-related changes."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the cache-based binary transfer approach will itself be revised later per maflcko's open question about artifacts vs cache size, though this does not block current review",
+   "Exact final state of the rebase onto #35838 was not independently verified beyond the author's confirmation"
+  ],
+  "card": "This PR adds a native macOS arm64 CI job to run test_bitcoin and test_bitcoin-qt binaries that are currently cross-built via depends but never executed, splitting the build out of the CI matrix and using cache sharing to pass binaries between jobs. It fixes a real gap: cross-built macOS binaries have silently broken before, as shown by linked issue #35771 where test_bitcoin-qt segfaulted undetected. fanquake gave a substantive concept ACK comparing this to existing native testing of Windows cross-built binaries, and maflcko's design questions (cache vs artifact, frozen-commit pinning) were resolved without objection. The PR was rebased on 2026-09-11 onto #35838 per fanquake's request and appears ready for review now. No open concerns remain."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

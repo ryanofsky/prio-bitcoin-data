@@ -1,0 +1,97 @@
+{
+ "number": 35197,
+ "input_hash": "6ae5e8d2e15552af",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34006,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6974
+ },
+ "cost_usd": 0.051657,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enable linker safe identical code folding for Darwin builds to shrink release binary sizes by roughly 5%."
+   ],
+   "reviewability": [
+    "Review is paused while waiting for the author to update the patch with required compiler flags."
+   ],
+   "agreement": [
+    "Broad concept support for reducing binary sizes with identical code folding (hebasto, davidgumberg).",
+    "Blocking objection that safe folding on Mach-O requires -faddrsig to avoid folding address-taken functions (151henry151, hebasto, Sjors).",
+    "Author engaged by opening an upstream LLVM documentation PR but has not yet updated the branch (fanquake)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because reducing release binary sizes by 5% is a worthwhile optimization for macOS downloads.",
+      "It is readily deferrable and carries no urgency or blocking dependencies."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds linker flags to CMakeLists.txt to attempt safe identical code folding (-Wl,--icf=safe_thunks and -Wl,--icf=safe). The change targets macOS binaries built with lld to eliminate duplicate function bodies and reduce final binary sizes.",
+  "problem": "Release binaries for macOS contain duplicate identical function code across template instantiations and small helpers, increasing download size and disk footprint for macOS users.",
+  "discussion": {
+   "open_concerns": [
+    "On Mach-O targets with LLVM 19, -Wl,--icf=safe without -faddrsig folds address-significant functions, breaking C++ function pointer uniqueness invariants (Sjors, 151henry151).",
+    "Enabling true safe folding requires adding -faddrsig to Darwin compilation flags across core and depends (151henry151).",
+    "Probe order in CMakeLists.txt will cause safe to override safe_thunks on toolchains supporting both (hebasto, 151henry151)."
+   ],
+   "resolved_concerns": [
+    "Moving the linker probe from REDUCE_EXPORTS into general linker flags (theuni, fanquake)."
+   ],
+   "author_status": "silent since 2026-08-10 after opening an upstream LLVM documentation PR"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "Reviewers proved that -Wl,--icf=safe unsafely folds address-taken functions on Darwin unless -faddrsig is passed during compilation. Reviewing the current patch is unhelpful until the author addresses the toolchain flags and probe order."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: safe ICF requires -faddrsig on Darwin to avoid folding address-taken functions (151henry151, hebasto, Sjors)",
+   "reason": "There is clear concept agreement on ICF to reduce binary size, but reviewers have withheld approval because the current implementation behaves identically to unsafe ICF on Mach-O without -faddrsig. The author acknowledged the issue upstream but has not updated the PR.",
+   "evidence": [
+    "davidgumberg ACKed an earlier revision with Guix benchmark data showing ~5% size savings",
+    "Sjors provided a reproducer demonstrating function pointer comparison failures when address-significant folding occurs",
+    "151henry151 reviewed at 24ad7419de stating 'Not an ACK in its current shape' and showed that adding -faddrsig preserves almost all size savings while preventing incorrect symbol collisions",
+    "hebasto agreed that -faddrsig must be enabled explicitly for macOS targets and noted the probe order issue"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies CMakeLists.txt linker flags for Darwin Guix release builds.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "A 5% reduction in release binary sizes (around 0.5 MB for bitcoind and 1.3 MB for bitcoin-qt) is a clear, measured benefit for download distribution and disk footprint on macOS. However, binary size reduction is deferrable optimization work that does not fix a bug, improve security, or unblock other development."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request configures linker identical code folding in CMakeLists.txt to reduce Darwin release binary sizes by approximately 5%. The change benefits macOS users by reducing download and installation sizes. While reviewers support the size reduction in concept, investigation by reviewers revealed that the current patch folds address-taken functions on Darwin without the -faddrsig compiler flag, causing subtle runtime correctness issues. The PR is currently paused waiting on the author to incorporate the necessary compiler flags and fix the linker probe ordering."
+ },
+ "raw_text": null
+}

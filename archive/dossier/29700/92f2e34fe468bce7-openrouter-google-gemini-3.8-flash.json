@@ -1,0 +1,258 @@
+{
+ "number": 29700,
+ "input_hash": "92f2e34fe468bce7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:34+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43487,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4049
+ },
+ "cost_usd": 0.047799,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Return error status and messages via util::Result instead of triggering fatal process abortions",
+    "Allow libbitcoinkernel consumers to handle validation failures programmatically without global callbacks"
+   ],
+   "reviewability": [
+    "Reviewable now, but built on top of unmerged util::Result enhancements in PR 25665",
+    "Reviewing the base PR first is advisable"
+   ],
+   "agreement": [
+    "Broadly supported by kernel contributors wanting structured error returns (sedited, optout21)",
+    "Technical suggestions on result wrapping addressed by the author (maflcko)",
+    "Unaddressed conceptual objection against Result-based error propagation in C++ (purpleKarrot)"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it addresses a fundamental API architectural obstacle for libbitcoinkernel",
+      "External consumers currently cannot trap fatal validation errors without intercepting node-abort notifications"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it standardizes error propagation across block storage, chainstate, and block connection",
+      "It is an internal refactoring that preserves existing node execution paths while making error states explicit"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it extends util::Result with InfoType fields and message consolidation utilities",
+      "The utility improvements primarily exist to serve validation and kernel error bubbling"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request refactors validation and blockstorage routines to return util::Result and FlushResult objects instead of silently triggering AbortNode. It allows callers to inspect error information directly, bubble up failures, and manage disk flush outcomes. The changes also expand util::Result to support arbitrary InfoType metadata and multiple error/warning message collections.",
+  "problem": "Validation functions frequently handle fatal errors internally by invoking AbortNode and initiating shutdown, without returning failure information to callers. For libbitcoinkernel applications, catching and handling these failures is cumbersome because it requires subscribing to global notification callbacks rather than handling returned error values.",
+  "discussion": {
+   "open_concerns": [
+    "purpleKarrot expressed an architectural objection against util::Result style error handling in Bitcoin Core, arguing C++ exceptions or C++23 mechanisms are preferable for performance-sensitive paths"
+   ],
+   "resolved_concerns": [
+    "maflcko noted fragility in wrapping InterruptResult inside Result; author agreed with inverting the type representation",
+    "optout21 noted an inconsistency where FlushStateToDisk errors were ignored yet altered validation state, which was documented and split off into #35621"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #25665 first",
+   "reason": "The branch is clean and passing CI, but it is stacked on top of open PR #25665 which provides the underlying util::Result extensions."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive interest from kernel contributors, but purpleKarrot raised a standing conceptual objection to Result error handling",
+   "reason": "Kernel developers are engaged and had review discussions resolved, but purpleKarrot raised a philosophical objection against Result-based error paradigms to which the author has not replied.",
+   "evidence": [
+    "Graysonbarton approved the concept of fixing fatal error returns",
+    "maflcko reviewed InterruptResult ergonomics, prompting author adjustment",
+    "purpleKarrot objected: 'I see Result-style error handling as a rustism that should be kept out of the C++ codebase of Bitcoin core'",
+    "optout21 collaborated on identifying and splitting out flush state inconsistencies"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    25665
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "CI flag tweak and CMakeLists updates are incidental to adding and compiling utility files",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change; touch to ci scripts and CMakeLists merely registers new source files."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Changes validation fatal error handling to return types specifically to make kernel library error handling usable",
+    "band": "P2",
+    "reason_tag": "error handling",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Directly resolves a key limitation for libbitcoinkernel consumers, as stated in the PR description: 'This makes error handling in libbitcoinkernel application code difficult, because the only way to handle these errors is to register for notification callbacks.' Bubbling structured errors back through function calls is essential for library usability."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches ProcessTransaction and AcceptToMemoryPool purely to adapt call sites to the new return types",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mempool call site changes are purely mechanical adaptations to validation return signatures."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Touches miner.cpp and mining tests mechanically to handle updated TestBlockValidity and ProcessNewBlock signatures",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter block assembly, mining templates, or mining policy."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches net_processing.cpp to adapt to ProcessNewBlock return type",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site update in message processing."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Adapts RPC handlers to new validation function return signatures",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical updates across RPC handlers without changes to RPC behavior or exposed interface formats."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test adjustments and assertions follow directly from signature changes across validation and blockstorage",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test updates keep existing functional and unit tests passing with the new return types."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies util/result.h and adds util/messages.cpp/.h to support InfoType and multiple messages",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Expands the utility result types with InfoType and message aggregation. These generic primitives are primarily tailored to support validation and kernel error propagation."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Substantively changes signatures, nodiscard enforcement, and error return flows in ConnectBlock, FlushStateToDisk, and blockstorage",
+    "band": "P3",
+    "reason_tag": "error handling",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Systematically alters validation and block storage functions to bubble up flush and disk error states explicitly. While it significantly affects validation interfaces, it is a refactoring that leaves consensus logic and execution behavior intact."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches two lines in wallet.cpp to adapt to util::Result changes",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site updates."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors validation and block storage functions to return error information via util::Result and FlushResult rather than triggering AbortNode. This enables libbitcoinkernel embedders to detect and handle fatal validation errors programmatically rather than depending on global callbacks. It also extends util::Result with InfoType and message merging helpers. The PR is stacked on open PR 25665, has seen multiple rebases and active discussion among kernel contributors, and faces an unresolved high-level objection from purpleKarrot regarding Result-type paradigms."
+ },
+ "raw_text": null
+}

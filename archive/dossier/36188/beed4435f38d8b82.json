@@ -1,0 +1,165 @@
+{
+ "number": 36188,
+ "input_hash": "beed4435f38d8b82",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24581,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4428
+ },
+ "cost_usd": 0.048127300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up ECDSA and Schnorr signing by routing libsecp256k1's internal hashing through Bitcoin Core's own hardware-optimized SHA256.",
+    "Also restructures how the secp256k1 signing and verification contexts are owned and initialized, decoupling that lifecycle from key.h."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "No open technical objections, only concept ACKs so far; no rebase or CI issues."
+   ],
+   "agreement": [
+    "Strong support with six concept ACKs from members (w0xlt, fjahr, sedited, ismaelsadeeq, theStack, hebasto) and no objections raised."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it delivers a measured 13-15% signing speedup on hardware with SHA extensions and cleans up global ECC context ownership.",
+      "Benefits every signing operation across wallet, PSBT, and MuSig2 code paths, and unblocks further decoupling of key.h from context management."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because moving ECC_Context into the consensus library is part of the stated project of removing node dependencies from kernel code.",
+      "No kernel API surface changes yet for external consumers, but it is a supporting step toward that goal."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the new unit test and fuzz-target edits pin the behavior of the ECC context change itself, and the fuzz call-site updates are mechanical follow-ons of the API change rather than new test framework capability."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "Not a member: bitcoin-tx.cpp and bitcoin-wallet.cpp only get mechanical call-site updates to keep compiling against the new ECC_Context API."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR plugs Bitcoin Core's own hardware-optimized SHA256 compression function into libsecp256k1's context, so ECDSA and Schnorr signing use the SHA-NI/ARMv8/SSE4 implementation instead of libsecp's bare internal one. Along the way it restructures ECC_Context to own both a signing and a new verification context, decouples ECC initialization from key.h/pubkey.h, and moves ECC_Context into the consensus library so it can eventually live in the kernel. It updates all call sites (fuzz targets, benchmarks, bitcoin-tx, bitcoin-wallet) to the new context API and adds a benchmark and a unit test for the new lifecycle.",
+  "problem": "libsecp256k1 previously used its own internal SHA256, missing Bitcoin Core's hardware-accelerated implementation, so ECDSA and Schnorr signing (the hot path for wallets and PSBT signing) ran slower than necessary. Since secp256k1 PR #1777 upstream allows an externally supplied SHA256 compression function, this closes that gap.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, most recent push and concept-ACK discussion within the last few days"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No known blockers: CI is clean, no rebase needed, and reviewers so far have only given concept ACKs without raising code-level objections that would invalidate a review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Six members gave concept ACKs (w0xlt, fjahr, sedited, ismaelsadeeq, theStack, hebasto) with no objections raised.",
+   "reason": "Multiple reviewers explicitly want the change ('Finally! Concept ACK' - sedited, 'Awesome Concept ACK' - ismaelsadeeq) and nobody has pushed back on the approach.",
+   "evidence": [
+    "sedited: 'Finally! Concept ACK'",
+    "ismaelsadeeq: 'Awesome Concept ACK'",
+    "theStack: 'Splendid Concept ACK'",
+    "fjahr and w0xlt: 'Concept ACK'",
+    "hebasto: 'Concept ACK.' via formal review"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Further decoupling of key.h/pubkey.h from ECC context management",
+    "Future move of ECC_Context fully into the kernel library"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds src/ecc_context.cpp to src/kernel/CMakeLists.txt, moving ECC_Context into the consensus/kernel library as a stated step toward removing node dependencies from kernel code.",
+    "band": "P3",
+    "reason_tag": "unblocks kernel decoupling",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Commit message states the goal is 'ECC_Context now lives in the consensus library, so it can hold the libsecp verification context next,' which is groundwork for the kernel decoupling project rather than a kernel API change itself. No external kernel consumer is directly affected yet."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds ecc_context_tests.cpp and a small VerifySchnorr context check, but these pin the behavior of the ECC context change itself (a utils-area concern), and the many fuzz-target edits are mechanical call-site updates for the new API, not new framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category rule, a test that pins one area's behavior belongs to that area; the added tests validate ECC context lifecycle and are utils-area tests."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-tx.cpp and bitcoin-wallet.cpp only get mechanical updates (ECC_Context{} to MakeContextECC()) to keep compiling against the changed API, with no behavior change to the tools themselves.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site update following a signature change elsewhere, excluded from membership per the rules on mechanical edits."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly touches crypto/sha256.{h,cpp}, adds common/ecc_init.{h,cpp}, and restructures the secp256k1 context lifecycle (ecc_context.{h,cpp}), matching the Utils/log/libs label and category scope of primitives, serialization, and shared infrastructure.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Description reports measured gains: 'ECDSASign 79.2us to 69.3us (-13%), SchnorrSign 39.9us to 37.1us (-7%)' on ARM64 SHA-NI hardware, a durable performance improvement to a widely used primitive. It also cleans up global crypto-context ownership (a correctness-adjacent area per the category's own priorities) and creates a verification context that unblocks further decoupling work, though the change is internal plumbing rather than a new user feature."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether real-or-random (cc'd by fanquake) will raise substantive concerns about the libsecp integration once they weigh in, which could shift Agreement.",
+   "Whether the kernel-library membership deserves higher priority once the project's kernel decoupling roadmap is checked; treated here as supporting groundwork rather than a kernel API milestone.",
+   "No explicit security review yet of the new context-ownership and deleter mechanics (unique_ptr with custom deleter, no-copy ECC_Context), though no bug has been reported."
+  ],
+  "card": "This PR plugs Bitcoin Core's hardware-optimized SHA256 into libsecp256k1's signing and verification contexts, using a new upstream libsecp capability, giving a measured ~13% ECDSA signing and ~7% Schnorr signing speedup on SHA-NI hardware. It also restructures ECC_Context lifecycle management, decoupling it from key.h/pubkey.h and moving it into the consensus library as groundwork for the kernel decoupling project. Six members gave concept ACKs (w0xlt, fjahr, sedited, ismaelsadeeq, theStack, hebasto) with no objections, and fanquake has cc'd real-or-random for further input. The PR is ready for review now with clean CI and no rebase needed. Its main value is in utils (signing performance and context-management cleanup) with secondary, smaller value in kernel (library decoupling groundwork)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

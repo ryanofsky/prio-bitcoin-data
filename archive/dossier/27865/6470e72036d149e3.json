@@ -1,0 +1,103 @@
+{
+ "number": 27865,
+ "input_hash": "6470e72036d149e3",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 39149,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5310
+ },
+ "cost_usd": 0.0671053,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up wallet balance and coin-selection scans by moving definitely-unspendable TXOs out of the hot TXO set.",
+    "Targets wallets with heavy transaction history where these scans currently take seconds instead of milliseconds."
+   ],
+   "reviewability": [
+    "Actively being reworked to fix bugs (fuzz crashes, reorg/abandon edge cases) found in review; latest pushes landed just before assessment.",
+    "Worth reviewing now, but expect the exact TXO bookkeeping to keep shifting as edge cases surface."
+   ],
+   "agreement": [
+    "Strong concept support with measured 250x-500x speedups on large synthetic wallets (remyers, w0xlt).",
+    "Multiple concept ACKs building on prerequisite #27286 (murchandamus, jonatack, rkrux, jeanpablojp).",
+    "Reviewers repeatedly found real correctness bugs (crashes, wrong balances, stuck spent-TXO state) across many review rounds; author has fixed most via force-push but the latest batch (fuzz UB, reorg/abandon accounting, ReorderTransactions ordering) was raised just before the last two pushes and not yet re-confirmed by the reporter (jeanpablojp, w0xlt)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR moves transaction outputs that are definitely no longer spendable (spent by a confirmed tx, or produced by a now-conflicted tx) into a separate wallet-internal container, so that balance calculation and coin selection only iterate the smaller set of still-relevant TXOs. It builds directly on the earlier #27286, which introduced the in-memory TXO cache this PR further partitions. The change touches CWalletTx state tracking, WalletTXO's data (adding cached from-me, coinbase, tx-time, tx-version fields), and the load/reorg/abandon/migration paths that must keep the two TXO containers consistent.",
+  "problem": "Wallets with a lot of historical activity (many fanout transactions, long-lived high-turnover wallets) pay a scan cost proportional to total TXO count on every balance check and coin-selection call, even though only a small fraction of those outputs are still relevant. This is felt by anyone running a wallet with heavy transaction history, and by exchanges or services with very large wallets.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp (2026-08-27): after a deep reorg and abandontransaction, a previously-spent output does not become spendable again until the wallet is reloaded, and a min_conf default mismatch versus m_unusable_txos's own definition is the root cause.",
+    "jeanpablojp (2026-08-27): RemoveTxs's usable-check is missing the TxStateBlockConflicted check that PruneSpentTXOs does, causing balance divergence from base.",
+    "jeanpablojp (2026-08-27): ReorderTransactions now runs before LoadWallet's early-return-on-corruption check, causing partial rewrites on load failure.",
+    "jeanpablojp (2026-08-27): m_from_me is optional<bool> and left unset by one CWalletTx constructor path, which is the direct cause of 3 fuzz job failures (UBSan invalid-enum-load, MSan hardening assert) in wallet_create_transaction.",
+    "Several of w0xlt's earlier findings (RemoveTxs not syncing TXO caches, migration refresh ordering, MarkTXOUsable not respecting other confirmed spenders) were addressed by author rewrites, but the pattern of repeated new correctness bugs across many review passes suggests the TXO-splitting invariant is subtle and still shifting."
+   ],
+   "resolved_concerns": [
+    "w0xlt's naming-collision and micro-style nits addressed via force-push.",
+    "w0xlt's MarkTXOUnusable/MarkTXOUsable correctness concern (2026-01-14/2026-05-23) addressed by author rewriting the removal/usability logic (2026-07-01, 2026-07-02).",
+    "achow101 explained and w0xlt accepted (reACK 2026-03-25) that m_from_me cannot be nullopt in normal flow.",
+    "w0xlt's send-commit-inactive resurrection bug (2026-07-02) fixed by making MarkTXOUsable always check IsSpent."
+   ],
+   "author_status": "active, pushed twice (2026-09-14, 2026-09-15) after jeanpablojp's 2026-08-27 review; no explicit reply confirming the specific fixes yet"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Author reworking edge cases",
+   "reason": "The code is reviewable now, but the author is mid-cycle fixing a string of correctness bugs in TXO usability tracking that reviewers keep finding (most recently fuzz crashes and reorg/abandon accounting from jeanpablojp on 2026-08-27); two force-pushes followed without a confirming reply, so the exact state of those fixes should be re-verified rather than assumed settled."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Strong concept support with measured large speedups, but reviewers have repeatedly found concrete correctness bugs (crashes, wrong balances) in successive review rounds that the author fixes via force-push without always getting a confirming reply.",
+   "reason": "Concept ACKs are well substantiated (remyers measured 250x speedup, w0xlt measured ~500x with the bench PR) and nobody disputes the goal. However the mechanism for tracking which TXOs are 'definitely unusable' has repeatedly proven subtle: multiple independent reviewers across nearly a year of review have each found new correctness bugs, most recently fuzz-detected undefined behavior and reorg/abandon accounting errors flagged by jeanpablojp on 2026-08-27, addressed by force-pushes without a reviewer follow-up confirming resolution yet.",
+   "evidence": [
+    "remyers: 'I'm seeing a 250x speed up' and later '~100x speed-up' from the prerequisite alone",
+    "w0xlt: 'PR #27865 (with optimization) ... ~508x faster' bench result",
+    "jonatack, murchandamus, rkrux: Concept ACK",
+    "jeanpablojp: Concept ACK but found a reorg/abandontransaction balance bug and a block-conflicted crash bug, both reproduced only on this branch not on base",
+    "jeanpablojp: three red fuzz jobs on wallet_create_transaction traced to an unset m_from_me optional",
+    "achow101: repeatedly reworked MarkTXOUsable/MarkTXOUnusable and RemoveTxs logic in response to w0xlt's and jeanpablojp's findings"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#34360 (bench PR for high-history wallet scenario, currently demonstrating this PR's speedup)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Labeled Wallet; changes CWallet's core TXO bookkeeping (m_txos/m_unusable_txos), CWalletTx state handling, receive.cpp/spend.cpp coin selection and balance code, and walletdb load/upgrade paths.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because this delivers a measured, order-of-magnitude performance improvement (250x-500x in reviewer testing) for wallets with heavy transaction history, a real and previously unaddressed pain point that the prerequisite PR #27286 only partially solved. It is not P1 because slow scans are an inconvenience rather than a fund-safety or consensus issue, and the review history shows the implementation itself has repeatedly introduced correctness bugs (balance mismatches, crashes, UB) that must be fully shaken out before merge, which argues for caution but does not diminish the value of solving the underlying scaling problem. Leverage is moderate: it unblocks a bench PR (#34360) and continues a stated multi-PR project to make large wallets usable."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether jeanpablojp's 2026-08-27 findings (reorg/abandon accounting bug, RemoveTxs conflicted-check gap, ReorderTransactions-before-corruption-check, fuzz UB from unset m_from_me) were actually fixed in the 2026-09-14/09-15 force-pushes; no reviewer confirmation is present in the record.",
+   "Whether the underlying TXO-usability invariant is now robust or whether more edge cases remain, given the pattern of repeated bug discovery across nearly a dozen review rounds over multiple years.",
+   "Exact current CI status is not shown beyond ci_failed:false, but the fuzz failures mentioned may or may not be reflected in that flag."
+  ],
+  "card": "This PR partitions the wallet's TXO cache (added in #27286) into a usable set and a definitely-unspendable set, so balance and coin-selection scans skip outputs that are already spent by a confirmed transaction or belong to a conflicted transaction. For wallets with heavy transaction history this is a large, measured win: independent testers reported 250x-500x speedups on large synthetic wallets. The PR has been open since June 2023 and reviewed across many rounds; concept ACKs are unanimous (remyers, murchandamus, jonatack, rkrux, jeanpablojp) but a long sequence of reviewers (w0xlt, jeanpablojp, brunoerg via mutation testing) have repeatedly found concrete correctness bugs in the usability-tracking logic, most recently fuzz-detected undefined behavior and a reorg/abandontransaction balance regression flagged 2026-08-27, addressed by force-pushes on 2026-09-14/15 without a confirming reply yet. No open dependency blocks it (prerequisite #27286 is merged) and it unblocks a benchmark PR (#34360) demonstrating the speedup."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

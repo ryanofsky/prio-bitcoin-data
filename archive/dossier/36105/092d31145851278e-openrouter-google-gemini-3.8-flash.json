@@ -1,0 +1,153 @@
+{
+ "number": 36105,
+ "input_hash": "092d31145851278e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:57:45+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16020,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4315
+ },
+ "cost_usd": 0.02819625,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make the bitcoin wrapper executable on Windows wait for child processes to exit",
+    "Forward child exit codes and enable functional tests on Windows"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "No blockers or open questions invalidating the current patch"
+   ],
+   "agreement": [
+    "Strong support from reviewers for fixing Windows wrapper behavior (hebasto, hodlinator)",
+    "Minor discussion on AI co-author attribution and MSVCRT error message edge cases (hodlinator, cyb3ralbert, maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it fixes the bitcoin wrapper executable on Windows to correctly wait for child processes",
+      "Allows scripts and developers to inspect exit codes and output from wrapped binaries"
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it fixes process lifecycle management in the wrapper on Windows",
+      "Unblocks automated testing of multiprocess node and GUI binaries on Windows"
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes `util::ExecVp` on Windows by switching from `_execvp` to `_spawnvp(_P_NOWAIT)` paired with `_cwait`, ensuring the `bitcoin` wrapper waits for child processes to finish and propagates their exit codes. It also handles MSVCRT-specific `EINVAL` returns when searching candidate paths, switches `errno` exception reporting to `std::generic_category`, and enables `tool_bitcoin.py` and `interface_gui.py` on Windows.",
+  "problem": "On Windows, running `bitcoin.exe` immediately spawned the target binary and exited with code 0 instead of waiting for it to terminate. This made it impossible for scripts or test frameworks to capture stdout/stderr or monitor child exit codes.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Exit code -1 ambiguity with `_P_WAIT` resolved by switching to `_P_NOWAIT` and `_cwait` (suggested via #36190 by Bortlesboat).",
+    "MSVCRT returning `EINVAL` instead of `ENOENT` for nonexistent paths resolved with a fallback check guarded by `!defined(_UCRT)`.",
+    "Outdated wide-character function names in commit message corrected after hodlinator's review.",
+    "AI co-author tags in commit messages discussed and clarified (hodlinator, maflcko)."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is clean, mergeable state is clean, and author has addressed review feedback with recent updates."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: Concept ACKs from hebasto and hodlinator with collaborative fixes integrated.",
+   "reason": "Reviewers agree on the need to fix Windows wrapper process waiting. Discussion centered on MSVCRT runtime quirks and commit attribution conventions, with no objections to the approach.",
+   "evidence": [
+    "hebasto gave Concept ACK and noted UCRT transition plans (#33593).",
+    "hodlinator gave Concept ACK and reviewed Windows runtime error behavior.",
+    "Bortlesboat collaborated on exit code handling via #36190."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36190"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Touches src/bitcoin.cpp which implements the multiprocess wrapper executable and child process spawning.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Fixes child process tracking for the multiprocess wrapper on Windows. As the wrapper is intended to coordinate separate `bitcoin-node` and `bitcoin-gui` processes, making it wait for children is necessary for Windows multiprocess tooling and tests."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test changes only unskip functional tests previously disabled on Windows and add a small config check.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The functional test edits follow directly from enabling the wrapper on Windows rather than altering the test framework itself."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Modifies src/bitcoin.cpp, the command-line wrapper tool for bitcoin executables.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a clear defect in the `bitcoin` CLI wrapper on Windows, where invoking subcommands exited immediately without forwarding exit codes or allowing caller synchronization."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/util/exec.cpp, but util::ExecVp is a dedicated helper for the bitcoin wrapper tool.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The utility function modified is used specifically by the wrapper executable rather than serving as general node infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes `bitcoin.exe` on Windows so that the wrapper executable waits for child processes (`bitcoind`, `bitcoin-node`, `bitcoin-gui`) to exit and forwards their exit status. Previously, the wrapper exited immediately upon spawning, breaking process management, output capture, and script exit code checks. The fix switches `util::ExecVp` from `_execvp` to `_spawnvp(_P_NOWAIT)` plus `_cwait`, and enables previously skipped functional tests on Windows. The PR has Concept ACKs from multiple contributors and is ready for merge-readiness code review."
+ },
+ "raw_text": null
+}

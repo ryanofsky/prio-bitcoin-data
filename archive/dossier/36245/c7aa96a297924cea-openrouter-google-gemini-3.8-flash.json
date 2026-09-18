@@ -1,0 +1,86 @@
+{
+ "number": 36245,
+ "input_hash": "c7aa96a297924cea",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:24:36+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13152,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1840
+ },
+ "cost_usd": 0.016764,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent ranged descriptor imports from deriving indices below range_start.",
+    "Fix wallet balance discrepancies on reload and eliminate O(range_end) derivation overhead."
+   ],
+   "reviewability": [
+    "Ready",
+    "Self-contained bug fix with test coverage and no blockers."
+   ],
+   "agreement": [
+    "Crickets: no reviews or comments yet."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes inconsistent ismine tracking across wallet restarts and avoids severe hangs on high range starts.",
+      "Descriptors imported with a non-zero start derive unwanted addresses that vanish on reload, corrupting reported balances."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes descriptor expansion during import by starting cache top up at the descriptor's range_start rather than index 0. Also corrects `m_max_cached_index` tracking in both `TopUpWithDB()` and `Load()` so the cached index matches the actual derived range rather than assuming a zero-based offset.",
+  "problem": "When importing a descriptor with a non-zero range start `[N, M]`, the wallet derives every index from 0 to M, causing O(M) derivation delays or memory exhaustion on large indices. Furthermore, scriptPubKeys below N are temporarily treated as `ismine` during initial rescan but vanish after the wallet is reloaded, leading to inconsistent balances.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, passes CI, and includes functional test coverage."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "Crickets: no reviews or comments yet.",
+   "reason": "The pull request was recently submitted and has not yet received comments or reviews.",
+   "evidence": []
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies `src/wallet/scriptpubkeyman.cpp` and adds a functional test in `test/functional/wallet_importdescriptors.py`.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a noticeable bug where imported ranged descriptors produce inconsistent balances across wallet reloads: 'Load() only expands [range_start, range_end), so those scriptPubKeys stop being IsMine the next time the wallet is opened, and a transaction picked up for one of them during the import rescan is no longer credited to the wallet' (author kriss39). It also addresses severe latency and potential memory exhaustion on high range starts, dropping import time for index 600k from 19.5s to 0.09s."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes descriptor top-up during imports with a non-zero range_start so derivation begins at the range start rather than index 0. Currently, importing a descriptor with range [N, M] derives and caches all indices in [0, M), leading to O(M) latency and marking keys below N as ismine during import only for them to vanish upon wallet reload. The fix aligns TopUpWithDB() with Load() and updates m_max_cached_index tracking accordingly. The PR is ready for review with no comments or reviews recorded yet."
+ },
+ "raw_text": null
+}

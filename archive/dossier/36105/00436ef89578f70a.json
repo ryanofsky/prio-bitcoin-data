@@ -1,0 +1,147 @@
+{
+ "number": 36105,
+ "input_hash": "00436ef89578f70a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10367,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5897
+ },
+ "cost_usd": 0.041258300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes the Windows bitcoin.exe wrapper wait for its child process and forward its real exit code",
+    "Fixes broken exit-code/output capture on Windows for scripts, CI, and the test framework",
+    "Re-enables two functional tests that were skipped on Windows because of this bug"
+   ],
+   "reviewability": [
+    "Ready, latest push addressed prior review comments including attribution and errno-source questions",
+    "One unaddressed low-severity note from cyb3ralbert about an inconsistent error message on the final lookup path"
+   ],
+   "agreement": [
+    "Concept ACKs from two reviewers with no objections to the core fix (hebasto, hodlinator)",
+    "hebasto flags that the msvcrt EINVAL-workaround commit may become unnecessary now that #33593 has merged, not yet addressed by author",
+    "A tangential AI-attribution question was raised and resolved by mutual acknowledgment (hodlinator, ryanofsky)"
+   ],
+   "categories": []
+  },
+  "summary": "Fixes a Windows-specific bug where the bitcoin.exe wrapper used _execvp and exited immediately after spawning its child, so callers (scripts, test frameworks) could never observe the child's real exit code or captured output. The fix switches to _spawnvp(_P_NOWAIT)+_cwait and forwards the child's status, adds an msvcrt-specific EINVAL-to-ENOENT workaround for path lookup, and fixes an errno category bug that produced a misleading Win32-style error string. It also re-enables tool_bitcoin.py and interface_gui.py on Windows now that output/exit-code capture works, with interface_gui.py additionally gaining a vcpkg-Qt-specific skip.",
+  "problem": "On Windows, anything invoking bitcoin.exe (test harnesses, CI, operator scripts) could not tell if the underlying bitcoind/bitcoin-node/bitcoin-gui child succeeded or failed, since the wrapper always reported exit code 0 and produced no captured output. This blocked functional test coverage of the wrapper and GUI startup on Windows and could mislead any script relying on the wrapper's exit status.",
+  "discussion": {
+   "open_concerns": [
+    "cyb3ralbert (2026-09-13): the final 'not found' error path still reports raw EINVAL as 'Invalid argument' on MSVCRT instead of mapping it to ENOENT-style 'No such file or directory' like the intermediate lookups do, not yet addressed by author",
+    "hebasto (2026-09-16): now that #33593 (UCRT runtime for Windows release binaries) has merged, the msvcrt EINVAL workaround commit may no longer be needed; not yet acted on"
+   ],
+   "resolved_concerns": [
+    "hodlinator's inline note that the commit message referenced _wexecvp/_wspawnvp instead of the actual non-wide functions used, author acknowledged and it stems from a stale message predating #35704",
+    "hodlinator's AI_POLICY.md citation about co-authored commits, author explained his attribution practice and hodlinator accepted the explanation without pushing further",
+    "hodlinator's question about whether the msvcrt EINVAL-vs-ENOENT difference is documented, author investigated, confirmed it is undocumented (CI-observed only), and simplified/clarified the workaround and comment in a later push"
+   ],
+   "author_status": "active, last force-pushed and replied 2026-09-09, silent 7 days since, no outstanding material request past the 7-day threshold"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The core fix has been reviewed and force-pushed multiple times with prior comments addressed (attribution message, AI policy question, EINVAL documentation). A minor unaddressed note from cyb3ralbert about a remaining inconsistent error message and hebasto's suggestion that one commit might be droppable after #33593 merged are open but do not invalidate review of the current code."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive, with concept ACKs from hebasto and hodlinator and no objection to the underlying fix; hebasto's post-merge note that one commit may now be droppable is unaddressed but non-blocking.",
+   "reason": "Two members gave concept ACKs and one did a detailed line-level review across multiple pushes without objecting to the approach; the only standing item is a suggestion, not a blocking criticism, and a tangential attribution discussion was settled amicably.",
+   "evidence": [
+    "hebasto: 'Concept ACK.'",
+    "hodlinator: 'Concept ACK 30ae05a2...' and later 'Reviewed 2b87798...'",
+    "hebasto (2026-09-16): notes #33593 has merged, implying the msvcrt-workaround commit may be unnecessary, not yet discussed further",
+    "cyb3ralbert (2026-09-13): notes remaining EINVAL/ENOENT inconsistency in the final error message, not yet responded to"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36190 (test: Check bitcoin wrapper child exit status on windows) shares commits with and is based on this PR",
+    "Windows functional test coverage for the bitcoin wrapper and GUI startup (tool_bitcoin.py, interface_gui.py)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "The `bitcoin` wrapper executable is explicitly covered under ipc ('the bitcoin-node/bitcoin-gui/bitcoin-wallet executables and the bitcoin wrapper'); this PR fixes the wrapper's exec/wait behavior on Windows.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it fixes a real correctness bug in a supported-platform binary that the multiprocess project relies on: 'bitcoin.exe spawns a child process and immediately exits rather than waiting for it to finish,' per the description, which breaks any tooling checking the wrapper's exit status on Windows. It also unblocks #36190 and re-enabled functional tests, giving it some leverage, but the blast radius is limited to Windows users of the wrapper."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "The bitcoin wrapper tool is explicitly listed as a `tools` category subject; this PR is fundamentally a correctness fix to that tool's process-spawning behavior on Windows.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because Windows users and scripts invoking bitcoin.exe currently get a false success exit code regardless of whether the child actually succeeded, a correctness bug in a tool operators rely on, as described: 'This breaks capturing output and checking exit codes in scripts and tests.' Narrow platform scope keeps it below P1."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Re-enables tool_bitcoin.py and interface_gui.py on Windows (previously skipped because of the exec bug) and adds an is_qt_vcpkg() framework helper.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because it restores real functional coverage for the wrapper tool and GUI startup on Windows that was previously disabled, per the commit message: 'Remove the Windows skips added in #33229 and #35551.' This is a coverage gain for a platform-specific code path, not a framework capability many other areas need."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "src/util/exec.cpp holds the ExecVp primitive used by the wrapper; this PR changes its Windows implementation and error-category handling.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because ExecVp is a shared low-level primitive and the fix corrects both a hang-forwarding bug and a misleading errno category ('system_category would produce \"The device does not recognize the command\" instead of \"Invalid argument\"'), but its only current consumer is the bitcoin wrapper, limiting scope within utils."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the msvcrt EINVAL-workaround commit should be dropped now that #33593 (UCRT runtime) has merged, as hebasto suggested, is unresolved and could shrink the PR's scope before merge.",
+   "cyb3ralbert's note about inconsistent error messages on the final lookup path is unaddressed; unclear if the author considers it in scope for this PR or a follow-up.",
+   "Exact relationship/ordering with sibling PR #36106 (respects CMAKE_INSTALL_BINDIR/LIBEXECDIR) which conflicts with this one is not detailed in the discussion."
+  ],
+  "card": "This PR fixes a Windows-specific bug where bitcoin.exe's wrapper used _execvp and exited immediately after spawning bitcoind/bitcoin-node/bitcoin-gui, so any caller (scripts, CI, the test framework) could never see the child's real exit code or output; it switches to _spawnvp+_cwait, fixes an msvcrt EINVAL quirk in path lookup, corrects an errno-category bug that produced misleading Win32 error text, and re-enables two functional tests (tool_bitcoin.py, interface_gui.py) that were previously skipped on Windows because of this bug. The strongest evidence of importance is the description itself and the linked history (#33229, #35551) showing these tests were disabled specifically due to this defect, plus the shared commits with #36190 which depends on this fix landing. Review state is essentially ready: two members gave concept ACKs, prior review comments (attribution wording, AI-policy question, undocumented CRT behavior) were addressed across several force-pushes, and the only open items are a minor error-message inconsistency noted by cyb3ralbert and hebasto's suggestion that one commit may now be droppable following the merge of #33593. Impact is confined to Windows users and tooling around the bitcoin wrapper, so this is a solid but platform-scoped bug fix rather than a broad correctness or security issue."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

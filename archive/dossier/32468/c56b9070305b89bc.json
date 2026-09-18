@@ -1,0 +1,170 @@
+{
+ "number": 32468,
+ "input_hash": "c56b9070305b89bc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30240,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5392
+ },
+ "cost_usd": 0.0586063,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets the generateblock RPC pay a coinbase reward to multiple addresses or descriptors, with optional custom per-output amounts, and lets it optionally mine straight from the mempool.",
+    "Aimed at test writers and regtest/simulation users who want to model multi-recipient coinbase payouts (as some mining pools do) and at closing the long-standing gap where generateblock could not distribute or collect the block reward flexibly."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "The design (general custom-reward object) that reviewers converged on has been implemented and the PR was just marked ready for review after a rebase."
+   ],
+   "agreement": [
+    "Positive after a year of design back-and-forth, with no open objections.",
+    "stickies-v pushed for the general custom-reward solution instead of a CLI-friendly shortcut, and andrewtoth argued for extending generateblock instead of adding a new RPC (both original authors, both accommodated).",
+    "maflcko and naiyoma's earlier review comments (dead code, snake_case, backward compatibility, wording) were all addressed in later pushes."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it extends an existing, already backward-compatible RPC used mainly by tests and regtest tooling rather than by production applications.",
+      "The main external evidence of demand is a single third-party feature request (supertestnet, referencing pool payout simulation) plus a related open issue (#31684) about generateblock not handling rewards well, not a broad consumer base.",
+      "It does not touch mainnet behavior, security, or any hot RPC path, so delay costs are low even though the feature is genuinely useful for test authors."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR extends the generateblock RPC so its output argument can take a list of addresses/descriptors (splitting the coinbase reward equally among them) and, optionally, objects specifying a fixed satoshi amount per output, with the remainder split among the rest. It also makes the transactions argument optional: omitting it mines the current mempool, an empty array mines an empty block, and a provided array mines exactly those transactions. The change is designed to be backward compatible (a bare string still works as before) and updates ~13 functional tests plus release notes.",
+  "problem": "generateblock previously supported only a single output address, could not distribute a reward across multiple recipients, and always required an explicit transaction set (unable to just mine the mempool). This limited its use for simulating scenarios where a coinbase pays out to multiple parties (as some mining pools do) and forced test writers into awkward raw-output workarounds; it also relates to the long-open request in #31684 for generateblock to handle rewards more usefully.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth and stickies-v argued the general custom-reward-object design should be implemented directly rather than a CLI-convenience-only approach; author agreed and implemented it (2026-09-16 update: 'Bicaru20 implemented the custom split rewards').",
+    "maflcko objected to modifying production node code (src/node/miner.cpp) purely for test-only functionality; author reworked to call CreateNewBlock from a test-only wrapper per maflcko's suggestion.",
+    "achow101 asked to preserve backward compatibility (accept a bare string, not force an array); implemented via generateblock/outputs dual handling akin to getblock's verbose|verbosity pattern.",
+    "Various nits (dead code, snake_case, wording, rpc_help.py breakage) raised by naiyoma and maflcko were fixed in subsequent pushes.",
+    "stickies-v suggested splitting commits into orthogonal pieces (outputs vs mempool-mining); author acknowledged intent to restructure."
+   ],
+   "author_status": "active, just marked ready for review and rebased on 2026-09-16 after implementing the agreed custom-reward design"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The design reviewers converged on (custom per-output reward objects, backward-compatible string/array handling, optional mempool mining) has now been implemented and the PR was moved out of draft on 2026-09-16 after a rebase; no open, unaddressed material request remains."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive after extensive design iteration; stickies-v and andrewtoth's substantive design pushes (general reward solution, extend existing RPC) were both incorporated, and no objection remains open.",
+   "reason": "Multiple members (andrewtoth, maflcko, achow101, naiyoma, stickies-v) engaged substantively over many months; every specific objection was either implemented or resolved, and the most recent comment (stickies-v, 2026-04-21) asking for the general reward-splitting solution was implemented by the 2026-09-16 push.",
+   "evidence": [
+    "andrewtoth (2025-05-12): argued generateblock should get this feature instead of a new generatetomany RPC; author agreed and dropped the new-RPC approach.",
+    "maflcko (2025-05-11): objected to test-only code touching src/node/miner.cpp; author reworked per his suggested pattern.",
+    "achow101 (2025-05-28): required backward-compatible string input; author implemented dual string/array handling.",
+    "stickies-v (2026-04-21): 'Custom rewards are the general solution, why not just implement that right away?'; author implemented custom rewards by 2026-09-16."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Potential future deprecation of generatetoaddress/generatetodescriptor in favor of a unified generateblock, as discussed by andrewtoth",
+    "Closes/relates to issue #31684 about generateblock reward handling"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a short release-notes entry accompanies the code change; documentation is not the primary subject of the PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a documentation-primary PR; release notes are incidental to the RPC change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The PR reads existing mempool transactions via mempool.get() and adds an option to mine directly from the mempool, but it changes no mempool policy, acceptance, or relay behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mempool interaction is incidental (reading existing entries); no policy or structural change to the mempool itself."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Touches src/rpc/mining.cpp and reuses createNewBlock/BlockTemplate, but generateblock is a regtest/testing helper, not part of the production block-template path miners or pools actually use for real mining.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The mining category covers what real miners/pools interact with (getblocktemplate, the Mining interface); generateblock is explicitly a test/regtest convenience RPC, so it is not a strong member of this category despite the file location."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "No p2p code is touched beyond mechanical updates to p2p_outbound_eviction.py test calls (a call-site adjustment for the new generateblock signature).",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Only a mechanical test call-site update; no p2p behavior changes."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly modifies the generateblock RPC's parameters, help text, and CLI argument conversion (src/rpc/client.cpp, src/rpc/mining.cpp) under the RPC/REST/ZMQ label.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Worthwhile but deferrable: it responds to a concrete (if narrow) user request from supertestnet to simulate multi-recipient coinbase payouts and touches issue #31684 about reward handling in generateblock, but the consumers are test writers and regtest users, not applications built on the live RPC interface, per andrewtoth's own framing ('this RPC is only used by tests'). Backward compatibility was carefully preserved throughout review (achow101's requirement), which limits any compatibility risk that would otherwise raise the band."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project ultimately wants to deprecate generatetoaddress/generatetodescriptor in favor of this unified generateblock (raised by andrewtoth) is unresolved and could affect how this PR is evaluated relative to that broader goal.",
+   "Whether recent reviewers (stickies-v, andrewtoth) will re-review and approve the final implemented custom-reward design, since their comments predate the 2026-09-16 push that claims to address them.",
+   "Whether generateblock should be treated as touching the mining category despite being a test/regtest-only tool; judgment call made here to exclude it."
+  ],
+  "card": "This PR extends the generateblock RPC to pay the coinbase reward to multiple addresses or descriptors, optionally with a fixed satoshi amount per output and the remainder split among the rest, and makes the transactions argument optional so the RPC can mine the current mempool instead of requiring an explicit tx list. It targets test writers and regtest/simulation users who want to model multi-recipient coinbase payouts, as some mining pools do, and touches the long-standing issue #31684 about generateblock's reward handling. After roughly a year of design debate, reviewers pushed for extending generateblock rather than adding a new generatetomany RPC (andrewtoth) and for implementing the general custom-reward-object design instead of a CLI-only shortcut (stickies-v); the author implemented both by the most recent push (2026-09-16), which also moved the PR out of draft. No maintainer objection is currently open, and the change preserves backward compatibility with the existing single-address string form. It is a regtest/testing convenience rather than a change to production RPC, consensus, or mempool behavior, so its priority is moderate."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,151 @@
+{
+ "number": 27260,
+ "input_hash": "7022da3f54fbfcd8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:25+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 45177,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4449
+ },
+ "cost_usd": 0.0505665,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Improve error messages when address decoding fails due to wrong network prefixes or format errors",
+    "Decode Bech32 upfront so valid addresses for another network report the prefix mismatch instead of a generic encoding error"
+   ],
+   "reviewability": [
+    "Needs rebase against current master before code review can proceed"
+   ],
+   "agreement": [
+    "Strong concept agreement on improving address decoding error clarity (Sjors, rkrux, jonatack, l0rinc)",
+    "Review discussion has focused on commit granularity and separating Bech32 from Base58 logic (l0rinc, achow101)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it fixes misleading RPC error messages when users pass valid addresses intended for another network",
+      "It improves operator UX in validateaddress and getaddressinfo without affecting API guarantees"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it replaces string-based error reporting in bech32::LocateErrors with a structured error code enum",
+      "It decouples Bech32 error detection from presentation and clarifies decoding dispatch helpers"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors destination address decoding in key_io and bech32 to provide specific, network-aware error messages when parsing fails. Instead of guessing encoding based on the current network prefix and falling through to Base58, it attempts Bech32 decoding upfront and reports explicit network prefix mismatches. It also converts bech32::LocateErrors to return an error code enum and adds human-readable Base58 prefix information to chainparams.",
+  "problem": "When a valid Bech32 address for one network (such as signet) is passed to a node on another network (such as mainnet), DecodeDestination fails to recognize the prefix, falls through to the Base58 decoder, and returns a misleading generic error stating the address is neither valid Base58 nor Bech32 (issue #26290).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Hardcoded prefix text vs. calculated prefix ranges was resolved in favor of adding static tables in chainparams to keep maintenance low (achow101, portlandhodl)",
+    "Removing chain names from user-facing error strings in favor of only mentioning the expected prefix was resolved per review feedback (Sjors, luke-jr)",
+    "Splitting Base58 and Bech32 changes into focused commits and data-driving functional tests in JSON (l0rinc, Sjors)"
+   ],
+   "author_status": "active; force-pushed updates recently and awaiting reviewer signal"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with current master and is marked as needing a rebase."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept consensus; review comments focus on commit structure and refactoring separation",
+   "reason": "Multiple contributors and maintainers expressed Concept ACKs and confirmed the utility of better address error diagnostics, with review focused on code organization.",
+   "evidence": [
+    "Sjors Concept ACKed and helped fix intermediate commits and test setups",
+    "rkrux Concept ACKed and shared real-world debugging motivation",
+    "jonatack Concept ACKed",
+    "l0rinc Concept ACKed and requested commit splitting to separate refactors from behavior changes",
+    "RandyMcMillan gave Approach ACK"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Alters error responses and diagnostic output for validateaddress and other RPC methods calling DecodeDestination",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Resolves issue #26290, eliminating misleading error messages when users supply valid addresses from a different chain to RPCs like validateaddress. The improvement directly benefits node operators and RPC consumers debugging invalid input, but the problem does not affect safety or correctness of valid transactions."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies bech32 utility functions in src/bech32.* and address decoding helpers in src/key_io.*",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Improves bech32 library error reporting by replacing user-facing strings in LocateErrors with an Error enum code, allowing consumers to handle and translate errors cleanly."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches CChainParams in src/kernel/chainparams.* only to store human-readable prefix strings for UI/RPC errors, with no impact on kernel boundaries or validation logic",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Adding Base58PrefixText to chainparams is an edit to support user-facing error text rather than a kernel architecture or boundary change."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only touches test/functional/wallet_basic.py to adjust an expected error message string for an invalid address RPC call",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet logic, descriptor handling, or coin selection is altered."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 27260 improves address parsing error messages by decoding Bech32 upfront rather than guessing the encoding by network prefix, preventing valid Bech32 addresses on other networks from falling through to generic Base58 check failures. It also converts bech32::LocateErrors to return a typed error code enum instead of formatted text, letting callers format user-facing messages consistently. This resolves long-standing confusion in validateaddress and address-handling RPCs when testing against different network types. Concept support is strong with multiple maintainers backing the change, though review iterations have centered on commit structure. The PR currently requires a rebase to resolve merge conflicts with master."
+ },
+ "raw_text": null
+}

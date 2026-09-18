@@ -1,0 +1,117 @@
+{
+ "number": 36236,
+ "input_hash": "bf3000e416a60d78",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12974,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3782
+ },
+ "cost_usd": 0.0332903,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets wallet users verify their balance is complete after importing descriptors, catching cases where a too-recent timestamp caused the rescan to miss old payments",
+    "Adds an opt-in verify_balance flag to importdescriptors that cross-checks the wallet's UTXOs against a chainstate scan and can extend the rescan backwards"
+   ],
+   "reviewability": [
+    "Not reviewable right now: PR needs a rebase and has zero reviewer engagement so far",
+    "Also overlaps with several other open PRs touching importdescriptors, worth checking those first"
+   ],
+   "agreement": [
+    "No reviews or comments from anyone besides the author's own force-pushes"
+   ],
+   "categories": []
+  },
+  "summary": "Adds an opt-in `verify_balance` argument to `importdescriptors` that, when enabled, scans the chainstate UTXO set for the wallet's known scripts, compares it against the wallet's own view, and extends the rescan backward if outputs are missing. It introduces a new `interfaces::Chain::findCoinsByScript` method, a `ScanWalletUTXOSet` wallet helper, and returns a detailed info object describing the verification outcome. A large functional test suite covers recovery, mismatches, mempool transactions, and pruned-block failure cases.",
+  "problem": "Users who import descriptors with a timestamp that is too recent can silently end up with an incomplete wallet balance because the rescan starts too late to find older payments; issue #28898 asks for a way to double-check the calculated balance against the chain.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, force-pushed twice since opening, no reviewer feedback yet"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is flagged 'Needs rebase' and its mergeable_state is dirty, and there have been no reviews at all, so reviewing the current diff risks wasted effort once it is rebased. It also overlaps in scope with four other open importdescriptors PRs (#35989, #35377, #34861, #31668), so reviewers may prefer to look at those first."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer has commented on the PR; only the author's own force-pushes appear in the timeline.",
+   "reason": "distinct_reviewers is 0 and there is no review or ACK activity recorded.",
+   "evidence": [
+    "No reviews or comments beyond author force-pushes on 2026-09-13 and 2026-09-15."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Addresses long-standing issue #28898 about verifying wallet balance after import, which multiple other PRs (#35989, #35377, #34861, #31668) also attempt to solve in overlapping ways"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds a wallet RPC feature (verify_balance on importdescriptors), a new wallet UTXO scan helper (ScanWalletUTXOSet), and rescan-extension logic directly in wallet code and RPC backup.cpp.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because it addresses a real, long-standing user pain point: importing descriptors with a too-recent timestamp can silently leave the wallet with an incomplete balance, per issue #28898 which this PR explicitly targets ('Another attempt to fix #28898'). It is opt-in and does not change default behavior, so it is not fund-safety critical on its own, but a match/mismatch verification report has clear value for users recovering wallets. Four other open PRs attacking the same problem (#35989, #35377, #34861, #31668) show sustained project interest but also unresolved approach disagreement, which the priority rubric says should not lower importance."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The only RPC-machinery change is a one-line addition to rpc/client.cpp for argument conversion; the substantive change is to importdescriptors' wallet behavior, which per the rpc category rules makes this wallet-first, not rpc.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the change alters what importdescriptors does internally and what it returns, not the RPC machinery itself (auth, HTTP server, generic dispatch)."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Adds one virtual method to interfaces::Chain (findCoinsByScript), but this is a mechanical extension needed for the wallet feature, not a change to IPC mechanics, serialization, or process boundary behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the ipc category rules, an interfaces:: addition made in service of a wallet feature is wallet first and only ipc if the interface mechanics themselves are the point, which they are not here."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers will accept adding this much new surface area (UTXO scan, new interface method, response schema) to importdescriptors given competing PRs on the same issue, versus preferring one of the other approaches (#35989, #35377, #34861, #31668).",
+   "Correctness of the chainstate cursor scan under concurrent flushes/reorgs was not reviewed by anyone yet.",
+   "No reviewer signal exists to confirm the design direction is wanted; the multiple competing PRs suggest this specific approach may not be the one that lands."
+  ],
+  "card": "This PR adds an opt-in verify_balance option to importdescriptors that scans the chainstate UTXO set for the wallet's known scripts, compares it to the wallet's own UTXO view, and extends the rescan backward when it finds a discrepancy, aiming to fix long-standing issue #28898 about incomplete balances after importing descriptors with a too-recent timestamp. It is a wallet-first change (with a mechanical new interfaces::Chain method to support the scan) that adds real user value for wallet-recovery scenarios, though it is opt-in and not a fund-safety fix by default. Four other open PRs (#35989, #35377, #34861, #31668) attack overlapping parts of the same problem, indicating the project wants a fix but has not converged on an approach. The PR itself has zero reviewer engagement (Crickets) and is flagged Needs rebase with a dirty mergeable state, so it is not currently reviewable without a rebase, and reviewers may prefer to look at the competing PRs first."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

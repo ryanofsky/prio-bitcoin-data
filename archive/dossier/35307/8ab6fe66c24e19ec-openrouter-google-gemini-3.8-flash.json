@@ -1,0 +1,121 @@
+{
+ "number": 35307,
+ "input_hash": "8ab6fe66c24e19ec",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:29+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17151,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3012
+ },
+ "cost_usd": 0.02415825,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent node aborts and false-positive corruption crashes during assumeutxo sync when the base block was downloaded or submitted before snapshot activation."
+   ],
+   "reviewability": [
+    "Ready to review."
+   ],
+   "agreement": [
+    "Questioned whether the scenario is common enough to support (mzumsande).",
+    "Author detailed that an edge-case block submission before snapshot load leads to an unrecoverable startup crash (shuv-amp)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it fixes an assertion abort and false-positive corruption failure during assumeutxo verification, though triggering it requires an unusual sequence of submitting the base block prior to loading the snapshot."
+     ]
+    }
+   ]
+  },
+  "summary": "Adjusts block storage accounting so that the assumeutxo snapshot base block remains in the normal blockfile range rather than being classified as an assumed block. It also updates `FlushChainstateBlockFile` to respect snapshot chainstates, halts `VerifyDB` disconnect walks before the snapshot base, and holds unlinked blocks in `m_blocks_unlinked` until historical parents arrive.",
+  "problem": "If a node receives and writes the snapshot base block before `loadtxoutset()` is invoked (such as via `submitblock`), the base block is placed in the normal blockfile cursor. Subsequent background validation or node restarts will either trip an assertion on a missing blockfile cursor in `WriteBlockUndo` or fail startup in `VerifyDB` with a false-positive database corruption error requiring reindexing.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "mzumsande questioned whether someone would load a snapshot after having already downloaded the base block; shuv-amp clarified that out-of-band submissions (like `submitblock`) create this state and result in an irrecoverable crash without this fix."
+   ],
+   "author_status": "active, rebased and provided detailed startup failure logs"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is rebased, passes CI, and includes functional test coverage for the failure scenario."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "mzumsande questioned the motivation for the scenario; author explained the irrecoverable crash path with no further response.",
+   "reason": "One reviewer questioned the plausibility of the use case, and the author addressed the query by explaining that accepted block storage states should not crash or corrupt the node. No further objections have been raised.",
+   "evidence": [
+    "mzumsande asked why someone would load a snapshot when already at that block height",
+    "shuv-amp clarified that `submitblock` before `loadtxoutset()` creates an accepted blockstorage state that triggers an assertion abort or startup failure"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool data structures or policy rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The PR only touches block storage, chainstate index candidate logic, and assumeutxo verification."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches block storage management (`src/node/blockstorage.*`) and chainstate verification logic (`src/validation.cpp`).",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes an irrecoverable node abort and startup verification crash in assumeutxo background validation. As shuv-amp noted, when the base block is present before snapshot activation, the node hits `Assertion 'm_blockfile_cursors[type]' failed` or halts on startup with `Corrupted block database detected`. However, reaching this state requires out-of-band block submission before loading the snapshot, making it an edge-case stability fix."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only updates `test/functional/wallet_assumeutxo.py` to adapt to the adjusted prune height behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes to wallet functional test files are purely mechanical adjustments to accommodate blockstorage changes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a bug in assumeutxo where having the snapshot base block stored on disk prior to calling `loadtxoutset()` causes the node to either abort via an assertion in `WriteBlockUndo()` or fail startup with a false database corruption error in `VerifyDB()`. It reclassifies the snapshot base block to the normal blockfile range, guards snapshot flush behavior, and prevents `VerifyDB()` from disconnecting past the snapshot base. While the triggering condition requires out-of-band block submission like `submitblock`, the resulting failure is unrecoverable without reindexing. The PR is clean and ready for review."
+ },
+ "raw_text": null
+}

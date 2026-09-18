@@ -1,0 +1,147 @@
+{
+ "number": 35813,
+ "input_hash": "7dfcb7a83d6666fa",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:21:14+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 37577,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3818
+ },
+ "cost_usd": 0.03699225,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a listrawtransactions wallet RPC that exposes every wallet transaction exactly once without categorization or change suppression."
+   ],
+   "reviewability": [
+    "Review is blocked on a clean rebase against the master branch."
+   ],
+   "agreement": [
+    "Strong support from reviewers and wallet maintainers across multiple review rounds (polespinasa, Bicaru20, achow101, BrandonOdiwuor, w0xlt)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it exposes transactions such as consolidations and self-sends that were previously invisible in the wallet RPCs without altering core wallet state or invariants."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds a cleanly separated RPC endpoint to resolve a longstanding gap in transaction querying without breaking backwards compatibility."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new `listrawtransactions` RPC method to the wallet. Unlike `listtransactions`, which categorizes transactions by output and hides change-only transfers, `listrawtransactions` lists each transaction known to the wallet exactly once with its net balance change, fee, and an optional decoded view. It also refactors shared transaction display logic between `gettransaction` and the new method.",
+  "problem": "Transactions where the wallet spends change back into its own change addresses (such as consolidations or pure self-transfers) do not match any logical external economic category and are omitted by `listtransactions`. Users and automated tools inspecting transaction history through the wallet RPC interface have no direct way to list these transactions.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Whether to reuse code via a helper shared with listtransactions vs keep them distinct; reviewers and author agreed their semantics diverge too much to share pagination logic.",
+    "Handling of count=0 edge cases, addressed by making it return an empty list matching listtransactions behavior.",
+    "Duplicated fee and decoded logic between gettransaction and the new RPC, resolved by extracting static helpers into a preparatory commit.",
+    "Documentation inconsistency where parent_descs was documented but could never be produced by the raw transaction format, resolved by making the field optional in TransactionDescriptionString."
+   ],
+   "author_status": "Active; addressed all reviewer feedback across multiple iterations, now waiting to rebase."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with the base branch and is marked with the 'Needs rebase' label."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on introducing a dedicated RPC with ACKs from polespinasa, Bicaru20, w0xlt, BrandonOdiwuor, and achow101",
+   "reason": "Reviewers and wallet maintainers strongly support the dedicated RPC approach suggested by achow101 after closing PR #35009, with multiple ACKs on the implementation.",
+   "evidence": [
+    "achow101 suggested a separate RPC over modifying listtransactions and ACKed commit 7940906",
+    "polespinasa reviewed doc and helper refactoring and ACKed commit 0e539c5",
+    "Bicaru20 reACKed commit 0e539c5 after testing pagination and verbosity",
+    "BrandonOdiwuor and w0xlt tested on regtest and ACKed"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes only a release note entry for the new RPC; docs are ancillary to the feature code.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release note additions for a code change belong to the feature area rather than the docs category."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Introduces the new listrawtransactions RPC endpoint and modifies RPC conversion arguments.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.38,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Adds a new RPC method that provides raw wallet transaction history without output filtering. It resolves an existing limitation where change-only transactions could not be retrieved via RPC, while leaving existing interfaces intact."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds a test script wallet_listrawtransactions.py specifically testing the new wallet RPC without altering the test framework.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Functional tests dedicated to a specific area belong to that area rather than the test framework category."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches src/wallet/rpc/transactions.cpp and src/wallet/rpc/wallet.cpp to expose un-categorized wallet transactions.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Addresses issue #34632 where consolidation and self-transfer transactions are invisible in listtransactions. It provides clear user value for wallet operators who need a complete log of wallet transactions, but is reasonably deferrable as it does not affect fund safety, consensus, or wallet storage."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR introduces the `listrawtransactions` wallet RPC, enabling users to inspect every wallet transaction (including consolidations and self-transfers) without category interpretation or change suppression. It closes issue #34632 by giving operators a reliable way to query transactions that were previously hidden in `listtransactions`. The approach was recommended by wallet maintainers after a previous attempt to modify `listtransactions` directly was closed. Review has been thorough with multiple ACKs across several iterations, though it currently requires a rebase against master."
+ },
+ "raw_text": null
+}

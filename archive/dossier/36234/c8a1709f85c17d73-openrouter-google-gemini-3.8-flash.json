@@ -1,0 +1,90 @@
+{
+ "number": 36234,
+ "input_hash": "c8a1709f85c17d73",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:58+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12766,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1941
+ },
+ "cost_usd": 0.01685325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent repeated insertions of the same item in CRollingBloomFilter from consuming capacity and prematurely expiring unrelated items."
+   ],
+   "reviewability": [
+    "Ready to review. The diff is small and self-contained with unit tests."
+   ],
+   "agreement": [
+    "No review verdicts yet. A reviewer asked whether this fixes an active usage hazard or is a general correctness cleanup (instagibbs)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes an unexpected capacity eviction bug in a shared rolling bloom filter primitive.",
+      "The change prevents duplicate inserts in the current generation from flushing older elements, though no specific peer DoS or caller regression was cited."
+     ]
+    }
+   ]
+  },
+  "summary": "Modifies `CRollingBloomFilter::insert` to check whether an item is already present in the active generation before advancing generation counters. If the item is already present in the current generation, it skips counter increments and generation rotation while reusing cached hash calculations.",
+  "problem": "Inserting the same item repeatedly into a `CRollingBloomFilter` advances its generation counters as if new items were being added. This can prematurely rotate generations and flush older, unrelated filter entries before configured capacity is reached.",
+  "discussion": {
+   "open_concerns": [
+    "Whether this addresses a known downstream usage issue or is motivated by general correctness (asked by instagibbs)."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since opening 4 days ago, with an open question from a reviewer for 2 days."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly merges, passes CI, and includes dedicated unit test coverage."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No concept or approach verdicts; instagibbs asked about motivation.",
+   "reason": "Only one question has been asked regarding whether any worrying usage patterns motivated the change, with no approvals or objections submitted yet.",
+   "evidence": [
+    "instagibbs inquired if there are worrying usage patterns or if this is a general correctness fix."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes the core `CRollingBloomFilter` utility in `src/common/bloom.cpp`.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "CRollingBloomFilter is a shared utility used across networking to track seen items, where premature eviction can cause unnecessary re-requests. The author notes that 'repeating one value can therefore expire unrelated entries sooner than the configured capacity implies', but provides no specific caller vulnerability or performance numbers, making this a worthwhile correctness improvement without high urgency."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether any specific P2P message handler currently permits an external peer to trigger rapid duplicate insertions and flush recent inventory filters."
+  ],
+  "needs": [],
+  "card": "This PR updates CRollingBloomFilter::insert to detect whether an item is already present in the current generation, avoiding premature generation rotations and eviction of older entries on repeated inputs. It also caches the computed hashes so that repeated hashing is avoided. This addresses an edge case in rolling bloom filter capacity tracking, which protects against unrelated items expiring too early. The change is small, includes unit tests, and is awaiting author feedback on a reviewer question about concrete usage patterns."
+ },
+ "raw_text": null
+}

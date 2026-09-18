@@ -1,0 +1,271 @@
+{
+ "number": 36122,
+ "input_hash": "65504dee64d85c37",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:58:05+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33451,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7076
+ },
+ "cost_usd": 0.05162325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Implement BIP460 Cross-Input Signature Aggregation for Taproot key path spends",
+    "Allow multi-input transactions to aggregate signatures to reduce transaction size and fees"
+   ],
+   "reviewability": [
+    "Needs rebase against current master",
+    "Draft reference implementation accompanying BIPs 458, 459, and 460"
+   ],
+   "agreement": [
+    "Early constructive feedback with detailed testing (BarneyChambers)",
+    "Three open bug reports in PSBT combining, signing completeness, and group finalization (BarneyChambers)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it defines consensus verification rules for a proposed soft fork",
+      "Aggregating signatures across inputs offers major long-term block space savings and fee reductions",
+      "Consensus logic requires early, deliberate review of verification costs and failure modes"
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it establishes standardness policy and script flags for witness version 2",
+      "Allows nodes on test networks to accept and relay aggregated transactions"
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it implements descriptor and PSBT workflows for aggregated signing",
+      "Enables collaborative transaction protocols like Payjoin and CoinJoin to prototype end-to-end"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request provides a reference implementation of BIP460 Cross-Input Signature Aggregation (CISA) for Taproot key path spends. It introduces witness version 2 outputs supporting BIP458 half-aggregation and BIP459 full-aggregation alongside consensus validation in the script engine and check queue. In addition to consensus rules and mempool standardness, it provides draft companion implementations for cisa() descriptors, PSBT extension fields, and wallet signing RPCs.",
+  "problem": "Currently, every Taproot key path spend must provide an individual 64-byte Schnorr signature, increasing witness weight linearly with the number of inputs and discouraging collaborative transactions like Payjoin or CoinJoin. BIP460 solves this by allowing multiple inputs within a transaction to share aggregated signatures, significantly reducing witness size and fees.",
+  "discussion": {
+   "open_concerns": [
+    "Dummy member witness signatures cause signrawtransactionwithwallet to prematurely report complete=true because script verification succeeds on per-input marker parsing alone (BarneyChambers)",
+    "combinepsbt silently keeps the first half-aggregation signature instead of detecting conflicts or incompatible inputs (BarneyChambers)",
+    "FinalizeCISAInputs skips already-signed inputs, which can partition inputs of the same mode into invalid duplicate groups that fail consensus (BarneyChambers)"
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-09-08 (9 days), waiting on author response to BarneyChambers review comments for 2 days"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with the base branch and is marked dirty with the 'Needs rebase' label. In addition, the author stated that this is a draft reference implementation accompanying the BIPs and not yet intended for upstream merge."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Mild: BarneyChambers tested the branch and found three bugs in wallet signing and PSBT handling; author has not yet replied.",
+   "reason": "BarneyChambers gave positive feedback on the consensus and policy test coverage after running local tests, but reported three concrete bugs in the wallet and PSBT aggregation handling that produce invalid transactions or incorrect completion states. The author has not yet addressed these findings.",
+   "evidence": [
+    "BarneyChambers noted that both feature_cisa.py and wallet_cisa.py passed and consensus/policy coverage looks great, but filed three inline issues regarding PSBT and wallet behavior.",
+    "BarneyChambers demonstrated that VerifyScript returning success on markers causes signrawtransactionwithwallet to report complete=true for incomplete spends.",
+    "BarneyChambers showed combinepsbt silently keeps the first half-agg signature even when inputs conflict, unlike full-agg.",
+    "BarneyChambers demonstrated FinalizeCISAInputs produces consensus-invalid duplicate groups when inputs are signed incrementally."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches cmake/secp256k1.cmake only to enable experimental upstream modules for this feature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Build changes are incidental configuration enabling secp256k1 experimental modules."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Markdown doc updates in doc/descriptors.md and doc/psbt.md accompany the code changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation updates merely document the new descriptor and PSBT fields added in this PR."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/chainparams.cpp only to add regtest deployment parameters.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Chainparams edits are purely mechanical parameter settings for the deployment."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Modifies policy.cpp and policy.h to define standardness rules and verification flags for witness version 2.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Updates policy standardness rules (IsWitnessStandard) to permit witness version 2 spends with Taproot-equivalent constraints, enabling test network relay of aggregated transactions."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Touches mining_basic.py only to update expected GBT rule names in a test assertion.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mining logic or block assembly changes are made."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches test/functional/p2p_segwit.py solely to adapt witness mutation test cases.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change P2P wire protocols, relay mechanisms, or network connection logic."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "RPC modifications add options to wallet and descriptor PSBT commands and help text.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "RPC additions are interface plumbing for wallet and descriptor PSBT handling, which belong to the wallet category."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Functional test helpers and unit tests in src/test/cisa_tests.cpp pin CISA consensus and wallet behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests pin the behavior of CISA consensus and wallet features rather than general test framework infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Vendors unmerged libsecp256k1 branches for halfagg and fullagg as part of the experimental prototype.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The subtree snapshot is temporary scaffolding for the BIP reference implementation rather than an upstream maintenance sync."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Implements witness version 2 consensus validation rules, interpreter checks, checkqueue aggregation, and versionbits deployment.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Implementing a proposed soft fork represents substantial, strategic work within validation. CISA offers significant block space savings and efficiency gains across multi-input transactions. Consensus rule additions require extensive and deliberate review to ensure validation invariants, batch verification safety, and resource limits are sound."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Implements cisa() descriptors, PSBT aggregation roles, reservecisanonce RPC, and transaction signing for witness v2.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Provides practical tooling for descriptor wallets and PSBT coordinators to construct and sign aggregated transactions. While valuable for testing and multi-party protocol prototyping, the draft BIPs and wallet support are speculative ahead of consensus finalization."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Fabian Jahr implements a reference implementation of BIP460 Cross-Input Signature Aggregation (CISA) for Taproot key path spends, introducing witness version 2 outputs that support BIP458 half-aggregation and BIP459 full-aggregation. The PR includes consensus validation rules in the script engine and check queue, mempool standardness, wallet descriptors, PSBT fields, and signing infrastructure. The PR was explicitly opened as an experimental draft to accompany the BIP proposals rather than for immediate upstream merge, but soft fork proposals require deliberate review to evaluate consensus invariants and verification performance. The branch currently needs a rebase against master and awaits author response to three wallet and PSBT bugs identified during review by Barney Chambers."
+ },
+ "raw_text": null
+}

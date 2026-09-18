@@ -1,0 +1,266 @@
+{
+ "number": 10102,
+ "input_hash": "3beaa525b5af765c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:30+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 57316,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8536
+ },
+ "cost_usd": 0.074997,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Separate Bitcoin Core into distinct node, GUI, and wallet processes communicating over IPC",
+    "Improve key security isolation and prevent node workload stalls from freezing the GUI"
+   ],
+   "reviewability": [
+    "Review #29409 first",
+    "The branch is mergeable and CI passes, but it sits on top of unmerged base PR #29409"
+   ],
+   "agreement": [
+    "Strong concept support for process separation from multiple maintainers and contributors (laanwj, dcousens, jgarzik, practicalswift, hebasto, promag, jamesob, Sjors)",
+    "An early concept objection is recorded in the bot ack history without blocking followup (electorr)"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it provides the core implementation of the project's process separation goal",
+      "It unblocks downstream connection options in #19460 and #19461"
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because isolating the wallet into a separate process provides defense-in-depth for private keys",
+      "It does not alter wallet algorithms or consensus handling directly"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it resolves an indefinite callback retention bug in btcsignals on disconnect",
+      "This fixes shutdown hangs and resource leaks triggered when proxy objects stay alive"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it extends the functional test runner and log combiner to handle multi-binary process suites",
+      "It ensures CI can test multiprocess setups reliably"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements the core multiprocess separation architecture for Bitcoin Core, introducing an --enable-multiprocess build option that produces separate bitcoin-node, bitcoin-wallet, and bitcoin-gui binaries. The GUI and wallet processes communicate with the node over socketpairs using Cap'n Proto IPC wrappers around internal interfaces. It also updates btcsignals to destroy callbacks eagerly on disconnect, preventing proxy lifetime leaks from hanging process termination.",
+  "problem": "Running the node, wallet, and GUI within a single monolithic process means that GUI responsiveness suffers during heavy node operations, and wallet keys share an address space with network-facing code. Isolating these subsystems into separate processes improves security isolation and GUI reliability.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Handling debug logs across multiple processes was solved by adding process-specific log suffixes (.wallet, .gui) and updating combine_logs.py",
+    "Race conditions and hangs during GUI shutdown were resolved by fixing btcsignals callback destruction timing on disconnect",
+    "Platform compatibility across macOS, NetBSD, and Windows was addressed with compiler attribute suppressions and atomic fallback handling"
+   ],
+   "author_status": "Active, frequently rebasing and updating the stack against master and libmultiprocess upstream changes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #29409 first",
+   "reason": "The PR is technically ready for review with passing CI, but reviewers should examine the base PR #29409 first since this PR builds directly on top of it."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept consensus from maintainers and contributors, with one historical concept NACK recorded",
+   "reason": "Multiple maintainers and long-time contributors have Concept ACKed the architecture and validated its design over time. The only recorded objection is an early concept NACK from electorr without an active blocking argument.",
+   "evidence": [
+    "laanwj: 'Concept ACK, nice... process isolation is enough motivation.'",
+    "Sjors: 'Concept ACK, ultimately being able to leave bitcoin-node running while starting the GUI on demand... would be quite nice.'",
+    "dcousens: 'strong concept ACK'",
+    "electorr: concept_nack recorded in bot ack table"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    29409
+   ],
+   "enables": [
+    "#19460 (multiprocess: Add bitcoin-wallet -ipcconnect option)",
+    "#19461 (multiprocess: Add bitcoin-gui -ipcconnect option)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "CMakeLists changes only wire up the build option and targets for the multiprocess binaries, which is standard plumbing for the feature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Updates to doc/multiprocess.md and doc/design/libraries.md document the accompanying IPC architecture and are not documentation-primary changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds Cap'n Proto interface wrappers for Node and Wallet, integrates the libmultiprocess subtree, and implements process spawning over socketpairs.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.72,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "This PR achieves the milestone of running Bitcoin Core subsystems in isolated processes, which is the primary objective of the IPC category. It provides the infrastructure needed to unblock subsequent socket connection options (#19460 and #19461)."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches block_policy_estimator.h solely with an explanatory comment to keep Cap'n Proto struct definitions synchronized.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches net.h, netbase.h, and net_processing.h solely with developer comments noting struct synchronization with Cap'n Proto schemas.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Despite the RPC label, changes are limited to a developer comment in request.h and a mechanical parameter addition to MakeBasicInit in bitcoin-cli.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies test_framework/test_node.py, combine_logs.py, and setup_common.cpp to execute and debug functional tests across multiprocess binaries.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Enables the functional testing framework to exercise separate node and wallet processes and merges their independent log outputs into a single stream."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Only modifies circular-dependencies.py to adjust a module path from interfaces/ to ipc/.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes btcsignals to destroy slot callbacks eagerly upon disconnect and provides atomic shared_ptr fallback implementations.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Fixes an issue where disconnected btcsignals callbacks lived indefinitely until garbage collection by a later connect() call. In multiprocess GUI operation, lingering callbacks holding IPC proxies caused bitcoin-node to hang on exit until test timeouts."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Implements interfaces::Wallet Cap'n Proto wrappers, creates the bitcoin-wallet executable spawn logic, and adjusts WalletLoader::restoreWallet parameter order.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Enables privilege separation by running wallet code and keys in an independent process away from the p2p network daemon, although core wallet logic remains unchanged."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements multiprocess separation for Bitcoin Core, allowing bitcoin-node, bitcoin-wallet, and bitcoin-gui to run as separate executables communicating over IPC via Cap'n Proto socketpairs. It aims to improve key isolation by isolating wallet memory from network code and to keep the GUI responsive during heavy node operations. The change has strong concept support from maintainers and contributors, though an early concept objection is noted in the history. It is based directly on #29409, which should be reviewed first."
+ },
+ "raw_text": null
+}

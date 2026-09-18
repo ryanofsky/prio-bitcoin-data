@@ -1,0 +1,292 @@
+{
+ "number": 36087,
+ "input_hash": "b0933a7884dc2212",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 35015,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6189
+ },
+ "cost_usd": 0.0673663,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Introduces AssertUnreachable() to replace assert(false)/Assert(false) everywhere, so unreachable-code assertions can't be silently disabled and don't trigger GCC return-type warnings.",
+    "Adds new lint rules to enforce this pattern and forbid std::unreachable across the whole codebase."
+   ],
+   "reviewability": [
+    "Not ready right now: still a draft, needs rebase, and CI is failing.",
+    "Author flagged an unresolved libbitcoin_consensus linking issue on the riscv job that they say they'll fix before taking it out of draft."
+   ],
+   "agreement": [
+    "One reviewer (jeanpablojp) found concrete implementation gaps: a too-narrow regex, a commit-ordering issue that breaks CI mid-series, and a consensus-library layering violation.",
+    "Author fixed the regex and commit ordering promptly.",
+    "The consensus-library linking issue remains open with author committing to fix it before marking ready (maflcko, jeanpablojp).",
+    "No concept objections raised by anyone."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it clarifies assertion semantics project-wide and prevents a real (if minor) class of GCC return-type warnings from Assert(false) hiding the noreturn attribute.",
+      "Mostly a consistency and clarity improvement rather than a fix for an active bug or burden many contributors currently feel."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it adds two new linters (assert_falsy, std_unreachable) that give the project ongoing enforcement of a coding pattern, a modest but durable framework capability.",
+      "Not itself a fix for flaky tests or a coverage gap in high-risk code."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because the developer-notes.md change is a small clarification tied to the new macro, not a standalone documentation improvement with its own user impact."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new AssertUnreachable() macro that directly calls the noreturn assertion_fail() helper, and mechanically replaces assert(false)/Assert(false)-style unreachable-code assertions across nearly the entire codebase with it. It also adds util/check.h includes wherever Assert/assert is used (to keep the project's no-NDEBUG guarantee visible) and adds two new linters (assert_falsy, std_unreachable) to enforce the pattern going forward. The bulk of the diff (312 files) is mechanical scripted-diff churn following from this single utility change.",
+  "problem": "Existing falsy assertions are ambiguous about whether NDEBUG can disable them, and Assert(false) can trigger GCC return-type warnings because the noreturn attribute is hidden behind a function call; developers maintaining any part of the codebase hit this confusion. The fix is purely a utils/build-hygiene change, not tied to any specific area's user-facing behavior.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp: AssertUnreachable pulls in assertion_fail from util/check.cpp, which libbitcoin_consensus (crypto-only in principle) should not depend on; the riscv job links it standalone and breaks. Author acknowledged and said they'll fix before taking the PR out of draft, but has not yet done so."
+   ],
+   "resolved_concerns": [
+    "jeanpablojp: the assert_falsy regex missed variants like 'assert (false)' or 'assert(0&&\"x\")'; author adopted the suggested stricter regex.",
+    "jeanpablojp: the linter-adding commit was ordered before the scripted-diff that satisfies it, breaking CI mid-series; author swapped the commit order."
+   ],
+   "author_status": "active, addressing review, said will fix the consensus-linking issue before marking ready"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Draft, CI failing, needs rebase",
+   "reason": "The PR is a draft with CI failing and needs rebase per labels/signals, and the author has an acknowledged but unfixed structural issue (libbitcoin_consensus depending on util/check.cpp) that they plan to address before taking it out of draft. Reviewing the current diff in depth is premature until that is resolved and CI is green."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: jeanpablojp raised concrete implementation issues, author fixed the regex and commit-order problems and acknowledged the remaining consensus-library layering issue as still to fix (jeanpablojp, maflcko).",
+   "reason": "No one has objected to the concept of adding AssertUnreachable or the linters; all discussion has been about implementation correctness, most of which the author has already addressed. One acknowledged issue (consensus lib dependency) remains open but is not disputed, just pending a fix.",
+   "evidence": [
+    "jeanpablojp: regex misses assert variants and std::unreachable via __builtin_unreachable; maflcko fixed the regex, judged the builtin risk low.",
+    "jeanpablojp: commit order breaks CI mid-series; maflcko swapped commits.",
+    "jeanpablojp: AssertUnreachable in consensus lib pulls in util, breaking riscv standalone link; maflcko: 'will fix this some time before taking out of draft.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Establishes a project-wide convention (AssertUnreachable, forbidding std::unreachable) that future PRs touching assertions would follow."
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Touches doc/developer-notes.md (+2/-2) to reflect the new AssertUnreachable guidance.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Minor documentation tweak tied to the macro change, not a standalone improvement to a frequently-read or safety-relevant doc page."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Touches txindex.cpp/blockfilterindex.cpp/dbwrapper.cpp only for mechanical include additions or assert(false)->AssertUnreachable() replacements; no behavior change to indexing.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical edits following from the utils change; not a substantive indexes change."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "ipc/capnp files get only include additions and assert->AssertUnreachable swaps, no change to IPC mechanics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely mechanical touch, not IPC infrastructure work."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "kernel/*.cpp files only get mechanical assert replacements and includes; no API or boundary change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No substantive kernel API or boundary change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "policy/*.cpp, txmempool.h touched only for mechanical include/assert changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical, no policy behavior change."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net.cpp, net_processing.cpp, addrman.cpp, netaddress.cpp etc. get only mechanical assert(false)->AssertUnreachable() swaps and include additions.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No change to p2p protocol or DoS-handling behavior."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "httpserver.cpp, rpc/server.cpp touched only for the same mechanical assert replacement.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical only, no RPC interface change."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds real new functionality to test/lint/test_runner (assert_falsy and std_unreachable linters, +58/-2 and +12/-2), beyond mechanical call-site updates.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "New linters give durable enforcement of a coding convention across the codebase, a genuine framework capability, though not tied to a known regression; jeanpablojp's review found and got fixed real gaps in the linter regex and commit ordering."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-chainstate.cpp, bitcoin-util.cpp only get mechanical include/assert changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No functional tool change."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly adds AssertUnreachable to util/check.h and is the labeled Utils/log/libs category; this is the PR's actual subject.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Description states the goal is fixing confusion around NDEBUG-disabled assertions and GCC return-type warnings hidden by Assert(false), a real if minor build-correctness improvement; judged on its own terms per the utils rubric as a worthwhile internal consistency change rather than a burden many contributors currently complain about."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "validation.cpp, coins.cpp, chain.h etc. touched only for the mechanical include/assert(false) replacement; jeanpablojp's flagged consensus-library linking issue involves script/interpreter.cpp, still mechanical in nature (linkage boundary, not validation logic).",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No change to what the node accepts or how chainstate is maintained; purely mechanical."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/*.cpp files touched only for mechanical include/assert changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No fund-safety, backup, or wallet-behavior change."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the unresolved libbitcoin_consensus/util linkage issue is trivial to fix or requires restructuring assertion_fail's location, which could affect how close this is to mergeable.",
+   "Whether other areas' maintainers would want to review the mechanical assert replacements in their files even though they are call-site-only changes.",
+   "Exact scope of what 'before taking out of draft' means in terms of timeline."
+  ],
+  "card": "This PR adds a new AssertUnreachable() macro to util/check.h and mechanically replaces assert(false)-style unreachable-code assertions across 312 files, plus adds two new linters (assert_falsy, std_unreachable) to enforce the pattern. It solves a build-hygiene confusion (NDEBUG semantics, GCC return-type warnings from Assert(false) hiding noreturn) for anyone maintaining the codebase, not a specific user-facing area. It is draft, needs rebase, and CI is failing; reviewer jeanpablojp found real implementation issues (regex gaps, commit ordering, and a libbitcoin_consensus/util linkage break on riscv), two of which the author fixed while the third remains open with the author committing to fix it before marking ready. No one has objected to the underlying change. Almost all of the huge diff is mechanical call-site churn following from the new macro, so only utils and tests (for the new linters) are treated as substantive category members."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

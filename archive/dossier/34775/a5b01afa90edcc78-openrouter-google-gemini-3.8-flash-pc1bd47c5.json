@@ -1,0 +1,323 @@
+{
+ "number": 34775,
+ "input_hash": "a5b01afa90edcc78",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:27:36+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25323,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6975
+ },
+ "cost_usd": 0.0451485,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make the libbitcoinkernel logging callback explicitly global to match internal reality",
+    "Simplify the C and C++ API by replacing per-connection handles with a single callback"
+   ],
+   "reviewability": [
+    "Ready",
+    "Recent push addressed reviewer feedback on RAII lifetime"
+   ],
+   "agreement": [
+    "Strong support for simplifying the API and eliminating false multi-logger handles (sedited, w0xlt)",
+    "Resolved approach concern about prematurely limiting logging flexibility (ryanofsky)",
+    "Resolved review feedback on RAII wrapper and test isolation (sedited, w0xlt)"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it aligns the external kernel API with internal reality without adding functionality",
+      "Removes misleading multi-instance logging handles and simplifies future logging changes"
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the per-connection `btck_LoggingConnection` interface in libbitcoinkernel with a single global callback setter `btck_logging_set_callback`. Internally, a leaked `KernelLogger` singleton manages callback state, and the C++ wrapper maintains scoped lifetime via a single-instance RAII `Logger`.",
+  "problem": "The underlying node logging system is a process-wide singleton, yet libbitcoinkernel exposed connection handles that gave external callers the misleading impression that multiple independent loggers could be configured.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ryanofsky cautioned against prematurely limiting the logging API in a way that might be hard to reverse; author noted the kernel C API is explicitly unversioned and an orthogonal step before larger contextual logging refactors.",
+    "purpleKarrot suggested dropping user_data, but author defended it as standard C callback practice.",
+    "sedited and w0xlt noted that a global callback could leak between unit tests; author addressed this by keeping an RAII `Logger` wrapper in the C++ interface that unsets the callback on destruction."
+   ],
+   "author_status": "Active, recently force-pushed to implement reviewer suggestions."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is rebased and updated to incorporate reviewer suggestions regarding RAII lifetime in the C++ wrapper."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Concept ACK; noted that single global logging callback is simpler and sufficient"
+    },
+    {
+     "login": "purpleKarrot",
+     "stance": "question",
+     "note": "Suggested dropping user_data in favor of a plain function pointer; author explained why user_data is needed"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "objection",
+     "note": "Expressed concern about limiting logging functionality prematurely"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Approach ACK; suggested preserving RAII in the C++ wrapper to avoid test state leaks"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ryanofsky",
+     "kind": "approach",
+     "harm": "Prematurely restricts the kernel logging API in a way that might be difficult to reverse compared to contextualized logging",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-03-09: 'I think it would be a mistake to limit functionality of the logging/debuging/tracing API prematurely, in a way that seems difficult to reverse'",
+     "resolution_evidence": "2026-06-05: stickies-v replied explaining the API is unversioned, diff is small, and orthogonal to contextual logging; ryanofsky did not follow up",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Global callback without RAII scoped cleanup could leak logging state across tests",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-16: 'any test that installs the global logging callback now needs to clear it before returning to prevent state leakage into later tests'",
+     "resolution_evidence": "2026-09-17: 'address @w0xlt's suggestion to have an RAII Logger in the C++ wrapper instead of free functions'",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "sedited",
+     "kind": "correctness",
+     "harm": "global logging callback function leaks state across unit tests",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-11: \"I think this shows the downside of exposing a global function for this: Even though this function is scoped to this test, it now enables logging for all the the other unit tests too.\"",
+     "resolution_evidence": "2026-09-17: stickies-v pushed changes adopting an RAII Logger in the C++ wrapper",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "sedited",
+     "reason": "Agrees that multiplexing can be done caller-side and single callback is simpler",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Approach ACK on the overall direction",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: supported by sedited and w0xlt; earlier approach concern by ryanofsky has had no follow-up since June",
+   "reason": "Reviewers with domain context support aligning the interface with the current global logging implementation. Previous concerns around test isolation were addressed in the latest push.",
+   "evidence": [
+    "sedited: 'Not having separate connections seems simpler... Concept ACK'",
+    "w0xlt: 'Approach ACK'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (sedited, w0xlt)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "approach",
+      "harm": "limits functionality of logging/debugging/tracing API prematurely in a way that seems difficult to reverse without noticeable simplification",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-03-09: \"I think it would be a mistake to limit functionality of the logging/debuging/tracing API prematurely, in a way that seems difficult to reverse and does not seem to provide a noticeable simplification\"",
+      "resolution_evidence": "2026-06-05: stickies-v replied explaining the diff is small, interface is unversioned and easy to change, and clarifies lack of momentum for contextualized logging; ryanofsky did not push back"
+     },
+     {
+      "reviewer": "sedited",
+      "kind": "correctness",
+      "harm": "global logging callback function leaks state across unit tests",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-11: \"I think this shows the downside of exposing a global function for this: Even though this function is scoped to this test, it now enables logging for all the the other unit tests too.\"",
+      "resolution_evidence": "2026-09-17: stickies-v pushed changes adopting an RAII Logger in the C++ wrapper"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "Not having separate connections is simpler, clients can multiplex themselves, and separate connections are not sorely missed.",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Approach ACK and suggested retaining RAII in the C++ wrapper.",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "Concept ACK; noted test callback leakage which was fixed"
+     },
+     {
+      "login": "purpleKarrot",
+      "stance": "neutral",
+      "note": "suggested dropping local user_data in favor of a simple function pointer"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "objection",
+      "note": "concerned about limiting logging API prematurely and preferred contextualized logging"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Approach ACK; suggested RAII wrapper for the global logging callback"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong; ryanofsky voiced concern about limiting the API prematurely but did not push back after author's rationale, and test leakage was resolved via RAII.",
+    "usage": {
+     "input_tokens": 5502,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3580
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "approach",
+      "harm": "Prematurely restricts the kernel logging API in a way that might be difficult to reverse compared to contextualized logging",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-03-09: 'I think it would be a mistake to limit functionality of the logging/debuging/tracing API prematurely, in a way that seems difficult to reverse'",
+      "resolution_evidence": "2026-06-05: stickies-v replied explaining the API is unversioned, diff is small, and orthogonal to contextual logging; ryanofsky did not follow up"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Global callback without RAII scoped cleanup could leak logging state across tests",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-16: 'any test that installs the global logging callback now needs to clear it before returning to prevent state leakage into later tests'",
+      "resolution_evidence": "2026-09-17: 'address @w0xlt's suggestion to have an RAII Logger in the C++ wrapper instead of free functions'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "Agrees that multiplexing can be done caller-side and single callback is simpler",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Approach ACK on the overall direction",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#34374"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Directly alters libbitcoinkernel C API headers and C++ wrapper",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "It simplifies the kernel C API by removing misleading `btck_LoggingConnection` handles that implied per-instance logging when the underlying engine is a global singleton. While worthwhile API hygiene, it is an internal API cleanup rather than an essential feature or fix."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Only modifies test_kernel.cpp to adapt to the kernel API change",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications merely follow the kernel C++ wrapper interface updates."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Labeled Validation by maintainers, but exclusively touches libbitcoinkernel logging interfaces rather than consensus or chainstate logic",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "This PR touches only kernel interface definitions and does not change validation behavior, consensus rules, or chainstate management."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #34775 refactors libbitcoinkernel's logging API to make its single callback global, replacing the misleading btck_LoggingConnection handles. This removes the false impression of independent loggers while underlying logging remains a singleton. The change is supported by kernel contributors, with earlier concerns regarding RAII test isolation addressed in a recent push. It has no hard dependencies and simplifies downstream work on kernel logging structs."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0175515
+}

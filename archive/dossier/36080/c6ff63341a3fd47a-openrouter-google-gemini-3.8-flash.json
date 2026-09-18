@@ -1,0 +1,109 @@
+{
+ "number": 36080,
+ "input_hash": "c6ff63341a3fd47a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:57:19+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19107,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2216
+ },
+ "cost_usd": 0.02264025,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop nodes on slow connections from mistakenly disconnecting peers that are actively serving blocks during initial block download."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "All reviewer comments regarding edge cases and test mutations have been addressed."
+   ],
+   "agreement": [
+    "Concept ACKs and constructive review on edge cases and test coverage (l0rinc, danielabrozzoni).",
+    "All reviewer feedback addressed in recent pushes."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it resolves spurious peer disconnections during IBD on bandwidth-constrained links without weakening timeout protections.",
+      "Socket inactivity and block download timeouts continue to guard against unresponsive or stalling peers."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves the ping timeout check into SendMessages and suspends it for any peer that currently has blocks in flight, with a one-minute grace period after the last block is received. It also adds a functional test reproducing the pong delay issue and verifying the grace period behavior.",
+  "problem": "When downloading blocks over a slow connection, peers prioritize block responses over pings, which can cause the ping timeout of 20 minutes to expire and drop peers that are behaving correctly.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc requested splitting the functional test into a characterization test before the fix commit.",
+    "danielabrozzoni noted potential edge cases around unsolicited blocks not updating m_last_block_time and user-invoked ping RPCs resetting timeouts, which were discussed and deemed non-issues.",
+    "danielabrozzoni suggested adding a test assertion verifying the grace period does not trigger while blocks remain in flight, which was implemented."
+   ],
+   "author_status": "Active; addressing all feedback promptly with force pushes."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI, is up to date, and recent pushes addressed all outstanding reviewer feedback."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: Concept ACKs from l0rinc and danielabrozzoni, with all test and edge-case feedback addressed.",
+   "reason": "Multiple contributors reviewed the PR and supported the concept, and all technical inquiries and suggested test improvements have been answered and resolved.",
+   "evidence": [
+    "l0rinc gave Concept ACK and requested test structure adjustments",
+    "danielabrozzoni gave Concept ACK, tested edge cases, and suggested an additional mutation-killing assertion that was adopted"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes peer timeout and disconnection logic in src/net_processing.cpp and carries the P2P label.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes unnecessary disconnections during initial block download on slower connections (#35761). While this improves IBD stability for users on limited bandwidth, existing fallback timeouts (socket inactivity and block download stalling) already prevent the node from hanging indefinitely, making this a worthwhile but non-critical bug fix."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The PR only adds a functional test specific to p2p ping behavior (p2p_ping_ibd.py) rather than modifying testing infrastructure or frameworks.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded because domain-specific functional tests belong to their functional area (p2p) rather than test infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Suspends the 20-minute ping timeout for peers actively serving blocks during initial block download, granting a one-minute grace period after the last block is received. This fixes #35761, where slow-bandwidth downloaders mistakenly drop responsive peers that prioritize block delivery over pongs. Existing socket inactivity and block download timeouts continue to protect against dead peers. The PR is in a clean reviewable state with Concept ACKs from l0rinc and danielabrozzoni."
+ },
+ "raw_text": null
+}

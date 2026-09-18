@@ -1,0 +1,175 @@
+{
+ "number": 34038,
+ "input_hash": "bdf2cde9fa61839d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26437,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8449
+ },
+ "cost_usd": 0.0700883,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the confusing -loglevel option with a new -trace option matching -debug syntax, and expose trace-level logging through the logging RPC.",
+    "Makes it practical to add more LogTrace() statements in the future and lets operators toggle trace logging without restarting."
+   ],
+   "reviewability": [
+    "Ready to review as code, but a live approach dispute (ryanofsky's approach NACK) is unaddressed for weeks and could mean a substantially different design is adopted instead.",
+    "Multiple maintainers have already reviewed and approved the current code; nothing mechanical blocks review."
+   ],
+   "agreement": [
+    "Two reviewers (stickies-v, sedited) gave ACK/tACK after extensive back-and-forth on naming and semantics.",
+    "ryanofsky posted an approach NACK, arguing a single -loglevel-style option would be simpler and proposing an alternative in #35387 (ryanofsky).",
+    "Author (ajtowns) explicitly disagrees with the NACK's criticisms but is willing to debate; no resolution yet (ajtowns, ryanofsky).",
+    "Maintainer maflcko pulled the PR from the 32.x milestone given the unresolved dispute and lack of urgency (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it is a genuine breaking change to a nine-year-old RPC (`logging`), guarded by `-deprecatedrpc=logging`, and the interface shape itself is disputed (ryanofsky proposes a simpler single-option design in #35387).",
+      "Affects every caller of the `logging` RPC and sets precedent for how trace-level control is exposed going forward."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it reworks user-facing logging configuration (-debug/-trace/-debugexclude interaction) and touches locking discipline around log category state (STDLOCK, ShrinkDebugFile).",
+      "Improves usability of trace logging, which the author and ryanofsky agree is currently under-used because it's hard to turn on, but the interaction rules between the three options are contested as confusing."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a member: the release notes and doc updates only describe this feature change, they are not the primary subject of the PR."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the functional and unit test edits only follow the RPC/logging option changes to keep tests passing, they don't add new framework capability."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the `-loglevel` startup option with a new `-trace` option that mirrors `-debug` syntax (e.g. `-trace=net` enables both debug and trace logging for the net category), and extends the `logging` RPC with a `trace` parameter and a new three-array (excluded/debug/trace) output format, preserving the old format behind `-deprecatedrpc=logging`. It also includes internal logging API cleanup (dropping string-based Enable/Trace/DisableCategory helpers in favor of `SetCategoryLogLevel`) and a locking change around `ShrinkDebugFile`. Two related PRs (internal API refactor, STDLOCK annotations) were split out during review at ryanofsky's suggestion.",
+  "problem": "Trace-level logging previously required combining `-debug=cat` with the undocumented `-loglevel=cat:trace` syntax, and could not be toggled without a node restart via RPC; this makes tracing effectively unused (only one `LogTrace` call exists in the codebase today) and hampers future low-level debugging.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky's approach NACK: three interacting options (-debug/-trace/-debugexclude) are confusing and some configurations (default trace with per-category debug override) are impossible under this design; he proposes a single `-loglevel`-style option in #35387 instead.",
+    "maflcko asked about status/milestone given the unresolved dispute; milestone was removed from 32.x as a result."
+   ],
+   "resolved_concerns": [
+    "stickies-v's earlier concern about renaming 'include' to 'debug' in the RPC was addressed with an aliasing scheme preserving backward compatibility.",
+    "stickies-v's suggestion to fold trace/debug/exclude ordering into repeated single-level calls was declined by the author with a stated rationale (backwards-compat cost not worth it); stickies-v did not push further.",
+    "Splitting out the STDLOCK annotation change and the internal logging-API refactor into separate PRs (#34806, #34809) per ryanofsky's suggestion, both since merged."
+   ],
+   "author_status": "active as of 2026-08-09, responded to ryanofsky's NACK by disagreeing but offering to debate objective points; no reply yet to ryanofsky's 2026-08-21 reiteration or maflcko's milestone question"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Approach NACK open",
+   "reason": "ryanofsky's approach NACK (posted 2026-07-15, reiterated 2026-08-21) argues the whole three-option design should be replaced with a single -loglevel-style option (#35387), and if accepted this would materially change the PR's shape. The author responded once (2026-08-09) disagreeing but has not replied to the follow-up, and the milestone-status question from maflcko (2026-08-21) is also unanswered, exceeding the 7-day threshold for a material open question."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Two reviewers (stickies-v, sedited) approved the current code, but ryanofsky maintains an approach NACK favoring a simpler single-option design in #35387, and the author disagrees without resolution.",
+   "reason": "ryanofsky's objection is substantive (the three-option interaction is genuinely confusing and blocks some valid configurations) and he treats it as blocking (explicit approach NACK). The author engages and disagrees but the dispute is unresolved; maflcko's removal of the 32.x milestone reflects this unresolved state at the project level.",
+   "evidence": [
+    "stickies-v (member): 'Concept ACK... The breaking RPC change is probably the biggest downside/cost of this PR' then re-ACK'd final commit 'ACK 6eee953... the new -debug and -trace startup options are a lot easier to use'",
+    "sedited (member): 'tACK 5b114839...' and 'Re-ACK befe8183dc...'",
+    "ryanofsky (member): 'Concept ACK... but approach NACK because having three options... is unnecessarily confusing... implemented an alternative in #35387'",
+    "ajtowns (author): 'I don't agree with @ryanofsky's criticisms; I'm happy to debate the objective ones... or accept majority opinion on the subjective ones'",
+    "maflcko (member): removed PR from 32.x milestone citing the open question and lack of a full review cycle for fixups"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future addition of LogTrace() call sites across the codebase, per ryanofsky's framing of the PR's real goal",
+    "Potentially superseded or complemented by ryanofsky's alternative design in #35387"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Adds doc/release-notes-34038.md, but only to document this feature/RPC change, not as the primary subject of the PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the docs category definition, a code change that also updates its own release notes belongs to its own area, not docs."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Substantively changes the `logging` RPC: adds a `trace` parameter, changes the output format from booleans to three category arrays, and gates the old format behind `-deprecatedrpc=logging`.",
+    "band": "P2",
+    "reason_tag": "decision needed",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because this breaks a nine-year-old RPC's output format for every caller, handled carefully via a deprecation flag, per the description: '-deprecatedrpc=logging preserves the old format.' The interface shape itself is contested: ryanofsky calls it 'awkward... you place a category in one of three arrays' and proposes a simpler alternative in #35387, meaning the RPC surface here may still change before it settles."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Functional and unit test edits (rpc_misc.py, feature_logging.py, logging_tests.cpp, test_node.py version bump) only adjust existing tests for the new options/RPC output; no new framework capability is added.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, tests pinning one area's behavior belong to that area (rpc/utils here), not test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Reworks src/logging.cpp/h and src/init/common.cpp option handling (-debug/-trace/-debugexclude), and changes locking behavior around ShrinkDebugFile using STDLOCK.",
+    "band": "P2",
+    "reason_tag": "config UX",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it changes user-facing logging configuration semantics that every operator using -debug/-trace touches, per the commit message: 'Simplify this so that -debug=net enables debug logging for net and -trace=net enables both debug and trace logging for net.' The ShrinkDebugFile locking change ('it seemed like it would make more sense to hold the lock and pause any attempted logging until the shrinking was finished') is a minor correctness improvement to startup locking, judged on its own terms per the utils category's rubric for internal changes."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maflcko milestone question and ryanofsky's 2026-08-21 reiteration together should push this to Paused, or whether the substantive design dispute (Agreement) is being conflated with mechanical review readiness, since concept disagreement is not supposed to block Reviewability by rule.",
+   "Exact current date is not given, so the waiting_on_author_days=26 signal's basis (which specific unanswered item it measures) is inferred rather than directly observed.",
+   "Whether rpc or utils should be considered the primary area given the split between backend logging.cpp changes and the RPC-facing surface; both are treated as full members per instructions."
+  ],
+  "card": "This PR replaces the -loglevel startup option with a -trace option matching -debug syntax, and extends the logging RPC to expose trace-level control with a new three-array output format, preserving old behavior behind -deprecatedrpc=logging. The stated problem is that trace logging is currently unusable in practice (only one LogTrace call exists in the codebase) because turning it on requires an obscure combination of -debug and -loglevel. Two reviewers (stickies-v, sedited) have approved the current code after extensive review, but ryanofsky has posted an approach NACK arguing the three interacting options (-debug/-trace/-debugexclude) are confusing and that a simpler single-option design (his alternative PR #35387) should be used instead; the author disagrees but the dispute is unresolved, and maflcko pulled the PR from the 32.x milestone as a result. The code itself is clean (no rebase needed, CI passing) but the unresolved approach dispute could still reshape the PR's design before it lands."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

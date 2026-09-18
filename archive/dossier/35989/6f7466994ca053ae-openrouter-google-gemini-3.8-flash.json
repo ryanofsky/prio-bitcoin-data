@@ -1,0 +1,97 @@
+{
+ "number": 35989,
+ "input_hash": "6f7466994ca053ae",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:34+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16584,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2366
+ },
+ "cost_usd": 0.0213105,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent node crashes and corrupted wallet state during descriptor imports with maximum ranges or oversized keypool configurations.",
+    "Fix signed integer overflow undefined behavior in keypool refill logic."
+   ],
+   "reviewability": [
+    "Needs rebase due to merge conflicts with recent master changes.",
+    "The underlying patch is small, well-reviewed, and ready for re-review once rebased."
+   ],
+   "agreement": [
+    "Strong support with multiple ACKs confirming bug reproduction and fix verification (molnard, kriss39).",
+    "Concept support from multiple contributors (jeanpablojp, vicjuma).",
+    "Reviewers agreed that related overflow edge cases and recovery handling can wait for follow-ups (molnard, kriss39)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes an assert crash on extreme descriptor import ranges and large keypool settings.",
+      "The crash leaves corrupted, inverted descriptor records persisted in the wallet database.",
+      "It also eliminates signed integer overflow undefined behavior in keypool top up."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR bounds descriptor range endpoints in `ProcessDescriptorImport` and widens range calculation in `TopUpWithDB` to `int64_t`. It prevents an integer overflow and assertion abort when importing descriptors ending at 2^31 - 1 or when `-keypool` exceeds `INT32_MAX`. It also includes functional test coverage covering the crashes and the keypool refill overflow.",
+  "problem": "When importing descriptors with an upper range endpoint of 2^31 - 1, the exclusive end computation wraps to negative numbers in `int32_t`, which writes an inverted range to disk and triggers an assertion failure in `TopUpWithDB`, terminating bitcoind. Similar crashes and signed integer overflow undefined behavior occur with extreme `-keypool` configurations or large `keypoolrefill` calls.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Missing test coverage for `keypoolrefill` overflow caught under UBSan was requested and added by the author (jeanpablojp).",
+    "Handling pre-existing corrupted records on disk and centralizing `-keypool` validation were considered and agreed to be follow-up material (molnard, shuv-amp)."
+   ],
+   "author_status": "active; last addressed reviews and force-pushed updates on 2026-08-25, responded to discussion on 2026-09-05"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and requires a rebase before it can proceed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus with two ACKs and two Concept ACKs confirming crash reproduction and resolution; follow-ups deferred.",
+   "reason": "Reviewers verified the crash on master and tested that the PR cleanly rejects invalid ranges with RPC errors while keeping bitcoind running, with no standing objections.",
+   "evidence": [
+    "jeanpablojp confirmed reproducing the crash both ways on master and Concept ACKed",
+    "molnard provided a full review and ACK after local verification across all test cases",
+    "kriss39 tested and tACKed, confirming watch-only wallet behavior and node stability",
+    "molnard and author agreed that wallet recovery for previously corrupted records is non-blocking follow-up work"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches `src/wallet/rpc/backup.cpp`, `src/wallet/scriptpubkeyman.cpp`, and wallet functional tests.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes an assertion abort and wallet database corruption triggered by an RPC command with extreme ranges or large `-keypool` settings. Without this fix, importing a range ending at `INT32_MAX` persists an inverted descriptor record before aborting the process."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35989 fixes an assertion abort and node crash in the wallet caused by integer truncation when importing descriptors with a range ending at 2^31 - 1, or when running with `-keypool` greater than `INT32_MAX`. Prior to crashing, the node persisted corrupted descriptor records with inverted ranges to the wallet database. Reviewers confirmed the bug and verified the fix across multiple scenarios with positive ACKs. The PR currently needs a rebase to resolve merge conflicts with master."
+ },
+ "raw_text": null
+}

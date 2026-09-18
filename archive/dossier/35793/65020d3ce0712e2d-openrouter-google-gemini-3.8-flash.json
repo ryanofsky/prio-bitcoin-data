@@ -1,0 +1,227 @@
+{
+ "number": 35793,
+ "input_hash": "65020d3ce0712e2d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:21:11+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33609,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5230
+ },
+ "cost_usd": 0.04481925,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Implement BIP 54 Consensus Cleanup validation rules on regtest without mainnet activation.",
+    "Fix long-standing protocol vulnerabilities including timewarp, Merkle tree collision, and block validation CPU DoS."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Author rebased on master and addressed all outstanding reviewer feedback."
+   ],
+   "agreement": [
+    "Strong support with multiple concept approvals (dergoegge, fanquake, theStack, stickies-v, fjahr, polespinasa, hsjoberg).",
+    "Technical questions regarding sigops bounds and mempool transition were discussed and addressed (ariard, polespinasa)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P1 because it implements consensus soft-fork validation rules for long-standing consensus flaws.",
+      "Fixes CVE-2017-12842 64-byte Merkle tree malleability, timewarp exploits, and worst-case legacy sigops block verification DoS."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements the BIP 54 (Consensus Cleanup) consensus validation rules. The rules address known consensus weaknesses: enforcing a 2-hour grace period on difficulty adjustment timestamps (timewarp fix), preventing negative difficulty retarget intervals (Murch-Zawy rule), requiring coinbase locktime to match block height minus one, prohibiting 64-byte transactions (CVE-2017-12842 Merkle tree vulnerability), and capping legacy non-witness signature operations to 2,500. The rules are deployed via versionbits and configured as always active on regtest, while left without mainnet activation.",
+  "problem": "Bitcoin consensus currently permits several edge-case attacks and resource-exhaustion vectors, including timewarp difficulty manipulation, Merkle tree inner-node collision with 64-byte transactions, and excessive legacy sigops leading to quadratic or prolonged block validation delays.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "fjahr noted the miner did not enforce the Murch-Zawy rule; this was extracted and merged in #35949 before rebasing.",
+    "ariard asked about sigops counting asymmetry for empty vs non-empty CHECKMULTISIG; darosior clarified it aligns with existing BIP 16 accounting.",
+    "polespinasa questioned flagging non-standard sigops as TX_CONSENSUS in validation errors; darosior explained the rationale regarding disconnect policy and Inquisition parity, documenting it in commit messages.",
+    "p2p_segwit functional test was updated to use BIP 54 compliant blocks prior to consensus rule enforcement."
+   ],
+   "author_status": "Active; rebased on master and addressed all review feedback on 2026-09-13."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch is rebased cleanly on master, passing CI, and all open discussion threads have been answered by the author."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Broad concept support across seven contributors and maintainers with constructive review feedback resolved.",
+   "reason": "Seven contributors posted Concept ACKs, and technical comments from ariard and polespinasa were thoroughly addressed and integrated.",
+   "evidence": [
+    "Concept ACK from dergoegge, fanquake, polespinasa, theStack, hsjoberg, fjahr, stickies-v",
+    "ariard provided extensive review on sigops limits and timewarp mitigations",
+    "fjahr collaborated on mining template enforcement in #35949",
+    "darosior addressed all outstanding review points on 2026-09-13"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future mainnet activation deployment of BIP 54 Consensus Cleanup"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Implements new consensus validation rules under src/consensus/ and src/validation.cpp enforcing BIP 54.",
+    "band": "P1",
+    "reason_tag": "DoS protection",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Proposed consensus soft forks represent critical validation work requiring rigorous review. The PR addresses several critical vulnerabilities including CVE-2017-12842 64-byte Merkle tree malleability, timewarp attacks, and block validation CPU DoS attacks caused by legacy sigops abuse."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only adds one line referencing BIP 54 in doc/bips.md as part of the code change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation updates incidental to code changes belong to the respective code category."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/chainparams.cpp only to declare the BIP 54 versionbits deployment configuration.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter the libbitcoinkernel API, boundary, or headers; chainparams edits merely configure network deployments."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Transfers existing standardness checks (such as legacy sigops limit) to consensus rules and adjusts mempool assert call sites.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes in mempool handling are downstream adjustments resulting from making policy rules consensus-critical."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Touches src/node/miner.cpp solely to rename a constant and adjust comments; miner enforcement was split to #35949.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Minor comment and constant naming updates in miner.cpp do not constitute a mining category change."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Modifies test/functional/p2p_segwit.py only to ensure test transaction blocks remain valid under BIP 54.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter P2P network protocol logic or peer handling."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Adds BIP 54 deployment reporting to the getdeploymentinfo RPC response.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Exposing soft fork deployment status via RPC is standard plumbing for any consensus deployment and not an RPC change in its own right."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The extensive unit tests, functional tests, and fuzz target test BIP 54 logic specifically rather than testing framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests pinning the behavior of a specific area belong to that area (validation) rather than test infrastructure."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only adjusts test arguments in wallet migration functional tests to disable BIP 54 when testing blocks produced by historic nodes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes to wallet functional test invocations are mechanical test updates and do not alter wallet functionality."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements the consensus validation rules proposed in BIP 54 (Consensus Cleanup), activating them on regtest while leaving mainnet activation for future consideration. It resolves known security and consensus flaws: timewarp attacks, negative difficulty adjustment periods, Merkle tree malleability via 64-byte transactions (CVE-2017-12842), and block validation CPU DoS from excessive legacy sigops. Over 95% of the additions consist of unit tests, functional tests, and test vectors previously vetted on Bitcoin Inquisition. Review state is active and positive with seven Concept ACKs from contributors and maintainers, and all review points have been addressed."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,144 @@
+{
+ "number": 35744,
+ "input_hash": "44515057d5dabe6c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19164,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4894
+ },
+ "cost_usd": 0.045040300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent LevelDB from aborting when AssumeUTXO cache resizing replaces the chainstate DB while a gettxoutsetinfo, scantxoutset, or dumptxoutset cursor is still iterating.",
+    "Adds checked shared-mutex primitives to the lock-tracking machinery so this and future shared-lock code get DEBUG_LOCKORDER coverage."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "Author reworked the series twice in response to andrewtoth's suggestions and the last technical question (AssertLockHeld) was addressed in the final push; only a bare concept ACK has followed since."
+   ],
+   "agreement": [
+    "Positive: sedited gave a concept ACK and no one objects to the approach (sedited).",
+    "andrewtoth raised substantive design questions about the locking scheme and the author incorporated both of his suggested reworks, with no follow-up pushback (andrewtoth)."
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P1 because it fixes a LevelDB abort (crash) that can hit gettxoutsetinfo, scantxoutset, or dumptxoutset whenever AssumeUTXO cache rebalancing resizes the chainstate DB while a cursor is live.",
+      "Historical test failures included in the description reproduce the crash, and the bug was found during review of a merged PR (#35465) that introduced the resizing path."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it adds checked SharedMutex/SharedLock wrappers and non-LIFO lock-stack tracking to sync.h/sync.cpp, closing a gap where raw std::shared_mutex users bypassed DEBUG_LOCKORDER and contention logging.",
+      "This directly unblocks the indexes fix and is also applied to the signature cache, giving lock-order checking to an existing shared-lock consumer."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Not a member: the sigcache.cpp/h changes only swap in the new checked shared-lock wrappers without altering signature-cache or validation behavior, so no validation logic is substantively changed."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug where LevelDB iterators held by gettxoutsetinfo, scantxoutset, and dumptxoutset can outlive cs_main and then race with AssumeUTXO's ResizeCache() replacing the underlying CDBWrapper, causing a LevelDB abort. It introduces a shared_mutex-based CCoinsViewDB::m_db_mutex so cursors and full compaction take it shared while ResizeCache() takes it exclusively, and adds SharedMutex/SharedLock wrappers plus non-LIFO lock-stack tracking to sync.h/sync.cpp so this new shared locking is covered by DEBUG_LOCKORDER, applying the same wrappers to SignatureCache and its tests along the way. The series was substantially reworked twice based on reviewer feedback.",
+  "problem": "Chainstate DB users that hold a live cursor after releasing cs_main (gettxoutsetinfo, scantxoutset, dumptxoutset) can be killed by a LevelDB abort if AssumeUTXO cache rebalancing resizes the DB concurrently, a real crash bug discovered during review of a merged AssumeUTXO PR (#35465).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth's suggestion to use a shared mutex instead of an atomic counter was adopted in the rework.",
+    "andrewtoth's suggestion to add lock-order checking for shared mutexes was implemented with a full sync.h/sync.cpp rework, including non-LIFO lock release support.",
+    "andrewtoth's question about adding AssertLockHeld(::cs_main) to ResizeCache() was implemented in the final push."
+   ],
+   "author_status": "silent since 2026-07-28 (last push), with only a concept ACK from a third party since"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR was reworked twice in direct response to andrewtoth's design and lock-checking suggestions, and the last open technical question (AssertLockHeld) was addressed in the final push on 2026-07-28. No material request remains open; only a concept ACK has followed."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: sedited gave a concept ACK, and andrewtoth's earlier design concerns were incorporated into a full rework with no pushback since.",
+   "reason": "A reviewer (andrewtoth) raised substantive concerns about the locking design and about missing lock-order checking; the author reworked the series to address both, and andrewtoth has not objected to the final version. A separate reviewer gave a concept ACK.",
+   "evidence": [
+    "andrewtoth: 'I'm not sure about this approach with an atomic counter... would it make sense to instead have a shared mutex' \u2014 adopted.",
+    "andrewtoth: 'What do you think of adding shared locking to our lock checking machinery?' with a draft patch \u2014 adopted almost verbatim.",
+    "sedited: 'Concept ACK' (2026-09-08)."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Safer future use of shared-lock patterns elsewhere in the codebase via the new SharedMutex/SharedLock/READ_LOCK primitives with DEBUG_LOCKORDER coverage."
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly modifies CCoinsViewDB's LevelDB cursor, compaction, and resize logic in src/txdb.cpp/h, fixing a crash in the chainstate database wrapper.",
+    "band": "P1",
+    "reason_tag": "bug fix",
+    "score": 0.8,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 3,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a LevelDB abort (process crash) reachable via common RPCs (gettxoutsetinfo, scantxoutset, dumptxoutset) whenever AssumeUTXO's cache rebalancing resizes the DB during a live cursor scan, per the description and the included characterization test failures ('check status == std::future_status::timeout has failed'). The bug was found during review of the already-merged #35465, meaning it is latent in current behavior."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds SharedMutex, SharedLock, READ_LOCK and non-LIFO lock-stack tracking to src/sync.h/sync.cpp, and migrates SignatureCache and its tests to use them.",
+    "band": "P2",
+    "reason_tag": "lock safety",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Closes a gap where raw std::shared_mutex users 'bypass DEBUG_LOCKORDER, lock-contention logging, and Clang thread-safety analysis' (commit message), directly enabling the indexes fix and giving the pre-existing SignatureCache shared lock the same safety net, per andrewtoth's request that this be added."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches sigcache.cpp/h, which validation uses for signature verification, but only swaps lock primitives without changing cache semantics or validation logic, matching the 'not validation' carve-out for structural refactors that don't change behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No substantive validation-behavior change; excluded per category definition."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the LevelDB abort is realistically hit in production given the rarity/timing of concurrent ResizeCache calls during long-running RPC scans, versus being mainly a theoretical/test-triggered race.",
+   "Whether the heavy sync.h/sync.cpp rework (touching all shared-mutex users) will need broader review from maintainers beyond the two engaged so far given its reach into DEBUG_LOCKORDER internals."
+  ],
+  "card": "This PR fixes a crash bug: LevelDB iterators held by gettxoutsetinfo, scantxoutset, and dumptxoutset can outlive cs_main and race with AssumeUTXO's ResizeCache() replacing the chainstate DB, causing a LevelDB abort, as reported during review of the merged #35465. It introduces a shared_mutex on CCoinsViewDB so cursors and compaction take it shared while resize takes it exclusive, and adds checked SharedMutex/SharedLock/READ_LOCK primitives to sync.h/sync.cpp (with non-LIFO lock tracking) so the new pattern gets DEBUG_LOCKORDER coverage, also migrating SignatureCache to the same wrappers. The series was substantially reworked twice in direct response to andrewtoth's design and lock-checking suggestions, with the last open question addressed in the final push; only a concept ACK from sedited has followed. No dependency blocks this PR, and it is a foundational fix for indexes correctness plus a reusable utils safety improvement."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

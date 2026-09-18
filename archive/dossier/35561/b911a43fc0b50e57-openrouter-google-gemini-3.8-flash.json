@@ -1,0 +1,126 @@
+{
+ "number": 35561,
+ "input_hash": "b911a43fc0b50e57",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:37+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17982,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2528
+ },
+ "cost_usd": 0.0229665,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Move compact block and preferred-download state from CNodeState to Peer",
+    "Reduce cs_main lock contention in net_processing by making the fields atomic"
+   ],
+   "reviewability": [
+    "Merge conflict with master requires rebase"
+   ],
+   "agreement": [
+    "Strong support for reducing cs_main usage in net processing (davidgumberg, mzumsande, w0xlt)",
+    "Initial reasoning questions about atomic counter correctness were resolved (dergoegge)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it makes incremental progress toward eliminating cs_main in net processing",
+      "Cleans up peer state management without immediate user-visible impact or performance benchmarks"
+     ]
+    }
+   ]
+  },
+  "summary": "Moves m_requested_hb_cmpctblocks, m_provides_cmpctblocks, and fPreferredDownload (renamed to m_preferred_download) from CNodeState to Peer, converting them and the counter m_num_preferred_download_peers into atomics. This eliminates cs_main acquisition across several message processing and block announcement paths in net_processing. It also updates comments in test files referencing the renamed field.",
+  "problem": "Holding the broad cs_main lock to read and write peer-specific compact block flags and download preferences introduces unnecessary locking overhead and tight coupling to legacy node state.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "dergoegge questioned whether removing cs_main around m_num_preferred_download_peers makes invariants harder to reason about, which was clarified as matching the existing m_wtxid_relay atomic pattern (mzumsande).",
+    "mzumsande suggested adding a negative thread-safety annotation (!m_peer_mutex) to NewPoWValidBlock, which the author added."
+   ],
+   "author_status": "active, last rebased in August 2026, awaiting rebase on master"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The pull request has merge conflicts with master and is flagged with the Needs rebase label."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: concept and code ACKs with consensus on the atomic pattern, no open objections (davidgumberg, mzumsande, dergoegge, w0xlt)",
+   "reason": "Multiple reviewers support the change and its goal of reducing cs_main scope in net_processing. Questions about atomic counter reasoning were addressed by comparison to existing patterns in Peer, and full ACK was left on the latest push.",
+   "evidence": [
+    "davidgumberg: Concept ACK: 'Less cs_main is good, locks are scary, and can hurt performance, and are unnecessary for all of these fields.'",
+    "dergoegge: Code review ACK on earlier commit, noted previous lock was easier to reason about.",
+    "mzumsande: Concept ACK, noted that the atomic pair mirrors m_wtxid_relay / m_wtxid_relay_peers.",
+    "w0xlt: ACK 3861ab49ec."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies peer state structures and locking in src/net_processing.cpp and node tx download logic.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Worthwhile internal cleanup in p2p state tracking. Removing cs_main requirements around peer flags moves net_processing closer to decoupling CNodeState from validation locks (#27502). However, this is an incremental refactor without an accompanying measurable performance improvement or external protocol impact."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test files solely to update variable names in comments via scripted diff.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Only touches comments in test files mechanically as part of a rename."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only touches a comment in wallet_listsinceblock.py referencing the renamed variable.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet logic or behavior is touched."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves compact block announcement flags and preferred download status from CNodeState to Peer, converting them and the preferred download counter to atomics. The primary goal is reducing the scope and acquisition of cs_main in net_processing. Several reviewers agree with the direction and the PR has an ACK on the latest commit, but it currently has merge conflicts and needs a rebase before it can proceed."
+ },
+ "raw_text": null
+}

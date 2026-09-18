@@ -1,0 +1,147 @@
+{
+ "number": 36147,
+ "input_hash": "cfca4e446f68896b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20426,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5034
+ },
+ "cost_usd": 0.047002300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add CI jobs that build and run the functional test suite natively inside FreeBSD, NetBSD, and OpenBSD VMs.",
+    "Aims to catch BSD-specific regressions before merge instead of relying on nightly builds and follow-up fixes."
+   ],
+   "reviewability": [
+    "Paused: author said they will leave it in draft a few days then may close it if the flakiness tradeoff isn't accepted.",
+    "No code-review blocker otherwise, but the PR also needs a rebase."
+   ],
+   "agreement": [
+    "Disputed: maflcko argues the added VMs are historically flaky (especially OpenBSD/NetBSD) and could raise false CI failures above the bug-catching benefit (maflcko).",
+    "hebasto gives concept ACK for having at least one BSD CI job, favoring starting with FreeBSD only (hebasto).",
+    "Author has presented data suggesting a ~2% flake rate, comparable to existing job failure rates, but has not converged with maflcko and floated closing the PR (willcl-ark)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it targets recurring but narrow BSD cross-compile regressions that currently surface only in nightly builds, not day-to-day contributor pain.",
+      "Unblocks catching platform breakage earlier (examples #36078, #36145) but BSD is not a primary supported platform and the benefit is actively disputed as possibly net-negative due to VM flakiness."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P4 because the only test-framework-level change is a one-line lsof warning suppression tweak in netutil.py for FreeBSD, a minor portability fix with no broader coverage implication.",
+      "Does not add new test coverage or fix a framework capability other areas need."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Unranked because the REST-related edit only bounds a client-side timeout inside the interface_rest.py functional test to keep BSD test runs from hanging, it does not change the REST server or its interface."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the existing cross-compiled FreeBSD/NetBSD/OpenBSD CI jobs with jobs that build and run the full test suite natively inside vmactions-provided BSD virtual machines. It reuses the existing host-mode CI driver, adds new 00_setup_env_*_native.sh environment files, and removes the old cross-compile-only env files and workflow entries. It also includes two small functional-test fixes (an lsof warning suppression for FreeBSD, and a bounded REST client timeout) needed to get tests passing under the new jobs, and excludes two flaky/slow tests (feature_reindex_init, p2p_private_broadcast_retry_v1) from the BSD runs.",
+  "problem": "BSD binaries are currently cross-compiled in CI but never executed, so regressions that only manifest on BSD are caught in third-party nightly builds well after merge and require separate fixup PRs (cited examples: #36078, #36145). This is felt by BSD-cross-compile maintainers and by whoever has to write the delayed fixups.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko: the vmactions BSD VMs (especially OpenBSD and NetBSD) have a meaningfully high nightly failure rate in hebasto's tracking repo; adding them to the PR hot path risks normalizing ignored/red CI unless someone commits to triaging intermittent failures, and the motivating regressions (#36078/#36145) are NetBSD/OpenBSD-specific where flakiness is worst.",
+    "maflcko: questions whether maintaining these jobs costs more than periodically porting fixups from nightly builds.",
+    "Unresolved: whether to merge all three BSDs or start with FreeBSD only, given FreeBSD showed zero nightly failures in the sampled month versus OpenBSD's high failure rate."
+   ],
+   "resolved_concerns": [],
+   "author_status": "said wait: willcl-ark stated they will leave the PR in draft for a few days for further input before considering closing it"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author says wait/close",
+   "reason": "Author (willcl-ark) explicitly said on 2026-09-03 they will leave the PR in draft for a few days awaiting input and may close it rather than continue, pending resolution of the flakiness-vs-benefit debate with maflcko. The PR also needs a rebase (Needs rebase label, mergeable_state dirty)."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: maflcko contests the net benefit given historical BSD VM flakiness, hebasto gives a narrower concept ACK for at least one BSD job, no resolution reached.",
+   "reason": "maflcko raised a concrete, evidenced harm (false-positive CI failures degrading trust in CI, especially for OpenBSD/NetBSD) and the author has engaged with data but the two have not converged; hebasto's ACK is narrower (one BSD job, likely FreeBSD-only) than the PR's three-platform scope.",
+   "evidence": [
+    "maflcko: '...before this is merged, there needs to be several people who monitor those intermittent failures... If this isn't done, then devs will just ignore all CI results.'",
+    "hebasto: 'We might begin with FreeBSD only, which has shown high stability.'",
+    "willcl-ark: presented a 90-day flake analysis (~2.2%) and said 'I'll leave this in draft for a few days in case anyone else wants to weigh in, before closing.'",
+    "hebasto: 'Concept ACK on having at least one CI job that runs tests on a *BSD platform.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Fewer nightly-build-only BSD regression fixups such as #36078 and #36145 if merged and stable"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Primary subject: replaces BSD cross-compile CI jobs with native VM-based build-and-test jobs, touching ci.yml, ci/README.md, and multiple ci/test/00_setup_env_*.sh files.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Addresses real but narrow BSD cross-compile regressions currently caught only in third-party nightly builds ('recent examples include #36078 and #36145' per description), which is a genuine but secondary-platform pain point. The value is contested: maflcko argues added VM flakiness (up to 19/33 nightly failures on OpenBSD in one month) could offset the benefit, so this sits below the top of the build priority ladder which favors release integrity and mainstream supported-platform breakage over niche cross-compile targets."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Includes a one-line change to test/functional/test_framework/netutil.py, which is shared test-framework code used across areas, extending an lsof warning suppression from NetBSD to also cover FreeBSD.",
+    "band": "P4",
+    "reason_tag": "platform fix",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The framework-level change is cosmetic (suppressing a benign lsof warning on an additional platform) with no coverage or capability benefit stated; it exists only to keep the new BSD jobs' output clean, not to fix or extend test infrastructure generally."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The interface_rest.py change bounds an HTTPConnection timeout inside a specific functional test's client code to avoid the whole job hanging on BSD; it does not modify the REST server or its interface, so it belongs with the REST test rather than the RPC/REST category.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No change to RPC/REST/ZMQ behavior or interface; the timeout fix is test-harness plumbing to unblock the BSD CI jobs, per the description: 'one to prevent an overly-long REST request hang observed during testing.'"
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will accept all three BSD platforms or narrow to FreeBSD only, which changes the practical scope and thus the eventual build-category impact.",
+   "Whether the described flakiness data (2.2% false-positive rate) will be independently validated before any merge decision.",
+   "Author has floated closing the PR entirely, which would make this moot; final disposition unresolved as of last activity."
+  ],
+  "card": "Adds native FreeBSD/NetBSD/OpenBSD CI jobs (via vmactions VMs) that build and run the full test suite, replacing the current cross-compile-only BSD jobs that never execute the binaries. The stated problem is that BSD regressions are currently caught only in third-party nightly builds and fixed after the fact (citing merged fixups #36078 and #36145). Reviewer maflcko raises a substantive, evidenced objection that these VMs (especially OpenBSD, and to a lesser extent NetBSD) have shown high nightly failure rates and could degrade trust in CI more than the benefit of catching BSD regressions early; hebasto gives a narrower concept ACK favoring a FreeBSD-only start. The author has posted a 90-day flake-rate analysis (~2.2%) but the debate is unresolved, and the author says they may close the PR if no further input arrives. The PR is in draft, needs a rebase, and conflicts with several other open CI PRs."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

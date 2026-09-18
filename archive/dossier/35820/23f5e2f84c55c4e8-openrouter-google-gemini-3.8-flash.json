@@ -1,0 +1,184 @@
+{
+ "number": 35820,
+ "input_hash": "23f5e2f84c55c4e8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:31+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27181,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13755
+ },
+ "cost_usd": 0.071967,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make duration calculations explicit by using std::chrono types instead of raw integer counts",
+    "Prevent implicit unit mismatches and remove redundant duration comments"
+   ],
+   "reviewability": [
+    "Needs rebase due to conflicts with recent merges",
+    "Author has been silent for a month"
+   ],
+   "agreement": [
+    "Concept ACK for improved readability (janb84)",
+    "Skeptical of value without full type safety (stickies-v)",
+    "Criticisms on style and noisy casts were addressed by the author (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because it is an internal duration refactor in net processing",
+      "Does not change peer relay behavior, protocol rules, or DoS resistance"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because it only adjusts internal duration typing in mockscheduler and getchaintxstats",
+      "Leaves external RPC behavior and interfaces completely unchanged"
+     ]
+    }
+   ]
+  },
+  "summary": "Refactors duration calculations across several subsystems to use std::chrono duration types and literals rather than raw integer counts. It updates time expressions in GUI utilities, peer relay age checks, RPC handlers, and consensus chain parameters while maintaining existing integer interfaces where appropriate. Accompanying unit and functional characterization tests pin the exact PoW timing and assumevalid horizon values.",
+  "problem": "Several fixed-duration calculations use raw integer counts of seconds, leaving their units implicit in comments or parameter names and risking accidental unit confusion.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "stickies-v and maflcko questioned whether converting raw integers to chrono literals and casts added genuine type safety or merely added noise.",
+    "maflcko pointed out that initial commits violated util/time.h guidelines by using TicksSeconds, which the author subsequently reworked and removed.",
+    "maflcko objected to noisy conversions in Qt code, which the author reverted."
+   ],
+   "author_status": "silent since 2026-08-18 rebase"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with several open and recently merged PRs and is labeled Needs rebase; the author has been inactive for 30 days."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: Concept ACK from janb84; stickies-v (~0) and maflcko raised skepticism and style objections that the author addressed.",
+   "reason": "janb84 gave a Concept ACK favoring the improved readability. stickies-v offered a lukewarm ~0 seeing minimal benefit, and maflcko pushed back against noisy chrono casts and guideline violations, but the author adjusted the code to satisfy those concerns with no further objections raised.",
+   "evidence": [
+    "janb84: 'Concept ACK... I like the clarity / readability this changes gives.'",
+    "stickies-v: '~0, some minor clarity improvements here and there but for the most part I don't see the point as this doesn't add any actual type safety or clarity.'",
+    "maflcko: 'Tend to agree with stickies. The changes as-is also violate the util/time.h docs.'",
+    "l0rinc: 'Sure, I\u2019ve reverted the ones that were arguably noisier than the original code. Thanks for the pushback!'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches chainparams duration definitions inside src/kernel/ without touching the kernel C/C++ API or interface boundary, which category guidelines explicitly exclude.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unranked because changes to chainparams values that do not touch the kernel API or library boundary are excluded from kernel."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Only changes a static constexpr halflife duration constant in txmempool, with no changes to mempool policy, data structures, limits, or eviction.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unranked because cosmetic typing of a single mempool constant does not affect mempool policy or structure."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies duration constants and time comparisons in net_processing.cpp and banman.h.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is an internal cleanup converting duration arithmetic in net_processing to std::chrono without changing relay behavior, network protocol, or DoS resistance."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies duration parsing in mockscheduler and block count estimation in getchaintxstats.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because it is an internal refactoring of duration expressions in two RPC handlers without affecting interfaces, caller-visible behavior, or performance."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches validation.cpp and chainstate.cpp but explicitly preserves behavior; category definition excludes structural refactors that do not alter validation behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unranked because structural and typing refactors in validation files that do not change validation behavior are explicitly excluded from validation."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches two duration expressions in wallet.cpp and spend.cpp; does not affect wallet data, fund safety, coin selection, or RPCs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unranked because cosmetic changes to two duration expressions in wallet files do not touch wallet functionality or warrant wallet review."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors raw integer duration calculations across multiple subsystems into typed std::chrono durations and literals while preserving existing integer interfaces. Its goal is to make units self-documenting in expressions rather than relying on comments, reducing the risk of unit conversion mistakes. The changes are developer-facing refactors that do not alter node behavior, supported by new characterization tests for consensus parameters. It received a Concept ACK from janb84 and lukewarm feedback from stickies-v, while review comments from maflcko were addressed; it currently requires a rebase."
+ },
+ "raw_text": null
+}

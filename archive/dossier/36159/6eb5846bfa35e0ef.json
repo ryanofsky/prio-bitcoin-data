@@ -1,0 +1,101 @@
+{
+ "number": 36159,
+ "input_hash": "6eb5846bfa35e0ef",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9603,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2671
+ },
+ "cost_usd": 0.0243643,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Cleans up and adds test coverage for HTTPRemoteClient's disconnect-decision logic",
+    "Also restores a missing debug log line for one disconnect case introduced by an earlier refactor"
+   ],
+   "reviewability": [
+    "Ready, author addressed all review feedback in a force push and got a fresh tested ACK"
+   ],
+   "agreement": [
+    "Strong support from jeanpablojp (concept ACK, detailed review) and winterrdog (tested ACK)",
+    "A tangential slow-shutdown issue was raised but explicitly deferred to a follow-up by the reviewer (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it hardens and tests the HTTP server's client-disconnect control flow rather than changing any RPC-facing behavior",
+      "Reduces the risk of future regressions in this area and fixes a small missing log line, but has no direct user-facing benefit"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors HTTPRemoteClient::MaybeDisconnect() (renamed to the const ShouldDisconnect()) to flatten its control flow, makes the idle-timeout clock mockable for testing, adds a missing debug log message for one disconnect path, and adds a new unit test covering the various disconnect scenarios (idle timeout, busy connection, shutdown-all, malformed request, keep-alive). It is a follow-up cleanup to PR #35829 which introduced the original function without tests.",
+  "problem": "The HTTP server's client-disconnect logic added in #35829 was hard to follow, untested, and silently omitted a log message for one disconnect case, making it harder for maintainers to safely modify or reason about disconnect behavior.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp noted that on master (not specific to this PR), a client that connects and sends nothing is not released quickly on shutdown when -rpcservertimeout=0, causing multi-second delays; both agreed this is out of scope and a follow-up should be opened."
+   ],
+   "resolved_concerns": [
+    "Potential second-rollover flakiness in test timing between `now` and client timestamps: addressed by mocking/freezing the clock in the latest push.",
+    "ZeroSock vs SlowSocket suggestion for one test client: addressed.",
+    "Missing log-suppression behavior change (idle line no longer double-logged when already flagged) not mentioned in commit message: acknowledged as an improvement, addressed inline.",
+    "Test only exercising HTTP/1.0 clients so the keep-alive branch is never truly exercised: addressed by adding an HTTP/1.1 keep-alive test case."
+   ],
+   "author_status": "active, addressed all review feedback in a force push on 2026-09-05"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Author pushed a commit addressing every review comment from jeanpablojp, and winterrdog gave a tested ACK on the resulting commit. No open material questions remain; the one tangential issue raised was explicitly deferred to a follow-up PR."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: jeanpablojp gave a detailed concept ACK after mutation testing, winterrdog gave a tested ACK, and a tangential shutdown-delay issue was explicitly deferred to a follow-up (jeanpablojp).",
+   "reason": "One reviewer engaged deeply and approved with rationale after the author addressed all points; no unresolved objections to the change itself.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK... Built the four commits and mutation-tested the changed branches.'",
+    "winterrdog: 'tACK 352fdc27...successfully built and tested'",
+    "jeanpablojp: 'Agreed it does not belong here though. Happy to open a follow-up.' (on the deferred shutdown-delay issue)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "A potential follow-up (mentioned by jeanpablojp and hodlinator) to add a shorter timeout for clients that connect and never send data"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Touches src/httpserver.cpp and src/httpserver.h under the RPC/REST/ZMQ label, changing the HTTP server's client-disconnect control flow and adding tests for it.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is an internal correctness/testing improvement to the HTTP server's disconnect logic, not a user-facing RPC change. It restores a missing debug log line ('Add log message for remaining case where we set m_disconnect = true') and flattens complex control flow flagged in a prior review ('somewhat complex control-flow'), reducing the risk of future bugs, but it changes no RPC behavior or interface that callers depend on."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the deferred shutdown-delay follow-up (idle clients with -rpcservertimeout=0 taking 30s to release on shutdown) will materialize as a separate PR and whether it should be tracked as a dependency here.",
+   "No explicit stated CI failure details beyond winterrdog's note that it is unrelated to this PR."
+  ],
+  "card": "This PR refactors and adds unit test coverage for HTTPRemoteClient::ShouldDisconnect() (renamed from MaybeDisconnect()), the HTTP server's logic for deciding when to drop a client connection, and restores a previously missing debug log line for one disconnect case. It is a follow-up cleanup to #35829, motivated by that PR's reviewer noting the control flow was 'somewhat complex' and lacked tests. The change has no user-facing effect on RPC behavior; its value is internal robustness and test coverage of disconnect-decision logic. jeanpablojp gave a thorough concept ACK after mutation-testing the changes and winterrdog gave a tested ACK on the latest commit, with all review feedback addressed via a force push. A tangential shutdown-delay issue was raised but explicitly deferred to a future follow-up PR, so nothing blocks this one. It is Ready for review with no open concerns and no dependencies."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

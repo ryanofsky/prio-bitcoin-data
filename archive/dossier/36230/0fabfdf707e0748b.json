@@ -1,0 +1,115 @@
+{
+ "number": 36230,
+ "input_hash": "0fabfdf707e0748b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14683,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4256
+ },
+ "cost_usd": 0.0373693,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up wallet descriptor loading by caching a hash of the canonical descriptor string instead of recomputing it on every comparison, fixing a performance regression from a prior PR.",
+    "Also tidies up several review comments and descriptor-string edge cases left over from that earlier work."
+   ],
+   "reviewability": [
+    "CI is currently failing because a functional test can't find a release archive after the 31.0/31.1 swap.",
+    "Author is actively force-pushing fixes; wait for green CI before deep review of the current head."
+   ],
+   "agreement": [
+    "Strong support: hebasto confirmed the perf fix resolves the regression with test timing evidence, and rkrux measured a 50% speedup and gave an ACK (hebasto, rkrux).",
+    "polespinasa gave concept ACK after several rounds of comments, all addressed by the author (polespinasa).",
+    "Sjors raised nonblocking design questions about where the cache should live, resolved amicably (Sjors, achow101)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR caches a hash of the canonical descriptor string on WalletDescriptor construction so that HasWalletDescriptor and UpdateFrom no longer recompute the canonical string on every comparison, fixing a performance regression introduced by a prior descriptor PR (#35445). It also cleans up several review comments from that PR: clarifying apostrophe-handling logic in descriptor string generation, documenting UpdateFrom, removing the WalletDescriptor default constructor, and adjusting the backwards-compatibility test matrix to add a 31.1 node.",
+  "problem": "Wallet descriptor comparisons (used when loading descriptor wallets, especially with miniscript) were recomputing an expensive canonical string on every call, causing a measured slowdown; users and testers loading wallets with many or complex descriptors felt this as slow wallet loads.",
+  "discussion": {
+   "open_concerns": [
+    "CI is failing: maflcko notes the 31.0/31.1 swap in wallet_backwards_compatibility.py broke the test because get_previous_releases.py no longer has the file the test expects; polespinasa suggests adding 31.1 instead of replacing 31.0.",
+    "Minor nits (naming of Equals/IsCanonicallyEquivalent, whitespace, ternary style) raised by davidgumberg and Sjors, mostly addressed but some very recent."
+   ],
+   "resolved_concerns": [
+    "Sjors's request to document that comparison is only over the canonical string: addressed by renaming to IsCanonicallyEquivalent with added docs.",
+    "polespinasa's concern about default-constructed WalletDescriptor never initializing the hash: addressed by removing the default constructor entirely.",
+    "davidgumberg's suggestion to lazily compute and cache the hash rather than assert it's set: implemented via GetCanonicalHash().",
+    "polespinasa's suggestion to deduplicate the apostrophe-handling switch statement: implemented via DetermineApostropheUse helper."
+   ],
+   "author_status": "active, force-pushed 3 times, most recently 2026-09-17 in response to review; CI failure from the latest push not yet fixed"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is failing because the 31.0-to-31.1 swap in wallet_backwards_compatibility.py broke get_previous_releases.py lookups, per maflcko's comment; this is a mechanical blocker on the current head, not a design dispute, and should be fixed before further review of that piece."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: hebasto and rkrux both measured the performance fix working (144s vs 262s), and polespinasa gave concept ACK after several rounds of comments that the author addressed.",
+   "reason": "Multiple reviewers with concrete rationale support the change and no one is blocking; remaining points are nits or already resolved design questions.",
+   "evidence": [
+    "hebasto: tested the PR and confirmed 'The test performance issue is resolved', citing CI timing.",
+    "rkrux: 'lgtm ACK ... I notice a 50% improvement in execution time of the wallet_miniscript.py test on my machine.'",
+    "polespinasa: 'concept ACK ... Left some comments' -- all subsequently addressed by achow101.",
+    "Sjors raised nonblocking design questions (cache location, lazy vs eager) which achow101 resolved by renaming/refactoring per davidgumberg's suggested diff.",
+    "maflcko's CI-failure comment is about mechanical test breakage, not a substantive objection to the change."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Follow-up cleanup for #35445, allowing that PR's canonical-descriptor-string design to ship without the performance regression.",
+    "Needs backport to 32.x per label, since the regression is already present in a shipped release line."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "The PR changes WalletDescriptor's comparison and caching logic, descriptor string generation edge cases, and wallet backwards-compatibility tests -- all within src/wallet and src/script/descriptor.cpp, matching the Wallet label.",
+    "band": "P2",
+    "reason_tag": "perf fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a measured performance regression in descriptor wallet loading/comparison: hebasto and rkrux both measured roughly a 50% speedup in the wallet_miniscript functional test after the fix. The regression originates in an already-shipped release path (label 'Needs Backport (32.x)'), so unresolved it continues to slow down wallet loads for descriptor wallet users, particularly those with miniscript descriptors, until backported. It is not a fund-safety or correctness issue, so it sits at P2 rather than P1."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "The only touched file matching the tools path hint, test/get_previous_releases.py, is test infrastructure for downloading prior release binaries used by functional tests, which the tools category definition explicitly excludes ('test helpers are tests'). The PR's substance is wallet descriptor comparison logic, not a command-line tool or contrib script.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the touched file is test-support tooling, out of scope for the tools category by its own exclusion rule, and the PR's actual purpose is unrelated to command-line tools or contrib scripts."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CI failure (get_previous_releases.py lookup) is a quick fix or reflects a deeper design issue with the 31.0/31.1 swap is unresolved as of the last comment.",
+   "The exact real-world magnitude of the original performance regression outside of the CI test timing (e.g., impact on very large production wallets) is not quantified in the discussion beyond the test benchmark."
+  ],
+  "card": "This PR is a follow-up to #35445 that fixes a performance regression in wallet descriptor comparison: WalletDescriptor now caches a hash of its canonical descriptor string instead of recomputing it on every HasWalletDescriptor/UpdateFrom call. hebasto and rkrux both measured roughly a 50% reduction in wallet_miniscript.py test time confirming the fix works, and polespinasa gave concept ACK after several review rounds the author addressed (renaming, documentation, removing an unsafe default constructor). It carries a 'Needs Backport (32.x)' label, indicating the underlying regression already shipped. However, CI is currently failing because the 31.0-to-31.1 swap in the backwards-compatibility test broke get_previous_releases.py lookups, per maflcko's latest comment, so the head commit needs another fix before review is safe from being invalidated. No blocking objections to the approach exist; remaining comments are nits."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

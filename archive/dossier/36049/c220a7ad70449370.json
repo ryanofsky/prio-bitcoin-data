@@ -1,0 +1,123 @@
+{
+ "number": 36049,
+ "input_hash": "c220a7ad70449370",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3522,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3695
+ },
+ "cost_usd": 0.0234033,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop bitcoind from calling std::terminate when a block or undo write fails partway (e.g. disk full)",
+    "Makes storage write failures go through normal error reporting and shutdown instead of an abrupt crash"
+   ],
+   "reviewability": [
+    "Ready, small self-contained fix with a regression test reproducing the terminate",
+    "No open blocking requests, discussion is settled on the approach"
+   ],
+   "agreement": [
+    "Concept ACK with no objections (w0xlt)",
+    "Author's rationale (terminate bypasses error handling) accepted without pushback (andrewtoth)",
+    "Nonblocking meta-comment about wanting a systemic fix for this exception class, not an objection to this PR (maflcko)"
+   ],
+   "categories": []
+  },
+  "summary": "Fixes a bug the author introduced in #31551 where BufferedWriter's destructor retries a failed write during exception unwinding, triggering std::terminate instead of normal error handling. The fix clears the pending byte count in flush() before writing so the destructor cannot retry, and adds explicit flush() calls in BlockManager::WriteBlock/WriteBlockUndo before the buffered writer is destroyed. A regression test reproduces the double-write-on-failed-flush scenario.",
+  "problem": "When local storage fails mid-write (e.g. a full disk while writing a block or undo record), the implicit destructor-triggered retry throws inside a noexcept destructor, causing bitcoind to abort via std::terminate rather than reporting a clean storage error and shutting down gracefully. This affects node operators and anyone running nodes on storage that can fill up, as the author observed on their own benchmarking servers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth asked why this matters if the node has to crash anyway; author explained std::terminate bypasses error reporting and shutdown cleanup, which the node would otherwise perform",
+    "maflcko raised a broader wish for a systemic fix for this class of exception-in-destructor bugs, but did not object to this specific PR"
+   ],
+   "author_status": "active, replied to review question same day"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Small, self-contained fix with a reproducer and regression test; no unresolved material requests; CI clean and mergeable."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from w0xlt with no objections; author's rationale to andrewtoth went unchallenged.",
+   "reason": "One reviewer (w0xlt) gave a concept ACK and shared an alternative implementation without opposing this one; another reviewer's question was answered satisfactorily; maflcko's comment is a general process wish, not an objection to the change.",
+   "evidence": [
+    "w0xlt: 'Concept ACK ... I ran into the same bug ... Feel free to reuse anything you find useful.'",
+    "andrewtoth asked for justification, author explained the terminate-vs-normal-error-path distinction, no further pushback",
+    "maflcko: wants a systemic pattern to prevent this class of bug but does not block this PR"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner storage-error handling on WriteBlock/WriteBlockUndo failure paths"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Touches src/node/blockstorage.cpp's WriteBlock and WriteBlockUndo, changing how block/undo file write failures propagate before the writer object is destroyed.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Improves crash safety of block/undo storage on write failure, but as andrewtoth noted the node has to stop either way; the difference is a controlled shutdown versus an abrupt terminate, a narrow edge case (disk full mid-write) rather than data corruption or wrong answers."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Core fix is in src/streams.h's BufferedWriter::flush(), a shared serialization primitive used across the node, not tied to one feature area.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a subtle bug where a noexcept destructor throws during unwinding, causing std::terminate; the utils category explicitly prioritizes correctness of shared primitives where 'subtle bugs become node-wide problems,' and this pattern could recur elsewhere in code using BufferedWriter."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "The changed code is block/undo file writing in node/blockstorage.cpp, which the validation category explicitly routes to 'indexes' (block storage) rather than validation; no chainstate, UTXO, or consensus logic is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the validation category explicitly excludes PRs whose primary subject is block storage, which belongs to indexes instead."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether other BufferedWriter destructor-based call sites elsewhere in the codebase have the same latent terminate risk, as maflcko implied",
+   "Whether w0xlt's alternative implementation (removing writes from the destructor entirely) is a competing direction the project might prefer, which could affect this PR's eventual mergeability though not its priority"
+  ],
+  "card": "This PR fixes a bug the author introduced in #31551 where BufferedWriter's destructor retries a failed write during exception unwinding, turning a recoverable storage error into an uncontrolled std::terminate/abort. The fix clears pending bytes in flush() before writing and makes BlockManager::WriteBlock/WriteBlockUndo flush explicitly before their buffered writer is destroyed, restoring normal storage-error handling and clean shutdown. Evidence: author reproduced the abort on a real filesystem-full scenario ('my 1 TB benchmarking servers have recently been filling up') and included a manual reproducer showing exit 134 (abort) versus exit 1 (handled) after the fix. Reviewer w0xlt independently hit the same bug and gave a Concept ACK, sharing an alternative fix; andrewtoth's question about severity was answered by the author, and maflcko raised only a broader non-blocking wish for a systemic pattern. The PR is small, tested, mergeable, and has no dependency on other open PRs."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,118 @@
+{
+ "number": 36212,
+ "input_hash": "8c0f119596b6121a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4573,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3272
+ },
+ "cost_usd": 0.0223393,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix bitcoin-cli's -getinfo command so it shows actual node warnings instead of the empty '(none)' placeholder when getnetworkinfo returns an array."
+   ],
+   "reviewability": [
+    "Reviewable now, though a maintainer just left new layout suggestions (squash commits, header-style Warnings section) that the author hasn't addressed yet."
+   ],
+   "agreement": [
+    "Concept ACK from stickies-v (stickies-v)",
+    "Ongoing implementation nits about formatting and test parsing, not disputes about the fix itself (stickies-v)"
+   ],
+   "categories": [
+    {
+     "name": "RPC / REST / ZMQ",
+     "why": [
+      "P3 because it fixes a real display bug in bitcoin-cli where active warnings were hidden as '(none)', which could mislead operators checking node status, but the fix is narrow and purely cosmetic to the CLI output."
+     ]
+    },
+    {
+     "name": "Tools and scripts",
+     "why": [
+      "Not a member: bitcoin-cli is the RPC client, which the tools category explicitly excludes in favor of the rpc category."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes bitcoin-cli's -getinfo command, which was displaying '(none)' for the Warnings field even when getnetworkinfo returned an array of active warnings, because the old code called getValStr() which does not handle arrays. It updates ParseGetInfoResult to join array elements with newlines while preserving the legacy string/empty fallback, and adds functional test coverage that parses the full Warnings section from the CLI output.",
+  "problem": "Users running -getinfo on nodes with array-form warnings (introduced when getnetworkinfo's warnings field became a list) saw a misleading '(none)' instead of the real warning text, hiding potentially important prerelease or network warnings from operators.",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v (2026-09-16) suggests reworking the Warnings section to use a dedicated header line with items listed underneath, matching the Balances section style, and providing a preview diff of the change",
+    "stickies-v (2026-09-16) requests a docstring noting the fallback branch should be removed when -deprecatedrpc=warnings is removed",
+    "stickies-v (2026-09-16) nits that get_str() with type checking would have caught this issue earlier, and asks for commits to be squashed"
+   ],
+   "resolved_concerns": [
+    "stickies-v's request to drop the unrelated CLI restart/check in feature_versionbits_warning.py was implemented by the author in 59d0d24",
+    "stickies-v's request to parse the Warnings section properly instead of grabbing raw lines was partially addressed in 59d0d24, though a further revision is now suggested"
+   ],
+   "author_status": "active as of 2026-09-12, has not yet responded to the newest round of feedback from 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Pending author update",
+   "reason": "No mechanical blockers (CI passes, no rebase needed), but the maintainer's latest comments from 2026-09-16 propose a different layout for the Warnings section and ask for commit squashing. These are recent (author_silent_days=4, waiting_on_author_days=0) so the PR is not yet Paused, but a review of the current diff may soon be superseded by the suggested rework."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from stickies-v with ongoing implementation nits about formatting and test parsing, no objections to the fix itself.",
+   "reason": "stickies-v gave an explicit Concept ACK ('Concept ACK, thanks for catching this') and has continued engaging with implementation-level suggestions (docstring, layout consistency, commit squash) rather than raising any harm from the change. These are style/implementation preferences, not disagreements about whether the fix should happen.",
+   "evidence": [
+    "stickies-v: 'Concept ACK, thanks for catching this'",
+    "stickies-v: 'perhaps it would be more consistent to follow the layout of the Balances section' (style suggestion, not a blocking objection)",
+    "stickies-v: 'Can you please squash the 2 commits?' (housekeeping request)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "bitcoin-cli's -getinfo command is explicitly covered by the rpc category definition ('bitcoin-cli' is listed as part of the node's programmatic interfaces).",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes a real user-facing display bug: '-getinfo swallowed warnings when getnetworkinfo returns an array...showing (none) even with active prerelease warnings on regtest' (PR description). The impact is limited to CLI display correctness, not data integrity or RPC semantics, so it is worthwhile but not urgent."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "The tools category explicitly excludes bitcoin-cli, describing itself as covering 'command-line tools other than the node and its RPC client'; bitcoin-cli is the RPC client.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of this category per its explicit exclusion of bitcoin-cli."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the maintainer's latest layout-rework suggestion (2026-09-16) will materially change the diff enough to warrant re-review once implemented; too recent to know if it becomes a blocking ask."
+  ],
+  "card": "This PR fixes a bug in bitcoin-cli's -getinfo command where warnings returned as an array by getnetworkinfo were displayed as '(none)' instead of the actual warning text, per the author's description: '-getinfo swallowed warnings when getnetworkinfo returns an array instead of string.' It is a small, targeted CLI display fix with functional test coverage added. Reviewer stickies-v gave a Concept ACK and has since (2026-09-16) suggested a layout rework to match the existing Balances section style and asked for commit squashing, feedback the author has not yet addressed. No blocking objections exist, and the fix is cosmetic in nature but genuinely restores hidden warning visibility for operators. Belongs to the rpc category (bitcoin-cli is the RPC client) and not to tools, which explicitly excludes it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

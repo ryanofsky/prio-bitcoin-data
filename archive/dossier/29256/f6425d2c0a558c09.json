@@ -1,0 +1,104 @@
+{
+ "number": 29256,
+ "input_hash": "f6425d2c0a558c09",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 57603,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5268
+ },
+ "cost_usd": 0.0853493,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Let logging macros (LogDebug/LogInfo/LogError etc.) accept an optional context object so subsystems can attach extra info like wallet names or use a private logger.",
+    "Lays groundwork for libbitcoinkernel apps to use separate log streams and for wallet code to drop its custom WalletLogPrintf function."
+   ],
+   "reviewability": [
+    "Ready to review: no rebase needed, CI green, and after 42 pushes the macro design has converged on recent detailed review rounds.",
+    "Draft status and ongoing iteration reflect an unresolved concept dispute, not a code-quality blocker."
+   ],
+   "agreement": [
+    "Disputed: ajtowns maintains a longstanding Concept NACK arguing the change adds complexity for no real benefit and that -logsourcelocations already solves the stated problems (ajtowns).",
+    "hodlinator and l0rinc raised many code-level concerns which the author has largely addressed through iteration (hodlinator, l0rinc).",
+    "Lukewarm concept support exists from sedited and jonatack, with jonatack expressing broader fatigue with the whole logging redesign direction (sedited, jonatack).",
+    "Author has engaged extensively with all objections but the fundamental disagreement with ajtowns remains unresolved after nearly two years."
+   ],
+   "categories": []
+  },
+  "summary": "This PR reworks the log macro implementation to let LogTrace/LogDebug/LogInfo/LogWarning/LogError macros optionally accept a context/source object instead of only a bare category constant. The context object can carry a custom logger instance and a custom Format() hook, allowing subsystems (wallet, kernel) to attach metadata like wallet names or route messages to a non-global logger. It is fully backwards compatible: existing call sites are unaffected, and the PR is now largely limited to the macro/header rewrite plus tests and documentation, with the previously included wallet and kernel consumer code split into followup PRs (#30342, #30343).",
+  "problem": "libbitcoinkernel applications currently can only log to one implicit global logger, and wallet code uses a bespoke WalletLogPrintf() wrapper that lacks severity levels and forces info-level logging. This PR is meant to let kernel consumers control where output goes and let wallet/index code use the standard macros while attaching subsystem-specific context, addressed for maintainers wanting to remove global-state dependencies from the kernel library and for wallet code needing structured logging.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns holds a Concept NACK: the new API adds complexity, more call-site verbosity, and multiple-logger support that he considers a design error for libbitcoinkernel; he sees no actual benefit demonstrated by real consumers.",
+    "hodlinator and l0rinc have raised numerous implementation-level concerns (naming, macro hygiene, avoiding accidental interfaces, commit granularity) across many rounds; most individually resolved via pushes but the PR keeps evolving in response to new reviews.",
+    "No maintainer consensus that the underlying design (context/source objects, multiple logger instances) is wanted."
+   ],
+   "resolved_concerns": [
+    "hodlinator's original NACK over LogInfo accepting categories was addressed by reinstating #28318 restrictions (categories still forbidden for Info/Warning/Error).",
+    "Numerous style/test nits from l0rinc and hodlinator were implemented in later pushes (constexpr arrays, ReadDebugLogLines reuse, removing superfluous lambdas/inheritance).",
+    "Concerns about output-format regressions (missing [net:info] style prefixes) were fixed by restoring prior formatting behavior."
+   ],
+   "author_status": "active, still force-pushing and responding to review comments as recently as 2026-05-27"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No rebase needed, CI is currently green, and the macro implementation appears to have converged after extensive iteration addressing the last detailed round of reviewer feedback from hodlinator and l0rinc. Draft status reflects that this is part of a larger staged project (base of #30342, #30343) rather than a signal to avoid reviewing the code itself."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: ajtowns maintains an unresolved Concept NACK calling the change unnecessary complexity with no demonstrated benefit; author has engaged at length but the disagreement persists.",
+   "reason": "A maintainer-level blocking objection about the fundamental value of the change remains open despite extensive author engagement across nearly two years; meanwhile several other reviewers gave qualified or lukewarm concept support and numerous code-level nits were resolved.",
+   "evidence": [
+    "ajtowns (2026-03-04, 2026-03-05): 'Concept NACK... This PR isn't solving any problems other than its author's aesthetic objection to the current logging API' and disputes the value of multiple logger instances.",
+    "ryanofsky: repeatedly modified the PR to accommodate ajtowns' and hodlinator's specific objections (dropping category display, restoring #28318 restrictions) while maintaining the core context-argument feature.",
+    "hodlinator (2024-06-26): 'NACK' on an earlier revision over LogInfo category filtering risk; later (2025-04-12, 2026-03-04) gave detailed CHANGES_REQUESTED reviews that were incrementally addressed.",
+    "sedited and jonatack gave Concept ACK per the bot table, though jonatack expressed broader skepticism about the logging redesign direction.",
+    "l0rinc (2026-03-03): CHANGES_REQUESTED with many implementation-level concerns, largely resolved through subsequent pushes."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34778
+   ],
+   "enables": [
+    "#30342 (kernel: pass Logger instances to kernel objects)",
+    "#30343 (wallet: replace WalletLogPrintf with LogInfo)",
+    "referenced as groundwork for #33847 and #34374 kernel logging simplification efforts"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The PR rewrites src/util/log.h and src/logging.cpp/h, the shared logging macro implementation used across the whole codebase; it carries the Utils/log/libs label.",
+    "band": "P3",
+    "reason_tag": "unblocks #30342/#30343",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "The change is backwards compatible with no behavior change for existing call sites, and its main value is enabling followup PRs (#30342 kernel multi-logger support, #30343 wallet logging cleanup) rather than any direct user-facing fix. A maintainer (ajtowns) disputes that the underlying design solves a real problem, and no consumer of the new API has landed yet after nearly two years, which tempers its urgency despite the leverage argument for unblocking dependent work."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will ultimately accept the design at all given the unresolved maintainer Concept NACK; if rejected, dependent PRs #30342/#30343 would need rework.",
+   "Whether the recent lack of reviewer comments since 2026-03-05 despite continued force-pushes reflects reviewer fatigue/disengagement rather than satisfaction with the current state.",
+   "Exact current commit content given 36 force-pushes and heavy iteration; the provided patch may not fully reflect the very latest state."
+  ],
+  "card": "This long-running PR (open since Jan 2024, 36 force-pushes) reworks Bitcoin Core's logging macros so LogDebug/LogInfo/LogError etc. can accept an optional context object, letting subsystems attach metadata (e.g. wallet name) or direct output to a non-global logger. It is backwards compatible and mainly serves as a dependency for followup PRs #30342 (kernel multi-logger support) and #30343 (replacing WalletLogPrintf), neither of which has merged. The strongest evidence of its importance is that leverage for those dependents, but the core problem it solves is disputed: maintainer ajtowns maintains a long-standing Concept NACK arguing the added complexity has no demonstrated benefit, and no consumer of the new API has actually merged. Reviewability is Ready since CI is green and the design has stabilized after extensive iterative feedback from hodlinator and l0rinc, but Agreement is Disputed given the unresolved maintainer-level objection despite the author's extensive engagement."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

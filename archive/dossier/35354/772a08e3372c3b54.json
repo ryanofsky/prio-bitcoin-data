@@ -1,0 +1,128 @@
+{
+ "number": 35354,
+ "input_hash": "772a08e3372c3b54",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24267,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4398
+ },
+ "cost_usd": 0.047663300000000006,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop the node from silently ignoring or mishandling getcfilters/getcfheaders/getcfcheckpt requests for a block it just announced but hasn't yet built a filter for.",
+    "Fixes spurious peer disconnects/bans that BIP157 light clients (e.g. Neutrino, Kyoto) experience against Bitcoin Core nodes."
+   ],
+   "reviewability": [
+    "Ready to review: the design has just converged after extensive maintainer feedback and the latest push implements the agreed 'pause the peer' approach.",
+    "Author raised one open design question (whether to unify this with other early-return cases in ProcessMessages) that reviewers have not weighed in on yet, but it is not blocking."
+   ],
+   "agreement": [
+    "Positive: ajtowns and mzumsande both engaged substantively and steered the design from an index-level fix toward a net_processing-level 'pause this peer's message processing' approach, which the author implemented (ajtowns, mzumsande).",
+    "No standing objection: earlier concerns (index code should not own this, blocking msghand thread, dropping vs deferring, ordering) were each addressed by rework or discussion.",
+    "mzumsande independently confirmed the bug scenario and supported deferring/syncing the validation queue rather than doing nothing."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes a real protocol-compliance bug (violates BIP157's stated getcfilters behavior) that causes legitimate light-client peers to be disconnected or banned, degrading network topology for BIP157 users.",
+      "Author states the effect on full-node-to-full-node relay is negligible; the benefit is concentrated in light-client interoperability rather than core network health, and benchmarks show filter construction is a small (~10%) fraction of block-connect time."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "Not a member in the current diff: earlier revisions touched BaseIndex/BlockFilterIndex directly, but per reviewer request (mzumsande) the race-detection logic was moved entirely into net_processing.cpp, and the visible diff no longer changes index code."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a race where Bitcoin Core advertises a newly connected block before its compact filter (BIP157) has been constructed, causing getcfilters/getcfheaders/getcfcheckpt requests for that block to fail or go unanswered. The current approach detects when a request is racing the filter index and 'parks' the requesting peer, pausing further message processing from it until the validation-interface queue drains and the filter becomes available, then serves the original request in order. The PR went through several redesigns (index-level wait primitive, then deferred-response-in-SendMessages, now pause-the-peer) driven by maintainer feedback, and the visible diff no longer touches index code.",
+  "problem": "BIP157 light-client software (e.g. Neutrino, Kyoto) requests compact filters immediately after seeing a new block header; if the node hasn't yet built the filter, current code either silently drops the request or answers incorrectly, which peer software treats as misbehavior and disconnects or bans the node. This does not affect full nodes but breaks connectivity for light clients relying on this node for filters.",
+  "discussion": {
+   "open_concerns": [
+    "Author's own open question: whether to generalize the new 'pause this peer' pattern into a shared mechanism alongside other partial-processing cases (large getdata continuation, orphan-tx resolution), left for reviewer input.",
+    "Whether a timeout should bound how long a peer stays parked if the race window is unexpectedly wide (author notes stress-test benchmarks suggest bounding might be prudent but isn't needed today)."
+   ],
+   "resolved_concerns": [
+    "mzumsande's objection that race handling shouldn't live in index code: addressed by moving logic into net_processing and reverting index-side additions.",
+    "ajtowns's suggestion to pause the peer's whole message stream rather than defer-and-continue: adopted by the author in the latest rework.",
+    "Confusion over whether BIP152 compact-block relay could trigger this race (it can't): clarified between author and mzumsande, no longer a concern.",
+    "Concern about growing an unbounded list of pending requests: capped at MAX_PENDING_CFILTER_REQUESTS in an earlier revision, later replaced by the single-pending-request pause design."
+   ],
+   "author_status": "active, most recent force push 2026-08-27 implementing the maintainer-suggested pause design and adding an IBD guard"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The design has converged after multi-week back-and-forth, and the latest push implements the pause-the-peer approach that ajtowns and mzumsande steered toward. No known open blocker would invalidate a review of the current code, though the author's own suggestion to unify this pausing pattern with other cases is an open, non-blocking design question."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: ajtowns and mzumsande jointly redirected the design and the author implemented their suggestion, no unresolved objection remains",
+   "reason": "Multiple maintainers engaged substantively across months, raising and then seeing resolved several design objections (index-level vs net_processing-level, blocking-wait vs pause vs defer, ordering guarantees). The current state reflects convergence, not lingering disagreement.",
+   "evidence": [
+    "mzumsande: 'I don't think this should be handled on the index level... I would prefer an approach where net_processing dealt with this directly' \u2014 addressed by moving logic out of the index.",
+    "ajtowns: 'I think that's very unlikely... I would say that by pausing that peer until we can reply to its request we avoid mixing handling' \u2014 adopted in the rework.",
+    "randomlogin (author): 'Yes, all three cbf messages should be handled the same way' after ajtowns questioned why only getcfilters was covered."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Better interoperability for BIP157 light-client implementations (Neutrino, Kyoto) connecting to Bitcoin Core nodes",
+    "Referenced by open issue #29655 (CFilters reject and disconnect peers with a valid block hash) which this PR aims to close"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies net_processing.cpp message handling for GETCFILTERS/GETCFHEADERS/GETCFCHECKPT and peer message-processing order; carries the P2P label.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a spec-compliance bug (BIP157) that causes legitimate light-client peers to be disconnected or banned, per the linked issue #29655 and corroborating reports from lightninglabs/neutrino and bnoc.xyz. Author states it 'does not critically affect core nodes, it breaks the network topology for BIP157 clients,' so the harm is real but bounded to a specific peer population rather than core network health or fund safety."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Earlier revisions added BaseIndex::WaitForRacingWrite and touched BlockFilterIndex, but per mzumsande's review request the logic was moved entirely into net_processing.cpp; the current diff (net_processing.cpp, test file, CMakeLists) does not modify index code.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No index-area files are touched in the current diff, so this PR does not belong to the indexes category as currently written."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The description and file list in the prompt reference BaseIndex::WaitForRacingWrite and index changes, but the actual diff and latest discussion show the logic moved out of index code into net_processing; assessed against the diff as the more reliable source.",
+   "Whether the still-open design question about unifying pause patterns will require another significant rework before merge is unclear.",
+   "Exact current reviewability given the odd signal that author_silent_days=21 while last_author_activity (2026-08-27) is more recent than last_reviewer_activity (2026-08-21); treated the more recent author activity as controlling."
+  ],
+  "card": "This PR fixes a race where Bitcoin Core advertises a block before its compact filter (BIP157) is built, causing getcfilters/getcfheaders/getcfcheckpt requests to fail and light-client peers (Neutrino, Kyoto users) to be disconnected or banned in violation of the BIP157 spec, per issue #29655 and outside reports. After months of design iteration with ajtowns and mzumsande, the author landed on pausing message processing for the affected peer until the validation queue drains and the filter becomes available, then serving the request in order; the diff is now confined to net_processing.cpp and tests, having moved earlier index-level changes out per reviewer request. Agreement is positive: maintainers actively redirected and then endorsed the current design, with no standing objection. Review is ready now, though one non-blocking design question (whether to generalize this peer-pausing pattern) remains open. The problem is real but modest in scope, affecting light-client interoperability rather than core node health, security, or fund safety."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

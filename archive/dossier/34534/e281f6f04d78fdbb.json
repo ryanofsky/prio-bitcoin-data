@@ -1,0 +1,196 @@
+{
+ "number": 34534,
+ "input_hash": "e281f6f04d78fdbb",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8561,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6476
+ },
+ "cost_usd": 0.042347300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets users and external wallet software manually set and remove prune locks via RPC (setprunelock/listprunelocks) and a new -prunelockheight startup option.",
+    "Protects blocks needed for future wallet rescans on pruned nodes, and lets locks be cleaned up when no longer needed."
+   ],
+   "reviewability": [
+    "Ready. Active review through September 2026 with no open mechanical blockers."
+   ],
+   "agreement": [
+    "Positive with two approvals for stated reasons (sedited) and a maintainer explanation that convinced an initial skeptic (achow101, stickies-v).",
+    "A fresh usefulness objection is open but is about value not a concrete harm, so it does not block merge (andrewtoth)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it adds two new RPCs plus a startup option that let pruned-node operators and external wallets manage which blocks survive pruning, a concrete pain point achow101 confirmed exists for wallet rescans.",
+      "Not P1 since no correctness or security issue is at stake and demand outside Core's own wallet is not yet demonstrated by a named external consumer."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because the feature extends the existing pruning/prune-lock mechanism (block storage on disk) to be externally controllable, which the category explicitly covers.",
+      "Benefit is the same rescan-protection use case as rpc; value is real but usage outside the wallet itself remains speculative."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Unranked because the release notes and doc note are secondary to the RPC/init feature change, not the primary subject of the PR."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Unranked because the -prunelockheight startup option's point is pruning/storage behavior, not generic argument-handling infrastructure."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Unranked because the only touch to validation-adjacent code is a getter (GetPruneLocks) that removes a friend-class access pattern without changing consensus or chainstate validity logic."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds manual prune-lock management: two new RPCs (setprunelock, listprunelocks) modeled on setban/listbanned, a new -prunelockheight startup option, and a GetPruneLocks() accessor on BlockManager. It lets users and external wallets protect specific block ranges from pruning and later release them, reusing the existing internal prune-lock mechanism without persisting locks across restarts.",
+  "problem": "On a pruned node, blocks a wallet will need for a future rescan can be pruned away while the wallet is unloaded; there is currently no way for a user or external wallet software to protect or later release specific block ranges via RPC. achow101 confirms this is a real gap both for Core's own wallet and for external wallets that use Core as a backend.",
+  "discussion": {
+   "open_concerns": [
+    "andrewtoth (2026-09-09) questions whether pruneblockchain + -prune=1 already achieves the same effect and finds the motivation not fully compelling; author replied 2026-09-13 with a detailed rebuttal, no further response yet.",
+    "rkrux suggested marketing/documentation should better explain use cases and a wallet-side functional test exercising the scenario; author has partially responded (added release notes, a test) but the broader marketing ask is not fully addressed.",
+    "Earlier: whether locks should eventually persist across restarts (author opted for a startup-option approach instead, still open as future work)."
+   ],
+   "resolved_concerns": [
+    "luke-jr's RPCResult should stay an Object for extensibility: addressed by reverting to Object per maflcko's suggestion.",
+    "bvbfan/sedited's suggestion to copy prune locks rather than hold cs_main while iterating: implemented via unordered_map copy construction.",
+    "sedited's question about the GetPruneLocks helper's purpose: explained (avoids friend-class direct access) and accepted.",
+    "rkrux's questions about missing release notes and about future-height locks: release notes added; future-height locking kept intentionally with docs added."
+   ],
+   "author_status": "active, replied 2026-09-13 to the most recent open question"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blockers: CI passes, no rebase needed, and the author has remained active through September 2026, most recently responding to a reviewer question on 2026-09-13. Nothing known is about to invalidate the current code."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive, with two full ACKs from sedited and concept support from stickies-v/achow101, but andrewtoth's recent doubt about whether the feature is needed at all remains unanswered by other reviewers.",
+   "reason": "Multiple reviewers engaged substantively and the author addressed concrete code concerns (luke-jr, bvbfan, sedited, rkrux) with fixes; sedited gave two ACKs including a re-ACK after later changes. The one standing objection, from andrewtoth, is about the feature's necessity rather than a concrete harm from merging, and per the rubric that does not itself block the PR, but it is unresolved and echoes an earlier round of the same skepticism from stickies-v that was only settled by achow101's explanation.",
+   "evidence": [
+    "sedited: 'ACK 9465be6...' and later 'Re-ACK 9fa4953...'",
+    "achow101: 'This is generally useful in the wallet and for any wallets that leverage Bitcoin Core' (resolved stickies-v's initial doubt)",
+    "stickies-v: 'Concept ACK. Enabling wallets to build on top of a pruned node via RPC seems enough of a use case to move this forward.'",
+    "andrewtoth (2026-09-09): 'I'm not sure I find the motivation compelling... this way a user can have all their wallets sync...' \u2014 author replied 2026-09-13, no follow-up yet.",
+    "luke-jr's CHANGES_REQUESTED and bvbfan's performance suggestion were both addressed in later pushes."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "External wallet software and indexes to reliably use a pruned Bitcoin Core node as a backend by explicitly protecting needed block ranges",
+    "Follow-on discussion of a possibly-persisted prune-lock design was deferred in favor of this manual/-prunelockheight approach"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a release-notes file and doc clarifications accompany the RPC/init feature; documentation is not the primary subject of the change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per the docs category rule, a code change that also updates its own docs belongs to its own area, not docs."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Touches block/undo storage and the pruning mechanism (blockstorage.h, GetPruneLocks), and the category explicitly covers 'block and undo file storage on disk, and pruning.'",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Extends the existing prune-lock system (originally added for indexes to survive IBD, per fjahr's own #21726) to be externally controllable, which achow101 says addresses a real gap for wallets and external index-like consumers on pruned nodes. Not higher because no concrete data-integrity or performance problem is fixed, and andrewtoth still questions whether the same outcome is reachable with pruneblockchain."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds two new RPCs (setprunelock, listprunelocks) and matches the RPC/REST/ZMQ label; this is the PR's primary surface.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "New RPCs give external software fine-grained control over pruning that currently doesn't exist, addressing a stated pain point ('blocks necessary for rescanning... may be pruned' per the PR description) that achow101 and stickies-v both endorsed as a real use case. Not P1: no compatibility break, no security exposure, and demand from an actual external wallet implementer is still unconfirmed (andrewtoth's live objection, sparrow docs cited as only 'hands-off' evidence)."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The -prunelockheight startup option touches init.cpp argument handling, but its purpose is pruning/storage behavior specific to blockstorage, not generic settings infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per the utils rule that a settings change whose point is one area's behavior belongs to that area (here, indexes/pruning), not utils."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Adds a GetPruneLocks() getter on BlockManager to replace direct friend-class access from validation.cpp, but does not change any acceptance, chainstate, or consensus logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per the validation rule for refactors that pass through validation-adjacent files without changing validation behavior; the substantive behavior change here is about pruning/storage, covered under indexes."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether external wallet demand is real is disputed within the thread itself (andrewtoth vs achow101/stickies-v); no named external implementer has committed to using it.",
+   "Whether the eventual design should add lock persistence across restarts is left as an open question, which could still change the RPC/init surface later.",
+   "Category placement between indexes and validation for the GetPruneLocks getter is a judgment call since it touches src/node/blockstorage.h, which both hints list."
+  ],
+  "card": "This PR adds setprunelock/listprunelocks RPCs and a -prunelockheight startup option so users and external wallet software can manually protect or release block ranges from pruning, extending Bitcoin Core's existing internal prune-lock mechanism. The problem is that a pruned node can prune blocks a wallet needs for a future rescan while that wallet is unloaded; achow101 confirms this is a real gap for both Core's wallet and external wallets using Core as a backend. Review is active and mergeable with no blockers: sedited has given two full ACKs and stickies-v/achow101 supplied concept support, though andrewtoth raised a fresh, unresolved doubt on 2026-09-09 about whether pruneblockchain already covers the same need, which the author rebutted on 2026-09-13 without further reply yet. The change spans rpc (primary surface, new RPCs) and indexes (pruning/storage mechanism it builds on); it does not substantively touch validation or utils despite adjacent file paths. No hard dependency on other PRs, though it succeeds a previously closed attempt (#19463) and conflicts trivially with an unrelated open PR (#34486)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

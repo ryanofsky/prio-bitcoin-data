@@ -1,0 +1,98 @@
+{
+ "number": 36133,
+ "input_hash": "89115e0776c21dc4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:00+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28560,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2060
+ },
+ "cost_usd": 0.029145,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Retain multipath descriptor strings in the wallet to expose them via RPC",
+    "Enables hardware wallet multisig registration via BIP 388 and HWI"
+   ],
+   "reviewability": [
+    "The branch has merge conflicts and author notes concept review is needed before code review"
+   ],
+   "agreement": [
+    "Concept NACKish due to architectural objection against storing multipath strings in wallet records and modifying Parse (achow101)",
+    "Concept ACK on supporting multipath descriptor export (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it enables hardware wallet BIP 388 multisig registration without manual descriptor reconstruction",
+      "Significantly improves security and usability for multisig setups using hardware signing devices"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies descriptor parsing and the wallet to preserve multipath descriptor representations. When multipath descriptors are imported or created for receive and change pairs, a new database record tracks the original multipath string and links it to the resulting expanded single-path descriptors, exposing it in `getaddressinfo` and `listdescriptors`.",
+  "problem": "Bitcoin Core expands multipath descriptors into separate receive and change descriptors upon import or wallet creation, discarding the multipath form. External tools like HWI and hardware wallets requiring BIP 388 multisig registration need the unified multipath descriptor, forcing users into error-prone manual reconstruction.",
+  "discussion": {
+   "open_concerns": [
+    "achow101 raised a Concept NACKish objecting to storing multipath strings in the wallet database and having Parse emit them, arguing that multipath descriptors should instead be reconstructed on the fly by walking descriptor objects in parallel"
+   ],
+   "resolved_concerns": [
+    "Preventing ambiguous multipath mappings when single-path descriptors overlap between multiple imported multipath descriptors",
+    "Consistently formatting hardened derivation indicators with 'h' across expanded and multipath strings"
+   ],
+   "author_status": "active; engaging with feedback, but PR has merge conflicts and is marked draft awaiting conceptual consensus"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts against master and is also marked draft while architectural approach discussion remains open."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: achow101 opposes storing multipath strings in the DB and altering Parse, favoring in-memory object reconstruction",
+   "reason": "achow101 expressed a Concept NACKish against storing multipath strings as separate database records and having `Parse` output string representations, arguing that the wallet should not store or rely on multipath strings and that descriptors should instead be reconstructed dynamically from descriptor objects. The author defended the parser-level capture approach as preserving original intent without requiring reverse reconstruction.",
+   "evidence": [
+    "jeanpablojp gave Concept ACK: 'Concept ACK... The matching approaches in #36075 work off descriptors a wallet already has...'",
+    "achow101: 'Concept NACKish... My suggestion was not to store an extra record, but rather an extra field in WalletDescriptor which contains the ids of the other descriptors in the multipath. Reconstructing the multipath can be done by doing a pairwise traversal in Descriptor::ToString()... Parse should never return strings.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36230
+   ],
+   "enables": [
+    "HWI BIP 388 descriptor registration support (#841, #842)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds database records and RPC fields to the wallet, and modifies descriptor parsing for wallet key management.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Enables exporting multipath descriptors directly from bitcoind RPCs, a prerequisite for modern hardware signer multisig registration under BIP 388. Sjors notes: 'HWI recently added a registerdescriptor command... which some hardware wallets require in order to (more safely) support multisig... The only catch is that we need to provide a multipath descriptor... This PR makes that possible.' Resolves user friction and enhances multisig signing safety across the ecosystem."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #36133 allows Bitcoin Core wallets to retain and expose multipath descriptors (e.g. BIP 389 receive/change combinations) via RPC methods like getaddressinfo and listdescriptors. Currently, Core permanently expands multipath descriptors into separate single-path descriptors, preventing users and tools like HWI from easily retrieving the multipath string needed for BIP 388 hardware wallet multisig registration. The change adds a dedicated database record and extends descriptor parsing, but achow101 has raised a Concept NACKish arguing for reconstructing multipath descriptors in memory from descriptor objects rather than storing strings in the DB. The PR is in draft and currently needs a rebase."
+ },
+ "raw_text": null
+}

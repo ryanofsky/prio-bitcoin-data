@@ -1,0 +1,106 @@
+{
+ "number": 35358,
+ "input_hash": "baeb32308b623813",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10331,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4111
+ },
+ "cost_usd": 0.032292299999999996,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a safety check so the wallet rejects a signed PSBT if the external signer silently changed an output or used an output-non-committing sighash.",
+    "Protects users of hardware/external signers from a compromised or buggy signer altering where funds go."
+   ],
+   "reviewability": [
+    "Paused: a maintainer says this work has already been folded into a different PR (#36114) that revamps the mock signer.",
+    "Reviewing the current diff is likely wasted effort since the approach is being superseded."
+   ],
+   "agreement": [
+    "Concept accepted but lukewarm: achow101 says 'Concept OK I guess' while noting external signers are already trusted so extra checks add limited value (achow101).",
+    "A technical question about allowing ANYONECANPAY sighash was raised and answered without pushback (junbyjun1238, achow101).",
+    "No blocking objections, but the PR was absorbed into #36114 rather than merged on its own (Sjors)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a post-signing validation step in ExternalSigner::SignTransaction that compares the PSBT returned by an external signer against the original PSBT sent to it, rejecting the reply if outputs (amount, script, count) were altered or if an unsafe sighash type (one that does not commit to all outputs) was used. It ships mock-signer test infrastructure to simulate a rogue signer and functional tests exercising each corruption case. The author notes the added tests were 'partially vibe-coded.'",
+  "problem": "A compromised or buggy external signer could return a PSBT with silently altered outputs or a sighash type that does not commit to all outputs, potentially sending funds to the wrong destination without the wallet noticing. Users relying on hardware/external signers currently have no automated defense against this and would need to manually verify the signed PSBT, which is not convenient via RPC.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "junbyjun1238 asked whether allowing SIGHASH_ALL|ANYONECANPAY as 'safe' is correct since it lets other inputs be added; achow101 explained this is fine because the wallet's own inputs and outputs remain committed, resolving the question without pushback."
+   ],
+   "author_status": "silent since creation (117 days); Sjors states the work was absorbed into #36114"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Superseded by #36114",
+   "reason": "Sjors commented on 2026-08-28 'I absorbed this into #36114, which revamps the external signer mock in a way that makes this stuff easier to test,' indicating the approach here is being replaced by a different PR. Reviewing the current code risks wasted effort since the mock and possibly the checks will land differently in #36114."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "achow101 gives a lukewarm 'Concept OK I guess,' noting the project doesn't usually validate external signer output since signers are already trusted; a sighash-safety question from junbyjun1238 was resolved by achow101 without objection.",
+   "reason": "No blocking objection exists, but the strongest maintainer comment frames the whole feature as marginally useful ('there isn't much we can do about it' if a signer is malicious), and the work has since been folded into another PR rather than merged as-is.",
+   "evidence": [
+    "achow101: 'Concept OK I guess... we don't really do checks on their output'",
+    "junbyjun1238 raised an ANYONECANPAY safety question, resolved by achow101's explanation",
+    "Sjors: 'I absorbed this into #36114, which revamps the external signer mock'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Conceptually feeds into #36114 (wallet: harden external signer psbt processing, revamp mock), which absorbed this PR's approach"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "The change is inside external_signer.cpp's SignTransaction path used by wallet RPCs (send, sendall, bumpfee, walletprocesspsbt) and is about fund-safety validation of signer output, squarely wallet territory per the category's fund-safety framing.",
+    "band": "P3",
+    "reason_tag": "fund safety",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Addresses a plausible fund-safety hazard (a rogue or buggy external signer altering outputs or using a non-output-committing sighash), which the wallet category treats as top priority in the abstract. However, a maintainer (achow101) downplays the practical value since external signers are already assumed trusted and 'there isn't much we can do about it' if one is malicious, and the work has since been absorbed into a competing PR (#36114) rather than advanced on its own, suggesting the project does not see this as urgent."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The functional test changes touch rpc_signer.py, but the substantive change is validation logic inside the wallet's external-signer signing path, not a change to any RPC method's interface, arguments, or return semantics; existing RPCs are unchanged.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC interface or machinery is modified; the RPC test file is only exercising the underlying wallet/signer logic, so this does not belong to the rpc category per its 'not rpc: the behavior an RPC merely exposes' exclusion."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether Sjors' 'absorbed into #36114' means this PR will be closed outright or whether brunoerg might still push updates here; the discussion does not show a closure action.",
+   "Whether the project considers the sighash/output invariant check valuable enough to land in some form, given achow101's mixed signal ('Concept OK I guess')."
+  ],
+  "card": "This PR adds a check in ExternalSigner::SignTransaction that rejects a signed PSBT if the external signer altered any output or used a sighash type that doesn't commit to all outputs, guarding against a compromised or buggy hardware/external signer silently redirecting funds. It ships mock-signer infrastructure and functional tests simulating several rogue-signer scenarios, though the author calls the tests 'partially vibe-coded.' Maintainer achow101 gave a lukewarm 'Concept OK I guess,' noting external signers are already assumed trusted so such checks have limited marginal value, and resolved a question about whether allowing ANYONECANPAY sighash is safe. As of 2026-08-28, reviewer Sjors says the work was absorbed into a different open PR (#36114) that revamps the signer mock, making this PR's current form likely superseded and low priority to review as-is. No dependency blocks it formally, but #36114 has effectively taken over its scope."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

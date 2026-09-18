@@ -1,0 +1,163 @@
+{
+ "number": 35833,
+ "input_hash": "d221933e59151ad4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:25+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21526,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2907
+ },
+ "cost_usd": 0.02704575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent untrusted input from injecting fake log lines into debug.log",
+    "Escape embedded newlines centrally while keeping intentional multiline logs readable"
+   ],
+   "reviewability": [
+    "Ready",
+    "Clean diff with author having addressed reviewer requests to escape newlines centrally"
+   ],
+   "agreement": [
+    "Strong support for central newline escaping over per-subsystem sanitizing (ryanofsky, polespinasa, achow101)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it eliminates log injection across the entire node by escaping newlines centrally",
+      "Protects log monitoring and node operators from spoofed error messages without breaking valid UTF-8"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because it does not alter RPC interfaces or logic",
+      "Only adds a functional test verifying rejected RPC methods cannot inject fake log lines"
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because wallet behavior is unchanged",
+      "Only updates multiline wallet log calls to use SplitLines after wallet-name restriction commits were dropped"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P4 because it only adds unit and functional test coverage for the logging change rather than altering test infrastructure"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies BCLog::LogEscapeMessage to escape newline characters (as \\x0a) along with other control characters, preventing untrusted input (such as rejected RPC method names or wallet names) from spoofing log lines. It adds a util::SplitLines helper and applies it to existing intentional multiline log calls so legitimate multi-line messages remain readable across separate log entries.",
+  "problem": "Unauthenticated or restricted RPC callers and wallet creators can supply strings containing newlines that are logged verbatim, allowing attackers to forge arbitrary log lines (like ConnectBlock errors or fake security warnings) that mislead log parsers and node operators.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Initial versions used per-subsystem string sanitization; reviewers (ryanofsky, maflcko, davidgumberg) recommended escaping newlines centrally in BCLog::LogEscapeMessage.",
+    "Wallet name validation was separated out to leave name restrictions to PR #35768, keeping this PR strictly focused on logging."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author implemented the consensus approach recommended by reviewers, tests are passing, and mergeable state is clean."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on central logging newline escaping; ryanofsky and polespinasa approved earlier revisions and suggestions were applied.",
+   "reason": "Reviewers agreed that escaping newlines globally in the logging framework is cleaner and safer than ad-hoc sanitization at individual call sites. The latest rebase directly addresses ryanofsky's feedback.",
+   "evidence": [
+    "ryanofsky approved with 'Thanks for picking up the escaping approach, this seems simpler than the per-site sanitizing'",
+    "achow101 and polespinasa provided ACKs and testing on earlier iterations",
+    "maflcko and davidgumberg favored rejecting/escaping newlines in logging"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35768"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies logging framework escaping logic in src/logging.cpp and adds SplitLines in src/util/string.h.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Prevents log injection vulnerabilities across the codebase. Centralized escaping in LogEscapeMessage ensures any untrusted input reaching the logger cannot forge log lines."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not change RPC implementation code; only updates a functional test verifying rejected RPC methods cannot inject fake lines.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "RPC method whitelist test coverage is added, but no RPC logic or interfaces are touched."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Wallet commits were dropped from the PR; only adjusts call sites in src/wallet/ to use SplitLines for multiline logs.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Call sites in wallet.cpp and walletdb.cpp are mechanically updated to maintain readable multiline log messages; wallet logic and naming rules are unchanged."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Only adds unit tests for string and log escaping helpers, not modifying test runners or framework infrastructure.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests added here are standard coverage for util additions and do not affect the test framework."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a log injection vulnerability where newlines in untrusted inputs (such as rejected RPC method names or wallet names) could create fake log lines in debug.log. It escapes newlines as \\x0a inside the central BCLog::LogEscapeMessage helper while preserving intentional multiline messages using a new SplitLines utility. The approach has strong reviewer consensus over earlier per-subsystem string sanitizing attempts. It is ready for review and merges cleanly."
+ },
+ "raw_text": null
+}

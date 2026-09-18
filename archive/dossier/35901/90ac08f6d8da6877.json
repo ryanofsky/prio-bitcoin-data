@@ -1,0 +1,119 @@
+{
+ "number": 35901,
+ "input_hash": "90ac08f6d8da6877",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17829,
+  "cache_creation_input_tokens": 14063,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4869
+ },
+ "cost_usd": 0.05975275,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix a wallet rescan bug where a transaction paying a look-ahead key is silently missed if a later transaction in the same block expands the key pool.",
+    "Affects rescanblockchain, importdescriptors, and wallet migration/restore paths, leaving balances wrong with no warning that a second rescan is needed."
+   ],
+   "reviewability": [
+    "Needs rebase: labeled Needs rebase and the PR itself notes it must move into ChainScanner::ScanBlock once #34681 merges, which it now has.",
+    "An open design question (whether to switch to a retry-until-no-change algorithm) is still being evaluated by the author, so the current diff may not be final."
+   ],
+   "agreement": [
+    "Concept ACK from achow101 and molnard, tested ACK (stale) from jeanpablojp, confirming the bug is real and the initial fix works.",
+    "molnard found an unresolved gap (spends of a recovered parent tx can still be missed); author declined to fix it here and documented it as a follow-up, an agree-to-disagree resolution.",
+    "jeanpablojp then found a further, broader gap (missed receives with no spend involved) and posted a working alternative algorithm; author is still analyzing it as of the last activity (molnard, jeanpablojp, achow101)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it produces silently wrong balances during rescan across multiple wallet operations (rescanblockchain, importdescriptors, restorewallet, migration watchonly attach), which is a real user-visible reliability defect though narrow in trigger conditions.",
+      "Does not touch fund safety in the sense of losing keys, but a wrong balance with no warning is a meaningful correctness problem for affected users."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug in CWallet::ScanForWalletTransactions where a transaction paying a key just outside the descriptor wallet's look-ahead pool is missed if a later transaction in the same block triggers a pool-expanding TopUp. The fix tracks the last vtx position where the pool expanded and re-scans the prefix before it, iterating until the prefix stabilizes. It ships with a new functional test covering loadwallet rescan, importdescriptors full rescan, and a two-level cascade scenario.",
+  "problem": "Users of rescanblockchain, importdescriptors, restorewallet, and wallet migration can end up with wrong balances after a rescan, with no indication that a second rescan would fix it, because the wallet's look-ahead pool can expand mid-block in an order that hides an earlier payment.",
+  "discussion": {
+   "open_concerns": [
+    "molnard: a parent tx paying a look-ahead key followed by a spend of that output can leave the parent's output misclassified as unspent; author acknowledged as a real gap but scoped it out as a follow-up.",
+    "jeanpablojp (2026-08-29): found a further case where a plain receive (no spend involved) past the last recovered expansion is still missed, and proposed a retry-until-no-change algorithm that avoids the gap and benchmarks faster in some cases; author is still evaluating this as of the latest activity."
+   ],
+   "resolved_concerns": [
+    "jeanpablojp's initial concern about the extra pass causing spurious -walletnotify re-fires and over-broad re-scanning was addressed by bounding the re-scan to the last expansion position rather than the whole block.",
+    "achow101's nit about using the for-loop bound instead of an explicit break was implemented.",
+    "molnard's suggestions to skip collect_range_ends() when SyncTransaction() returns false, use std::move, and consolidate the two loops into one were all implemented."
+   ],
+   "author_status": "active, currently analyzing jeanpablojp's alternative algorithm before deciding next steps"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is labeled Needs rebase, and its own description states the fix must move into ChainScanner::ScanBlock once #34681 (which refactors ScanForWalletTransactions) merges; that PR has since merged, so the current diff targets code that has moved. There is also an open, unresolved question about switching to a different (more complete) algorithm that the author is actively evaluating."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept ACKs from achow101 and molnard and a tested ACK from jeanpablojp confirm the core bug and fix, but jeanpablojp's 2026-08-29 finding of a further missed-transaction case, with a proposed alternative fix, is unresolved and the author has not yet decided how to proceed.",
+   "reason": "Two reviewers raised real correctness gaps in the chosen approach. The first (molnard, parent/child spend) was resolved by the author explicitly scoping it out as a documented follow-up, an agree-to-disagree. The second (jeanpablojp, plain missed receive past scan_end) is newer, broader, and still under active author review with no resolution yet, keeping the PR at Disputed rather than Positive w/ caveats.",
+   "evidence": [
+    "jeanpablojp: 'On 1d9de0e6 there is a second case the prefix does not reach... Master misses A and B both, and the full re-walk this branch started with finds all three.'",
+    "author (pablomartin4btc): 'I'm analysing how your fix behaves against the current state of the PR and @molnard's pending follow-up... Will report back soon.'",
+    "molnard: 'Concept ACK. The bug is valid, but I think the prefix-only rescan leaves the following case unresolved.'",
+    "achow101: 'Concept ACK-ish... every time we find a transaction with an output in our lookahead, we end up having to scan that block twice.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new functional test wallet_rescan_intrablock_ordering.py pins wallet rescan behavior for a specific wallet bug; per the category definition, tests that pin one area's behavior belong to that area, not test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the test is area-specific (wallet rescan correctness), not a change to test framework, runner, fuzzing, or CI machinery."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Wallet label present; the change is entirely inside CWallet::ScanForWalletTransactions and directly affects rescanblockchain, importdescriptors, restorewallet, and migration correctness.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes a real, demonstrated defect where the wallet silently shows a wrong balance after a rescan with no indication a second rescan is needed, confirmed independently by jeanpablojp reproducing and testing it. It falls short of P1 because the trigger requires a specific mid-block key-derivation ordering that is uncommon, and discussion shows the current fix itself still has known gaps (molnard's parent/child spend case, jeanpablojp's plain-receive case), meaning the underlying problem is not yet fully understood or solved even by this PR's own contributors."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the author will adopt jeanpablojp's alternative retry-until-no-change algorithm, which would materially change the diff under review.",
+   "Exact current mergeability against #34681 (merged 2026-09-14) since the PR predates that refactor landing; the described need to move the fix into ChainScanner::ScanBlock is not yet reflected in the diff shown.",
+   "Whether the newly found gaps (parent/child spend, plain missed receive) are considered blocking enough by maintainers to hold the PR, versus acceptable as documented follow-ups."
+  ],
+  "card": "This PR fixes a real wallet bug where ScanForWalletTransactions can silently miss a transaction paying a look-ahead key if a later transaction in the same block expands the descriptor pool, leaving rescanblockchain, importdescriptors, restorewallet, and wallet-migration users with a wrong balance and no warning a second rescan is needed. jeanpablojp independently reproduced and confirmed the bug and the fix, and achow101 and molnard gave concept ACKs, but molnard and later jeanpablojp both found further missed-transaction cases the current prefix-rescan approach does not cover, with jeanpablojp proposing a more complete retry-until-no-change algorithm that the author is still evaluating as of the latest activity. The PR is labeled Needs rebase and its own description says it must be moved into ChainScanner::ScanBlock once #34681 lands, which has since merged, so the current diff likely needs rework before review is worthwhile. Priority within wallet is P2: a genuine, confirmed correctness bug affecting several important rescan paths, but triggered by a narrow ordering condition and not yet a settled fix even among its reviewers."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

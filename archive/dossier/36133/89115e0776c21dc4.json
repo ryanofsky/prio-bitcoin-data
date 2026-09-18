@@ -1,0 +1,108 @@
+{
+ "number": 36133,
+ "input_hash": "89115e0776c21dc4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26448,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3797
+ },
+ "cost_usd": 0.0468393,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets the wallet store the original multipath (BIP389) descriptor alongside the receive/change descriptors it expands into.",
+    "This lets HWI's new registerdescriptor command build the BIP388 wallet policy hardware wallets need for safer multisig signing."
+   ],
+   "reviewability": [
+    "Paused: the author explicitly says this needs conceptual agreement before deep code review, and a maintainer disputes the core approach.",
+    "Also stacked on an unmerged PR (#36230) and needs rebase, so the diff itself will keep moving."
+   ],
+   "agreement": [
+    "Disputed: achow101 gives a Concept NACKish, arguing Parse should never produce strings and multipath should be reconstructed from descriptor objects, not stored as a record (achow101).",
+    "jeanpablojp gave a Concept ACK and raised several implementation questions, most since addressed by force-pushes (jeanpablojp).",
+    "Author (Sjors) is actively engaging with achow101's objection but the two have not converged on an approach as of the latest comments."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it enables a concrete, real hardware-wallet safety feature (BIP388/registerdescriptor multisig registration via HWI) that existing users of multisig hardware wallets would benefit from, per the linked HWI PRs.",
+      "It does not touch fund safety of existing wallets (no upgrade path for old wallets) and is blocked on unresolved architectural disagreement, so it is not category-critical yet."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new wallet database record that stores the original BIP389 multipath descriptor string alongside the receive and change descriptors that the wallet expands it into on import or creation, and exposes it via getaddressinfo, listdescriptors, and exportwatchonlywallet. It touches descriptor.cpp/h to make Parse optionally return the normalized public multipath string, plus several small parser refactors that support that. It does not change existing wallets' behavior; only newly imported or created multipath descriptors get a record.",
+  "problem": "Hardware wallets increasingly require a multipath (BIP389) descriptor, converted internally to a BIP388 wallet policy, to safely register and later verify multisig setups via HWI's new registerdescriptor command. Bitcoin Core's wallet currently discards the multipath form irreversibly on import, so it cannot supply the string HWI and hardware wallets need, which affects users doing multisig with hardware signers.",
+  "discussion": {
+   "open_concerns": [
+    "achow101 (maintainer): Concept NACKish on the core design\u2014prefers reconstructing the multipath string on the fly from descriptor objects (a pairwise ToString-style traversal) instead of storing a record derived from Parse producing strings; unresolved as of the latest exchange, with both sides restating their position.",
+    "achow101: multipath descriptors are not inherently receive/change pairs and can have more than two paths; code should not conflate the two concepts (author says this was adjusted).",
+    "jeanpablojp: ambiguity when one descriptor could belong to two different multipath records (e.g. <0;1> and <0;2> sharing an expansion); author judged this unrealistic and prevented it in a later push.",
+    "jeanpablojp: normalization inconsistency between desc and multipath for typed vs normalized key origins; author says fixed."
+   ],
+   "resolved_concerns": [
+    "jeanpablojp's concern about a dropped AddMultipathDescriptor return-value check was fixed with added handling and [[nodiscard]].",
+    "jeanpablojp's concern about record IDs not being validated against their own descriptors was discussed; author explained the tradeoff (heavier integrity checking not typical at load time) without changing behavior, effectively agreeing to defer."
+   ],
+   "author_status": "active, most recently rebasing and adding emphasis that the PR needs conceptual review before deep code review (2026-09-15)"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Needs concept agreement first",
+   "reason": "The author's own description says the PR needs conceptual review/discussion before going deep into code review, and marked it draft specifically because of achow101's unresolved objection to the fundamental approach (store-a-record vs. reconstruct-on-the-fly). It is also stacked on the unmerged #36230 and flagged Needs rebase, so the diff will move again before it is stable."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: achow101 gives a Concept NACKish on storing a record instead of reconstructing the multipath on the fly, and the debate is ongoing without convergence (achow101, Sjors).",
+   "reason": "A maintainer has raised a substantive, unresolved objection to the core design, and the author is actively engaging but the two sides have not agreed; a second reviewer's concept ACK and several resolved implementation nits do not settle the architectural dispute.",
+   "evidence": [
+    "achow101: 'Concept NACKish ... My suggestion was not to store an extra record, but rather an extra field in WalletDescriptor ... Additionally, multipath descriptors do not inherently have a concept of receive and change descriptors.'",
+    "Sjors: 'Imo Parse should be able to take a multipath descriptor with private keys and produce a (normalized) public key descriptor ... I don't have a concrete redesign in mind that's easier to understand and maintain.'",
+    "jeanpablojp: 'Concept ACK' with several implementation questions, most resolved by later pushes."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36230
+   ],
+   "enables": [
+    "HWI's registerdescriptor / displayaddress / signtx --registration workflow for hardware-wallet multisig (per linked HWI PRs 842, 841)",
+    "Resolution of the design question opened in issue #36075 (reconstruct or natively support multipath descriptors)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Wallet-labeled PR changing wallet database records, RPC output (getaddressinfo, listdescriptors), and wallet creation/import logic to store and surface multipath descriptors.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it enables a real, externally-driven use case: HWI's registerdescriptor and displayaddress --registration for hardware wallet multisig, described in the PR as required by 'some hardware wallets' for safer multisig support. It does not affect existing wallets or fund safety of current setups (no upgrade path), and its value is currently capped by an open architectural dispute with a maintainer over whether storing a record is even the right approach, which is a priority-relevant leverage question (the design decision itself blocks meaningful progress) but not a fund-safety or correctness emergency."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the achow101 vs Sjors disagreement will resolve into a rewritten PR or a split; if it triggers a full rewrite the current diff's reviewability could change materially.",
+   "Whether #36230, which this PR depends on, will merge as-is or change shape, since this PR already cherry-picked parts of it.",
+   "How urgently the ecosystem (HWI, hardware wallet vendors) is waiting on this, beyond the PR description's own claim."
+  ],
+  "card": "This PR adds a wallet-level record that preserves the original BIP389 multipath descriptor string when the wallet expands it into separate receive/change descriptors, and surfaces it via getaddressinfo, listdescriptors, and watch-only export, so that HWI's new registerdescriptor command can build the BIP388 policy some hardware wallets require for safer multisig registration. It only affects newly created or imported multipath descriptors; existing wallets are unaffected. The PR is explicitly draft and the author states in the description that it 'needs further conceptual review / discussion before going too deep into code review,' reflecting an unresolved Concept-NACKish objection from maintainer achow101, who argues the multipath string should be reconstructed on the fly from descriptor objects rather than stored via a Parse-produced string; the author disagrees but has not converged with achow101 as of the latest exchange. It also depends on the unmerged #36230 and needs a rebase. Given the live design dispute, code review right now risks being invalidated by a future rewrite of the core mechanism."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

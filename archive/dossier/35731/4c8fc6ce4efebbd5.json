@@ -1,0 +1,118 @@
+{
+ "number": 35731,
+ "input_hash": "4c8fc6ce4efebbd5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6801,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3319
+ },
+ "cost_usd": 0.0248023,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes sure a failed block or undo file flush always triggers the flush-error notification, even if a future code path forgets to call it.",
+    "Builds on PR #35714 which stops the node from continuing to write chainstate data after a flush failure."
+   ],
+   "reviewability": [
+    "Not yet reviewable now.",
+    "Author explicitly asks not to review until base PR #35714 lands, and CI is currently failing."
+   ],
+   "agreement": [
+    "No reviewer has commented yet."
+   ],
+   "categories": []
+  },
+  "summary": "This PR hardens the invariant that any failed block or undo file flush emits the flush-error notification, so FlushStateToDisk's early-return-on-error logic (added in #35714) can rely on AbortNode always being triggered. It introduces a FlushFile() helper that couples the flush call and the notification, and adds BlockManager-level unit tests that inject block-file and undo-file failures separately to assert the notification fires each time. It contains the two commits from #35714 plus two new commits (test coverage and the FlushFile refactor), and is explicitly marked not to be reviewed before #35714.",
+  "problem": "Currently, FlushStateToDisk() assumes that every branch which sets success=false inside FlushBlockFile/FlushUndoFile has already emitted the flush-error notification, but that assumption is not enforced by the code structure. A future flush-failure branch that forgets to notify would cause the node to return an error without calling AbortNode, silently continuing without a proper shutdown, an integrity risk for chainstate maintainers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-15 (PR opened as draft with explicit do-not-review note)"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Review #35714 first",
+   "reason": "Author states in the description 'do not merge or review before that PR', referring to open PR #35714 which this PR is stacked on and duplicates commits from. CI is also currently failing."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviews or comments have been made on this PR.",
+   "reason": "Zero distinct reviewers and no discussion recorded; the PR is a draft explicitly deferred pending its base PR.",
+   "evidence": [
+    "No comments or reviews present in the discussion timeline."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35714
+   ],
+   "enables": [
+    "Stronger guarantee for the flush-error/AbortNode invariant that #35714's error-return logic relies on"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Changes are entirely within src/node/blockstorage.cpp/.h (FlushFile, FlushBlockFile, FlushUndoFile) which is core block storage code covered by the indexes category via the Block storage label.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Addresses a latent correctness hazard in block/undo file flush handling: 'That invariant holds today, but it is not guaranteed by construction' (PR description). A future flush branch that misses the notification would let the node continue after a failed flush without proper AbortNode, a real crash-safety concern for indexes/storage maintainers, though not an active bug today."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes touch mempool policy, acceptance, or fee estimation code.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; the PR is scoped to block/undo file flush handling in blockstorage.cpp and validation.cpp's FlushStateToDisk, unrelated to mempool."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Includes the #35714 commit 'validation: stop writes after flush failure' which changes Chainstate::FlushStateToDisk to return an error and stop writing block-index/coins data instead of only logging a warning, directly altering chainstate flush behavior.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Commit message states: 'When a block-file or undo-file flush fails, shutdown is requested, but FlushStateToDisk() still writes block-index metadata and coins data, then advances m_last_flushed_block' -- a chainstate integrity bug where failed flushes could leave inconsistent last-flushed-block bookkeeping. Fixing this and hardening the notification invariant protects chainstate correctness on I/O failure, though it depends on and duplicates commits already under review in #35714."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether #35714 has already merged or been updated since this PR was opened 63 days ago is unclear; if so this PR may need rebasing before it is truly reviewable.",
+   "The PR conflicts with several other open PRs touching the same flush/error-handling area (#35714, #35307, #35003, #29700), suggesting active contention over the right abstraction; true priority may hinge on which approach the maintainers pick."
+  ],
+  "card": "This draft PR hardens the flush-error notification invariant in block storage so that any failed block or undo file flush is guaranteed to emit a flushError notification, preventing a future code path from silently skipping AbortNode. It is explicitly a follow-up to #35714 ('validation: stop writes after flush failure'), containing that PR's two commits plus a FlushFile() encapsulation and new BlockManager-level unit tests that inject block-file and undo-file failures separately. The author states directly: 'do not merge or review before that PR', and CI is currently failing, so review should start at #35714. No reviewers have yet commented on either PR. The underlying problem, silent continuation after a failed flush, is a real chainstate-integrity risk described in the commit message as writing metadata and advancing m_last_flushed_block even after a flush failure, but it is a hardening/preventive fix rather than an active reported bug."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

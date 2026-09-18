@@ -1,0 +1,136 @@
+{
+ "number": 35281,
+ "input_hash": "fd95b92c86b0965f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:46+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13659,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3650
+ },
+ "cost_usd": 0.02393175,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent out-of-bounds reads in UniValue when parsing JSON tokens without a trailing null byte.",
+    "Ensure JSON keyword matching and number parsing strictly respect the provided end pointer."
+   ],
+   "reviewability": [
+    "Needs rebase before review can proceed.",
+    "The branch has conflicts with the base branch."
+   ],
+   "agreement": [
+    "Concept approval with positive feedback on fixing the out-of-bounds reads (sedited).",
+    "Stale testing approval prior to squashing (carloantinarella).",
+    "Minor follow-up suggestions on test buffer construction (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes two out-of-bounds read bugs in the vendored UniValue parser when reading non-null-terminated string views.",
+      "Protects callers passing bounded slices from undefined behavior or crashes."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because UniValue serves as the JSON parsing engine for the RPC interface.",
+      "Resolves long-standing parser edge cases on bounded buffer inputs."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes out-of-bounds memory reads in UniValue's getJsonToken function by ensuring keyword checks and numeric prefix validations respect the token end pointer rather than assuming a null-terminated string. It also adapts the parse_univalue fuzz target and unit tests to exercise bounded string_view inputs.",
+  "problem": "UniValue::read accepts a std::string_view that is not required to be null-terminated, but getJsonToken used strncmp and unchecked index lookups past the supplied end pointer, leading to potential out-of-bounds reads when processing bounded inputs.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko commented on whether unit test inputs need a copy into a fresh buffer or adjustment of trailing whitespace to ensure bounded behavior without relying on null bytes."
+   ],
+   "resolved_concerns": [
+    "Redundant unit tests identified by sedited were trimmed in favor of the fuzz target and focused bounded-input test cases.",
+    "Replaced pointer arithmetic with std::string_view::starts_with per sedited's suggestion."
+   ],
+   "author_status": "Addressing review comments promptly, last force-pushing on 2026-08-07, but currently silent for 40 days."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with the current base branch and requires a rebase before final review."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: concept ACK from sedited and testing ACK from carloantinarella, with minor test cleanup requested by maflcko.",
+   "reason": "Reviewers agree with fixing the out-of-bounds reads in UniValue; discussion has focused solely on the cleanest way to structure the regression tests.",
+   "evidence": [
+    "sedited: 'Concept ACK... It would also be good to mention that this is fixing two separate out of bounds reads.'",
+    "carloantinarella: 'tACK 28f609c7bb... Thanks for the added tests.'",
+    "maflcko provided feedback on fuzz and unit test buffer setups."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Labeled RPC/REST/ZMQ by maintainers; UniValue provides the core JSON parsing infrastructure for the RPC layer.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Fixes potential out-of-bounds reads during JSON parsing in the RPC interface when inputs are supplied via non-null-terminated string views. While an important safety improvement, RPC request handlers typically pass null-terminated buffers, making production exposure limited."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to parse_univalue.cpp and unitester.cpp test UniValue parsing rather than the testing framework or runner infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes code inside the vendored UniValue library located at src/univalue, which falls under utility libraries.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Resolves issue #28260 by fixing two separate out-of-bounds memory reads in UniValue when parsing non-null-terminated string_view instances. This corrects a memory safety issue in shared parsing code."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes two out-of-bounds memory read bugs in the vendored UniValue JSON parser when processing non-null-terminated string_view inputs, addressing issue #28260. The fix ensures that JSON keyword matching and numeric prefix validation respect the end boundary pointer. It also updates the parse_univalue fuzz target and unit tests to verify bounded string views without trailing null characters. Reviewers are supportive of the concept, with discussion focused on test fixture details, though the branch currently needs a rebase."
+ },
+ "raw_text": null
+}

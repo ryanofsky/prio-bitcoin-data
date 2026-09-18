@@ -1,0 +1,454 @@
+{
+ "number": 29700,
+ "input_hash": "92f2e34fe468bce7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:18:34+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 62264,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9513
+ },
+ "cost_usd": 0.08237175,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Return error status from validation functions instead of calling AbortNode",
+    "Allow libbitcoinkernel consumers to handle fatal errors directly without notification callbacks"
+   ],
+   "reviewability": [
+    "Ready to review, but stacked on top of open PR 25665 which provides the underlying Result types",
+    "No merge conflicts and author actively rebases"
+   ],
+   "agreement": [
+    "Unaddressed objection against adopting Result-style error handling in place of C++ idioms (purpleKarrot)",
+    "Unresolved concern on nesting InterruptResult inside util::Result (maflcko)",
+    "Resolved question on FlushStateToDisk return status spun off into merged PR 35621 (optout21)"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it eliminates the need for external kernel consumers to hook into global notification callbacks to detect fatal errors",
+      "Significantly improves kernel API usability and boundary encapsulation"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it refactors error propagation across block connection and chainstate flushing without changing consensus or validation rules",
+      "Value is primarily in clean decoupling rather than direct validation changes"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it extends util::Result with InfoType and error merging capabilities",
+      "Worthwhile utility improvements whose primary justification comes from consumers like the kernel"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors validation and blockstorage routines to return util::Result objects with error and flush status instead of aborting the process via AbortNode. It extends util::Result with failure value support, an InfoType field, and an Update method to merge messages, then threads these results through block connection, package processing, and chainstate flushes.",
+  "problem": "Currently, many validation routines handle fatal conditions by calling AbortNode and initiating node shutdown without returning error context to the caller. This forces libbitcoinkernel consumers to rely on asynchronous notification callbacks to detect failures instead of handling them programmatically via return values.",
+  "discussion": {
+   "open_concerns": [
+    "purpleKarrot objects to adopting Result-style error handling, arguing it is an unnecessary rustism contrary to C++ performance idioms.",
+    "maflcko pointed out that wrapping InterruptResult within util::Result makes call sites prone to missing interruption."
+   ],
+   "resolved_concerns": [
+    "optout21 noted an inconsistency where FlushStateToDisk modifies state while its return value is ignored; this was documented in comments and the fix split out to #35621 (merged)."
+   ],
+   "author_status": "active, regularly rebasing on master and tracking conflict fixes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #25665 first",
+   "reason": "The code is clean, CI passes, and the branch is regularly maintained, but it depends on the unmerged base PR #25665 which provides the underlying util::Result machinery."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Graysonbarton",
+     "stance": "support",
+     "note": "Approved with 'Fixing fatal errors.'"
+    },
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "Concerned about wrapping InterruptResult in util::Result"
+    },
+    {
+     "login": "sedited",
+     "stance": "neutral",
+     "note": "Asked for a rebase"
+    },
+    {
+     "login": "purpleKarrot",
+     "stance": "objection",
+     "note": "Objected to Result-style error handling in Bitcoin Core"
+    },
+    {
+     "login": "optout21",
+     "stance": "question",
+     "note": "Inquired about flush error handling inconsistency, later split to #35621"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "purpleKarrot",
+     "kind": "approach",
+     "harm": "Argues introducing util::Result error handling is contrary to C++ idioms and runtime performance requirements",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-04-01: 'I see Result-style error handling as a rustism that should be kept out of the C++ codebase of Bitcoin core... Introducing util::Result is a development in the wrong direction.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "approach",
+     "harm": "Wrapping results inside results makes it easy for callers to miss interruptions",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2024-07-26: 'Seems fragile to use util::Result<InterruptResult>. Wrapping one result into another is fragile, because call-sites may easily forget to unwrap the inner result...'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "optout21",
+     "kind": "correctness",
+     "harm": "Ignored return values from FlushStateToDisk could inadvertently mutate validation state",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-20: 'While working on #35570 , I have also found a potential inconsistency here: the return value from FlushStateToDisk is ignored, but it can cause change in state'",
+     "resolution_evidence": "2026-06-29: optout21 noted 'Addressing this single case has been split off into #35621.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [],
+   "state": "Blocked",
+   "summary": "Blocked by an unaddressed approach objection against util::Result error handling (purpleKarrot)",
+   "reason": "purpleKarrot posted an explicit objection arguing against Result-style error handling in C++, which the author has not directly addressed in discussion. Additionally, maflcko's earlier feedback on InterruptResult remains unimplemented.",
+   "evidence": [
+    "purpleKarrot (2026-04-01): 'Introducing util::Result is a development in the wrong direction.'",
+    "maflcko (2024-07-26): 'Seems fragile to use util::Result<InterruptResult>.'",
+    "optout21 (2026-06-29): 'Addressing this single case has been split off into #35621.'"
+   ],
+   "model_state": "Blocked",
+   "derivation": "blocking objection open with no author reply (purpleKarrot)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Blocked",
+    "derived": "Blocked",
+    "objections": [
+     {
+      "reviewer": "purpleKarrot",
+      "kind": "approach",
+      "harm": "runtime performance overhead on happy paths compared to C++ exceptions, introducing an unwanted rustism into Bitcoin Core",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-04-01: 'I see Result-style error handling as a rustism that should be kept out of the C++ codebase of Bitcoin core... Introducing util::Result is a development in the wrong direction.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "interface",
+      "harm": "call-sites can easily forget to unwrap the inner result and fail to detect interruption",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2024-07-26: 'Seems fragile to use util::Result<InterruptResult>. Wrapping one result into another is fragile, because call-sites may easily forget to unwrap the inner result...'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "optout21",
+      "kind": "correctness",
+      "harm": "FlushStateToDisk return value is ignored despite modifying validation state, leading to inconsistent error handling",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-20: 'While working on #35570 , I have also found a potential inconsistency here: the return value from FlushStateToDisk is ignored, but it can cause change in state...'",
+      "resolution_evidence": "2026-06-29: 'Addressing this single case has been split off into #35621 .'"
+     }
+    ],
+    "support": [],
+    "participants": [
+     {
+      "login": "Graysonbarton",
+      "stance": "support",
+      "note": "approved with 'Fixing fatal errors.'"
+     },
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "cautioned that nesting util::Result<InterruptResult> is fragile and recommended treating interruption as util::Error"
+     },
+     {
+      "login": "sedited",
+      "stance": "neutral",
+      "note": "asked for a rebase"
+     },
+     {
+      "login": "purpleKarrot",
+      "stance": "objection",
+      "note": "concept NACK arguing util::Result is an unwelcome rustism that hurts runtime performance compared to exceptions"
+     },
+     {
+      "login": "optout21",
+      "stance": "question",
+      "note": "pointed out a potential inconsistency in ignoring FlushStateToDisk return values while state changes"
+     }
+    ],
+    "corrections": [],
+    "summary": "Blocked: purpleKarrot objects to util::Result as an inappropriate rustism with runtime overhead; author has not replied.",
+    "usage": {
+     "input_tokens": 16518,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3000
+    }
+   },
+   "first_read": {
+    "state": "Blocked",
+    "model_state": "Blocked",
+    "objections": [
+     {
+      "reviewer": "purpleKarrot",
+      "kind": "approach",
+      "harm": "Argues introducing util::Result error handling is contrary to C++ idioms and runtime performance requirements",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-04-01: 'I see Result-style error handling as a rustism that should be kept out of the C++ codebase of Bitcoin core... Introducing util::Result is a development in the wrong direction.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "approach",
+      "harm": "Wrapping results inside results makes it easy for callers to miss interruptions",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2024-07-26: 'Seems fragile to use util::Result<InterruptResult>. Wrapping one result into another is fragile, because call-sites may easily forget to unwrap the inner result...'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "optout21",
+      "kind": "correctness",
+      "harm": "Ignored return values from FlushStateToDisk could inadvertently mutate validation state",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-20: 'While working on #35570 , I have also found a potential inconsistency here: the return value from FlushStateToDisk is ignored, but it can cause change in state'",
+      "resolution_evidence": "2026-06-29: optout21 noted 'Addressing this single case has been split off into #35621.'"
+     }
+    ],
+    "support": []
+   }
+  },
+  "dependencies": {
+   "depends_on": [
+    25665
+   ],
+   "enables": [
+    "libbitcoinkernel standalone fatal error handling without callbacks"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Includes an incidental compiler flag adjustment in a CI test script to suppress uninitialized false positives from the template changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change; CI script edit is incidental."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Directly targets libbitcoinkernel error handling across validation and block storage boundaries.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because replacing global AbortNode shutdowns with structured return values is essential for external applications embedding libbitcoinkernel. As stated in the description, 'This makes error handling in libbitcoinkernel application code difficult, because the only way to handle these errors is to register for notification callbacks.'"
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches mempool accept signatures mechanically to propagate flush results, without altering mempool behavior or policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mempool file changes are purely signature updates for validation results."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Modifies miner call sites to accommodate new validation signatures.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental call-site adjustments in src/node/miner.cpp."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Incidental updates in net_processing.cpp for new validation method signatures.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates; does not alter P2P protocol or behavior."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches RPC callers to unpack returned error tuples.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates without changes to RPC behavior or interfaces."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test and benchmark files to inspect new return values and assert success.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Follow-up adjustments to keep existing tests and benchmarks passing."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds InfoType and message updating utilities to src/util/result.h and src/util/messages.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it improves the utility result framework to support multiple messages and distinct success/failure/info types, but is largely motivated by the needs of the kernel refactoring."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Extensively updates validation entry points (ConnectBlock, ActivateBestChain, FlushStateToDisk, VerifyDB) to return results.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because while it modifies dozens of core validation call sites and method signatures, it is described by the author as 'a pure refactoring that returns extra result information from functions without changing their behavior'."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Minor two-line call-site adjustment in src/wallet/wallet.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental wallet call-site adaptation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors validation and block storage functions to return error status via util::Result rather than aborting the process via AbortNode. The goal is to allow libbitcoinkernel consumers to handle errors programmatically without having to register global notification callbacks. It depends on base PR #25665, which provides the underlying Result error types. While the author continues to actively rebase the branch, progress is currently stalled by an unresolved objection from purpleKarrot against Result-style error handling in Core."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0236385
+}

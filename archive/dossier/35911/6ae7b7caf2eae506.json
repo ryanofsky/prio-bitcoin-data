@@ -1,0 +1,217 @@
+{
+ "number": 35911,
+ "input_hash": "6ae7b7caf2eae506",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14090,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6455
+ },
+ "cost_usd": 0.0477713,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add missing [[noreturn]] attributes across the codebase and turn on -Wmissing-noreturn to catch this class of bug at compile time.",
+    "Aims to prevent compiler false positives and related warnings, as seen in review of PR #35896."
+   ],
+   "reviewability": [
+    "Paused: author explicitly said the PR will stay in draft until the next libmultiprocess subtree update lands.",
+    "CI is currently failing, including an unresolved Windows (clang-cl/MSVC) compile failure flagged by a reviewer."
+   ],
+   "agreement": [
+    "Concept ACKs from two reviewers (hebasto, stickies-v) with no objections raised.",
+    "A third reviewer (maflcko) gave style nits and an overall lgtm, all addressed or non-blocking.",
+    "No disputed harms; the open issues are compiler/platform bugs, not disagreement about the change."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it enables a new compiler warning (-Wmissing-noreturn) that surfaces real compiler discrepancies across GCC/Clang/MSVC, useful for long-term build hygiene.",
+      "Currently causes new CI failures on some platforms, which the PR itself has not yet fully resolved."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P4 because it only adds noreturn annotations to a couple of libmultiprocess header functions without changing IPC semantics.",
+      "The actual libmultiprocess fix is tracked upstream in a separate PR; this repo's change is a placeholder marked [nomerge]."
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P4 because it adds a [[noreturn]] attribute to a deprecated mining interface method and an RPC lambda, with no behavioral change to mining logic."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the change to rpc/mining.cpp is a cosmetic attribute addition to a lambda that already throws, not a behavior or interface change."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it reorganizes fuzz harness code and works around a real Clang bug that produced compile errors under -Wmissing-noreturn, a CI-reliability concern.",
+      "One platform-specific compile failure (Windows) remains open per reviewer comment."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because it annotates deadlock-detection helper functions in sync.cpp and a subprocess helper as noreturn, a correctness-adjacent but purely cosmetic annotation with no functional change."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds missing [[noreturn]] attributes throughout the codebase (sync.cpp, interfaces headers, libmultiprocess, test/fuzz code, RPC deprecation stubs, Qt exception handler) and turns on -Wmissing-noreturn (plus a related C++23 lambda-attribute warning) in the CMake build. It also switches a couple of bare exit() calls to std::exit(). The motivation, per the description, is that missing [[noreturn]] can cause compiler false positives and related issues, as surfaced during review of PR #35896.",
+  "problem": "Compilers can emit false-positive warnings or miss real issues when noreturn functions aren't annotated; this affects contributors building with warnings-as-errors and can hide real bugs behind unrelated warning noise.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko found a Clang bug/quirk where enabling -Wmissing-noreturn produces a spurious error for a function that does return in some builds, still under investigation.",
+    "maflcko reported (2026-08-31) that FuzzedSock/ZeroSock/etc. still fail to compile on Windows for both clang-cl and MSVC despite a workaround."
+   ],
+   "resolved_concerns": [
+    "Style nits on line length and std::exit usage were addressed by additional commits.",
+    "hebasto asked to split out the libmultiprocess-only commit; author explained it's part of #35896 and instead opened a separate upstream PR (libmultiprocess#339) and a leveldb-subtree PR (#64) for those pieces."
+   ],
+   "author_status": "Author (fanquake) is active with multiple force-pushes through 2026-09-09, but explicitly said (2026-08-18) the PR will remain drafted until the next libmultiprocess subtree update lands."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author says wait",
+   "reason": "Author fanquake stated on 2026-08-18 that the PR will remain in draft until the next libmultiprocess subtree update lands, and an unresolved Windows (clang-cl/MSVC) compile failure was reported by maflcko on 2026-08-31 with no follow-up fix yet. CI is currently failing."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: hebasto and stickies-v gave Concept ACKs and maflcko said 'lgtm' with only style nits, no objections raised.",
+   "reason": "Multiple reviewers support the goal, and the only open issues are compiler/platform compile bugs rather than disagreement about the change's purpose or approach.",
+   "evidence": [
+    "hebasto: 'Concept ACK.'",
+    "stickies-v: 'Concept ACK'",
+    "maflcko: 'Nice. lgtm. Left some style nits, but feel free to ignore.'",
+    "maflcko flagged a possible Clang compiler bug and a Windows compile failure, both technical issues rather than objections to the change."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner adoption of -Wmissing-noreturn build-wide once libmultiprocess and leveldb-subtree updates land",
+    "Related upstream fixes tracked in bitcoin-core/libmultiprocess#339 and bitcoin-core/leveldb-subtree#64"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds -Wmissing-noreturn and a related C++23 lambda-attribute warning flag to CMakeLists.txt and is the primary vehicle for enabling this warning project-wide.",
+    "band": "P3",
+    "reason_tag": "CI reliability",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because the PR surfaces genuine cross-compiler/platform discrepancies (a possible Clang bug, and an unresolved Windows clang-cl/MSVC compile failure per maflcko) while trying to add a useful warning; it's worthwhile CI hygiene but not release-critical and is stuck in draft pending upstream subtree work."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Touches src/ipc/libmultiprocess/include/mp/proxy-types.h and test/mp/test/foo.h, adding noreturn attributes to lambdas/methods in the IPC generated-code machinery.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because the libmultiprocess change is explicitly marked [nomerge] and is a placeholder for an upstream fix (libmultiprocess#339); the in-tree diff is a cosmetic attribute addition with no interface or behavior change."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Adds [[noreturn]] to the deprecated interfaces::Mining::submitSolutionOld7 stub in interfaces/mining.h.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is a cosmetic annotation on an already-deprecated, throw-only stub method with no change to mining template logic or interface semantics."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds [[noreturn]] to the deprecated 'generate' RPC lambda in rpc/mining.cpp, which only throws an error.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the change is a cosmetic attribute on a lambda that already unconditionally throws; no RPC behavior, return data, or compatibility is affected."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Substantially reworks src/test/fuzz/fuzz.cpp (moving code, adding a GCC pragma, marking signal_handler noreturn), and touches threadpool_tests.cpp, test/util/net.cpp/.h, setup_common.cpp.",
+    "band": "P3",
+    "reason_tag": "framework fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because the change fixes real fallout in the fuzz harness from enabling -Wmissing-noreturn (including a suspected Clang compiler bug) and is needed to keep the fuzzing test infrastructure compiling cleanly, but an unresolved Windows compile failure (per maflcko, 2026-08-31) means the work is not yet complete."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Marks sync.cpp's potential_deadlock_detected/double_lock_detected as noreturn and subprocess.h's execute_child as noreturn.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because these are annotation-only changes to functions that already unconditionally throw or exit; no change to locking, deadlock-detection, or subprocess behavior itself."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the mechanical [[noreturn]] additions in mining.h and rpc/mining.cpp should count as category membership at all, since they change no behavior; treated as minor members here per the inclusive-membership rule.",
+   "Whether the unresolved Windows compile failure noted by maflcko on 2026-08-31 has since been fixed by the 2026-09-09 force-push; no confirming comment is present in the discussion.",
+   "Whether the project intends to merge this before or only after the libmultiprocess and leveldb-subtree PRs land, which affects how 'Paused' should be interpreted going forward."
+  ],
+  "card": "This draft PR by fanquake adds missing [[noreturn]] attributes throughout the codebase (sync.cpp, interfaces headers, libmultiprocess, RPC/mining stubs, Qt exception handler, fuzz test harness) and enables the -Wmissing-noreturn compiler warning in CMake, aiming to catch a class of compiler false positives noted during review of PR #35896. The strongest evidence of value is that turning on the warning surfaced real cross-platform issues: a suspected Clang compiler bug and an unresolved Windows (clang-cl/MSVC) compile failure reported by maflcko on 2026-08-31. Review sentiment is positive with Concept ACKs from hebasto and stickies-v and no objections, but the author explicitly said (2026-08-18) the PR will stay in draft until the next libmultiprocess subtree update lands, and CI is currently failing. Companion fixes have been split out upstream into bitcoin-core/libmultiprocess#339 and bitcoin-core/leveldb-subtree#64. Most of the individual file changes are cosmetic attribute additions with no behavioral impact; the main substantive value is in the build/CI warning-hygiene and the fuzz-harness fixes."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

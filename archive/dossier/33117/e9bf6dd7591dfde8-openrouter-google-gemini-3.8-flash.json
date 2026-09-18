@@ -1,0 +1,176 @@
+{
+ "number": 33117,
+ "input_hash": "e9bf6dd7591dfde8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:16:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23328,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4099
+ },
+ "cost_usd": 0.03286725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Expose UTXO snapshot loading and progress notifications through the node interface",
+    "Enable desktop GUIs to trigger snapshot loads and report live progress to users"
+   ],
+   "reviewability": [
+    "Needs rebase",
+    "Branch currently has merge conflicts with master"
+   ],
+   "agreement": [
+    "Strong support on concept and interface approach (pinheadmz, sedited, Sjors)",
+    "Earlier multiprocess and interface feedback addressed (ryanofsky, pinheadmz)",
+    "Previous review ACK became stale after rebases and error-handling refactoring (pinheadmz)"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it provides clean interface abstractions and callbacks across process boundaries",
+      "Directly unblocks downstream GUI snapshot loading implementations"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because it only adds a single progress notification hook to the kernel notifications interface"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because it only refactors loadtxoutset to route through interfaces and unifies error codes"
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a new `interfaces::Snapshot` interface and progress notification signals to `interfaces::Node` and `kernel::Notifications`. Refactors `loadtxoutset` to utilize this new interface and consolidates snapshot activation failure handling under a unified RPC error format.",
+  "problem": "The node interface and kernel notifications lack methods to trigger UTXO snapshot activation and report progress, preventing GUI clients (both Qt and QML) from offering snapshot loading with real-time user feedback.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Ryanofsky noted that passing file handles across process boundaries complicates IPC; author revised the API to take an fs::path and encapsulate file parsing inside SnapshotImpl.",
+    "Pinheadmz pointed out that firing progress notifications for every coin would trigger 100M+ times on mainnet; author batched updates to fire every 100,000 coins.",
+    "Pinheadmz identified redundant pre-parsing of metadata in RPC loadtxoutset; author streamlined activate() to return util::Result<const CBlockIndex*> and unified error handling."
+   ],
+   "author_status": "Active, periodically rebasing and addressing inline feedback"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master (mergeable_state is dirty) and needs a rebase."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on concept and approach with all architectural and review comments addressed.",
+   "reason": "Multiple maintainers and contributors supported the concept and tested downstream GUI implementations (pinheadmz, Sjors, sedited). Design and performance concerns raised by ryanofsky and pinheadmz were resolved.",
+   "evidence": [
+    "pinheadmz: 'concept ACK, tested the mainnet snapshot load with the QML gui branch built on top of this'",
+    "sedited: 'Approach ACK'",
+    "Sjors: 'At first glance this looks very reasonable. I also tested it in the (current) GUI'",
+    "pinheadmz: 'code review ACK at d0c32c28e5 ... This is an important feature to expose to GUI users, and this is the right way to get there.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "bitcoin-core/gui#870",
+    "bitcoin-core/gui-qml#488"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Touches src/interfaces/node.h and introduces src/interfaces/snapshot.h for process-separated communication.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Exposes UTXO snapshot loading and progress notification signals over the interfaces boundary, designed with multiprocess separation in mind (avoiding cross-process file descriptor handling). This directly unblocks GUI snapshot integration in downstream PRs."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds snapshotLoadProgress to src/kernel/notifications_interface.h and implements it in src/node/kernel_notifications.h.",
+    "band": "P4",
+    "reason_tag": "new feature",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Adds a single notification callback method to kernel notifications to pass progress updates out of validation. It is a minor pass-through addition to the kernel boundary."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool rules, fee estimation, or mempool transactions.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not related to mempool or policy."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Refactors loadtxoutset RPC implementation in src/rpc/blockchain.cpp and alters error return codes.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Refactors loadtxoutset to call the new snapshot interface instead of directly calling ChainstateManager. The change standardizes error handling to RPC_INTERNAL_ERROR (-32603) for snapshot loading failures, but adds no new RPC features."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches src/validation.cpp only to trigger periodic progress notification callbacks during snapshot population.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Adding a progress notification hook every 100,000 coins processed does not substantively alter consensus validation rules, invariants, or chainstate management."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Adds a snapshot interface to interfaces::Node and kernel notifications to support UTXO snapshot loading and progress updates. Solves the absence of progress reporting and interface support needed by GUI implementations loading assumeutxo snapshots, unblocking downstream PRs in both the Qt and QML GUI repositories. Reviewers strongly support the concept and approach, and earlier design feedback regarding multiprocess file handling has been incorporated. The PR currently needs a rebase against master before review can conclude."
+ },
+ "raw_text": null
+}

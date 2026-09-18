@@ -1,0 +1,113 @@
+{
+ "number": 33034,
+ "input_hash": "c8916793e9bf5e2b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:43+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23960,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3470
+ },
+ "cost_usd": 0.0309825,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Store wallet transactions in a dedicated SQLite table instead of key-value blobs.",
+    "Enable loading transactions in deterministic order to simplify state and unspent tracking."
+   ],
+   "reviewability": [
+    "CI is failing, and the work depends on unmerged prerequisites #32895 and #33033."
+   ],
+   "agreement": [
+    "Concept supported with rationale on moving away from key-value storage (rkrux).",
+    "Concept ACK without extended comment (w0xlt).",
+    "No objections have been raised."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it provides a major architectural improvement to wallet database storage.",
+      "Loading transactions in sequence simplifies transaction state handling and unblocks #27865."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request migrates transaction persistence in SQLite wallets from generic key-value records to a dedicated 'transactions' relational table. Each transaction field is stored in its own column, allowing the wallet to load records ordered by position. It also introduces automatic schema upgrade and downgrade tracking using client feature flags.",
+  "problem": "The wallet treats SQLite as a simple key-value store, forcing complex composite serialization and resulting in arbitrary record loading order. This out-of-order load complicates wallet logic that relies on transaction sequences, such as tracking spent outputs.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is failing on the latest push, and the PR depends on unmerged PRs #32895 and #33033."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support from rkrux citing cleaner serialization and relational DB benefits; no objections.",
+   "reason": "Two contributors have provided Concept ACKs, with rkrux explicitly validating the shift toward relational schema to avoid bespoke serialization workarounds.",
+   "evidence": [
+    "rkrux: Concept ACK noting agreement with using SQLite relational capabilities for transactions to avoid complex serialization",
+    "w0xlt: Concept ACK"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    32895,
+    33033
+   ],
+   "enables": [
+    "#27865"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches only src/primitives/transaction_identifier.h to add a helper span constructor; contains no validation logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "This PR does not alter validation or consensus logic."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly alters wallet persistence, SQLite schema, transaction serialization, and database loading in src/wallet/.",
+    "band": "P2",
+    "reason_tag": "unblocks #27865",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Refactoring SQLite wallet storage from a flat key-value store to dedicated relational tables is a major maintainability improvement. It resolves longstanding serialization headaches and provides deterministic in-order loading via SQL queries, directly unblocking PRs like #27865 that track spent transaction outputs."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether reviewer consensus will prefer migrating keys and metadata in the same transition or piecemeal across tables"
+  ],
+  "needs": [],
+  "card": "This PR begins shifting Bitcoin Core SQLite wallets away from flat key-value storage toward relational tables, starting with a dedicated transactions table. Storing transactions with explicit columns allows querying by wallet assignment order, simplifying downstream logic for transaction state and output tracking. Downstream work such as tracking no-longer-spendable TXOs in #27865 explicitly benefits from this structure. Review is currently blocked by failing CI runs and dependencies on #32895 and #33033, though initial concept feedback has been strongly supportive."
+ },
+ "raw_text": null
+}

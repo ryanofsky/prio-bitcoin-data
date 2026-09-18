@@ -1,0 +1,213 @@
+{
+ "number": 29278,
+ "input_hash": "ab5db1e9858f8119",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 57727,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6391
+ },
+ "cost_usd": 0.0910883,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a wallet-only -maxfeerate startup option so wallets stop conflating a total-fee cap (-maxtxfee) with a fee-rate cap.",
+    "Prevents the wallet from creating or broadcasting a transaction whose fee rate exceeds the configured limit, fixing a longstanding ambiguity reported in #29220."
+   ],
+   "reviewability": [
+    "Ready. The author fixed a subtly incorrect check (fee-rate vs vsize mismatch, and a sendall bump-fee gap) found late in review and pushed the fix.",
+    "polespinasa ACKed the current head commit after re-checking the fixes."
+   ],
+   "agreement": [
+    "Strong support with concept buy-in from achow101 and murchandamus and detailed engineering review from josibake, furszy and polespinasa (achow101, murchandamus, josibake, furszy, polespinasa).",
+    "A late-found bug in sendall's fee-rate accounting was raised by polespinasa and fixed by the author, then re-ACKed (polespinasa)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it closes a real, previously reported user-facing footgun: -maxtxfee being (mis)used as a feerate sanity check (#29220), acknowledged as a legitimate use case by achow101 and murchandamus.",
+      "Improves fund-safety-adjacent behavior (protects against fat-fingered fee rates) without unblocking other large projects."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it changes the wording and triggering conditions of error messages returned by sendrawtransaction, testmempoolaccept and PSBT RPCs, which existing callers and scripts may parse.",
+      "The change is deliberate and reviewed, but affects only error text/semantics for a corner case, not core RPC behavior."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because the only pure-documentation change is a short release note describing the new option and error type.",
+      "No design doc or broader documentation gap is addressed."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "Not a member: the interface signature changes (broadcastTransaction, getDefaultMaxTxFee rename) are mechanical propagation of a wallet feature, not changes to IPC mechanics themselves."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the added tests pin wallet-specific fee-rate behavior (wallet_send.py, wallet_sendall.py, wallet_bumpfee.py, wallet_tests.cpp), which belongs to the wallet category rather than test infrastructure."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member: the new TransactionError enum value and its message string are mechanical support for the wallet feature, not a change to the shared utils/error-handling subject itself."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new wallet-only `-maxfeerate` startup option that caps the fee rate (sat/vB) the wallet will use when creating or broadcasting a transaction, separate from the existing absolute `-maxtxfee` cap. It threads the new limit through wallet transaction creation, fee bumping, sendall, and BroadcastTransaction, adds a distinct `MAX_FEE_RATE_EXCEEDED` error, and updates numerous functional and unit tests plus release notes. The PR has been open since January 2024, went through many rounds of approach and implementation review, and settled on the current design after early pushback on making it node-wide rather than wallet-specific.",
+  "problem": "Users could not reliably guard against paying an accidentally excessive fee rate: `-maxtxfee` caps total absolute fee, but for small transactions a fee-rate typo (e.g. sat/vB entered as if it were a total fee) could slip past that cap, as reported in issue #29220. Wallet users and downstream tooling that construct transactions with explicit fee rates feel this gap most.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Early approach disagreement (glozow, luke-jr) over making this node-wide vs wallet-only was resolved by making it a wallet-only option.",
+    "josibake's concern about combining -maxtxfee and -maxfeerate causing confusing coin-selection interactions was resolved via discussion (achow101, murchandamus) establishing legitimate independent use cases.",
+    "A subtle vsize-mismatch bug causing test flakiness was root-caused and fixed by the author (documented in a lengthy comment on 2026-02-13).",
+    "polespinasa's sendall bump-fee accounting bug (creation-time check ignoring bump fees while broadcast-time check includes them) was fixed by the author and covered by a new test, with a re-ACK following."
+   ],
+   "author_status": "active, most recently addressing review and force-pushing as of 2026-09-15"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author's latest push (f69e56bc1c) fixed the last known correctness gap (sendall bump-fee accounting) and added test coverage for it; polespinasa reviewed and ACKed that exact commit. No open, unaddressed material request remains."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: achow101 and murchandamus gave stated-reason concept support, josibake/furszy/polespinasa did detailed engineering review, and polespinasa ACKed the current head after a late bug was fixed.",
+   "reason": "Multiple reviewers engaged substantively over nearly two years, raised concrete implementation concerns, and each was either fixed by the author or resolved by explanation with no follow-up objection; the most recent review (polespinasa) is an ACK on the exact head commit.",
+   "evidence": [
+    "achow101: 'I think it makes sense to have both [maxtxfee and maxfeerate]... At maxfeerate, a small transaction can still pay a smaller fee than maxtxfee, but a large transaction could exceed maxtxfee.'",
+    "murchandamus: 'Concept ACK' plus a detailed use-case scenario for using both options together, later formal ACK on a specific commit.",
+    "polespinasa found a real accounting bug in sendall ('sendall returns {complete:true...} for a transaction that never entered the mempool'), the author fixed it in 394e29b3a5...e83e86d4fa, and polespinasa then ACKed f69e56bc1c."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Resolves ambiguity flagged in issue #29220 around -maxtxfee being used as both a fee and a feerate limit."
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds doc/release-notes-29278.md describing the new option and behavior changes; this is a small addendum, not the PR's primary subject.",
+    "band": "P4",
+    "reason_tag": "release notes",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because the documentation change is limited to release notes for this feature; it does not fix wrong or missing documentation elsewhere, per josibake/polespinasa nits about wording consistency."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Interfaces changed (interfaces/chain.h, node.h, wallet.h) only to pass through a new parameter or rename a getter; the interface mechanics themselves are not the subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per category rules, an interfaces::Wallet/Chain signature change that merely carries a wallet feature through is wallet-first, not ipc, unless the interface mechanics are the point, which they are not here."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes error strings and conditions for sendrawtransaction, testmempoolaccept, and walletcreatefundedpsbt (rpc/mempool.cpp, node/transaction.cpp), and introduces a new distinguishable error type surfaced via RPC.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it changes what existing RPC callers receive as error text/semantics for fee-related failures (glozow flagged the RPC-vs-wallet coupling risk early), a real but narrow compatibility-relevant improvement rather than a broad RPC gap or security issue."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "All added/modified tests (wallet_send.py, wallet_sendall.py, wallet_bumpfee.py, wallet_tests.cpp, rpc_psbt.py, rpc_rawtransaction.py) pin the new wallet fee-rate behavior specifically, not general test framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per category exclusion: tests of one area's behavior belong to that area (wallet/rpc), not to test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Adds a TransactionError enum value and matching string in common/messages.cpp, purely to support the new wallet error case.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the error-type addition is mechanical support for a wallet feature, not a change to the shared error/logging subject that utils covers."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds the -maxfeerate startup option and enforces it throughout wallet transaction creation, fee bumping, and sendall; extensively reviewed by wallet maintainers (achow101, josibake, murchandamus, furszy, polespinasa); labeled Wallet.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a genuine, previously-filed ambiguity (issue #29220) around fee vs feerate limits that could cause users to pay unintentionally high fees, with achow101 and murchandamus independently confirming legitimate combined-use scenarios; it is not fund-threatening or a regression fix, so it stops short of P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the recently-fixed sendall bump-fee accounting bug and fee-bumper variant fix are fully complete or might need one more review pass, given the PR's long history of similarly subtle fee-rate accounting bugs being found late.",
+   "Whether the RPC error-message/behavior changes to sendrawtransaction/testmempoolaccept are considered an acceptable compatibility break by maintainers, since this was raised (glozow) but not fully re-litigated in later rounds.",
+   "Unclear whether the milestone removal (sedited, maflcko, 2026-08-21) reflects a lack of urgency or just process/timing, which could affect how soon reviewers prioritize this despite the recent ACK."
+  ],
+  "card": "This PR adds a wallet-only -maxfeerate startup option and enforces it across transaction creation, fee bumping, sendall, and broadcast, fixing the ambiguity where -maxtxfee was used both as an absolute-fee and a feerate sanity check (issue #29220). It has been open since January 2024 with extensive review from achow101, josibake, murchandamus, furszy, and polespinasa, including two late-discovered accounting bugs (a vsize mismatch causing test flakiness, and a sendall bump-fee gap flagged by polespinasa) that the author fixed and got re-ACKed on. The strongest evidence of importance is achow101 and murchandamus independently confirming a legitimate combined -maxtxfee/-maxfeerate use case, and the direct link to a filed user complaint. Reviewability is Ready: polespinasa ACKed the exact head commit after the last fix. No PR dependency; it does introduce new RPC-visible error text that changes existing sendrawtransaction/testmempoolaccept error behavior, a narrower compatibility consideration flagged early by glozow."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

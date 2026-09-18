@@ -1,0 +1,121 @@
+{
+ "number": 32575,
+ "input_hash": "8e9fb9af7bd37f9f",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 38785,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4686
+ },
+ "cost_usd": 0.0636213,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Simplifies script-check execution in ConnectBlock by removing the separate single-threaded code path and running everything through the checkqueue.",
+    "Motivated by upcoming batch-validation work, and meant to make CheckInputScripts easier to understand."
+   ],
+   "reviewability": [
+    "Stale because the author has not been active in about 111 days, past the project's 60-day silence threshold, even though the last push addressed reviewer comments."
+   ],
+   "agreement": [
+    "Disputed: l0rinc NACKs mixing a consensus-critical behavior change with a refactor in one PR and wants it split, author disagrees and has responded extensively (l0rinc, fjahr).",
+    "Multiple concept ACKs before the dispute emerged (theuni, stickies-v, darosior, Eunovo, sedited).",
+    "A real correctness issue (script cache not populated during TestBlockValidity) was found and fixed during review (darosior)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it touches consensus-critical script-check code in ConnectBlock and its stated motivation is to unblock batch-validation work (#29491), which gives it leverage beyond a pure cleanup.",
+      "No user-facing bug or performance change is claimed or measured (benchmarks show parity), so it does not rise to P1 on its own."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors how Bitcoin Core validates transaction script checks, removing the special-cased single-threaded path in ConnectBlock so that all script checking goes through the checkqueue regardless of thread count. It extracts several helper functions (GetScriptCacheEntry, EnsureTxData, ValidationCache::IsScriptValidated/CacheScriptValidation) out of CheckInputScripts and updates tests accordingly. The author states the motivation is to make the code easier to grasp and to support upcoming batch-validation work.",
+  "problem": "CheckInputScripts currently behaves very differently depending on whether worker threads exist, making the function's dual purpose confusing for maintainers and complicating related work like batch script validation. Reviewers (theuni, sedited) independently noted the code's split personality as a maintenance burden.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc maintains an Approach NACK / re-NACK: mixing a consensus-critical behavior change (unifying single- and multi-threaded script-check paths) with a structural refactor in the same PR is too risky, citing the BIP-110 fork bug in the same area as evidence of the stakes, and has proposed a narrower alternative PR (#34875).",
+    "l0rinc's performance-regression concern (long -par=1 benchmark runs) was eventually resolved as showing no measurable slowdown, but the approach objection about mixing refactor and behavior change remains unresolved and disputed by the author."
+   ],
+   "resolved_concerns": [
+    "darosior identified that a later revision incorrectly stopped caching script results during TestBlockValidity; author restored the caching and fixed the commit message.",
+    "sedited, mzumsande, theuni's structural suggestions about splitting CheckInputScripts/ConnectBlock logic were incorporated across several force-pushes.",
+    "Eunovo's naming and comment-placement nits were addressed in the latest push (2026-05-28)."
+   ],
+   "author_status": "silent since 2026-05-28 (~111 days), after addressing the most recent round of reviewer comments"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 111d",
+   "reason": "Author has had no activity since 2026-05-28, exceeding the project's 60-day stale-author threshold, even though the code as pushed addressed the outstanding non-blocking review comments (Eunovo's nits)."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc treats mixing the refactor with a consensus-critical behavior change as blocking (re-NACK); author has engaged at length but disagrees and has not split the PR.",
+   "reason": "Multiple members gave early concept/approach ACKs (theuni, stickies-v, darosior, Eunovo, sedited), and a genuine correctness slip was found and fixed. But l0rinc's core objection - that unifying the single- and multi-threaded script-check paths is too risky to combine with refactoring in this consensus-sensitive area - remains unresolved, with both sides restating positions rather than converging.",
+   "evidence": [
+    "l0rinc (review CHANGES_REQUESTED, then re-NACK): 'The rest of the commits still combine a consensus-sensitive behavior change with a structural refactor... we should split the behavior change from the refactor into separate PRs.'",
+    "fjahr: 'I don't agree that splitting a PR is safer by default... the point of this change is to unify the logic.'",
+    "darosior: found that TestBlockValidity script-cache population was inadvertently dropped; fjahr fixed it in the same commit and corrected the message.",
+    "theuni, stickies-v, sedited: Concept/Approach ACK early in the review.",
+    "Eunovo: Concept ACK on a later revision, nits addressed."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Batch script/signature validation work referenced by the author (related to #29491 Schnorr batch verification)",
+    "Simplification groundwork the author cites as motivation, discussed alongside #32317 (kernel UTXO-access separation)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The PR only touches script-check execution inside ConnectBlock/CheckInputScripts; it does not change mempool acceptance, replacement, or policy rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; no mempool policy or data-structure code is touched."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "The change substantively alters how ConnectBlock performs script validation, unifying the single- and multi-threaded code paths through the checkqueue and refactoring the caching logic used during consensus validation.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Removes a longstanding special case in consensus-critical script-check code, which the author and several reviewers (theuni, sedited) view as a maintenance and readability burden, and is stated as groundwork for batch script validation. Security/stability factor is elevated because the area is consensus-sensitive and a real correctness slip (script cache not populated during TestBlockValidity) was found and fixed mid-review, per darosior's comment. No measured performance change (multiple independent benchmarks by l0rinc and svanstaa show parity) and no direct user-facing feature, so it falls short of P1; the ongoing dispute over whether the refactor and behavior unification should be split is an approach disagreement affecting Agreement, not the underlying priority of getting this consensus-adjacent code right."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project ultimately prefers this PR's unified approach or l0rinc's narrower alternative (#34875) is unresolved; that choice affects which PR reviewers should actually spend time on, though not this PR's intrinsic priority.",
+   "Exact current staleness threshold interpretation: last reviewer comment (Eunovo, 2026-05-22) was addressed by the author's 2026-05-28 push, so the 'waiting_on_author_days' signal of 0 suggests no outstanding request, but the long author silence since then makes the PR Stale by the 60-day rule regardless."
+  ],
+  "card": "PR #32575 refactors Bitcoin Core's script-check execution so that ConnectBlock always uses the checkqueue, removing the special-cased single-threaded code path in CheckInputScripts. The author (fjahr) frames it as groundwork for future batch-validation work and as a readability fix for consensus-critical code that theuni and sedited independently called confusing. During review, darosior caught a real regression (script-execution-cache population silently dropped in an interim revision) which was fixed, and multiple contributors ran multi-day mainnet reindex benchmarks (l0rinc, svanstaa) confirming no measurable performance change. The PR remains Disputed: l0rinc maintains an Approach NACK that mixing this behavior unification with a structural refactor is too risky for consensus code, citing a related BIP-110 fork bug as a cautionary example, and has proposed a narrower alternative PR (#34875); the author disagrees at length and has kept the PR as one unit. The author has been silent since 2026-05-28 (~111 days), making the PR Stale by the project's 60-day threshold even though the last push addressed the most recent reviewer nits."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

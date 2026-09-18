@@ -1,0 +1,174 @@
+{
+ "number": 31672,
+ "input_hash": "14dbccee1783421c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:19+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28341,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6348
+ },
+ "cost_usd": 0.04506075,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a per-peer CPU load metric to getpeerinfo and bitcoin-cli -netinfo",
+    "Help operators and researchers monitor which peers consume the most message-processing time"
+   ],
+   "reviewability": [
+    "Stale because the author has been silent for over four months",
+    "Substantive design concerns from sipa and ajtowns remain unaddressed"
+   ],
+   "agreement": [
+    "Concept support for peer resource monitoring (laanwj, theStack, yuvicc, jonatack)",
+    "Objected to as unhelpful on its own (rebroad)",
+    "Unresolved design concerns about exposing a non-decaying metric in getpeerinfo rather than an experimental RPC (sipa, ajtowns)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds an optional diagnostic field to getpeerinfo and -netinfo that helps operators inspect peer resource consumption.",
+      "The metric provides operational visibility for DoS analysis but is speculative and not yet tied to automatic node decisions."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because the cross-platform thread CPU timing helper is added solely to support this single peer statistic.",
+      "It introduces no wider utility infrastructure needed elsewhere in the codebase."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a `cpu_load` metric to the `getpeerinfo` RPC and the `bitcoin-cli -netinfo` dashboard. It measures thread CPU time spent in message processing for each peer, weighted by connection duration, using POSIX `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` and Windows `GetThreadTimes()`.",
+  "problem": "Node operators and developers currently lack an easy way to measure how much CPU time individual peers consume in message processing, making it difficult to detect resource-intensive peers or gather data for peer prioritization.",
+  "discussion": {
+   "open_concerns": [
+    "sipa suggested that an un-decayed metric should not be added directly to the stable getpeerinfo RPC, recommending an experimental RPC and a decaying average instead",
+    "ajtowns argued that CPU time per peer is not actionable, does not distinguish useful work from unproductive work, and that raw wall-clock time or flame graphs are better suited",
+    "rebroad gave a concept NACK stating CPU load alone is useless without transaction acceptance context"
+   ],
+   "resolved_concerns": [
+    "fanquake pointed out unnecessary CMake checks, which the author removed in favor of call-site ifdefs",
+    "maflcko suggested using std::chrono type division instead of custom casting in util/time and net RPC",
+    "Windows support was added using GetThreadTimes"
+   ],
+   "author_status": "silent since 2026-04-29"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 141 days",
+   "reason": "The author has been inactive for 141 days, leaving architectural questions raised by sipa in May 2026 and ajtowns in August 2026 unanswered."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Blocked: sipa and ajtowns questioned adding this metric to production getpeerinfo; author has not replied since April 2026.",
+   "reason": "Multiple reviewers support monitoring peer CPU consumption in concept, but senior contributors (sipa, ajtowns) raised fundamental concerns regarding whether this metric belongs in getpeerinfo and whether it provides actionable signal. The author has not responded to these comments.",
+   "evidence": [
+    "sipa (2026-05-26): 'I'm not sure about making it part of the \"production\" RPC getpeerinfo however... better to create an explicitly experimental \"resource usage dump info\" RPC... Also, I think this should be a decaying average'",
+    "ajtowns (2026-08-11): 'I think the idea of adding better performance monitoring could be valuable, but I don't think this is the right way of doing that... it doesn't seem to result in actionable metrics'",
+    "rebroad (2025-07-28): 'NACK. cpu load alone is a useless metric.'",
+    "laanwj (2025-04-09): 'Concept ACK. Where i think monitoring per-peer CPU usage is most concretely useful is for anti-DoS measures.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#31033"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Initial CMake introspection checks were removed during review; no build files are modified.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build change."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches only release notes and inline RPC help documentation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not primary documentation."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Instruments CConnman ThreadMessageHandler purely to expose metrics over RPC; the p2p category explicitly excludes RPCs that merely report peer state.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter peer selection, wire protocol, relay, or DoS policies."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Carries RPC label and adds the `cpu_load` field to `getpeerinfo` and `bitcoin-cli -netinfo`.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The change adds a diagnostic field to `getpeerinfo` that provides visibility into peer CPU load. While useful for node operators investigating heavy peers and exploratory for issue #31033, it does not fix a bug or alter behavior, making it worthwhile but deferrable."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds `ThreadCpuTime()` and RAII `CpuTimer` helpers to `src/util/time.h` and `src/util/time.cpp`.",
+    "band": "P4",
+    "reason_tag": "new feature",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The new thread CPU timing utility functions are well-formed but are implemented solely to support the peer CPU RPC metric, with no current demand across other parts of the node."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Adds a `cpu_load` field to `getpeerinfo` and `bitcoin-cli -netinfo` using POSIX and Windows thread-timing APIs to report CPU time spent in message processing per peer. The change is aimed at providing node operators and researchers visibility into peer resource consumption, serving as exploratory data collection for peer prioritization (#31033). Multiple contributors have tested and validated the metric, but sipa and ajtowns questioned exposing an un-decayed, non-actionable metric in the stable `getpeerinfo` RPC rather than an experimental endpoint. The PR is currently stale, with the author silent for over four months following those architectural objections."
+ },
+ "raw_text": null
+}

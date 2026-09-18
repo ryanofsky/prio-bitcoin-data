@@ -1,0 +1,147 @@
+{
+ "number": 25573,
+ "input_hash": "819c438a4d5b21e5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 53795,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5170
+ },
+ "cost_usd": 0.0810513,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes Guix-built Linux bitcoind (and CLI tools) fully static and position-independent using glibc 2.44",
+    "Lets the binaries run on old, unusual, or non-glibc-based Linux systems without dynamic linker mismatches",
+    "Also fixes an old issue about aarch64 pointer authentication support"
+   ],
+   "reviewability": [
+    "Review the base PR #36193 first since this branch is now built on top of it and still being reshaped there",
+    "No unaddressed material blockers remain in this PR itself; recent review comments have been addressed by pushes"
+   ],
+   "agreement": [
+    "Strong support from multiple approach and concept ACKs and extensive independent community testing across distros and architectures (dergoegge, w0xlt, willcl-ark, hebasto, jsarenik)",
+    "Standing, acknowledged tradeoff that dynamic NSS modules (mDNS, LDAP, SSSD) no longer work for hostname resolution, documented in release notes rather than fixed (willcl-ark, sedited, xrviv)",
+    "No blocking objections remain open"
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it is a durable, user-facing portability improvement to the official release binaries rather than a fix for existing breakage",
+      "It unblocks running bitcoind on old glibc distros, non-glibc systems (musl, NixOS), containers, and embedded devices, with real deployment demand cited (nodl hardware on Ubuntu 18)",
+      "Extensive multi-month community testing across architectures corroborates the practical value, though it is not fixing an active regression or release-blocking defect"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes the Guix release build for Linux to produce a `-static-pie` bitcoind (and CLI utilities) using a custom GCC 14/glibc 2.44 toolchain, instead of dynamically linking against the host's glibc. It adds a new toolchains.scm module, patches glibc to disable NSS dlopen and strip nondeterministic store paths, adjusts the security/symbol checkers to validate static ELF binaries, and documents the resulting change in DNS/NSS resolution behavior in a release note. bitcoin-qt remains dynamically linked; only bitcoind and CLI tools become static-pie for x86_64 and aarch64 so far.",
+  "problem": "Guix release binaries currently depend on the host's glibc version and dynamic linker, which breaks on very old distros, non-glibc systems (Alpine, NixOS), minimal containers, and unusual environments, and ties supported OS versions to an aging pinned glibc. Users needing to run official binaries on old or nonstandard Linux systems (e.g. embedded hardware still on Ubuntu 18.04) currently cannot easily do so.",
+  "discussion": {
+   "open_concerns": [
+    "Whether the removed dlopen-based NSS lookup (mDNS/.local, LDAP, SSSD, etc.) could silently break name resolution for niche setups; addressed via a release note but the underlying behavior change stands as an accepted tradeoff (willcl-ark, sedited, xrviv, 151henry151).",
+    "hebasto's concern that the FORTIFY_SOURCE symbol check no longer distinguishes libc's own fortified symbols from Bitcoin Core's; author acknowledged the check is losing significance but has not devised a fully robust replacement.",
+    "Minor open question from hebasto about whether four modules in linux_static.scm are actually needed (unresolved at last check, low materiality)."
+   ],
+   "resolved_concerns": [
+    "Early confusion about builds appearing dynamically linked (Frank-GER) traced to using an older/incorrect commit, resolved once rebuilt on the correct commit.",
+    "CMake linker-flag / -Werror=dev discussion resolved by author explaining tradeoffs.",
+    "hebasto's inline nits and commit-ordering suggestions addressed in subsequent pushes.",
+    "Extensive concern threads about NSS/DNS resolution correctness resolved via testing (dergoegge, 0xB10C, xrviv, theStack) showing DNS seeding, signet sync, and getnetworkinfo work correctly across many distros."
+   ],
+   "author_status": "active, pushed as recently as 2026-09-08 and rebased onto dependency PR #36193"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #36193 first",
+   "reason": "The PR is currently rebased on top of the still-open #36272/#36193 (guix toolchain split and libstdc++ wchar_t change), so reviewing this code in isolation risks being invalidated by changes to that base; reviewers are better served starting at #36193. Within this PR itself there is no known blocking issue: CI is not failing, mergeable_state is clean, and the author has been actively addressing review feedback through late 2026."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Broad support with multiple approach/concept ACKs and heavy independent testing, but a standing, documented tradeoff around loss of dynamic NSS module resolution.",
+   "reason": "Numerous reviewers and outside testers (dergoegge, w0xlt, willcl-ark, hebasto, jsarenik, plus many community testers) have expressed support and verified builds across distros/architectures with no unresolved blocking objection. The NSS/dlopen removal was raised as a real behavioral change by willcl-ark and sedited; it was resolved not by reverting but by documenting it in the release notes, which is an accepted tradeoff rather than a fix, keeping the state at 'Positive w/ caveats.'",
+   "evidence": [
+    "willcl-ark (2026-06-16): wrote a long pros/cons analysis, concluding static PIE is 'an overall win' but flagging the NSS module and vuln-response tradeoffs.",
+    "sedited (2026-08-11): agreed the NSS change 'should get a release note' and helped word it.",
+    "hebasto: gave 'Approach ACK' after testing on Fedora 21 with kernel 3.17.4.",
+    "jsarenik: gave 'Approach ACK', citing production use on a signet faucet.",
+    "dergoegge and w0xlt gave Concept ACKs; many outside testers (151henry151, xrviv, 0xB10C, theStack, ketominer) corroborated correctness across distros with no reported blocking regressions."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36272,
+    36193
+   ],
+   "enables": [
+    "Further Guix Linux toolchain simplification and eventual static builds for more architectures (arm32, riscv) once upstream glibc/gcc support lands",
+    "Smaller, more portable release binaries usable in scratch/distroless containers and on unsupported/old distros",
+    "Closes long-standing issue #19075 about aarch64 pointer authentication investigation"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Labeled 'Build system'; the PR entirely rewrites the Guix Linux build manifests, toolchain construction, and binary security/symbol checks to produce static-pie release binaries.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 3,
+     "leverage": 2
+    },
+    "rationale": "Substantially improves portability of official release binaries: 'They can now be run on non-glibc based systems, as well as on systems that ship with older glibcs' (release note). Real downstream demand is evidenced ('We need them for nodl as older devices are based on Ubuntu 18 and won't be upgraded' \u2014 ketominer) and by dozens of independent community test reports across distros and architectures. It also removes a class of host-library-mismatch bugs and reduces dependence on a deliberately old pinned glibc, but it is a new capability rather than a fix for an active regression or release blocker, and carries an accepted NSS-resolution tradeoff, keeping it at P2 rather than P1."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "The PR adds a release note as an incidental part of a code/build change, which the category excludes ('a code change that also updates its docs... belongs to that area').",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a documentation-primary PR; the release note is secondary to the build system change itself."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "The category explicitly states 'Build and release scripts are build,' and this PR's contrib/guix changes are release/build scripts, not standalone CLI tools.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded by the category's own carve-out for build/release scripts."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Exact current review state of base PR #36193 and its stability, which affects whether this PR's code as reviewed will persist unchanged.",
+   "Whether the FORTIFY_SOURCE symbol-check gap raised by willcl-ark/hebasto will be resolved before merge or left as a known limitation.",
+   "Long-term maintenance burden of tracking glibc CVEs for statically-shipped binaries, raised by willcl-ark but not yet formalized as project process."
+  ],
+  "card": "This long-running Guix build PR (opened 2022, still active in 2026) makes the Linux release bitcoind and CLI tools fully static and position-independent (`-static-pie`) using a custom GCC 14/glibc 2.44 toolchain, so binaries no longer depend on the host's glibc/dynamic linker. The problem it solves: official release binaries currently fail or behave inconsistently on very old, unusual, or non-glibc Linux systems (Alpine, NixOS, minimal containers, old distros), a pain point corroborated by a user citing embedded hardware stuck on Ubuntu 18.04 ('We need them for nodl as older devices are based on Ubuntu 18 and won't be upgraded'). The change has been extensively validated by dozens of independent builders and testers across architectures and distros over months, with multiple approach/concept ACKs (dergoegge, w0xlt, willcl-ark, hebasto, jsarenik) and no unresolved blocking objections, though a real tradeoff (loss of dynamic NSS module resolution for things like mDNS/.local) is accepted and documented rather than fixed. The PR is currently rebased on top of the still-open #36272/#36193 guix toolchain-split PRs, so reviewers should start there; within this PR itself nothing is known to be blocking review. It also closes long-standing issue #19075 on aarch64 pointer authentication."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

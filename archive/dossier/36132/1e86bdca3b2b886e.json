@@ -1,0 +1,98 @@
+{
+ "number": 36132,
+ "input_hash": "1e86bdca3b2b886e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3356,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2027
+ },
+ "cost_usd": 0.014897299999999999,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix the mining interface so transaction lookups return one result slot per requested txid even when no mempool exists.",
+    "Restores the documented contract that callers can match results to requests by position."
+   ],
+   "reviewability": [
+    "Ready. Small, focused diff already addressed a reviewer nit and got a utACK on the current commit."
+   ],
+   "agreement": [
+    "Positive: utACK from Sjors and Concept ACKs from jeanpablojp and enirox001.",
+    "optout21 raised a design alternative, changing the contract instead of the code, but this is a discussion point not a blocking objection."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it fixes a contract violation that reviewers suspect cannot currently occur in production, per Sjors' comment 'I also suspect it can't happen.'",
+      "Improves interface robustness for external miners relying on positional matching, but impact is narrow and mostly theoretical."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes the mining interface's getTransactionsByTxID and getTransactionsByWitnessID methods so that when no mempool is present, they return a vector of null entries sized to the request instead of an empty vector, preserving the documented one-result-per-request contract. A characterization test is added to lock in the new behavior. The change is small (18 lines) touching only src/node/interfaces.cpp and a test file.",
+  "problem": "The mining interface promises callers one nullable transaction slot per requested identifier so results can be matched by position, but when NodeContext has no mempool, both lookup methods instead returned an empty vector, breaking that positional contract for any caller relying on it, even though reviewers suspect this state may not be reachable in current production paths.",
+  "discussion": {
+   "open_concerns": [
+    "optout21 suggests an alternative design: change the contract to say a short vector should be treated as an error, rather than fixing the code, arguing callers should verify length regardless; this is a design discussion, not an implemented objection, and does not block the PR.",
+    "Sjors notes a related but out-of-scope distinction: the PR does not reveal whether mempool is still loading from disk vs the transaction being genuinely missing, which he says would be a more involved change 'probably not worth doing.'"
+   ],
+   "resolved_concerns": [
+    "jeanpablojp's nit about test fixture (BasicTestingSetup vs MinerTestingSetup) was addressed by the author in a force-push."
+   ],
+   "author_status": "active, addressed review feedback with force-push on 2026-09-02, silent since then but no material open request"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Small diff, CI passing, no rebase needed, reviewer nit already addressed by author's force-push, and a utACK exists on the current head commit."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: utACK from Sjors plus Concept ACKs from jeanpablojp and enirox001, with optout21 raising an alternative design (change the contract instead) that is a discussion point rather than a blocking objection.",
+   "reason": "Multiple reviewers substantively engaged, one gave utACK on the current commit, two gave concept ACKs, and the remaining commentary (optout21's alternative, Sjors's scope note) does not identify a harm from merging this PR as written.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK... reverting just interfaces.cpp makes the new test fail.'",
+    "Sjors: 'utACK 534aee84bf...' also floated an alternative (throwing) but said 'I'm fine with the simpler approach here.'",
+    "enirox001: 'Concept ACK... having the node return a list of nullptrs is better than having it return nothing.'",
+    "optout21: proposed changing the contract instead, framed as a question/alternative, no explicit objection to merging."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "The PR changes the Mining interface's transaction lookup methods (getTransactionsByTxID/getTransactionsByWitnessID) in src/interfaces/mining.h implementation, labeled Mining by maintainers.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes a real contract violation (empty vector instead of sized null vector) in the mining interface used by external consumers, but multiple reviewers, including Sjors, suspect the triggering condition 'can't happen' in current production paths, limiting practical impact. The fix is correct and low-risk, restoring documented behavior that IPC-based miners depend on for positional matching, but is not tied to an active bug report or user complaint (optout21 explicitly asks 'Is there any report of this causing a problem with users?' and gets no evidence in reply)."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the no-mempool state is actually reachable in production is unresolved in the discussion itself, which affects how much real-world value this fix has beyond defensive correctness.",
+   "No external consumer is cited as having hit this bug, so user_value is inferred rather than demonstrated."
+  ],
+  "card": "This PR fixes the mining interface's transaction lookup methods (getTransactionsByTxID, getTransactionsByWitnessID) so they return a vector sized to the request, with null entries, when no mempool is available, instead of an empty vector that breaks the documented positional-matching contract. The problem affects external callers (e.g., IPC-based miners) that rely on one response slot per requested txid, though reviewers, including Sjors, suspect the no-mempool condition may not be reachable in current production paths, and optout21 asked without answer whether any user has actually hit this. The PR is small, has a utACK from Sjors and Concept ACKs from jeanpablojp and enirox001, and already addressed a fixture nit via force-push, leaving it ready for merge-quality review. A discussion thread floats an alternative design, changing the contract to require callers to check vector length, but this is a non-blocking suggestion rather than an objection. No dependencies or blockers."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

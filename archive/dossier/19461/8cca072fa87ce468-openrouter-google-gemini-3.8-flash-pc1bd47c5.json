@@ -1,0 +1,466 @@
+{
+ "number": 19461,
+ "input_hash": "8cca072fa87ce468",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:14:22+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 59048,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9310
+ },
+ "cost_usd": 0.0791985,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow bitcoin-gui to connect to an existing running bitcoin-node process over IPC",
+    "Let users start and stop the GUI independently of the background node"
+   ],
+   "reviewability": [
+    "Reviewable now, but best reviewed after underlying stack (#19460, #10102)",
+    "Experimental multiprocess code with ongoing rebases"
+   ],
+   "agreement": [
+    "Concept ACK from maintainer and contributor (laanwj, meshcollider)",
+    "Positive testing feedback over SSH tunnel with bug reports on shutdown and external signer (Sjors)",
+    "Reported crash when connecting GUI to a node started with -disablewallet, tracked upstream (jimhashhq)"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it delivers a key capability of the process separation project",
+      "Allows bitcoin-gui to detach from node lifecycle and connect to an independent node process"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it improves btcsignals destruction semantics to match boost::signals2",
+      "Ensures disconnected callbacks and owned proxy resources are destroyed eagerly rather than leaked"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds an `-ipcconnect` command-line option to `bitcoin-gui` when built with multiprocess support (`--enable-multiprocess`). It enables the GUI process to connect to an already-running `bitcoin-node` via Unix domain socket rather than spawning a dedicated node subprocess, allowing the GUI to start and stop independently. The PR also includes btcsignals changes to eagerly destroy callbacks on disconnect, resolving proxy object lifetime hangs.",
+  "problem": "In multiprocess mode, `bitcoin-gui` previously had to spawn and manage its own `bitcoin-node` subprocess, preventing users from attaching a graphical interface to an existing background daemon or stopping the GUI without killing the node.",
+  "discussion": {
+   "open_concerns": [
+    "A node started with `-disablewallet` crashes if `bitcoin-gui` connects to it without `-disablewallet` (tracked in libmultiprocess #169)",
+    "Assertions fail when using external signer flows or PSBT creation over the IPC connection"
+   ],
+   "resolved_concerns": [
+    "Command-line option syntax and naming consistency settled on `-ipcconnect` matching `bitcoin-cli -rpcconnect`",
+    "Node hangs on exit caused by deferred callback destruction in `btcsignals` addressed by eager destruction commit"
+   ],
+   "author_status": "Active, periodically rebasing the branch across major releases and tracking reported multiprocess issues upstream."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #19460 first",
+   "reason": "The PR is at the tip of the multiprocess PR stack (on top of #10102, #29409, and #19460). While reviewable on its own merits, reviewing the base PRs first avoids reviewing code that is still subject to change upstream."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "laanwj",
+     "stance": "support",
+     "note": "Concept ACK; approved -ipcconnect option name"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "Noted command line help plans and flagged an ARM CI failure"
+    },
+    {
+     "login": "meshcollider",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "Sjors",
+     "stance": "objection",
+     "note": "Tested over SSH and reported GUI crash when spending with an external signer"
+    },
+    {
+     "login": "ClaraBara22",
+     "stance": "support",
+     "note": "Approved with no substantive feedback"
+    },
+    {
+     "login": "jimhashhq",
+     "stance": "objection",
+     "note": "Reported node crash when GUI connects without -disablewallet to a -disablewallet node"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "jimhashhq",
+     "kind": "correctness",
+     "harm": "bitcoin-node crashes when bitcoin-gui connects without -disablewallet to a node running with -disablewallet",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2025-03-27: 'If bitcoin-node is run with -disablewallet subsequent start of a bitcoin-gui with -ipcconnect=auto, but without -disablewallet will crash bitcoin-node.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "Sjors",
+     "kind": "correctness",
+     "harm": "Assertion failure in sendButtonClicked when using external signer or PSBTs over IPC",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2023-05-05: 'Assertion failed: (!complete), function sendButtonClicked, file sendcoinsdialog.cpp, line 525.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "laanwj",
+     "reason": "Supports the option naming and functionality: '-ipcconnect SGTM as option name, it reminds of -rpcconnect of the -cli client.'",
+     "substantive": true
+    },
+    {
+     "reviewer": "meshcollider",
+     "reason": "Concept ACK on multiprocess GUI connection",
+     "substantive": false
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "Successfully tested remote GUI connected to Ubuntu node over SSH socket tunnel",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Positive with Concept ACKs (laanwj, meshcollider) and successful remote testing (Sjors), with nonblocking bug reports on edge cases (Sjors, jimhashhq)",
+   "reason": "The project strongly supports multiprocess process separation. Reviewers have confirmed the approach works in remote tunneling setups, and identified bugs are treated as normal experimental development issues tracked upstream rather than objections to merging.",
+   "evidence": [
+    "laanwj: 'Concept ACK, I've only reviewed the option help yet but -ipcconnect SGTM as option name'",
+    "Sjors: 'Other than that, it seems to work. Cool stuff!'",
+    "jimhashhq: 'I tried out -ipcconnect using rebased pr-19641... everything seemed to work consistent with my new understanding of multiprocess interactions'"
+   ],
+   "model_state": "Positive",
+   "derivation": "nonblocking objection open (jimhashhq, Sjors)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "Sjors",
+      "kind": "correctness",
+      "harm": "GUI aborts with an assertion failure in sendcoinsdialog when spending with an external signer connected to the remote node",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2023-05-05: \"I'm able to produce another crash that may be related to this PR. When using an external signer that's connected to the Ubuntu machine, and trying to spend with it from the macOs GUI... Assertion failed: (!complete), function sendButtonClicked, file sendcoinsdialog.cpp, line 525.\"",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jimhashhq",
+      "kind": "correctness",
+      "harm": "bitcoin-node crashes when bitcoin-gui connects with default options if the node was started with -disablewallet",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-03-27: \"If bitcoin-node is run with -disablewallet subsequent start of a bitcoin-gui with-ipcconnect=auto, but without -disablewallet will crash bitcoin-node. This is obviously an operator error, but may be worth handling w/o node crash.\"",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "laanwj",
+      "reason": "Concept ACK, -ipcconnect option name is consistent with -rpcconnect",
+      "substantive": true
+     },
+     {
+      "reviewer": "meshcollider",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "laanwj",
+      "stance": "support",
+      "note": "Concept ACK, approved of the -ipcconnect option naming"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "Noted command line help formatting and flagged ARM CI failure"
+     },
+     {
+      "login": "meshcollider",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "Sjors",
+      "stance": "objection",
+      "note": "Tested over SSH and reported GUI crash when spending with an external signer"
+     },
+     {
+      "login": "ClaraBara22",
+      "stance": "support",
+      "note": "Approved with no substantive feedback"
+     },
+     {
+      "login": "jimhashhq",
+      "stance": "objection",
+      "note": "Reported bitcoin-node crash when bitcoin-gui connects without -disablewallet to a node running with -disablewallet"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: Concept ACKs from laanwj and meshcollider, but Sjors reported an external signer crash and jimhashhq reported a node crash on -disablewallet mismatch.",
+    "usage": {
+     "input_tokens": 12799,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 4275
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Positive",
+    "objections": [
+     {
+      "reviewer": "jimhashhq",
+      "kind": "correctness",
+      "harm": "bitcoin-node crashes when bitcoin-gui connects without -disablewallet to a node running with -disablewallet",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-03-27: 'If bitcoin-node is run with -disablewallet subsequent start of a bitcoin-gui with -ipcconnect=auto, but without -disablewallet will crash bitcoin-node.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "Sjors",
+      "kind": "correctness",
+      "harm": "Assertion failure in sendButtonClicked when using external signer or PSBTs over IPC",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2023-05-05: 'Assertion failed: (!complete), function sendButtonClicked, file sendcoinsdialog.cpp, line 525.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "laanwj",
+      "reason": "Supports the option naming and functionality: '-ipcconnect SGTM as option name, it reminds of -rpcconnect of the -cli client.'",
+      "substantive": true
+     },
+     {
+      "reviewer": "meshcollider",
+      "reason": "Concept ACK on multiprocess GUI connection",
+      "substantive": false
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Successfully tested remote GUI connected to Ubuntu node over SSH socket tunnel",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [
+    10102,
+    19460,
+    29409
+   ],
+   "enables": [
+    "Running headless bitcoind/bitcoin-node as a system daemon and connecting the GUI on demand"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Build system changes in CMakeLists.txt are incidental to adding IPC executable options and updating the libmultiprocess subtree.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Updates doc/multiprocess.md and doc/design/libraries.md purely as follow-ups to the new IPC CLI options.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds `-ipcconnect` to bitcoin-gui and updates IPC initialization, connection lifecycle, and libmultiprocess subtree integration.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Directly advances the multiprocess separation project by allowing bitcoin-gui to connect to an existing running node process instead of having to spawn one. ryanofsky notes: 'This allows the GUI to be started and stopped independently of the node.'"
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches fee calculation annotations for capnp serialization, but does not alter mempool or policy logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Adds serialization guidance comments to net headers; does not alter p2p networking or message handling.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Adds IPC annotations to JSONRPCRequest and handles bitcoin-cli IPC logging suffix; not an RPC interface change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test tweaks to timeouts and logging assertions follow directly from multiprocess integration.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Contains commits for bitcoin-wallet -ipcconnect from base PR #19460, but this PR's own scope is bitcoin-gui.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Labeled Utils/log/libs by maintainers; modifies src/util/btcsignals.h to align callback destruction semantics with boost::signals2.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Improves `btcsignals` by making `disconnect()` eagerly destroy callbacks and their associated state, fixing a problem where node notification callbacks owning IPC proxy objects kept processes from exiting cleanly."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Wallet parameter reordering and coin control comments are mechanical adjustments carried over from base PRs #10102 and #19460.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "multiprocess: Add bitcoin-gui -ipcconnect option allows the Qt GUI to connect to an existing bitcoin-node process via socket instead of spawning a new one. This unblocks running a continuous background node while attaching and detaching the GUI interface on demand. The PR is part of the multiprocess separation project and sits on top of #19460 and #10102. Reviewers have successfully tested remote connectivity over SSH socket forwarding, though minor edge cases around disabled wallet handling remain open."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0256305
+}

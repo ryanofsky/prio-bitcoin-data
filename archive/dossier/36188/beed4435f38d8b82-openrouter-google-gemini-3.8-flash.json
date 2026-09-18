@@ -1,0 +1,139 @@
+{
+ "number": 36188,
+ "input_hash": "beed4435f38d8b82",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:58:52+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29472,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4942
+ },
+ "cost_usd": 0.0406365,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Plug hardware-accelerated SHA256 into libsecp256k1 to speed up cryptographic signing",
+    "Restructure and encapsulate ECC context initialization into a clean RAII lifecycle"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "No open reviewer questions or blockers"
+   ],
+   "agreement": [
+    "Unanimous Concept ACKs from multiple contributors and maintainers (sedited, ismaelsadeeq, theStack, fjahr, w0xlt, hebasto)",
+    "Detailed code review is still pending"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because signing performance improves by 7-13% on hardware with SHA extensions, but verification is mostly unchanged",
+      "Encapsulates global elliptic-curve context state cleanly without blocking immediate release priorities"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request integrates Bitcoin Core's hardware-accelerated SHA256 transform into libsecp256k1 contexts using the external compression hook introduced in upstream libsecp256k1 #1777. It restructures `ECC_Context` into a proper singleton managing both signing and verification contexts, moves ECC initialization into `common/ecc_init`, and updates all call sites across binaries, tests, and benchmarks.",
+  "problem": "Libsecp256k1 previously relied solely on its internal software SHA256 implementation, leaving hardware acceleration (ARM SHA-NI, x86 SHA-NI) unused during signing and verification. Furthermore, ECC context initialization was coupled to key primitives rather than managed through a unified lifecycle.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch applies cleanly, CI is passing, and there are no open material questions or reviewer objections."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Unanimous Concept ACKs from six contributors and maintainers; full code review pending.",
+   "reason": "The concept has broad enthusiasm with multiple maintainer Concept ACKs and no objections.",
+   "evidence": [
+    "w0xlt, fjahr, sedited, ismaelsadeeq, theStack, and hebasto all posted Concept ACKs",
+    "sedited commented 'Finally! Concept ACK'",
+    "fanquake pinged secp256k1 upstream maintainer real-or-random for awareness"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/CMakeLists.txt only to add the internal ecc_context.cpp helper to the static library; does not modify kernel public API or boundary.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter libbitcoinkernel interfaces or isolation boundary."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Mechanical updates across fuzz and benchmark files to use MakeContextECC, plus adding an ECC benchmark and lifecycle unit test.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test changes only serve the utility refactor and benchmark the crypto optimization; the testing harness itself is unchanged."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Touches src/bitcoin-tx.cpp and src/bitcoin-wallet.cpp strictly for mechanical call-site updates to MakeContextECC.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site migration following an internal signature change."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Refactors cryptographic primitive integration (SHA256 hook into libsecp256k1) and ECC context lifecycle utilities under src/crypto/ and src/common/.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Signing speeds improve significantly on CPUs with SHA extensions (ECDSASign is 13% faster and SchnorrSign is 7% faster on ARM64), though verification performance is largely unaffected. It also delivers clean RAII lifecycle management for secp256k1 contexts, though the improvement is not blocking any critical safety issues."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #36188 plugs Bitcoin Core's hardware-accelerated SHA256 compression function into libsecp256k1 contexts and encapsulates ECC context initialization into a unified RAII singleton. This improves ECDSA signing performance by roughly 13% and Schnorr signing by 7% on architectures with hardware SHA extensions, while verification performance remains essentially flat. The changes clean up global ECC state handling across bitcoind and auxiliary tools without blocking critical projects. Review state is fully ready, having earned unanimous Concept ACKs from six maintainers and contributors with detailed code review still to follow."
+ },
+ "raw_text": null
+}

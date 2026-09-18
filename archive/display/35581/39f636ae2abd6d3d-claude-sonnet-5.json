@@ -1,0 +1,84 @@
+{
+ "number": 35581,
+ "input_hash": "39f636ae2abd6d3d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-18T01:18:50+00:00",
+ "provider": null,
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3352,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 1313,
+  "output_tokens": 933
+ },
+ "cost_usd": 0.0081483,
+ "error": null,
+ "result": {
+  "goal": [
+   "Cut the cost of getblocktemplate longpolling by tracking mempool fee inflow instead of rebuilding a full block template on every tick",
+   "Centralize mining template creation, submission, and staleness logic behind a single manager to simplify internal callers"
+  ],
+  "reviewability": [
+   "Review #35675 first, since this PR is a superset carrying that refactor plus new fee-inflow tracking commits",
+   "The new commits are ready to review now and nothing known would invalidate reviewing them, author is active with recent force-pushes"
+  ],
+  "agreement": [
+   "Strong support with concept ACKs and no unresolved objections",
+   "Verified by testing: a fuzz test caught a real bug in the miner's block chunk size check (pablomartin4btc)",
+   "Praised as a clean design that moves free functions into stateful class with incremental tracking (pablomartin4btc)",
+   "Plain concept ACK without detailed reasoning (w0xlt)",
+   "Sjors confirmed this unblocks a follow-up PR (#33922) once split as requested"
+  ],
+  "categories": [
+   {
+    "name": "ipc",
+    "why": [
+     "P3 because it removes an interface-boundary lifetime hazard and per-access block copies, but no external consumer is waiting on it",
+     "Splits tracked IPC-client templates from untracked in-process ones to avoid a shutdown crash reaching into NodeContext",
+     "Marginal impact since it is mostly cleanup rather than a user-facing change"
+    ]
+   },
+   {
+    "name": "mempool",
+    "why": [
+     "P2 because it unblocks the cluster-mempool fee-rate-diagram work discussed upstream",
+     "Adds an async mempool-change notification so waitNext and future consumers avoid holding cs_main",
+     "Meaningful leverage for downstream mempool work even though the immediate user benefit is indirect"
+    ]
+   },
+   {
+    "name": "mining",
+    "why": [
+     "P2 because it removes a cs_main lock and a full block-template rebuild from every waitNext tick",
+     "Directly reduces latency and lock contention for pools longpolling on getblocktemplate",
+     "The same test harness already caught a real correctness bug, showing the underlying logic carries real risk"
+    ]
+   },
+   {
+    "name": "rpc",
+    "why": [
+     "P2 because getblocktemplate and related RPCs now avoid copying template data and whole blocks",
+     "Direct performance win for pools calling getblocktemplate on every tip change",
+     "Also closes fuzz-safety gaps in generateblock and waitfor* RPCs that previously silently no-op'd"
+    ]
+   },
+   {
+    "name": "tests",
+    "why": [
+     "P2 because a new fuzz harness already caught a legitimate-tx-skipping bug in the miner",
+     "Roughly half the diff is new fuzz and unit test coverage, a realistic regression class the category values highly"
+    ]
+   },
+   {
+    "name": "utils",
+    "why": [
+     "P4 because it is a pure code-move extraction with no behavior change",
+     "Low standalone value since it's just refactoring a hash helper for reuse"
+    ]
+   }
+  ]
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_01Dz8d8VZiG1tjqAhyUvczZG"
+}

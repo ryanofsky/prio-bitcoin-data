@@ -1,0 +1,115 @@
+{
+ "number": 35919,
+ "input_hash": "9647e9b4ba1b3c10",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:21:39+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16977,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2552
+ },
+ "cost_usd": 0.02230275,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent a node crash when more than 3,000 peers announce orphans by avoiding a division-by-zero assertion in orphanage eviction"
+   ],
+   "reviewability": [
+    "Ready",
+    "Recent push addressed all review comments, tests pass and CI is green"
+   ],
+   "agreement": [
+    "Strong consensus across multiple reviewers with reproduced crashes and verified fixes (jeanpablojp, brunoerg, danielabrozzoni)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes an assertion abort during orphan eviction on nodes configured with high peer counts",
+      "Hardens P2P DoS and crash resilience without breaking orphan eviction guarantees"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because test updates solely cover txorphanage behavior rather than test framework infrastructure"
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a potential assertion crash in the transaction orphanage when trimming candidates. When the number of peers announcing orphans exceeds the global latency limit of 3,000, integer division reduced the per-peer latency score allowance to zero, causing an assertion failure in GetDosScore. The PR floors the per-peer latency share at one during eviction and adjusts candidate filtering to select peers with scores of one or higher.",
+  "problem": "Nodes running on Linux with custom configurations permitting over 3,000 peer connections can be crashed if enough peers announce orphan transactions, because integer division floors the per-peer latency share to zero and triggers an assertion abort.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp reproduced the abort and pointed out that both clamping and changing the filter to >= are required to avoid an empty heap segfault.",
+    "brunoerg suggested updating the fuzz target txorphanage_sim to reach the zero-share path.",
+    "danielabrozzoni requested adding SanityCheck() calls in unit tests and clarifying eviction documentation in txorphanage.h."
+   ],
+   "author_status": "Active; incorporated review feedback and rebased with expanded fuzzing and documentation updates."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author incorporated all reviewer suggestions into the latest push, and CI is clean."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: tested and approved by three reviewers after crash reproduction and fuzzing updates",
+   "reason": "Reviewers reproduced the bug, verified that the fix prevents the abort, and had their follow-up test and documentation suggestions implemented.",
+   "evidence": [
+    "jeanpablojp reproduced the crash on master and confirmed the fix in ACK 1ac1f10e7b / re-ACK 5f4429c",
+    "brunoerg approved after suggesting fuzz test improvements (review ACK 5f4429c)",
+    "danielabrozzoni approved with light ACK 5f4429c after requesting test and comment clarifications"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies transaction orphanage trimming and eviction logic in src/node/txorphanage.cpp.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes an assertion abort in TxOrphanage that can crash nodes configured with high connection limits when more than 3,000 peers announce orphans. While requiring non-default connection limits on Linux, remote crashes in P2P message handling represent a clear stability hazard."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to tests/fuzz/txorphan.cpp and orphanage_tests.cpp only test txorphanage domain logic and do not touch test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter test harnesses or testing frameworks; test changes are domain-specific to p2p orphan handling."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Fixes an assertion abort in TxOrphanage that crashes nodes with high peer counts when more than 3,000 peers announce orphans. The fix floors the per-peer latency share at one and includes peers with scores of one or higher in eviction candidate heaps. The bug was confirmed and reproduced on master by reviewers, who also contributed fuzz target enhancements and test improvements. Review status is clean and ready with three ACKs."
+ },
+ "raw_text": null
+}

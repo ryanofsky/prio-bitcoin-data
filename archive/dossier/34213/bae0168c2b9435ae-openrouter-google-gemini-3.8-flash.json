@@ -1,0 +1,111 @@
+{
+ "number": 34213,
+ "input_hash": "bae0168c2b9435ae",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:04+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17572,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2869
+ },
+ "cost_usd": 0.02393775,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Preserve block-relay-only peer anchors across restarts when a node is shut down with network activity disabled.",
+    "Prevent anchors.dat from being wiped clean, preserving eclipse attack resistance."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "Recent push addressed thread-safety and connection-consumption comments with fresh tests."
+   ],
+   "agreement": [
+    "Strong support with an approval after author addressed race conditions and connection handling (willcl-ark).",
+    "Concept ACKs and review feedback on eclipse attack scenarios and anchor persistence (danielabrozzoni, waketraindev)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it fixes an edge-case bug that wipes anchor peers needed for eclipse protection on restart.",
+      "Affects nodes toggled offline or launched with -networkactive=0, but has minor risk under normal operation."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR prevents `anchors.dat` from being overwritten with an empty file when a node is cleanly stopped while network activity is disabled (such as via `-networkactive=0` or the `setnetworkactive false` RPC). It introduces a mutex to guard `m_anchors`, saves active block-relay-only connections into `m_anchors` upon network deactivation, halts consuming anchors while networking is disabled in `ThreadOpenConnections()`, and dumps those stored anchors on shutdown.",
+  "problem": "When a node shuts down with networking disabled, `GetCurrentBlockRelayOnlyConns()` returns an empty list since no connections are active. Bitcoin Core previously overwrote `anchors.dat` with this empty list, causing the node to lose its previous block-relay-only peers and degrading eclipse attack resilience on the following restart.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Thread safety: danielabrozzoni identified a race between `SetNetworkActive` flipping `fNetworkActive` and socket handlers clearing nodes before anchors could be read, resolved by capturing anchors before toggling the flag and adding mutex locking.",
+    "Anchor consumption while offline: willcl-ark pointed out that `ThreadOpenConnections()` still popped and dropped anchors when networking was disabled, resolved by gating anchor selection on active networking.",
+    "Anchor count ordering: w0xlt noted that peers should be capped to the oldest block-relay connections matching startup behavior, which the author adopted."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, CI passes, and all reviewer feedback regarding thread-safety and edge cases has been addressed and tested."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus with an explicit ACK from willcl-ark and earlier Concept ACKs from danielabrozzoni and waketraindev.",
+   "reason": "Reviewers agreed with the concept of preserving anchors across offline restarts to avoid degrading eclipse protection. Technical concerns regarding data races and anchor popping were addressed to reviewers' satisfaction.",
+   "evidence": [
+    "willcl-ark approved: 'Disabling networking should not cause the node to lose its anchors. Preserving them across a clean shutdown lets the node reconnect when networking resumes, increasing eclipse attack resilience on restarts.'",
+    "danielabrozzoni provided Concept ACK and detailed review of the anchor life cycle and lock ordering.",
+    "waketraindev noted 'Concept ACK' and verified that nodes started with network inactive benefit from this change."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies CConnman peer connection management, anchor persistence logic, and block-relay-only connection tracking in src/net.cpp.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it addresses a corner-case bug where anchors protecting against eclipse attacks are dropped when stopping an offline node. While losing anchors degrades restart topology diversity, it is not an easily exploitable vulnerability under standard node operation."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not alter RPC interfaces, schemas, or dispatch logic; the interaction with `setnetworkactive` is internal connman state management.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not an RPC change."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request ensures that block-relay-only anchor connections are preserved in anchors.dat when bitcoind is shut down while network activity is disabled. Previously, shutting down an offline node overwrote anchors.dat with zero entries, stripping eclipse attack protections for subsequent boots. The PR captures block-relay connections on deactivation, guards anchor storage with a mutex, and stops consuming anchors while offline. Code review is positive with an explicit ACK from willcl-ark following resolved race condition and connection handling discussions."
+ },
+ "raw_text": null
+}

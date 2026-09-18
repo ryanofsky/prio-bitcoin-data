@@ -1,0 +1,390 @@
+{
+ "number": 35833,
+ "input_hash": "d221933e59151ad4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:41:59+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33109,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7788
+ },
+ "cost_usd": 0.045792299999999994,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent log injection attacks where untrusted inputs forge fake log lines",
+    "Escape embedded newlines across all log messages while preserving intentional multiline output"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Author promptly adopted the recommended escaping architecture and all CI checks pass"
+   ],
+   "agreement": [
+    "Strong support for centrally escaping newlines rather than per-callsite filtering (ryanofsky, davidgumberg)",
+    "Prior concerns about breaking multiline logs or stripping valid characters were fully addressed (maflcko, ryanofsky)",
+    "Concept and implementation approved by multiple contributors (ryanofsky, polespinasa, achow101)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes a real log-forging vulnerability without breaking legitimate logging",
+      "Hardens logging against untrusted inputs like rejected RPC calls or wallet names",
+      "Improves log safety cleanly but is reasonably deferrable without active exploit pressure"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request updates the core logging utility to escape embedded newline characters as '\\x0a', preventing untrusted input from injecting forged log lines into debug.log. It strips only the conventional trailing newline from log messages before escaping, introduces a 'SplitLines' string helper, and updates legitimate multiline logging call sites to emit each line as an independent log entry.",
+  "problem": "Restricted RPC callers or external sources supplying wallet names or daemon status strings can supply newline characters that Bitcoin Core's logging framework previously preserved. This allows untrusted input to forge fake timestamps, warning banners, or block connection messages in node logs.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Rejecting newlines wholesale would break existing multiline logs such as exceptions and transaction dumps (raised by maflcko; resolved by introducing SplitLines)",
+    "Sanitizing strings at RPC call sites stripped non-newline characters and produced misleading logs (raised by ryanofsky; resolved by switching to central newline escaping in Logger::Format)",
+    "Restricting wallet names to fix log injection exceeded the scope of a logging change (raised by ryanofsky, polespinasa; resolved by dropping wallet name restrictions)"
+   ],
+   "author_status": "active; promptly addressed reviewer feedback and force-pushed the suggested cleanups"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is in a clean state with passing CI, and the author incorporated the architectural changes requested by reviewers."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Crypt-iQ",
+     "stance": "question",
+     "note": "asked about potential format string attack surface in the logging interface"
+    },
+    {
+     "login": "maflcko",
+     "stance": "support",
+     "note": "suggested addressing global newline handling separately and recommended proceeding with this PR first"
+    },
+    {
+     "login": "davidgumberg",
+     "stance": "support",
+     "note": "pointed out untrusted external strings from Tor/I2P and supported central newline escaping"
+    },
+    {
+     "login": "achow101",
+     "stance": "support",
+     "note": "ACKed an earlier version of the patch"
+    },
+    {
+     "login": "polespinasa",
+     "stance": "support",
+     "note": "tested and re-ACKed revisions, agreeing with keeping scope focused on logging"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "objection",
+     "note": "objected to SanitizeString on RPC methods and scope of wallet commits, both resolved with PR redesign"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "Wholesale blocking of newlines breaks existing multiline logs like exceptions and wallet commit transactions",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-05: 'Sure, but this will silently break logs, as explained above.'",
+     "resolution_evidence": "2026-09-15: Author implemented SplitLines for intentional multiline logs following ryanofsky's suggestion.",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "approach",
+     "harm": "Using SanitizeString on RPC inputs strips valid characters and is fragile compared to global log escaping",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-09-14: 'It doesn't seem ideal to use SanitizeString string here because this strips characters other than newlines... Would be better to just escape newlines with \\n in log messages'",
+     "resolution_evidence": "2026-09-15: 'Thanks @ryanofsky, rebased and replaced RPC-specific sanitization with global newline escaping'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "scope",
+     "harm": "Restricting wallet names to prevent log injection adds out-of-scope wallet validation logic",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-09-15: 'I do think it would be a little better to drop the two wallet commits here... and only keep the logging commits'",
+     "resolution_evidence": "2026-09-15: 'dropped the wallet-name restrictions, and kept the RPC and wallet log-injection regressions'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "Favors central escaping in Logger::Format as it comprehensively secures all logging sources including Tor and I2P",
+     "substantive": true
+    },
+    {
+     "reviewer": "polespinasa",
+     "reason": "Verified testing of wallet name and RPC log behaviors across revisions",
+     "substantive": true
+    },
+    {
+     "reviewer": "davidgumberg",
+     "reason": "Noted external daemon strings need newline protection across the board",
+     "substantive": true
+    },
+    {
+     "reviewer": "achow101",
+     "reason": "ACK ed4eb51e9fc6f62975e272e96b22e0a6b64d3205",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus on central newline escaping; previous approach and scope objections were resolved to reviewer satisfaction",
+   "reason": "Reviewers agreed on the need to prevent log line injection, and the author adopted ryanofsky's design for central escaping alongside polespinasa's feedback.",
+   "evidence": [
+    "ryanofsky approved the updated escaping implementation on 2026-09-15",
+    "polespinasa tested and re-ACKed on 2026-09-15"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (ryanofsky, polespinasa, davidgumberg)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "correctness",
+      "harm": "strips characters other than newlines from RPC methods, potentially producing misleading warnings that make whitelisted methods look rejected",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-14: \"It doesn't seem ideal to use SanitizeString string here because this strips characters other than newlines, and produce confusing / misleading warnings, and could make it appear that whitelisted methods were being rejected in the logs.\"",
+      "resolution_evidence": "2026-09-15: \"Code review ACK aae82ddcc52a2f87a73077d150f9dd95ef7e572d. Thanks for picking up the escaping approach, this seems simpler than the per-site sanitizing\""
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "scope",
+      "harm": "restricting wallet names is out of scope and should be handled in a dedicated wallet PR",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-15: \"I do think it would be a little better to drop the two wallet commits here... and only keep the logging commits... just because the logging commits are sufficient to fix the reported problem, and restricting wallet names seems out of scope and something that deserves a wallet PR.\"",
+      "resolution_evidence": "2026-09-15: l0rinc replied: \"Thanks, updated to focus on logging, dropped the wallet-name restrictions, and kept the RPC and wallet log-injection regressions.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "achow101",
+      "reason": "ACK ed4eb51e9fc6f62975e272e96b22e0a6b64d3205",
+      "substantive": false
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "tested manual reproducer and confirmed injection paths are blocked",
+      "substantive": true
+     },
+     {
+      "reviewer": "ryanofsky",
+      "reason": "Code review ACK; global newline escaping approach is simpler than per-site sanitizing and covers additional injection vectors",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "Crypt-iQ",
+      "stance": "question",
+      "note": "asked whether the logging interface might be vulnerable to format string attacks"
+     },
+     {
+      "login": "maflcko",
+      "stance": "support",
+      "note": "suggested addressing global newline handling separately and recommended proceeding with this PR first"
+     },
+     {
+      "login": "davidgumberg",
+      "stance": "support",
+      "note": "supported blocking newlines globally in logging, noting tor and i2p log lines"
+     },
+     {
+      "login": "achow101",
+      "stance": "support",
+      "note": "ACKed earlier approach"
+     },
+     {
+      "login": "polespinasa",
+      "stance": "support",
+      "note": "tested and re-ACKed after global escaping update"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "objection",
+      "note": "objected to SanitizeString on RPC methods and scope of wallet commits, both resolved with PR redesign"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: ryanofsky preferred escaping newlines globally in the logging framework and dropping out-of-scope wallet commits; author adopted both suggestions.",
+    "usage": {
+     "input_tokens": 9286,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3177
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "maflcko",
+      "kind": "correctness",
+      "harm": "Wholesale blocking of newlines breaks existing multiline logs like exceptions and wallet commit transactions",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-05: 'Sure, but this will silently break logs, as explained above.'",
+      "resolution_evidence": "2026-09-15: Author implemented SplitLines for intentional multiline logs following ryanofsky's suggestion."
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "approach",
+      "harm": "Using SanitizeString on RPC inputs strips valid characters and is fragile compared to global log escaping",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-14: 'It doesn't seem ideal to use SanitizeString string here because this strips characters other than newlines... Would be better to just escape newlines with \\n in log messages'",
+      "resolution_evidence": "2026-09-15: 'Thanks @ryanofsky, rebased and replaced RPC-specific sanitization with global newline escaping'"
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "scope",
+      "harm": "Restricting wallet names to prevent log injection adds out-of-scope wallet validation logic",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-15: 'I do think it would be a little better to drop the two wallet commits here... and only keep the logging commits'",
+      "resolution_evidence": "2026-09-15: 'dropped the wallet-name restrictions, and kept the RPC and wallet log-injection regressions'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "Favors central escaping in Logger::Format as it comprehensively secures all logging sources including Tor and I2P",
+      "substantive": true
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "Verified testing of wallet name and RPC log behaviors across revisions",
+      "substantive": true
+     },
+     {
+      "reviewer": "davidgumberg",
+      "reason": "Noted external daemon strings need newline protection across the board",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies BCLog::Logger in src/logging.cpp and adds util::SplitLines in src/util/string.h",
+    "band": "P3",
+    "reason_tag": "security",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because this fixes an established log injection vulnerability by preventing untrusted runtime input from forging fake node log lines. As noted in the description, 'Restricted RPC users and callers of createwallet or restorewallet can inject newlines... making forged lines look like node messages'. This improves logging robustness and operator diagnostic integrity, but does not address an actively exploited crash or consensus vulnerability, making review worthwhile and deferrable."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not alter RPC behavior or interfaces; RPC whitelist functional tests are only updated to test logger escaping",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not an RPC category change. An earlier attempt to sanitize strings inside httprpc.cpp was dropped in favor of logger-level escaping."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Wallet edits are mechanical adaptations to the new SplitLines logger format and wallet naming logic is left unchanged",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a wallet category change. Commits modifying wallet naming rules were explicitly dropped, leaving only mechanical call-site adjustments to use SplitLines in CommitTransaction and LoadRecords."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches functional tests and unit tests solely to verify logging behavior",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications merely follow the logger changes and do not alter test framework infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35833 updates the core logging framework to escape embedded newlines as '\\x0a', preventing untrusted input from forging arbitrary log lines in debug.log. It solves a log-injection vulnerability exposed via RPC methods, wallet names, and external daemon messages without breaking existing multiline diagnostic messages. Review consensus is strong, with the author adopting an architecture suggested by ryanofsky and resolving all prior concerns regarding scope and multiline log readability."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01887825
+}

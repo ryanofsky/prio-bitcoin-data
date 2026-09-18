@@ -1,0 +1,494 @@
+{
+ "number": 35675,
+ "input_hash": "3561518962f14e99",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:38:40+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 66320,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 18727
+ },
+ "cost_usd": 0.11996625,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Consolidate block template creation, block submission, and mining wait logic into a single BlockTemplateManager class.",
+    "Eliminate scattered mining options across NodeContext and reduce unnecessary block copies in getblocktemplate."
+   ],
+   "reviewability": [
+    "The code is ready for review with clean CI and no merge conflicts.",
+    "Five reviewers have examined the branch across multiple rebases."
+   ],
+   "agreement": [
+    "Strong support for the refactor and copy-avoidance improvements across multiple re-ACKs (Sjors, pablomartin4btc, enirox001, w0xlt).",
+    "Earlier rebase and lifetime issues were identified and addressed (Sjors, w0xlt, pablomartin4btc).",
+    "Nonblocking concern that the new fuzz target is ineffective at testing the manager and should be deferred (marcofleon)."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it centralizes block template assembly and state out of NodeContext into a dedicated manager.",
+      "It eliminates full-block copies in getblocktemplate and directly unblocks fee-inflow tracking (#35581) and template footprint tracking (#33922)."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces `node::BlockTemplateManager` to manage block template creation, submission, and tip-waiting helpers in one place. It moves init-time mining options from `NodeContext` into the manager, routes RPC and test callers directly to the manager, and eliminates `interfaces::Mining` from `NodeContext`. It also optimizes `getblocktemplate` by avoiding redundant block and transaction copies, and adds a dedicated fuzz test for the manager.",
+  "problem": "Mining options and template creation helpers were spread across `NodeContext`, `miner.cpp`, the `Mining` interface, and RPC code. This caused unnecessary `CBlock` copies in `getblocktemplate` and complicated downstream work on template fee tracking and memory management.",
+  "discussion": {
+   "open_concerns": [
+    "marcofleon noted the added fuzz target is ineffective at exercising BlockTemplateManager specifically and suggested dropping the commit to handle in a separate PR."
+   ],
+   "resolved_concerns": [
+    "Sjors and w0xlt noticed a rebase had accidentally reverted changes from merged PR #34672, which the author resolved.",
+    "w0xlt pointed out that `wallet/test/fuzz/fees.cpp` needed to reset and recreate the template manager when resetting the mempool to avoid dangling pointers.",
+    "pablomartin4btc highlighted manager construction timing relative to chainstate activation."
+   ],
+   "author_status": "Active. Responded promptly to review rounds and force-pushed updates through 2026-09-13."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI, clean mergeability, and broad review coverage on its latest revision."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Sjors",
+     "stance": "objection",
+     "note": "Concept ACK, code review, pointed out #34672 regression during rebase (resolved), re-ACKed head"
+    },
+    {
+     "login": "pablomartin4btc",
+     "stance": "objection",
+     "note": "Concept ACK, detailed reviews, noted manager initialization ordering hazard (resolved), re-ACKed head"
+    },
+    {
+     "login": "enirox001",
+     "stance": "support",
+     "note": "Concept ACK, suggested code cleanup and fuzz extensions, re-ACKed head"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "Identified #34672 regression and wallet fuzz dangling pointer (both resolved), re-ACKed head"
+    },
+    {
+     "login": "marcofleon",
+     "stance": "objection",
+     "note": "Light ACK for refactor commits, objected that the fuzz harness is ineffective and suggested dropping it"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "Sjors",
+     "kind": "correctness",
+     "harm": "rebase reverted changes from merged PR #34672",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-23: 'I think your rebase after https://github.com/bitcoin/bitcoin/pull/34672 reverted some of the changes from that PR.'",
+     "resolution_evidence": "2026-07-24: Sjors commented 'utACK a87d81548be53ed0af747adf5b8fd22e0d6b8289'",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "rebase reverted changes from merged PR #34672",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-23: 'LGTM, but the current code is really reverting https://github.com/bitcoin/bitcoin/pull/34672.'",
+     "resolution_evidence": "2026-07-29: w0xlt commented 'ACK dad787680358adeba552802c152343a7d9ddfbd0'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "pablomartin4btc",
+     "kind": "correctness",
+     "harm": "calling CreateBlockTemplateManager before chainstate is activated causes crash if CreateNewBlock is called",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-16: 'CreateBlockTemplateManager() is being called before chainstate is activated... CreateNewBlock() asserts pindexPrev != nullptr and would crash if called at this point.'",
+     "resolution_evidence": "2026-07-16: author added comments and clarified constructor requirements in cd83dfd9a6",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "replacing node.mempool leaves BlockTemplateManager with a dangling reference in wallet fuzz target",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-28: 'It looks like src/wallet/test/fuzz/fees.cpp needs the same reset/recreate handling as the other fuzz targets.'",
+     "resolution_evidence": "2026-07-29: w0xlt commented 'ACK dad787680358adeba552802c152343a7d9ddfbd0'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "marcofleon",
+     "kind": "approach",
+     "harm": "fuzz harness loops compete for input bytes making it ineffective at testing the manager",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-16: 'For the fuzz test, I don't think this is really a BlockTemplateManager test... I don't think this is a blocker for the refactor. I would just drop the last commit and PR it separately.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "Sjors",
+     "reason": "Avoids copying template data in getblocktemplate and enables clean basing of #33922",
+     "substantive": true
+    },
+    {
+     "reviewer": "pablomartin4btc",
+     "reason": "Clean refactor consolidating block creation, submission, and tip-waiting into BlockTemplateManager and removing node.mining",
+     "substantive": true
+    },
+    {
+     "reviewer": "enirox001",
+     "reason": "Centralized block template manager clarifies mining options and improves consistency",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Confirmed correct refactor and lifetime management across fuzz targets",
+     "substantive": true
+    },
+    {
+     "reviewer": "marcofleon",
+     "reason": "Light code review ACK for the refactor commits up to 3d7d190b69",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: four reviewers strongly support the refactor, while marcofleon questions the new fuzz test's effectiveness and suggested dropping it (open, nonblocking).",
+   "reason": "Four reviewers have re-ACKed the current branch. All earlier functional objections regarding rebasing regressions and lifetime bugs were resolved. The only remaining remark is from marcofleon questioning the utility of the fuzz target added in the final commit, which they explicitly noted was not a blocker for the refactor.",
+   "evidence": [
+    "Sjors re-ACKed on 2026-09-14: 're-ACK e8b283c35a656f808250e4b32d3494f49a000b08'",
+    "pablomartin4btc re-ACKed on 2026-09-14: 're-ACK e8b283c35a656f808250e4b32d3494f49a000b08'",
+    "w0xlt re-ACKed on 2026-09-14: 'reACK e8b283c35a656f808250e4b32d3494f49a000b08'",
+    "enirox001 re-ACKed on 2026-09-16: 'reACK https://github.com/bitcoin/bitcoin/pull/35675/changes/e8b283c35a656f808250e4b32d3494f49a000b08'",
+    "marcofleon on 2026-09-16: 'light code review ACK 3d7d190b6995b3c0adb6528c2d9eac81a8f839d9... I don't think this is a blocker for the refactor. I would just drop the last commit and PR it separately.'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (marcofleon)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Rebase reverted the SubmitBlock handling and validation state capture introduced in PR #34672.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-23: \"LGTM, but the current code is really reverting https://github.com/bitcoin/bitcoin/pull/34672.\"",
+      "resolution_evidence": "2026-07-24: \"Taken, thanks.\" followed by Sjors' \"utACK a87d81548be53ed0af747adf5b8fd22e0d6b8289\"."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Resetting node.mempool in wallet_fees fuzz target without recreating the manager left BlockTemplateManager holding a dangling reference.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-28: \"It looks like src/wallet/test/fuzz/fees.cpp needs the same reset/recreate handling as the other fuzz targets.\"",
+      "resolution_evidence": "2026-07-29: \"ACK dad787680358adeba552802c152343a7d9ddfbd0\" after author pushed the fix."
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "Sjors",
+      "reason": "Enables cleanly rebasing #33922 and consolidates template creation while avoiding unnecessary copies in RPC.",
+      "substantive": true
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "Consolidates block creation, submission, and tip-waiting into BlockTemplateManager, making the mining boundary explicit and allowing removal of node.mining.",
+      "substantive": true
+     },
+     {
+      "reviewer": "enirox001",
+      "reason": "Having a dedicated template manager clarifies options and improves consistency with a centralized manager.",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Confirmed correct behavior after fixing the rebase regression and fuzz reset handling.",
+      "substantive": true
+     },
+     {
+      "reviewer": "marcofleon",
+      "reason": "Straightforward refactor moving existing code into BlockTemplateManager.",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "Sjors",
+      "stance": "support",
+      "note": "Concept ACK and repeated ACKs; suggested copy-avoidance optimizations and helped catch rebase issues."
+     },
+     {
+      "login": "pablomartin4btc",
+      "stance": "support",
+      "note": "Concept ACK and multiple commit-by-commit ACKs; praised the clean mining boundaries and separation from fee-inflow tracking."
+     },
+     {
+      "login": "enirox001",
+      "stance": "support",
+      "note": "Concept ACK and ACKs; supported centralizing template management and suggested fuzz coverage improvements."
+     },
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Caught a rebase regression with #34672 and a dangling mempool reference in fuzz setup, then re-ACKed."
+     },
+     {
+      "login": "marcofleon",
+      "stance": "support",
+      "note": "Light code review ACK; noted limitations of the fuzz test and suggested reworking or dropping it in a follow-up."
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: broad support for centralizing block template management; review feedback and rebase regressions were promptly resolved.",
+    "usage": {
+     "input_tokens": 20676,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 6574
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "Sjors",
+      "kind": "correctness",
+      "harm": "rebase reverted changes from merged PR #34672",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-23: 'I think your rebase after https://github.com/bitcoin/bitcoin/pull/34672 reverted some of the changes from that PR.'",
+      "resolution_evidence": "2026-07-24: Sjors commented 'utACK a87d81548be53ed0af747adf5b8fd22e0d6b8289'"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "rebase reverted changes from merged PR #34672",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-23: 'LGTM, but the current code is really reverting https://github.com/bitcoin/bitcoin/pull/34672.'",
+      "resolution_evidence": "2026-07-29: w0xlt commented 'ACK dad787680358adeba552802c152343a7d9ddfbd0'"
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "kind": "correctness",
+      "harm": "calling CreateBlockTemplateManager before chainstate is activated causes crash if CreateNewBlock is called",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-16: 'CreateBlockTemplateManager() is being called before chainstate is activated... CreateNewBlock() asserts pindexPrev != nullptr and would crash if called at this point.'",
+      "resolution_evidence": "2026-07-16: author added comments and clarified constructor requirements in cd83dfd9a6"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "replacing node.mempool leaves BlockTemplateManager with a dangling reference in wallet fuzz target",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-28: 'It looks like src/wallet/test/fuzz/fees.cpp needs the same reset/recreate handling as the other fuzz targets.'",
+      "resolution_evidence": "2026-07-29: w0xlt commented 'ACK dad787680358adeba552802c152343a7d9ddfbd0'"
+     },
+     {
+      "reviewer": "marcofleon",
+      "kind": "approach",
+      "harm": "fuzz harness loops compete for input bytes making it ineffective at testing the manager",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-16: 'For the fuzz test, I don't think this is really a BlockTemplateManager test... I don't think this is a blocker for the refactor. I would just drop the last commit and PR it separately.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "Sjors",
+      "reason": "Avoids copying template data in getblocktemplate and enables clean basing of #33922",
+      "substantive": true
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "Clean refactor consolidating block creation, submission, and tip-waiting into BlockTemplateManager and removing node.mining",
+      "substantive": true
+     },
+     {
+      "reviewer": "enirox001",
+      "reason": "Centralized block template manager clarifies mining options and improves consistency",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Confirmed correct refactor and lifetime management across fuzz targets",
+      "substantive": true
+     },
+     {
+      "reviewer": "marcofleon",
+      "reason": "Light code review ACK for the refactor commits up to 3d7d190b69",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35581 node: add block template manager and track waitNext fee inflow",
+    "#33922 mining: add getMemoryLoad() and track template non-mempool memory footprint"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Changes to CMakeLists and ci/test/03_test_script.sh are standard mechanical additions for a new cpp file.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical updates to build files following code reorganization are excluded from the build category."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Introduces BlockTemplateManager, restructures template generation, submission, and wait routines in src/node/miner.cpp, and updates getblocktemplate.",
+    "band": "P2",
+    "reason_tag": "unblocks #35581",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Centralizes block template management and eliminates redundant block copies in getblocktemplate. It provides substantial structural improvement to mining interfaces and directly unblocks fee-inflow tracking in #35581 and template footprint tracking in #33922."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes in rpc/mining.cpp and rpc/blockchain.cpp only route existing RPC methods through the new manager without changing RPC semantics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates to internal helpers within RPC handlers do not qualify as RPC category work."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added fuzz harness exercises BlockTemplateManager and belongs to the mining category rather than test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests pinning or exercising the behavior of a single functional subsystem belong to that subsystem's category."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Modifications in src/init.cpp and src/node/context.h simply initialize and hold the BlockTemplateManager pointer.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "NodeContext wiring changes do not constitute utility library work."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "The change in src/wallet/test/fuzz/fees.cpp is a mechanical three-line reset of the manager after reconstructing the mempool.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A minor test harness adjustment in a wallet test to avoid a dangling reference does not make this a wallet PR."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR introduces node::BlockTemplateManager to centralize block template creation, block submission, and mining wait helpers in one place, removing scattered options from NodeContext and avoiding unnecessary block copies in getblocktemplate. It directly unblocks fee-inflow tracking in #35581 and memory footprint tracking in #33922. Four reviewers strongly support the change with re-ACKs on the latest commit. One reviewer raised a nonblocking concern regarding the efficacy of the newly added fuzz test and suggested handling it separately."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0401595
+}

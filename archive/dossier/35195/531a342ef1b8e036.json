@@ -1,0 +1,122 @@
+{
+ "number": 35195,
+ "input_hash": "531a342ef1b8e036",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8422,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3958
+ },
+ "cost_usd": 0.0296183,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Restores libstdc++'s cached hash-code optimization for the UTXO cache's outpoint hasher, undoing a memory-vs-speed tradeoff made by an earlier PR (#16957)",
+    "Benchmarks show 2-11% faster IBD, reindex, and assumeutxo loading at the cost of at most one size_t per cache node"
+   ],
+   "reviewability": [
+    "Stale: author has been silent for 137 days, PR needs rebase, and conflicts with two other open PRs (#35215, #35713)",
+    "Small, self-contained diff, reviewable once rebased and author returns"
+   ],
+   "agreement": [
+    "Concept ACK from optout21 who agrees the memory/CPU tradeoff favors caching here (optout21)",
+    "optout21 asked whether __is_fast_hash would be a clearer mechanism than reusing noexcept, and requested minor commit/formatting nits, both unanswered since author went silent (optout21)"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it measurably speeds up UTXO cache-heavy operations that users feel directly: up to 11% faster assumeutxo loading and 2-3% faster IBD/reindex per the author's benchmarks",
+      "Not P1 because it is a tuning tradeoff with no correctness risk and no urgency, just a reversal of a prior optimization decision"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because the change touches a shared hashing primitive (util/hasher.h) but the benefit is narrowly scoped to one consumer, CCoinsMap, rather than a general utils improvement",
+      "No correctness or safety concern; it is purely a performance/memory tradeoff with an open design question about the clearer __is_fast_hash mechanism"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR reverts the `noexcept` marking on `SaltedOutpointHasher` (added in #16957) so that libstdc++'s `unordered_map` will cache the outpoint hash code per node again, trading a small memory increase for avoided hash recomputation in `CCoinsMap` operations. The author provides extensive benchmarks showing 2-11% speedups across IBD, reindex-chainstate, and assumeutxo loading, with roughly neutral to slightly higher memory use depending on dbcache size. A focused unit test pins the exception-specification and libstdc++ fast-hash classification contracts. The change is a 2-file, ~21 line diff.",
+  "problem": "The 2019 change to mark the outpoint hasher `noexcept` (#16957) saved about 9% peak memory but cost about 1.6% runtime by forcing libstdc++ to recompute hashes instead of caching them in map nodes; that PR's own reviewers speculated caching could recover the performance. Node operators running IBD, reindex, or assumeutxo with typical dbcache settings feel the resulting slower UTXO cache operations.",
+  "discussion": {
+   "open_concerns": [
+    "optout21 asked whether controlling hash caching via `__is_fast_hash` directly would be clearer than reusing `noexcept(false)`, unanswered",
+    "optout21 requested squashing to one commit and minor blank-line formatting changes, unanswered"
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-05-02 (137 days), no response to review comments from 2026-05-28"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, author silent",
+   "reason": "The PR is marked needs-rebase, has mergeable_state dirty, and the author has had no activity for 137 days (exceeding the 60-day staleness threshold), with an unanswered review from 2026-05-28. It also conflicts with two other open PRs (#35215, #35713)."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from optout21 who found no code issues, with an open design question about using __is_fast_hash directly and some unaddressed nits",
+   "reason": "The sole reviewer (optout21) gave a substantive Concept ACK agreeing with the memory/CPU tradeoff and found no dangers in the code change; their remaining comments are a design suggestion and style nits, not stated harms, so nothing here is blocking, but they remain unanswered because the author has gone silent.",
+   "evidence": [
+    "optout21: 'Concept ACK ... Code-wise I don't see issues or dangers reverting the noexcept on the hasher to noexcept(false)'",
+    "optout21: 'Have you considered controlling hash-caching via __is_fast_hash ... Seems more clear than abusing noexcept' (unanswered)",
+    "optout21: nits on commit splitting and blank lines (unanswered)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Complements ongoing SipHash and input-fetcher parallelization work referenced via #31132's review thread, described as compatible/additive"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly changes CCoinsMap's hashing behavior, which is core UTXO cache machinery covered by the 'UTXO Db and Indexes' label present on the PR.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because the author's benchmarks show consistent, measurable speedups in operations the category explicitly flags as user-felt: 'AssumeUTXO loading showed the strongest signal, up to about 11% faster' and 'Full IBD/reindex-chainstate runs showed about 2-3% faster'. It is not P1 since there is no correctness, stability, or urgency dimension, only a revisited performance tradeoff with modest memory cost."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The changed file src/util/hasher.h is core shared infrastructure per the category's own path hint, even though the practical benefit is scoped to one consumer (CCoinsMap).",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because although it touches a shared primitive, the stated payoff is narrow and consumer-specific rather than a general utils-wide improvement, and a reviewer (optout21) suggested a clearer alternative mechanism (__is_fast_hash) that remains unaddressed, indicating the approach itself may still be unsettled."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the memory increase is acceptable across all supported dbcache configurations is not fully settled; the author notes 'a very large dbcache run showed the expected higher peak'",
+   "Whether optout21's suggestion to use __is_fast_hash directly instead of noexcept(false) would change the approach materially is unresolved because the author has been silent",
+   "Conflicts with #35215 (a related SipHash optimization by the same author) and #35713 may require coordination or reordering before merge"
+  ],
+  "card": "This PR reverts the noexcept marking added in #16957 to SaltedOutpointHasher, restoring libstdc++'s per-node cached hash codes for the UTXO cache (CCoinsMap), trading a small memory cost for measured speedups: the author reports up to 11% faster assumeutxo loading and 2-3% faster IBD/reindex-chainstate across several benchmark runs. A single reviewer (optout21) gave a substantive Concept ACK finding no code issues, but also asked whether a clearer __is_fast_hash-based approach would be preferable and left minor nits, none of which the author has answered. The PR is stale: needs rebase, mergeable_state dirty, and the author has been silent for 137 days, with unanswered review comments since 2026-05-28. It also conflicts with two other open PRs by the same author (#35215) and a third-party PR (#35713). Impact is concentrated in the indexes/UTXO-cache area, where sync and assumeutxo-loading speed are directly user-felt; the change to util/hasher.h itself is narrow in scope for general utils purposes."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,183 @@
+{
+ "number": 35322,
+ "input_hash": "c71a3367713be25e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:37+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 32609,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4555
+ },
+ "cost_usd": 0.041538,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Streamline internal Logger state tracking with atomic bitmasks",
+    "Remove mutex locking from category log-level checks and drop unused Logger methods"
+   ],
+   "reviewability": [
+    "Ready",
+    "Commit structure was split and test coverage was added per review feedback"
+   ],
+   "agreement": [
+    "Neutral: l0rinc requested commit splitting, tests, and behavior fixes which were implemented (l0rinc)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it simplifies logging state and removes mutex contention from category checks.",
+      "It tidies the logging subsystem ahead of planned trace-logging reworks."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because the adjustments to kernel logging entry points are minor call-site adaptations.",
+      "The changes will be superseded by the broader kernel logging interface overhaul."
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the Logger class's three distinct state fields (an enabled bitmask, a global level, and a mutex-guarded hash map of category levels) with a two-element array of atomic bitmasks representing conditional levels (Debug and Trace). It eliminates lock acquisition from WillLogCategoryLevel and drops redundant methods such as EnableCategory, DisableCategory, WillLogCategory, LogLevel, SetLogLevel, and GetCategoryMask. It also updates callers across initialization, RPC, the Qt interface, and the kernel C API.",
+  "problem": "Logger previously tracked category enablement and verbosity using separate fields that required coordinated updates and acquired a mutex during category level checks, despite the node having only ~30 categories and two conditional levels.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc requested splitting the initial monolithic commit into discrete reviewable steps and dropping unused string overloads.",
+    "l0rinc noted unexpected behavior changes where -loglevel without -debug previously had no effect but would now enable logging; ryanofsky restored the original behavior and added regression tests.",
+    "l0rinc asked for explicit tests verifying runtime category enable behavior via RPC and kernel entry points, which ryanofsky added."
+   ],
+   "author_status": "active, last rebased and updated on 2026-08-15"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased on master, passes CI, and the author addressed all feedback from the previous review round."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "Neutral: l0rinc requested commit splitting and behavior fixes; author addressed all requests in updates",
+   "reason": "l0rinc provided initial review requesting commits be split and behavioral differences addressed. The author addressed these requests across subsequent pushes and added unit tests, but no reviewer has returned to give an ACK yet.",
+   "evidence": [
+    "l0rinc requested changes asking to split commits and preserve -loglevel behavior without -debug",
+    "ryanofsky addressed all points across subsequent pushes and added unit tests covering the edge cases"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35387",
+    "#34038"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Release notes are included as standard documentation for an internal behavior change, not primary documentation work.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Touches src/interfaces/node.h only to replace getLogCategories() with isAnyDebugLoggingEnabled(); no IPC mechanics are involved.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Modifies btck_logging_* implementations in src/kernel/bitcoinkernel.cpp, exports logging symbols for test_kernel in CMakeLists.txt, and updates kernel tests.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The kernel changes adapt the C API implementation to the new Logger methods and temporarily export internal symbols for kernel test coverage, which will be superseded by the kernel logging rework in #34374."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/node.cpp only to update the internal implementation of the logging RPC helper.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to test files (logging_tests.cpp, test_kernel.cpp, i2p_tests.cpp) serve the logging refactor rather than test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly refactors the Logger class and logging utilities in src/logging.h and src/logging.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Streamlining the Logger state replaces mutex locking and hash map lookups on log checks with relaxed atomic bitwise operations, dropping several redundant methods while maintaining logging behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors the Logger class to replace three distinct state variables (a categories bitmask, a global log level, and a mutex-protected hash map of overrides) with two atomic bitmasks representing Debug and Trace levels. This removes mutex acquisition during category log checks, simplifies Logger internals, and drops several redundant methods. The only functional change is that dynamically enabling categories via RPC or kernel API now always enables them at Debug level rather than restoring previous -loglevel settings. Review is currently in a neutral state; earlier concerns regarding commit structure and behavioral edge cases were resolved by the author, and the PR is ready for re-review."
+ },
+ "raw_text": null
+}

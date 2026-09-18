@@ -1,0 +1,118 @@
+{
+ "number": 35714,
+ "input_hash": "524ffe5716b7db89",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 7134,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3431
+ },
+ "cost_usd": 0.0256953,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop the node from recording a block as flushed when the underlying block or undo file write actually failed.",
+    "Prevents block-index metadata and chainstate from getting ahead of data that may not be durable on disk."
+   ],
+   "reviewability": [
+    "Ready: discussion is settled, remaining comments are style nits."
+   ],
+   "agreement": [
+    "Strong support from three reviewers who examined durability implications in depth (arejula27, mzumsande, optout21)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it closes a data-integrity gap where block-index metadata could be written and m_last_flushed_block advanced despite an unflushed block or undo file, risking BLOCK_HAVE_DATA pointing at missing data (mzumsande's blocksdir scenario).",
+      "Resolves a TODO left open since #27866 and complements #34897's m_last_flushed_block invariant, but the failure mode it fixes (permanent fsync failure) is rare."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes FlushStateToDisk() so that when FlushChainstateBlockFile() fails, the function returns the error immediately instead of proceeding to write block-index metadata and coins data and advancing m_last_flushed_block. It adds a regression test that injects a block-file flush failure and checks that the flush return value, error state, and m_last_flushed_block all reflect the failure. The change resolves a TODO left in the code since PR #27866, building on the m_last_flushed_block invariant introduced in #34897.",
+  "problem": "Previously, a failed block or undo file flush requested shutdown but still let FlushStateToDisk() write chainstate/block-index metadata and advance the last-flushed-block marker, so the on-disk metadata could claim a block's data is present and durable when it is not. This risks metadata/data mismatch (e.g., BLOCK_HAVE_DATA set while the actual block file write failed), especially relevant when blocksdir is stored separately from the rest of the data directory, as mzumsande noted.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko's stylistic nit about splitting the compound BOOST_CHECK conditions to follow #35729's style, deferred by the author to fix #35713 instead \u2014 nonblocking naming/style disagreement, not a substantive objection.",
+    "optout21's suggestion for a BOOST_CHECK_ALL macro was floated as a future idea, not a blocker."
+   ],
+   "resolved_concerns": [
+    "arejula27 asked why undo-file failures weren't tested separately; author explained FlushBlockFile() returns false for either and that's sufficiently tested here \u2014 resolved.",
+    "optout21 asked why the LogWarning was removed; author clarified the lower layer already reports the specific error via flushError(), avoiding duplication, and updated the comment \u2014 resolved, optout21 acknowledged 'Thanks, it makes sense.'",
+    "optout21 raised concern about m_next_write not advancing after early return; author explained this mirrors deliberate design from #30611 \u2014 resolved, optout21 acknowledged 'Very good, thanks.'",
+    "optout21 flagged spurious stdout output from the new test; author added ASSERT_DEBUG_LOG to suppress it, optout21 verified the fix \u2014 resolved."
+   ],
+   "author_status": "active, addressing review; last activity 2026-08-19, latest reviewer activity (ACK) 2026-09-14"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All substantive review comments (LogWarning removal, m_next_write behavior, test noise, undo-file coverage) were resolved with explanations or fixes the reviewers accepted. The only open item is a stylistic preference about test macro formatting that the author declined, pointing to a sibling PR (#35713) as the better place to fix it, which is a style disagreement not a material blocker."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: arejula27 and optout21 gave full ACKs after detailed local testing, mzumsande gave Concept ACK after analyzing durability tradeoffs, no unresolved objections.",
+   "reason": "Three distinct reviewers examined the change, including a careful discussion of real-world consequences (mzumsande), and all landed on ACK or Concept ACK. optout21 verified locally that reverting the change makes the new test fail, and gave a full ACK on the latest commit.",
+   "evidence": [
+    "arejula27: 'ACK ... This is a small change, closing a gap discussed at #34897 I built it and tested it locally.'",
+    "mzumsande: analyzed blocksdir corruption risk, concluded 'So I am Concept ACK'",
+    "optout21: 'ACK c42d7fe1... Reviewed, built and unit-tested locally. Also verified that without the behavior change, the new test fails.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Resolves the TODO left by #27866",
+    "Follow-up #35731 (arejula27) proposes grouping the notify+state.Error() pattern into a helper and adding lower-level tests, building on this PR's approach"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The change is entirely within Chainstate::FlushStateToDisk() in validation.cpp and concerns chainstate/block-file durability, not mempool acceptance or policy rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool-policy change; path overlap with validation.cpp is incidental."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Labeled Validation; changes FlushStateToDisk()'s handling of a flush failure, directly affecting chainstate integrity and the m_last_flushed_block invariant introduced in #34897.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Closes a data-integrity gap where metadata could be persisted ahead of actual block/undo durability, a scenario mzumsande identified as potentially causing real corruption when -blocksdir is separate and its fsync fails permanently. It resolves a TODO deliberately left open since #27866 pending a caller audit and test, which this PR now provides, but the triggering condition (permanent I/O failure) is rare, keeping it below P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the underlying failure scenario (permanent fsync failure with separate blocksdir) has ever been observed in practice, or is purely theoretical, affects how high P2 vs P1 should be.",
+   "The open follow-up PR #35731 proposes further hardening; unclear whether reviewers consider this PR sufficient on its own or a stepping stone."
+  ],
+  "card": "This PR changes Chainstate::FlushStateToDisk() to return the flush error immediately when FlushChainstateBlockFile() fails, instead of continuing to write block-index metadata and coins data and advancing m_last_flushed_block past an unflushed block. It closes a data-integrity gap identified back in PR #27866 (left as a TODO) and reinforces the m_last_flushed_block invariant added in #34897. Reviewer mzumsande's analysis identified a concrete corruption risk when -blocksdir is stored separately and its fsync fails permanently, after which BLOCK_HAVE_DATA could be set while block data is actually missing. Three reviewers (arejula27, mzumsande, optout21) gave ACK or Concept ACK after detailed local testing, and all raised concerns (LogWarning duplication, m_next_write timing, test noise) were resolved by the author with explanations or fixes. The PR is small, self-contained, and appears ready to merge; a related follow-up (#35731) proposes further hardening of the same invariant."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

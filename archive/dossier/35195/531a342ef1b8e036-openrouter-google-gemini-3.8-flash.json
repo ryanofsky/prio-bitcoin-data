@@ -1,0 +1,113 @@
+{
+ "number": 35195,
+ "input_hash": "531a342ef1b8e036",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:18:42+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16965,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4024
+ },
+ "cost_usd": 0.02781375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up UTXO cache lookups during IBD and AssumeUTXO loading by caching outpoint hash codes in container nodes"
+   ],
+   "reviewability": [
+    "Needs rebase and has merge conflicts, with author silent since May 2026."
+   ],
+   "agreement": [
+    "Strong concept support based on benchmarked runtime gains (optout21)",
+    "Unanswered design question whether __is_fast_hash is cleaner than noexcept(false) (optout21)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it tunes standard container hash-caching behavior on a shared utility hasher.",
+      "The runtime gain is clear on libstdc++, but it trades off container node memory footprint."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because a 2-3% IBD speedup and ~11% AssumeUTXO speedup provide clear runtime benefits.",
+      "It reverses an earlier deliberate memory optimization without changing consensus or validation correctness."
+     ]
+    }
+   ]
+  },
+  "summary": "Reverts the noexcept qualification on SaltedOutpointHasher by marking it noexcept(false), which prompts libstdc++ std::unordered_map implementations to cache hash codes in container nodes. This targets CCoinsMap lookups to avoid recomputing SipHash on table operations at the expense of an extra size_t per node in memory.",
+  "problem": "Since #16957 made SaltedOutpointHasher noexcept to save node memory, libstdc++ avoids caching hash codes, causing repeated hash recomputation during UTXO cache lookups and rehashing during IBD and AssumeUTXO sync.",
+  "discussion": {
+   "open_concerns": [
+    "optout21 asked whether hash caching could be controlled via __is_fast_hash rather than manipulating noexcept specifications."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-05-02"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts (mergeable_state dirty) and the author has been silent for over 130 days without addressing the rebase or review comments."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from optout21 based on benchmarks; open question on using __is_fast_hash.",
+   "reason": "optout21 provided a substantive Concept ACK agreeing that benchmarked speed improvements justify caching, while leaving code nits and an open question regarding __is_fast_hash.",
+   "evidence": [
+    "optout21 Concept ACKed: 'benchmarks indicate that caching (more memory, less CPU) results in faster execution, therefore it should be applied.'",
+    "optout21 asked: 'Have you considered controlling hash-caching via __is_fast_hash... Seems more clear than abusing noexcept?'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes SaltedOutpointHasher in src/util/hasher.h and adds a unit test in src/test/hash_tests.cpp.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Modifies the exception specification of SaltedOutpointHasher to steer libstdc++ container node caching policies. The performance improvement is clear in benchmarks, though it trades away a modest amount of memory in utility containers."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes the hash caching behavior of CCoinsMap, the core validation UTXO cache, impacting IBD and AssumeUTXO performance.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Directly impacts validation runtime by speeding up CCoinsMap operations, yielding ~2-3% faster IBD and up to ~11% faster AssumeUTXO loading. It is reasonably deferrable as an optimization reversing the trade-off made in #16957."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies SaltedOutpointHasher to be noexcept(false) so libstdc++ std::unordered_map caches hash codes inside CCoinsMap nodes. The change trades one size_t per node of memory to gain 2-3% faster IBD and up to 11% faster AssumeUTXO loading. optout21 Concept ACKed the change based on benchmark data while inquiring whether __is_fast_hash would be a cleaner mechanism. The PR is currently a draft with merge conflicts and the author has been inactive for over four months."
+ },
+ "raw_text": null
+}

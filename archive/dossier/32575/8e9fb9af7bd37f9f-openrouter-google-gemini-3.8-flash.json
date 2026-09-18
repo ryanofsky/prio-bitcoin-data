@@ -1,0 +1,120 @@
+{
+ "number": 32575,
+ "input_hash": "8e9fb9af7bd37f9f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T17:11:54+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 38456,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4626
+ },
+ "cost_usd": 0.0461895,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Unify single-threaded and multithreaded script check execution paths in block connection",
+    "Simplify CheckInputScripts by delegating all script check scheduling to CCheckQueue"
+   ],
+   "reviewability": [
+    "Code is ready for review after author addressed feedback, but author has been silent for 111 days"
+   ],
+   "agreement": [
+    "Broad Concept and Approach ACKs for simplifying ConnectBlock (theuni, sedited, stickies-v, darosior, Eunovo)",
+    "Standing Approach NACK objecting to combining structural refactoring with consensus behavior changes (l0rinc)",
+    "Author engaged and declined to split into separate PRs (fjahr)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it cleans up consensus validation script checking logic and removes dual-path complexity",
+      "It unblocks cleaner interfaces for Schnorr batch verification work without altering validation performance"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors script verification in ConnectBlock to always pass script checks through CCheckQueueControl, removing the separate single-threaded execution path. It extracts script execution cache checking into GetScriptCacheEntry and ValidationCache methods, ensures TestBlockValidity populates the script cache consistently, and drops the pvChecks parameter from CheckInputScripts.",
+  "problem": "CheckInputScripts previously served two different functions: running script verification inline when single-threaded, or collecting checks into a vector when multithreading. This dual behavior made the function confusing to reason about and complicated future consensus verification optimizations like batch verification.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc maintains an Approach NACK arguing that combining consensus behavior changes with structural refactoring is too risky and that the PR should be split, opening alternative PR #34875"
+   ],
+   "resolved_concerns": [
+    "darosior pointed out that TestBlockValidity script execution caching was unintentionally dropped; fjahr restored caching for valid blocks in TestBlockValidity",
+    "l0rinc expressed concern about potential single-threaded performance regressions; benchmarks by svanstaa and l0rinc confirmed no measurable performance slowdown",
+    "Eunovo suggested renaming PrepareScriptChecks to GetScriptCacheEntry and clarifying caching comments; fjahr addressed both in the final push"
+   ],
+   "author_status": "silent since 2026-05-28"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent",
+   "reason": "The author has had no GitHub activity on the PR for 111 days, exceeding the project stale threshold, though the last push addressed all pending review comments."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc holds an Approach NACK against mixing consensus behavior changes with refactoring; author declined to split.",
+   "reason": "Several maintainers and contributors support the concept and approach (theuni, sedited, stickies-v, darosior, Eunovo). However, l0rinc maintains an unresolved Approach NACK, arguing that changes to single-threaded consensus execution and caching are too sensitive to combine with refactoring and should be split into separate PRs. The author engaged but declined to split.",
+   "evidence": [
+    "theuni: Concept ACK. Anything to clean this up",
+    "sedited: Approach ACK. This seems like a nice cleanup",
+    "darosior: Concept ACK and corrected script execution cache behavior in TestBlockValidity",
+    "Eunovo: Concept ACK. The changes simplify the flow for script verification in ConnectBlock",
+    "l0rinc: Approach NACK. The rest of the commits still combine a consensus-sensitive behavior change with a structural refactor, so the risk seems significant",
+    "fjahr: I don't agree that splitting a PR is safer by default... Keeping separate paths around longer is not obviously safer"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#29491"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches CheckInputScripts inside validation.cpp, but does not alter mempool acceptance rules, eviction, or policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly modifies block connection and script checking dispatch in src/validation.cpp and src/checkqueue.h.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it refactors and unifies single-threaded and multithreaded script check dispatching in ConnectBlock, removing dual-purpose parameters from CheckInputScripts. As fjahr stated, this dual use makes the function hard to grasp, and unifying it aids future batch verification work (#29491). Extensive benchmarks confirmed the change has neutral performance, and it does not fix an active bug or consensus vulnerability."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the PR should strictly be marked Stale due to author silence when the author addressed all feedback in the latest push and is waiting for reviewers."
+  ],
+  "needs": [],
+  "card": "PR 32575 unifies script verification in ConnectBlock so single-threaded execution routes through CCheckQueueControl rather than having a dedicated inline verification branch, allowing CheckInputScripts to drop its pvChecks output parameter. It also refactors script cache checks and encapsulates validation cache lookups. The change simplifies validation internals and aids ongoing batch verification work (#29491) with neutral benchmark performance. While several reviewers support the approach, l0rinc maintains an Approach NACK arguing that behavioral changes in consensus code should not be combined with structural refactoring."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,112 @@
+{
+ "number": 35984,
+ "input_hash": "16158cfd3cbc4c55",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:21+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13464,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2329
+ },
+ "cost_usd": 0.01883175,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent wallet PSBT signing from producing detached SIGHASH_SINGLE signatures when no matching output exists.",
+    "Protect users from signing transactions whose outputs can be swapped without invalidating the signature."
+   ],
+   "reviewability": [
+    "Ready to review."
+   ],
+   "agreement": [
+    "Strong support with approvals from achow101 and l0rinc with no objections."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it prevents a fund-safety hazard during PSBT signing where invalid SIGHASH_SINGLE inputs could allow funds to be redirected.",
+      "Consolidates signing checks into CreateSig so all wallet signing paths consistently reject detached signatures."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the change affects wallet signing validation logic rather than the RPC layer or interface design."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves the check that prevents signing SIGHASH_SINGLE inputs with no matching output index into MutableTransactionSignatureCreator::CreateSig. Previously, SignTransaction skipped these inputs but SignPSBTInput did not, leaving walletprocesspsbt open to creating detached signatures. Functional tests in rpc_psbt.py are added to verify PSBT signing rejects them.",
+  "problem": "When an input uses SIGHASH_SINGLE but has no corresponding output index, the signature commits to no outputs (or a fixed hash), leaving it valid even if transaction outputs are modified. SignTransaction guarded against this, but walletprocesspsbt still signed such inputs, risking fund theft if a user was tricked into signing a malicious PSBT.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Linked issue #35977 was noted by l0rinc and referenced in the description."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is clean, passing CI, and author recently force-pushed without open review objections."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: achow101 ACKed previous revision and l0rinc Concept ACKed with no opposition.",
+   "reason": "The fix addresses an acknowledged security footgun and has explicit support from wallet reviewers without pushback.",
+   "evidence": [
+    "l0rinc gave Concept ACK and thanked the author for fixing #35977 quickly.",
+    "achow101 reviewed and ACKed an earlier commit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Fixes signature production in wallet PSBT processing (walletprocesspsbt and SignPSBTInput).",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Closes a fund-safety vulnerability where walletprocesspsbt would sign SIGHASH_SINGLE inputs lacking a corresponding output, allowing output redirection. Moving this check into CreateSig permanently prevents all caller paths from signing uncommitted outputs."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes signing logic inside script/sign.cpp; touched RPC test file only tests the wallet RPC behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change RPC architecture, parameters, or transport machinery. Per category rules, wallet RPC behavior belongs to wallet first."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves the safety check that rejects SIGHASH_SINGLE inputs with no matching output index into MutableTransactionSignatureCreator::CreateSig. While direct transaction signing already checked for this, PSBT signing did not, allowing walletprocesspsbt to create detached signatures that commit to no outputs and risk fund theft. achow101 ACKed a previous commit and l0rinc Concept ACKed, with no objections raised. The PR is ready for final review and merge."
+ },
+ "raw_text": null
+}

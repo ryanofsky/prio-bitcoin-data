@@ -1,0 +1,103 @@
+{
+ "number": 36091,
+ "input_hash": "7df982a93f37f4b1",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30668,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3143
+ },
+ "cost_usd": 0.0477893,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds `<<` debug-output operators for common Bitcoin Core test types (CService, CAddress, FeeFrac, key/address types, etc.) and converts many bare BOOST_CHECK calls to BOOST_CHECK_EQUAL/_NE so failures print the compared values.",
+    "Makes unit test failures easier to diagnose and is described as prep work reused by the boost-removal PR #35713."
+   ],
+   "reviewability": [
+    "Ready to review now, no open blockers.",
+    "Multiple rounds of detailed review have already been addressed with force-pushes; latest push responded to the last open question about exhaustiveness."
+   ],
+   "agreement": [
+    "Strong support with several concept ACKs, a tested ACK, and two reACKs after fixes (sedited, brunoerg, jeanpablojp, ismaelsadeeq).",
+    "All raised issues (missing fields in printers, SIGABRT on invalid keys, header bloat, scope of conversion) were fixed or clarified by the author, no standing objections."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it improves failure diagnostics across many test files and is stated to partly unblock the boost-removal effort in #35713, but it adds no new test coverage and the benefit is developer convenience rather than catching regressions.",
+      "Bounded scope: author confirms conversion is exhaustive for types with new `<<` operators, leaving integer comparisons and some vector-of-vector cases as deliberate follow-up."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds `operator<<` overloads for commonly-used Bitcoin Core test types (CService, CAddress, FeeFrac, key and address types, KeyOriginInfo, txindex::BlockTxPosition, etc.) in a new src/test/util/common.cpp/h, and converts many bare BOOST_CHECK equality checks across roughly a dozen test files to BOOST_CHECK_EQUAL/_NE so boost can print the mismatched values on failure. The author states the display strings are also intended for reuse in #35713 (removing boost as the unit test runner), though a reviewer notes only the first commit is strictly needed there. The PR does not migrate types that already have debug output, vector<T> comparisons, or types needing friend access, leaving those as explicit follow-up.",
+  "problem": "Unit test failures using bare BOOST_CHECK on custom types currently print nothing useful (e.g. just a boolean false), making debugging test failures slower for contributors. This affects anyone triaging a failing unit test across many files (addrman, key, script, descriptor, mempool fee estimator, etc.).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp's concern about SIGABRT on invalid CExtKey/CExtPubKey printers was fixed with length/validity guards.",
+    "jeanpablojp's concern about missing fields (nTime, nServices, m_net) not reflected in printers vs operator== was fixed by adding those fields to the display strings.",
+    "maflcko/purpleKarrot's suggestions to de-templatize and move implementations to a .cpp file, and to generalize the std::pair printer, were applied.",
+    "ismaelsadeeq's request for more descriptive field labels and inclusion of a CScript printer were applied.",
+    "jeanpablojp's ScriptToAsmStr ambiguity concern (two different scripts printing identically) was addressed by adding hex alongside asm.",
+    "sedited's question about how exhaustive the BOOST_CHECK conversion is was answered with a documented regex sweep and further conversions plus an updated PR description."
+   ],
+   "author_status": "active, addressing review promptly with force-pushes through 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All raised review comments across multiple rounds have been addressed with subsequent force-pushes, and the latest push resolved the last open question about conversion exhaustiveness. Nothing known would invalidate a fresh review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: two concept ACKs, a tested ACK, and two reACKs after fixes, with no standing unresolved objections (sedited, brunoerg, jeanpablojp, ismaelsadeeq).",
+   "reason": "Every substantive concern raised (SIGABRT risk, missing operator== fields, header bloat, ambiguous script printing, conversion scope) was fixed by the author and acknowledged by the reviewer who raised it, culminating in reACKs.",
+   "evidence": [
+    "sedited and brunoerg gave Concept ACK early",
+    "jeanpablojp gave tACK after rebuild/rerun and later re-ACK'd the final commit",
+    "ismaelsadeeq gave reACK 'all my suggestions were addressed'",
+    "maflcko approved saying 'approach lgtm'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Reusable display strings intended for #35713 (Remove boost as a unit test runner), though a reviewer notes only the first commit is strictly needed there"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "PR is entirely within src/test/util/common.{h,cpp} and test files, adding debug-output infrastructure and converting BOOST_CHECK call sites; labeled Tests.",
+    "band": "P3",
+    "reason_tag": "test infrastructure",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Improves developer-facing failure diagnostics broadly across the test suite, which helps every contributor debug failing tests faster, and is explicitly described as reusable groundwork for #35713 ('All of these display strings would be used as part of #35713'). It is not new coverage of high-risk paths and does not fix flakiness, so it sits below framework capabilities that unblock other areas' tests; ismaelsadeeq notes only part of the change is strictly needed for #35713."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether #35713 (boost removal) actually needs the full scope of this PR or just the first commit is disputed by ismaelsadeeq and not fully resolved, affecting how much leverage to credit.",
+   "No explicit maintainer priority signal beyond review engagement; band relies on category rubric interpretation of 'framework capability' vs 'cosmetic cleanup'."
+  ],
+  "card": "This PR adds `operator<<` debug-output overloads for common Bitcoin Core test types (CService, CAddress, FeeFrac, key/address types, KeyOriginInfo, etc.) in a new test/util/common.{h,cpp}, and converts many bare BOOST_CHECK equality checks to BOOST_CHECK_EQUAL/_NE across roughly a dozen unit test files so failures print useful values instead of just pass/fail. It solves a real but modest developer-productivity problem: debugging failing unit tests currently gives little information for custom types. The author states the printers are also intended for reuse in the larger #35713 (removing boost as unit test runner), though a reviewer (ismaelsadeeq) notes only part of the change is strictly needed there. Review has been thorough and iterative across three weeks, with several substantive issues (SIGABRT risk on invalid keys, missing fields vs operator==, ambiguous script printing) found and fixed, ending in reACKs from ismaelsadeeq and jeanpablojp and an approval from maflcko. The PR is Ready for review now with strong agreement and no open objections."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

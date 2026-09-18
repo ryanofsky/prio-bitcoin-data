@@ -1,0 +1,127 @@
+{
+ "number": 33741,
+ "input_hash": "84ded2b2098d2616",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24542,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3903
+ },
+ "cost_usd": 0.045463300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Let RPC callers opt into sat/vB formatting for feerate fields (getmempoolinfo, getnetworkinfo, estimatesmartfee, estimaterawfee) instead of always returning BTC/kvB.",
+    "Aimed at reducing unit-conversion mistakes for humans and downstream software, as tracked in issue #32093."
+   ],
+   "reviewability": [
+    "Ready to review now, last force-push was 2026-09-10 with no open material question outstanding.",
+    "Design debate from November settled without follow-up objection; nothing known would invalidate a current review."
+   ],
+   "agreement": [
+    "Multiple concept ACKs and one code ACK support the direction (w0xlt, musaHaruna, jonatack).",
+    "glozow raised a real design concern about a boolean toggle risking future default changes, but did not push back after the author's rationale, so it reads as resolved by agreeing to disagree (glozow, polespinasa).",
+    "No outstanding blocking objections as of the latest activity."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it is a genuine, backwards-compatible usability improvement for a widely felt pain point (BTC/kvB feerates), not a compatibility break or bug fix.",
+      "Unblocks nothing else and no external consumer has asked for it by name in the discussion, so it is worthwhile but deferrable."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Not a member: the change only alters how existing mempool info is formatted for RPC output, not any policy or acceptance rule."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an optional sat_vb boolean argument to getmempoolinfo, getnetworkinfo, estimatesmartfee, and estimaterawfee so their feerate fields can be printed in sat/vB instead of the default BTC/kvB. It introduces a new ValueFromFeeRate helper in core_io alongside the existing ValueFromAmount, with unit tests, and keeps BTC/kvB as the unconditional default for backwards compatibility. It is explicitly framed by the author as a proof-of-concept for the broader sat/vb migration discussed in issue #32093.",
+  "problem": "RPC callers and downstream software (wallets, explorers, Lightning implementations) currently receive feerates only in BTC/kvB, a unit the author and several reviewers agree is awkward compared to the widely used sat/vB, forcing every consumer to do their own conversion.",
+  "discussion": {
+   "open_concerns": [
+    "glozow argued a hidden default-toggle could be dangerous if the default were ever changed later (a factor-of-100000 unit surprise), preferring separate differently-named fields instead; author responded that the default will not change and kept the boolean-arg design, and no further pushback followed.",
+    "w0xlt pointed out a real bug where estimaterawfee only converted the top-level feerate but left bucket startrange/endrange in sat/kvB units; author incorporated w0xlt's fix with co-authorship."
+   ],
+   "resolved_concerns": [
+    "maflcko's concerns about hardcoded defaults and floating point for monetary values were addressed by moving to self.Arg<bool> and a fixed-point ValueFromFeeRate helper.",
+    "w0xlt's concern about UniValue leaking into policy/feerate.h was addressed by moving the helper into core_io instead.",
+    "musaHaruna's stylistic suggestion about signed/unsigned arithmetic was declined by the author with a stated rationale (readability), and musaHaruna did not push back."
+   ],
+   "author_status": "active, most recent activity 2026-09-10 with a force push"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No open material question is unanswered; the last substantive review thread (approach debate with glozow, bucket-unit bug from w0xlt) was addressed in later pushes, and the author remains actively pushing updates as recently as 2026-09-10."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive, several concept ACKs (w0xlt, musaHaruna, jonatack) and one code ACK; glozow's design concern about future default changes was answered and not revisited.",
+   "reason": "No unresolved blocking objection remains. glozow's concern was about a hypothetical future default change, not the current PR's behavior, and the thread ended without further disagreement after the author's explanation; more recent reviewers (musaHaruna, jonatack) gave concept ACKs without raising it again.",
+   "evidence": [
+    "w0xlt: 'Concept ACK' then later 'ACK 26316c5...'",
+    "maflcko: raised floating-point and hardcoded-default concerns, both addressed in later commits",
+    "glozow: 'It seems extremely dangerous to ever change the default...' and suggested separate fields; author replied defaults won't change, no further objection from glozow",
+    "musaHaruna: 'Concept ACK on migrating to sat/vb in a backwards compatible manner.'",
+    "jonatack: 'Concept ACK', also requested a naming tweak (sat_vb vs satvb) that the author applied"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Part of the broader sat/vb migration effort tracked in issue #32093; author calls this PR a proof-of-concept others may build on for input-side unit handling."
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches rpc/mempool.cpp only to add a display-unit parameter to getmempoolinfo's output; no acceptance, replacement, eviction, or fee-estimation logic is changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the mempool category covers policy rules and data structures, and this PR changes only how already-computed feerate values are formatted for RPC callers."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a new optional argument to getmempoolinfo, getnetworkinfo, estimatesmartfee, and estimaterawfee and a new core_io helper used by RPC output formatting; carries the RPC/REST/ZMQ label.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a real, backwards-compatible usability improvement addressing a pain point named in issue #32093 ('Returning feerates in BTC/kvB it can be very burdensome'), but no external consumer is cited as blocked on it and it changes no compatibility-critical existing output by default. It has some leverage as a stated proof-of-concept for a larger unit-migration effort, but that effort's shape is still being debated (glozow's alternative field-based design)."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the boolean-toggle-per-RPC design or glozow's alternative (separate named fields, e.g. feerate_satvb) will ultimately be the accepted approach for the broader #32093 migration is still open; this affects whether this PR's specific mechanism survives long-term even though the underlying goal is uncontested.",
+   "No maintainer with strong authority on RPC compatibility policy (e.g. one of the RPC leads) has weighed in beyond maflcko's initial code-level comments, so full project buy-in on this exact mechanism is not fully established."
+  ],
+  "card": "This PR adds an optional sat_vb boolean argument to getmempoolinfo, getnetworkinfo, estimatesmartfee, and estimaterawfee so their feerate output can be shown in sat/vB instead of the long-standing BTC/kvB, addressing a usability pain point tracked in issue #32093 for RPC callers and downstream software that currently must convert units themselves. The author frames it as backwards-compatible proof-of-concept, and reviewer glozow raised a substantive but ultimately unresurfaced concern that a hidden default toggle could be dangerous if the default were ever flipped later, suggesting separate named fields instead; the author held the current design and no pushback followed. w0xlt found and the author fixed a real bug where estimaterawfee's bucket ranges stayed in the old unit while the top-level feerate switched. The PR now has concept ACKs from w0xlt, musaHaruna, and jonatack and one code ACK, with the author actively pushing as recently as 2026-09-10 and nothing known pending that would invalidate a review. It has no dependencies on other open PRs and no one else's work is blocked on it, making it a worthwhile but deferrable RPC usability improvement rather than a critical one."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

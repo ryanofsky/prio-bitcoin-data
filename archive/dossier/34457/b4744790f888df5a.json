@@ -1,0 +1,116 @@
+{
+ "number": 34457,
+ "input_hash": "b4744790f888df5a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6868,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4202
+ },
+ "cost_usd": 0.0292843,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets wallet RPCs (sendtoaddress, send, sendall, sendmany) broadcast via short-lived Tor/I2P connections when -privatebroadcast=1 is set, instead of the normal mempool relay.",
+    "Aims to give wallet users the same origin-privacy benefit that raw-transaction broadcast already gets from PR #29415."
+   ],
+   "reviewability": [
+    "Paused: author said they will rebase on top of #34533 once it merges because the two PRs overlap in MaybeResendWalletTxs.",
+    "Also stale: needs rebase, marked draft, and no author activity in over 200 days."
+   ],
+   "agreement": [
+    "Concept ACKs from two reviewers with no objections to the core idea (andrewtoth, Bicaru20).",
+    "mzumsande raised real design gaps (RPC-submitted wallet txs still leak over clearnet after restart, feebump behavior) that were only partially addressed (mzumsande).",
+    "andrewtoth flagged direct functional overlap with PR #34533 that the author agreed needs a rebase (andrewtoth, w0xlt).",
+    "rkrux suggested splitting off two self-contained commits, unanswered so far (rkrux)."
+   ],
+   "categories": []
+  },
+  "summary": "Extends the private-broadcast feature (from #29415) to wallet transaction submission: CommitTransaction() and MaybeResendWalletTxs() use short-lived Tor/I2P connections when -privatebroadcast=1 is set, and the Tor/I2P availability check is centralized into BroadcastTransaction(). Includes a Qt fix for an uncaught exception in the send dialog and new functional tests plus SOCKS5 test helpers. The design went through several iterations, most recently dropping a per-transaction mapValue flag in favor of making broadcast method purely a function of the current -privatebroadcast setting.",
+  "problem": "Wallet users who enable -privatebroadcast currently get no privacy benefit for wallet-originated sends: those still broadcast over ordinary mempool relay to all peers, unlike raw transactions submitted via sendrawtransaction after #29415. This PR closes that gap for privacy-conscious wallet users.",
+  "discussion": {
+   "open_concerns": [
+    "mzumsande: RPC-submitted (not wallet-CommitTransaction-originated) wallet transactions still get rebroadcast over clearnet after a restart without -privatebroadcast, and feebumping after such a restart would also go over clearnet; only partially addressed.",
+    "andrewtoth: MaybeResendWalletTxs change overlaps with #34533's version of the same method; author agreed to rebase once #34533 merges but has not done so.",
+    "rkrux: two commits (Qt exception fix, Socks5ProxyHelper test infra) look separable into their own PRs; not yet acted on."
+   ],
+   "resolved_concerns": [
+    "andrewtoth's rebroadcast-direction concern (skip only private\u2192public, not public\u2192private) was implemented by the author.",
+    "Bicaru20's flaky-test timing issue in wallet_private_broadcast.py was investigated and a fix path identified (same root cause as #34387/#34410)."
+   ],
+   "author_status": "silent since 2026-02-25 (over 200 days), last comment said he would rebase once #34533 merges"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Wait for #34533",
+   "reason": "The author explicitly said he will rebase this PR on top of #34533 once that PR merges because the two touch the same MaybeResendWalletTxs code, and has not done so; the PR is also marked draft, needs rebase, and the author has been silent for over 200 days, so a review now risks being invalidated by that pending rebase."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACKs from andrewtoth and Bicaru20 with no objection to the goal, but mzumsande's rebroadcast/feebump privacy gaps and the #34533 overlap remain only partially addressed.",
+   "reason": "Two contributors gave concept ACKs and engaged constructively on design details (skip direction, wallet-import edge cases). A substantive reviewer (mzumsande) identified real residual privacy leaks that were only partly mitigated, and the author himself flagged unresolved overlap with a sibling PR that requires a future rebase, so the current code is not a stable target for approval yet.",
+   "evidence": [
+    "andrewtoth: 'Concept ACK ... I don't think we need to skip rebroadcast if we initially created the transaction with private broadcast disabled.'",
+    "mzumsande: transactions submitted via sendrawtransaction but relevant to the wallet 'will be received back from the network... and then rebroadcast over clearnet if the user restarted without -privatebroadcast.'",
+    "w0xlt: 'After #34533 is merged, I'll rebase on top of it.'",
+    "Bicaru20: 'Concept ACK' with follow-up questions about wallet-import edge cases, resolved by discussion."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34533
+   ],
+   "enables": [
+    "More complete private-broadcast coverage that #34322 (persisting private broadcast tx state across restarts) could build on"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly changes CommitTransaction() and MaybeResendWalletTxs() in src/wallet/wallet.cpp, adds wallet functional tests, and is labeled Wallet.",
+    "band": "P2",
+    "reason_tag": "privacy feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it closes a real privacy gap for wallet users who enable -privatebroadcast, extending a feature the project already shipped for raw transactions (#29415) to the much more commonly used wallet send path. The wallet category explicitly ranks 'privacy of transaction creation' highly; however mzumsande's unresolved point that RPC-submitted wallet transactions can still leak over clearnet on restart shows the design is not yet complete, and functional overlap with the sibling PR #34533 means this needs to be reconciled before it is mergeable, which caps it below P1."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Labeled Private Broadcast and centralizes the Tor/I2P reachability check inside BroadcastTransaction(), but the substantive change is wallet-side wiring rather than new p2p transport or connection-management logic.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because the p2p mechanism itself (short-lived Tor/I2P private-broadcast connections) already exists from #29415; this PR only relocates an availability check and makes existing wallet callers use that existing mechanism, with no new protocol behavior, DoS, or relay-correctness impact for the p2p category to weigh."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers intend #34457 or #34533 to be the surviving PR for wallet resubmission behavior is unclear from the discussion; they clearly overlap and one may be closed in favor of the other.",
+   "No indication of how mzumsande's RPC-submitted-transaction privacy gap will ultimately be resolved, which could materially change the wallet-side design.",
+   "Long author silence (over 200 days) combined with 'draft' status suggests this may be effectively abandoned pending the #34533 outcome, but no explicit close or handoff statement exists."
+  ],
+  "card": "This PR extends the private-broadcast privacy feature (from merged #29415) to wallet transaction submission, so sendtoaddress/send/sendall/sendmany broadcast over short-lived Tor/I2P connections when -privatebroadcast=1, and it centralizes the Tor/I2P availability check into BroadcastTransaction(). The problem it addresses is real: wallet-originated sends currently get no privacy benefit from -privatebroadcast even though raw-transaction submission already does, which matters to privacy-conscious wallet users. Concept ACKs came from andrewtoth and Bicaru20, but reviewer mzumsande identified an unresolved gap where wallet-relevant transactions submitted via RPC can still leak over clearnet after a restart, and the author's own MaybeResendWalletTxs changes substantively overlap with the open sibling PR #34533. The author explicitly said he would rebase on top of #34533 once it merges and has since gone silent for over 200 days, leaving the PR in draft, needing rebase, and effectively paused pending that dependency."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

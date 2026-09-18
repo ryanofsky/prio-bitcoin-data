@@ -1,0 +1,126 @@
+{
+ "number": 36066,
+ "input_hash": "41c79971d9b5a60e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:47+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18057,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3227
+ },
+ "cost_usd": 0.025644,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Separate the check-only mode of ConnectBlock into a distinct TestConnectBlock method.",
+    "Enforce const-correctness for the block index when running validity checks without chain modifications."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "The author addressed review comments and resolved merge conflicts in the latest push."
+   ],
+   "agreement": [
+    "Concept approval with review requests on const references and commit structure (l0rinc).",
+    "Author addressed review comments; further discussion noted remaining Chainstate side effects (purpleKarrot)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it improves type safety and interface clarity in consensus-critical code.",
+      "It eliminates the fJustCheck boolean flag and enforces that check-only callers cannot mutate the block index."
+     ]
+    }
+   ]
+  },
+  "summary": "Separates the check-only execution path in `Chainstate::ConnectBlock` into a dedicated `TestConnectBlock` method taking `const CBlockIndex&`. The shared UTXO validation checks are moved into an internal helper `ConnectBlockChecks`, eliminating the public `fJustCheck` boolean parameter.",
+  "problem": "In check-only validation mode (used by `TestBlockValidity` and fuzz testing), `ConnectBlock` required a mutable `CBlockIndex*` even though the block index was not modified, obscuring mutability guarantees and requiring caller-side dummy objects.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc suggested passing the block index by const reference, reusing the stored block hash, and updating related comments, all of which the author applied.",
+    "purpleKarrot noted that `Chainstate` still mutates internal timing and counter state during check-only calls; the author acknowledged this as part of longer-term work toward stateless validation in #35904."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author resolved previous review suggestions from l0rinc and fixed a silent merge conflict with fuzz tests in the latest push."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from l0rinc; specific review requests were addressed in the latest push.",
+   "reason": "l0rinc provided a Concept ACK with change requests regarding const references and comments, which the author incorporated. purpleKarrot raised architectural considerations around side effects without blocking.",
+   "evidence": [
+    "l0rinc: 'Concept ACK... Separating the check-only entry point makes the CBlockIndex mutability clearer and removes fJustCheck from the public ConnectBlock() interface.'",
+    "purpleKarrot: 'What about the mutability and mutations of the Chainstate... Please have a look at #35904'",
+    "optout21: 'Applied review suggestions, minor changes.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches src/validation.cpp only for block connection checks, with no changes to transaction policy, mempool data structures, or limits.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Updates call sites in the connect_block fuzz harness and a USDT python test comment to match the renamed method.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are purely mechanical updates to track the validation API refactor."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly alters `Chainstate::ConnectBlock` and introduces `TestConnectBlock` in src/validation.cpp and src/validation.h.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The PR is a code-hygiene refactor that improves const-correctness in validation interfaces and removes a boolean flag (`fJustCheck`). As noted in the description, 'The mutability of the pindex parameter is in sync with the semantics' and it aligns with efforts to decouple validation side effects (#35904)."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors `Chainstate::ConnectBlock` by separating its check-only mode into a distinct `TestConnectBlock` method that accepts a `const CBlockIndex&`. This removes the `fJustCheck` boolean parameter and clarifies const-correctness for callers that only validate blocks without mutating chainstate, such as `TestBlockValidity` and fuzz tests. The work is code hygiene that also supports ongoing modularization toward side-effect-free validation (#35904). Review feedback from l0rinc has been incorporated and the PR is ready for review."
+ },
+ "raw_text": null
+}

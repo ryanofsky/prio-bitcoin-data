@@ -1,0 +1,221 @@
+{
+ "number": 30437,
+ "input_hash": "a1991cf875dde118",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 45126,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8096
+ },
+ "cost_usd": 0.0870123,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a bitcoin-mine test program that connects to a running bitcoin-node over IPC and exercises the Mining interface end to end.",
+    "Gives developers and reviewers a concrete C++ libmultiprocess client and functional test that other IPC/mining work can build on."
+   ],
+   "reviewability": [
+    "Ready to review now, no rebase or CI issues, and the author has kept it current through many rebases over two years.",
+    "One architecture question (whether the binary should build by default and ship in releases) is unresolved but the author agrees and it does not block reviewing the existing code."
+   ],
+   "agreement": [
+    "Broad support with several Concept/Tested ACKs from ismaelsadeeq, Sjors, and BrandonOdiwuor after hands-on testing.",
+    "Standing, acknowledged caveat: sedited and fanquake think the binary should not be built by default or shipped in releases, and the author agreed a separate CMake option is needed but has not yet implemented it (sedited, fanquake).",
+    "Ongoing but nonblocking naming/scope debate about whether this should be renamed or moved to an examples/tests directory (Sjors, sedited, ismaelsadeeq)."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it is the first standalone libmultiprocess client in-tree, filling a coverage gap the functional Python IPC tests cannot reach (Sjors: functional tests 'do not use libmultiprocess on the client side').",
+      "Building block already reused by other IPC work (Sjors' template-provider fork, related commits absorbed into #32297 and #33201)."
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it exercises createNewBlock/getBlock/submitSolution across the IPC boundary, giving cross-process coverage of the Mining interface that pure unit tests bypass.",
+      "Motivation is somewhat diminished since external Rust and C++ Stratum v2 clients already exist and exercise the same interface (sedited: 'this motivation is a bit stale')."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P4 because the CMake additions are largely mechanical wiring to add a new executable, and the one substantive build question (a dedicated option so the binary is not built/shipped by default) is agreed on but not yet implemented."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P4 because it adds a small, reusable piece of test-framework plumbing (Binaries.mine_argv, binary path config) alongside a new functional test, but the test itself pins mining/IPC behavior rather than framework capability."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "Unranked because the debated question is precisely whether this is a real user-facing tool at all; the discussion leans toward it being a dev/test artifact rather than an operator tool, so it does not clearly belong in this category."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Unranked because the interface_ui move to the common library is a mechanical prerequisite for building the new binary, not a change to shared infrastructure in its own right."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new `bitcoin-mine` executable that connects to a running `bitcoin-node` process over IPC (unix socket) and calls `interfaces::Mining` methods, including creating a block template and submitting a mined solution. It adds a matching functional test (`feature_mine.py`), CMake build wiring, a `bitcoin mine` subcommand on the `bitcoin` wrapper, and moves `interface_ui` into the common library so the new binary can use `InitError`/`InitWarning`. It has been under continuous rebase and refinement for over two years as related IPC/mining interface PRs landed.",
+  "problem": "There is currently no standalone C++ (libmultiprocess-based) IPC client in the tree to exercise cross-process serialization and connection handling for the Mining interface, and no example for developers building similar IPC clients (e.g. Stratum v2 template providers). This leaves a coverage gap that Python-based functional IPC tests cannot fill because they do not exercise the libmultiprocess client stack.",
+  "discussion": {
+   "open_concerns": [
+    "Whether the binary should be gated behind its own CMake option so it is not built/shipped as part of ordinary or release builds (sedited, fanquake); author agreed but has not yet implemented the separate variable.",
+    "Whether the executable and its scope should be renamed/reframed (e.g. `test_bitcoin-mining`, or moved to an examples/tests directory) to make clear it is a demo/test artifact rather than a real mining tool (sedited, ismaelsadeeq, Sjors); no final decision reached.",
+    "Minor robustness edge cases in the mining loop (handling tip changes mid-mining, bounding max tries) raised by ismaelsadeeq and w0xlt; some addressed (nullptr check, negative -maxtries), others left as documented limitations by design choice."
+   ],
+   "resolved_concerns": [
+    "Early design to have bitcoin-mine auto-spawn bitcoin-node was dropped for simplicity per Sjors' suggestion, deferred to a follow-up branch.",
+    "Socket path length bug on macOS caught by Sjors and fixed by the author.",
+    "-debug=ipc logging not working, fixed by author after Sjors' testing.",
+    "Windows resource file added after maflcko's nit.",
+    "fanquake's NACK on adding the binary to the Guix/Maintenance target list was resolved by dropping that change."
+   ],
+   "author_status": "active, most recent force-push 2026-08-15, still addressing review feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failures or rebase conflicts are currently outstanding, and the author has kept the branch current through many rebases; the one architectural request (a separate build flag to avoid shipping by default) has not gone unanswered long enough to pause review, and the code itself is stable and well-tested by multiple reviewers."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Multiple Concept/Tested ACKs (Sjors, ismaelsadeeq, BrandonOdiwuor), but sedited and fanquake think the binary should not build/ship by default, a drawback the author agrees with but hasn't yet fixed.",
+   "reason": "The PR has sustained substantive review and repeated re-ACKs across two years, and no reviewer opposes the change fundamentally. The standing concern about default build/shipping is acknowledged by the author as valid but not yet implemented, which keeps this from being a clean 'Strong' rather than 'Positive w/ caveats'.",
+   "evidence": [
+    "Sjors: 're-utACK' / 're-ACK' multiple times across rebases, most recently on 057ea0a677.",
+    "ismaelsadeeq: 'Concept ACK... This can serve as a usage example for the interfaces' and later 're-ACK'.",
+    "BrandonOdiwuor: 'Tested ACK... verifying successful IPC connection, tip hash retrieval, and valid block mining/submission'.",
+    "fanquake: 'I don't think this is something that needs to be shipped in releases', unresolved as of last visible push.",
+    "sedited: 'I think this should get its own variable', author replied 'Yes... definitely makes sense now' but no confirmed follow-up commit shown."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Downstream work like Sjors' Stratum v2 template-provider prototype (pr/mine-detach, Sjors/bitcoin#48) building on this IPC client",
+    "Future IPC client examples/tests reusing MakeBasicInit and related plumbing (already reused in #32297 and partly absorbed into #33201)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds new CMakeLists.txt target, Windows resource file, and status-line entry for the new bitcoin-mine binary; discussion includes an open question about a dedicated build flag.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The CMake work is mostly mechanical wiring to add a new executable and is not itself a build-system improvement; the one live build question (gating it behind ENABLE_IPC-independent option so it isn't shipped in releases) is agreed but unimplemented, per sedited: 'I think this should get its own variable.'"
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Directly implements a standalone libmultiprocess-based IPC client against interfaces::Init/Mining, core to the process-separation project (issue #28722); labeled IPC.",
+    "band": "P2",
+    "reason_tag": "test coverage",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Fills a real gap: Sjors notes the functional Python IPC tests 'do not use libmultiprocess on the client side', so this is the only in-tree exerciser of the client-side stack, and several later PRs (#32297, #33201, external forks) reused code introduced here."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "bitcoin-mine.cpp exercises createNewBlock, getBlock, and submitSolution of interfaces::Mining across the IPC boundary; touches src/interfaces/mining.h usage patterns.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Provides cross-process coverage of core mining-interface calls that unit tests bypass, but the author himself concedes motivation has weakened now that external Rust/C++ Stratum v2 clients already exercise the same interface (sedited: 'this motivation is a bit stale')."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds feature_mine.py functional test and extends test_framework/util.py Binaries class with mine_argv and BITCOINMINE path handling.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The new test pins mining/IPC behavior specifically, which per the category definition belongs to that area rather than tests; the only generic framework contribution is the small Binaries.mine_argv addition."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-mine is explicitly debated in review as a test/demo artifact rather than an operator-facing tool, and there is no evidence of external tool users depending on it.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Reviewers (sedited, fanquake) push back on treating this as a shippable tool; it is better understood as IPC/mining test tooling, already captured in those categories."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Moves node/interface_ui.cpp into the common library so bitcoin-mine can call InitError/InitWarning, but this is a mechanical prerequisite, not a change to shared utility behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The interface_ui relocation is incidental plumbing needed to compile the new binary, matching the exclusion for mechanical edits that follow from a change elsewhere."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the outstanding CMake-option/shipping concern from sedited and fanquake has been addressed in commits after the shown diff, since the timeline extends past the provided patch.",
+   "Whether the naming/scope debate (test_bitcoin-mining vs bitcoin-mine, examples folder) will materially change the final shape of the PR, which would affect reviewability going forward.",
+   "How much weight to give the author's own admission that the original stratum-v2 motivation is 'a bit stale' when scoring mining-category importance."
+  ],
+  "card": "Adds `bitcoin-mine`, a standalone libmultiprocess-based C++ test/example program that connects to `bitcoin-node` over IPC and exercises `interfaces::Mining` (getTip, createNewBlock, submitSolution), plus a matching functional test and CMake/build wiring. It fills a real coverage gap since existing functional IPC tests are Python-based and don't exercise the libmultiprocess client stack (Sjors), and code from it has already been reused in #32297 and #33201. Review has been sustained over two years with several Concept/Tested ACKs (Sjors, ismaelsadeeq, BrandonOdiwuor), but there is a live, author-acknowledged but unimplemented concern from sedited and fanquake that the binary should be gated behind its own build option rather than shipping by default. No hard blocking dependency; the PR is otherwise mergeable and reviewable now."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

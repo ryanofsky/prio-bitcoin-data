@@ -1,0 +1,133 @@
+{
+ "number": 36015,
+ "input_hash": "d96c7530e2091f77",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22129,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4129
+ },
+ "cost_usd": 0.044180300000000006,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Bound orphanage memory to what weight accounting promises, so an attacker cannot use tiny witness elements to blow past the per-peer memory budget."
+   ],
+   "reviewability": [
+    "Ready. Latest push addressed a follow-up amplification bug found in review and CI failure is claimed unrelated."
+   ],
+   "agreement": [
+    "Concept ACK from three reviewers and a tested ACK from jeanpablojp on an earlier revision (w0xlt, l0rinc, Crypt-iQ, jeanpablojp)",
+    "instagibbs proposed the serialized-storage approach that the author adopted, and later found a second DoS amplification in the new code which the author fixed in the latest push (instagibbs)",
+    "No unresolved objections after the latest push"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P1 because it closes a real memory-amplification DoS vector where an attacker could make a single peer's orphan cost up to 28x its accounted weight, and reviewers demonstrated a further ~1GB spike bug in the fix itself that has since been patched.",
+      "Orphan resolution and 1p1c package relay depend on this working correctly for standard-weight, witness-heavy transactions like BitVM-style scripts."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes how the transaction orphanage stores pending orphan transactions, keeping them serialized rather than deserialized, so that the existing weight-based memory accounting becomes a true upper bound on memory use rather than an underestimate. It adds GetOrphanUsage(), GetParentTxids(), and an id-based GetChildrenFromSamePeer() so callers can work with orphan metadata without forcing deserialization, and updates Find1P1CPackage to materialize only the selected child. It renames DEFAULT_RESERVED_ORPHAN_WEIGHT_PER_PEER to DEFAULT_RESERVED_ORPHAN_USAGE_PER_PEER and adds a regression test for a witness-heavy orphan.",
+  "problem": "Orphan memory accounting assumes weight is often higher than actual memory usage, but that assumption fails badly for transactions with many small witness stack elements: a standard-weight transaction of 199,000 1-byte witness items can use 28x its accounted weight (11.1MB vs 398,247WU), and one such orphan can be retained per peer, letting an attacker inflate a node's real memory use far past the intended per-peer and global caps. This affects every node's DoS resistance to malicious or merely BitVM-style peers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc asked to separate refactors from hardening in follow-ups; author acknowledged and proceeded with review as-is",
+    "instagibbs proposed a serialized-storage alternative to the original weight-metric-swap approach; author adopted it and closed the design question",
+    "jeanpablojp found a wait_until race in the new functional test; fixed by swapping to wait_for_getdata",
+    "jeanpablojp found Find1P1CPackage rebuilding every candidate child before selecting one (1GB+ spike with many peers); author confirmed the benchmark numbers and fixed it in the latest push using instagibbs' suggested approach",
+    "jeanpablojp flagged a test that passed without the fix; author added an explicit BOOST_CHECK for object identity"
+   ],
+   "author_status": "active, addressing review"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Latest force push (2026-09-10) addressed the last known material issue, the Find1P1CPackage amplification bug, and the author says the current CI failure is unrelated. No open question is on record as unanswered past the 7-day threshold."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: three concept ACKs and a tested ACK on an earlier revision, with instagibbs and jeanpablojp's substantive concerns each fixed by the author and no outstanding objection.",
+   "reason": "Multiple reviewers engaged with real numbers (jeanpablojp's benchmarks, instagibbs' amplification finding) and every concrete objection led to a code change rather than a standing disagreement.",
+   "evidence": [
+    "w0xlt, l0rinc, Crypt-iQ: Concept ACK",
+    "jeanpablojp: tACK with detailed benchmark verification of the memory bound (stale per bot, predates latest push)",
+    "instagibbs: proposed the serialized approach the PR adopted, later found a follow-up amplification bug that the author fixed on 2026-09-09"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "complements #35923 (mempool: count unbroadcast txids in memory usage) per l0rinc's comment",
+    "touches the same orphanage area as #35919 (p2p: avoid orphanage abort at high peer counts), an open conflicting PR"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "The orphanage (txorphanage.cpp/.h, txdownloadman_impl.cpp) is core p2p DoS-resistance infrastructure; the PR's entire purpose is bounding attacker-controlled orphan memory.",
+    "band": "P1",
+    "reason_tag": "DoS protection",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P1 because it fixes a real memory-amplification DoS vector: a standard-weight orphan with 199,000 1-byte witness elements uses 28x its accounted weight (11.1MB vs 398,247WU), retainable once per peer, per the PR description and jeanpablojp's independent benchmark confirming the 1.24x-1.47x numbers cited in code comments. Review also surfaced and the author fixed a second amplification (up to ~1GB spike) in Find1P1CPackage during the PR's own lifetime, underscoring how load-bearing this area is for network-level resource exhaustion protection."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The orphanage is a distinct data structure from the mempool; this PR does not touch policy, standardness, replacement, or package acceptance rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change; txorphanage sits upstream of mempool acceptance and this PR only concerns how orphans are stored and evicted, not mempool policy."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added/changed tests (orphanage_tests.cpp, txdownload_tests.cpp, fuzz/txorphan.cpp, bench/txorphanage.cpp) all pin p2p orphanage behavior specifically, which the category file assigns to the area under test rather than to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, a test that pins the behavior of one area belongs to that area; these tests are p2p orphanage tests, not framework or harness changes."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the current push (2026-09-10) has received fresh review from jeanpablojp or instagibbs specifically on the Find1P1CPackage fix and the identity-check test addition is not confirmed in the discussion log.",
+   "The conflicts with #35919 and #35581 are noted as file-level conflicts but no discussion confirms whether they require coordinated merging or just a rebase."
+  ],
+  "card": "This PR changes Bitcoin Core's transaction orphanage to store orphan transactions serialized instead of deserialized, so that the existing weight-based memory accounting becomes a true upper bound on memory rather than an underestimate. It fixes a real DoS amplification: a standard-weight transaction with 199,000 1-byte witness elements previously used 28x its accounted weight in memory (11.1MB vs ~400,000WU), retainable once per peer, confirmed independently by reviewer jeanpablojp's benchmarks. During review, instagibbs proposed the serialized-storage approach adopted here in place of the author's original weight-metric swap, and later found a second amplification bug in the new Find1P1CPackage code (up to ~1GB spike) which the author fixed in the latest push. Agreement is strong: three concept ACKs, a tested ACK on an earlier revision, and every substantive objection raised has been addressed with code changes. The PR touches the same orphanage files as the open PR #35919 and complements #35923, though no hard dependency is stated; it appears Ready with no known unresolved question."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

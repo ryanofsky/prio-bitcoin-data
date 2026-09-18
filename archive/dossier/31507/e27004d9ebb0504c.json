@@ -1,0 +1,156 @@
+{
+ "number": 31507,
+ "input_hash": "e27004d9ebb0504c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 49684,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6905
+ },
+ "cost_usd": 0.0856153,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Switch native Windows builds from MSVC (cl.exe) to Clang (clang-cl.exe), dropping MSVC support.",
+    "Removes MSVC's inline-assembly and ICE limitations and reportedly speeds up both builds and runtime block validation."
+   ],
+   "reviewability": [
+    "Paused: a real open question from maflcko about whether a warning-suppression (-Wno-return-type) is hiding real undefined behavior has gone unanswered since 2026-08-18.",
+    "Otherwise the PR has been through extensive, substantive review and could be re-reviewed once that question is settled."
+   ],
+   "agreement": [
+    "Concept ACKs from fanquake and hodlinator once MSVC support was actually dropped (fanquake had conditioned support on this).",
+    "Mild unresolved concern: maflcko worries a compiler-warning workaround may be masking real undefined behavior on Windows, not yet answered by the author (maflcko).",
+    "No blocking objections; earlier design pushback from fanquake and theuni on MSVC-variable checks was addressed through rework (fanquake, theuni)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it changes how Bitcoin Core is built on a supported platform, with benchmarked ~35-55% faster block validation and ~40% faster CI builds when using clang-cl versus MSVC.",
+      "It also removes recurring MSVC internal-compiler-error workarounds that have cost maintainer time, a stated motivation from the author and echoed by maflcko.",
+      "Not urgent (no current build is broken) but durable value worth deliberate review."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR switches the native Windows build (via CMake presets and CI) from MSVC (cl.exe) to Clang's clang-cl.exe, and ultimately drops MSVC support entirely after extensive discussion. It adjusts diagnostic flags, links the clang builtins library for __int128 division, fixes a few compiler-specific quirks (BSWAP_CONSTEXPR, shlwapi linking, leveldb warnings), and adds release notes and doc updates for the new toolchain.",
+  "problem": "MSVC lacks inline assembly support on x64/ARM64 (precluding some hardware-accelerated code paths) and has repeatedly caused internal-compiler-error maintenance overhead; this affects Windows developers and anyone building Bitcoin Core natively on Windows.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko (2026-08-18): whether the -Wno-return-type suppression around missing-switch-case + assert(false) hides real undefined behavior; unanswered since then.",
+    "hodlinator: whether doc/build-windows-msvc.md should be renamed, and whether an obsolete #elif branch in byteswap.h should be removed now that MSVC is dropped.",
+    "fanquake earlier flagged the CMake logic mixing if(MSVC) and if(CMAKE_CXX_COMPILER_ID STREQUAL \"MSVC\") as fragile/confusing; addressed by explanation but not fully resolved to fanquake's satisfaction."
+   ],
+   "resolved_concerns": [
+    "fanquake's request to actually drop MSVC support (rather than just add clang-cl as an option) was implemented, turning his stance more concept-ACK.",
+    "fanquake's netaddress.h placement question was addressed by moving code to compat.h.",
+    "Various CI/link warnings raised by fanquake and maflcko (unused-private-field, missing-braces, shlwapi overlinking) were investigated and fixed."
+   ],
+   "author_status": "active as of 2026-08-12 (last force-push), reworking based on review; has not yet responded to maflcko's 2026-08-18 UB question"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "maflcko raised a material, unresolved concern on 2026-08-18 about whether a warning suppression (-Wno-return-type combined with an incomplete switch and assert(false)) could be hiding real undefined behavior on Windows; the author has not replied since, and signals show 27 days of unanswered waiting versus the 7-day threshold."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive concept ACKs from fanquake and hodlinator after MSVC support was dropped, but maflcko's unresolved concern about hidden UB in a warning-suppression flag is open and nonblocking.",
+   "reason": "Two reviewers gave concept ACKs (bot-detected: fanquake, hodlinator) once the author agreed to drop MSVC entirely per fanquake's request. A separate, real-harm concern (possible undefined behavior masked by -Wno-return-type) raised by maflcko on 2026-08-18 remains unanswered, which keeps this from being a clean Positive/Strong.",
+   "evidence": [
+    "fanquake: \"I think I'd be more concept-ACK here, if it included removing support for MSVC, at the same time\" -> later implemented.",
+    "hodlinator: \"Concept ACK ec347d1...\" on the final commit.",
+    "maflcko: \"Is this a violation of the C++26 standard? ... it should be reported/fixed upstream ... it should not be hidden\" -- unanswered as of latest activity.",
+    "fanquake earlier: \"I can see this getting very fragile and confusing\" about mixed MSVC/compiler-id checks -- addressed by author explanation, no further pushback."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Could be an alternative to the closed/older PR #24773 for Windows compiler choice.",
+    "Rebased on and unblocked by several merged prerequisite PRs (#32028, #30595, #34883, #35031)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Directly changes CMake presets, CI Windows job configuration, and compiler-specific flags for the Windows native build; labeled Windows and Build system.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Benchmarks posted by the author show clang-cl producing ~35-55% faster block validation and CI builds roughly 40% faster than MSVC ('MSVC 20m35s vs clang-cl 12m43s'), and the change removes recurring MSVC internal-compiler-error workarounds cited as a maintenance burden. It is a durable, substantial build-system change but not urgent since no current platform is broken."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "doc/build-windows-msvc.md and a new release note are updated, but only as a consequence of the primary build/compiler change; per category rules a code change that also updates its docs belongs to its own area.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Docs changes here are incidental to the build-system change, not the primary subject of the PR."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "A discussion thread references moving something related to src/netaddress.h to compat.h, but this is a compiler-compatibility fix, not a change to p2p protocol behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The netaddress.h touch is a mechanical compatibility fix required by the clang-cl switch, not a substantive p2p change."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "src/util/subprocess.h gets minor changes to silence unused-private-field warnings under clang-cl; this is mechanical follow-on from the compiler switch, not a substantive utils change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The subprocess.h edit only suppresses new compiler warnings and does not alter behavior of the shared utility code."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will ultimately accept dropping MSVC support entirely as policy, though current maintainer sentiment (fanquake, maflcko) leans favorable.",
+   "Whether the unresolved -Wno-return-type/UB question represents a real correctness bug or just an upstream Clang warning quirk; author's own local repro suggests it triggers an assertion, not silent UB, but this hasn't been confirmed upstream.",
+   "Benchmark numbers are self-reported by the author on their own machine and not independently reproduced by other reviewers."
+  ],
+  "card": "This PR switches Bitcoin Core's native Windows build from MSVC (cl.exe) to Clang (clang-cl.exe) and, after sustained maintainer pushback, ultimately drops MSVC support entirely. The stated motivation is MSVC's lack of inline-assembly support on x64/ARM64 and recurring internal-compiler-error maintenance costs; the author also posted benchmarks showing clang-cl producing roughly 35-55% faster block validation and ~40% faster CI builds than MSVC. Review has been extensive over more than a year (35 force-pushes) with concept ACKs from fanquake and hodlinator once MSVC removal was agreed to, but a concern raised by maflcko on 2026-08-18 about whether a warning suppression might be hiding real undefined behavior on Windows remains unanswered by the author. The PR is otherwise well reviewed and touches CMake build configuration, CI scripts, and a few compiler-compatibility fixes in shared code, with no dependency blocking it other than already-merged rebases."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,146 @@
+{
+ "number": 30988,
+ "input_hash": "c4327d9e3824f1b0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:54+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 53949,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4150
+ },
+ "cost_usd": 0.05602425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Separate low-level socket I/O from P2P protocol logic in CConnman into a modular SockMan class."
+   ],
+   "reviewability": [
+    "Not ready for review.",
+    "The branch has merge conflicts and the author has been inactive for over six months."
+   ],
+   "agreement": [
+    "Concept NACK from theuni arguing SockMan is the wrong abstraction and poorly suited for HTTP or SV2.",
+    "Concept ACKs and review from ryanofsky, Sjors, pinheadmz, and others who favor modularizing CConnman.",
+    "Disputed on whether the abstraction belongs in Core."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it is an internal architectural cleanup of CConnman with no user-visible behavior change.",
+      "Potential external consumers like HTTP and Stratum v2 moved away from using this abstraction."
+     ]
+    }
+   ]
+  },
+  "summary": "Splits `CConnman` into a low-level socket management class (`SockMan`) and a higher-level Bitcoin P2P protocol layer. Socket operations (bind, listen, accept, poll, send, recv) and socket lifecycle are handled by `SockMan`, while P2P connection policies, banning, and protocol handling remain in `CConnman`. As part of the refactoring, `CConnman::m_nodes` is changed from a vector to an unordered map indexed by connection ID.",
+  "problem": "`CConnman` mixes low-level socket polling and OS network calls with high-level Bitcoin P2P state and transport logic, complicating maintenance and preventing reuse in other networking components.",
+  "discussion": {
+   "open_concerns": [
+    "theuni Concept NACKed the abstraction, arguing it mimics a generic I/O framework while remaining tightly coupled to Core's P2P send/recv model, making it unsuitable for HTTP or SV2.",
+    "ryanofsky identified API fragility in relying on integer connection IDs and maps instead of passing connection objects and suggested adding thread wakeup mechanisms to avoid polling delays."
+   ],
+   "resolved_concerns": [
+    "Various lint errors, compiler warnings, and fuzz test harness breakages were fixed during rebases.",
+    "Extracted CAddress cleanups into merged PR #31854."
+   ],
+   "author_status": "silent since 2026-03-05 after stating they were midway through implementing ryanofsky's API suggestions"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts with master and the author has had no activity for over 190 days."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: theuni Concept NACKs the abstraction; ryanofsky and several others Concept ACK the architectural split.",
+   "reason": "theuni lodged a blocking Concept NACK arguing that SockMan is the wrong abstraction level and ill-suited for non-P2P use cases like HTTP and SV2. The author defended the split for P2P modularity, and multiple contributors gave Concept ACKs, but the fundamental architectural disagreement remains unresolved.",
+   "evidence": [
+    "theuni: 'I believe this is the wrong abstraction level. SockMan is essentially mimicking the behavior of a generic io multiplexing framework... but without the feature-set of those libs... I'm afraid I'm a concept NACK.'",
+    "vasild: 'IMO this split makes sense even without Sv2 and HTTP because it makes the code more modular and reusable.'",
+    "ryanofsky: 'Concept ACK... Overall I think this is a nice change that simplifies net.cpp by removing low level socket calls and details of establishing connections...'",
+    "Concept ACKs also logged from Sjors, pinheadmz, tdb3, jonatack, and rkrux."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Refactors src/net.cpp, src/net.h, and CConnman socket handling and connection data structures.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Decouples low-level socket operations from P2P protocol mechanics in CConnman and makes peer lookup O(1) instead of O(N). Its priority remains P3 because it is an internal refactoring without direct user impact, and the initial motivation of unblocking HTTP and Stratum v2 socket sharing was abandoned."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only touches src/rpc/net.cpp to preserve peer sorting order after CConnman::m_nodes was switched to an unordered_map.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical accommodation of internal container changes, not an RPC change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches fuzz tests and unit tests in src/test/ to adapt to the new CConnman interface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Modifications to tests are strictly call site updates keeping tests compiling against the refactored P2P classes."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Places SockMan in src/common/, but the code is exclusively an extraction of P2P networking internals.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Although located in common, SockMan reflects Bitcoin Core's P2P networking loop and is not general utility infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #30988 splits CConnman into a low-level socket multiplexing class (SockMan) and a P2P protocol layer, while indexing active connections by ID in an unordered map. The split aims to improve modularity and was originally intended to be reused by an HTTP server and Stratum v2, though both consumers have since declined to use it. There is an active architectural dispute: theuni issued a Concept NACK asserting the abstraction is tailored to P2P rather than a clean I/O framework, while ryanofsky and others support the cleanup. The PR is currently in draft with merge conflicts, and the author has been silent for over six months."
+ },
+ "raw_text": null
+}

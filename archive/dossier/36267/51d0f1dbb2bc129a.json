@@ -1,0 +1,141 @@
+{
+ "number": 36267,
+ "input_hash": "51d0f1dbb2bc129a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18477,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4071
+ },
+ "cost_usd": 0.040238300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Backport two already-merged fixes to the 32.x branch ahead of the 32.0rc2 release: proper Windows codesign signature verification in Guix builds, and a Tor control reconnect backoff fix.",
+    "Also bumps version to rc1 and regenerates man pages/release notes for the release."
+   ],
+   "reviewability": [
+    "Ready to review now, contains only cherry-picked commits from already-merged PRs #36256 and #36260.",
+    "Mergeable and CI passing per metadata."
+   ],
+   "agreement": [
+    "No comments yet on this specific backport PR (author fanquake, MEMBER).",
+    "The underlying changes were already reviewed and merged upstream as #36256 and #36260."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P1 because it fixes a real release-integrity gap: osslsigncode's attach-signature step performed no verification at all, so Windows release binaries could ship with a broken signature undetected.",
+      "This directly matters for the imminent 32.0rc2 release and for every user who downloads and verifies signed Windows binaries."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because the man page and release-notes changes are routine, mechanical release-prep bookkeeping (regenerated help2man output, a placeholder release-notes pointer) with no corrected or newly explained meaning."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because the torcontrol reconnect logic previously logged 'will retry' but never actually slept the backoff, risking a tight reconnect loop against the Tor control port; the fix restores intended backoff behavior for a narrow, non-consensus component."
+     ]
+    }
+   ]
+  },
+  "summary": "This is a maintainer-curated backport PR bundling two already-merged mainline fixes onto the 32.x branch for the 32.0rc2 release: a Guix codesign fix that adds actual signature verification for Windows binaries after signing, and a torcontrol fix restoring reconnect backoff after a dropped Tor control connection. It also bumps CLIENT_VERSION to rc1/release and regenerates man pages and release-notes scaffolding for the release process.",
+  "problem": "Guix builds previously used osslsigncode's attach-signature step which performs no validation of the resulting signature, and the prior workaround (relying on unconditional verification pre-2.14) required network access unavailable in the Guix container; this could let a broken Windows signature ship undetected. Separately, torcontrol's disconnect handler logged a backoff message but never slept, so a node could reconnect to the Tor control port in a tight loop after disconnects.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, opened same day, no review comments yet"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Clean, mergeable backport of two already-merged and reviewed upstream PRs (#36256, #36260); CI is passing and there are no open review threads to invalidate a review."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No comments or reviews yet on this backport PR itself, though its constituent changes (#36256, #36260) were already merged upstream after review.",
+   "reason": "As a same-day backport PR from a maintainer bundling previously-merged commits, it has not yet attracted discussion; agreement on the underlying changes was established in the original PRs.",
+   "evidence": [
+    "Signals show distinct_reviewers: 0 and no reviewer activity",
+    "Commits are tagged Github-Pull: #36256 and #36260, both already merged"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36256,
+    36260
+   ],
+   "enables": [
+    "32.0rc2 release milestone"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies contrib/guix/manifest_codesign.scm and contrib/guix/libexec/codesign.sh to pin osslsigncode 2.14 and add post-signing verification of Windows binaries, directly matching the build category's guix/reproducibility scope.",
+    "band": "P1",
+    "reason_tag": "release integrity",
+    "score": 0.82,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "The commit message states 'osslsigncode attach-signature doesnot validate the signature at all, but we should be doing a signature check after applying to ensure that the signature itself is also valid,' describing a gap where a Windows release binary's signature could be broken without detection. This is exactly the release-integrity concern the build category ranks highest, and it is needed for the imminent 32.0rc2 release."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Regenerates all doc/man/*.1 pages via help2man and adds a stub doc/release-notes.md pointing to the devwiki draft, removing the empty release-notes template; these are documentation-only changes.",
+    "band": "P4",
+    "reason_tag": "release prep",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The man page updates are mechanical regeneration from help2man reflecting existing CLI behavior, and the release-notes changes are routine release-cycle bookkeeping rather than corrected or newly explained content."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Rewrites src/torcontrol.cpp's ThreadControl/disconnected_cb reconnect logic to actually sleep the exponential backoff after a dropped connection, with a new functional test test_reconnect_backoff.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The prior code logged 'Not connected to Tor control port %s, will retry' without ever sleeping the backoff timer, so a persistently failing Tor control connection could reconnect in a tight loop; the fix restores intended backoff. This is a real but narrow reliability fix confined to the Tor control integration, not core relay or peer-selection logic."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CLIENT_VERSION_RC bump and man-page regeneration should be scored as part of any category or treated purely as release mechanics outside all categories; treated here as docs/build incidental changes.",
+   "No discussion thread exists yet to confirm reviewer sentiment on this specific backport, though the underlying PRs were reviewed and merged upstream."
+  ],
+  "card": "Backport PR for Bitcoin Core 32.0rc2 bundling two already-merged fixes: a Guix codesign fix that adds real signature verification for Windows release binaries (previously attach-signature performed none), and a torcontrol fix that restores actual reconnect backoff after a dropped Tor control connection instead of retrying in a tight loop. It also bumps the version to rc1 and regenerates man pages and release-notes scaffolding. The codesign fix is the strongest evidence of importance: it closes a release-integrity gap where a broken Windows signature could ship undetected. The PR is ready to review as a clean cherry-pick of #36256 and #36260, both already reviewed and merged upstream, and has no discussion of its own yet. It depends on nothing further and is required for the 32.0rc2 milestone."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

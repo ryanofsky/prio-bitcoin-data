@@ -1,0 +1,205 @@
+{
+ "number": 32427,
+ "input_hash": "cc23e3a0a0d9d78e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:35+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 63868,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4166
+ },
+ "cost_usd": 0.0635235,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the LevelDB block tree database with a flat-file write-ahead log store.",
+    "Allow libbitcoinkernel processes to read block index data concurrently while bitcoind is running."
+   ],
+   "reviewability": [
+    "Author converted to draft to rework concurrency and WAL handling.",
+    "Needs rebase against current master."
+   ],
+   "agreement": [
+    "Broad concept approval for eliminating LevelDB lock restrictions (theuni, josibake, stickies-v, marcofleon).",
+    "Architecture questions on WAL semantics and reader lock safety prompted author to redesign (willcl-ark, stickies-v)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it unlocks external multi-process access to block index data while bitcoind runs.",
+      "Enables tools like indexers and explorers to consume bitcoinkernel without node shutdown."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it replaces LevelDB storage for block index persistence across all node installations.",
+      "Introduces a new WAL file format, CRC32c integrity verification, and an automatic on-disk migration."
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the LevelDB-backed CBlockTreeDB storage with a custom append-only flat-file format (BlockTreeStore) using a write-ahead log (WAL) and CRC32c checksums for block index entries and file metadata. It removes the process-exclusive LevelDB directory lock constraint, provides an automatic on-startup migration path from legacy LevelDB index databases, and updates bitcoinkernel options and validation callers accordingly.",
+  "problem": "LevelDB cannot be opened safely across multiple processes simultaneously. External consumers like indexers or explorers using libbitcoinkernel cannot read node block data without stopping the primary bitcoind daemon.",
+  "discussion": {
+   "open_concerns": [
+    "Disk write synchronization performance is slower due to multiple filesystem syncs per batch.",
+    "Reader mode isolation and whether read-only instances can observe partially committed WALs without locking or checkpointing.",
+    "Directory lock semantics on platforms such as Windows where directory fsync behavior differs."
+   ],
+   "resolved_concerns": [
+    "Ensured single-writer exclusivity using a dedicated write lock file.",
+    "Removed circular dependencies by relocating CBlockFileInfo.",
+    "Added functional migration tests for both standard and pruned node configurations."
+   ],
+   "author_status": "author reworking after converting to draft on 2026-07-09"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "Author converted PR to draft to implement non-blocking parallel reader access and threaded WAL application, and branch requires a rebase."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Strong concept support; author paused to redesign concurrent reader semantics and WAL threading based on review feedback",
+   "reason": "Multiple contributors endorsed the concept to lift multi-process database lock limitations. Constructive technical reviews from stickies-v and willcl-ark identified WAL and lock race subtleties, which the author agreed to address via an architectural rework.",
+   "evidence": [
+    "Concept ACKs from theuni, josibake, stickies-v, and marcofleon welcoming the removal of LevelDB for block index.",
+    "willcl-ark raised concerns regarding StoreLock ownership and how READ mode interacts with unapplied WAL files.",
+    "stickies-v provided extensive review on WAL atomicity, Windows flush edge cases, and serialization sizing.",
+    "sedited acknowledged the feedback on 2026-07-09 and converted to draft to implement parallel readers and async WAL application."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Parallel read access to block storage via libbitcoinkernel without bitcoind shutdown"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches doc/files.md only as documentation maintenance for the path change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental documentation update alongside functional changes."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Touches coinstatsindex compatibility functional test only to adjust test harness setup.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change optional index implementations."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Places BlockTreeStore implementation under src/kernel/ and updates btck_chainstate_manager options and headers.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Directly resolves a long-standing architectural obstacle in libbitcoinkernel by enabling external tools to read block tree data without shutting down the primary node daemon."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool or transaction validation policy changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not related to mempool."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds unit, functional, benchmark, and fuzz test coverage specifically for the new block tree store.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test files added specifically test the new storage subsystem rather than test framework infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches init.cpp argument wiring and filesystem paths.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Primary focus is validation and kernel persistence architecture, not shared utilities."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Alters block index and block file metadata disk persistence, CBlockIndex data members, and adds LevelDB-to-file migration on startup.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Replaces the underlying database engine used to store block indexes and block file information across all nodes, introducing a WAL-based format with automated startup migration."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR replaces LevelDB-backed block tree storage with a custom append-only flat-file store (BlockTreeStore) using a write-ahead log and CRC32c checksums. It addresses the limitation that LevelDB cannot be concurrently opened across processes, unblocking external libbitcoinkernel applications (such as indexers and block explorers) from reading block data while bitcoind is active. The concept is widely supported by kernel and validation contributors, but the PR is currently paused in draft as the author reworks reader concurrency and WAL threading based on review feedback from stickies-v and willcl-ark."
+ },
+ "raw_text": null
+}

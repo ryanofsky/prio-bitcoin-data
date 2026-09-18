@@ -1,0 +1,557 @@
+{
+ "number": 35037,
+ "input_hash": "a84a690541d6c4d8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:28:22+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 64798,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13151
+ },
+ "cost_usd": 0.09791475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent IPC connections from exhausting node file descriptors",
+    "Allow per-listener connection limits using inline socket options on -ipcbind"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "No unresolved technical requests or CI blockers"
+   ],
+   "agreement": [
+    "Strong consensus across multiple reviewers with four ACKs (ryanofsky, Eunovo, xyzconstant, ViniciusCestarii)",
+    "Concept endorsed over a competing global option because it enables separate limits for different consumers like GUI and mining (ryanofsky, kevkevinpal, Sjors)",
+    "All technical feedback on FD overflow math, Windows path compatibility, and socket path parsing was addressed and re-ACKed"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it addresses a stability gap in descriptor accounting for IPC listeners",
+      "It protects the node from FD exhaustion crashes and allows flexible connection limits across multiple local endpoints"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds per-address connection limits to `-ipcbind` using inline socket options (e.g. `-ipcbind=unix:/path.sock,max-connections=8`). It integrates IPC connection limits into node initialization file descriptor accounting, enforcing a default limit of 16 connections per listener and a maximum limit of 256.",
+  "problem": "Previously, IPC listening sockets lacked connection limits and were omitted from initialization file descriptor reservations, creating a potential denial-of-service or crash risk via file descriptor exhaustion. Furthermore, a global connection limit would not accommodate distinct connection limits across different IPC listeners serving different roles.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Potential integer overflow and size_t underflow in startup file descriptor accounting calculations",
+    "Option parsing ambiguities with Windows drive-letter paths and unix socket paths containing commas",
+    "Overly permissive connection upper bounds that could abort during startup",
+    "Loss of resolved socket paths in startup log messages"
+   ],
+   "author_status": "Active, promptly addressed reviewer feedback and updated commits."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Clean merge state, passing CI, and all reviewer concerns have been addressed with corresponding tests."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "ryanofsky",
+     "stance": "objection",
+     "note": "Concept ACK and approved, but objected to colon separator due to Windows paths"
+    },
+    {
+     "login": "ViniciusCestarii",
+     "stance": "objection",
+     "note": "Concept ACK and approved, but raised concerns about FD overflow and log line regressions"
+    },
+    {
+     "login": "kevkevinpal",
+     "stance": "support",
+     "note": "Concept ACK favoring this approach over a global option."
+    },
+    {
+     "login": "fanquake",
+     "stance": "neutral",
+     "note": "Mentioned reviewer Sjors."
+    },
+    {
+     "login": "Sjors",
+     "stance": "objection",
+     "note": "Concept ACK, but objected to unmerged libmultiprocess subtree and suggested draft status"
+    },
+    {
+     "login": "xyzconstant",
+     "stance": "objection",
+     "note": "Tested ACK, but identified FD calculation underflow and startup assertion crashes"
+    },
+    {
+     "login": "Eunovo",
+     "stance": "objection",
+     "note": "Approved, but raised issues regarding comma escaping in paths and option validation"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "xyzconstant",
+     "kind": "correctness",
+     "harm": "Underflow and overflow in file descriptor accounting arithmetic could cause node to bypass checks or assert-fail on startup.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-22: 'size_t underflow lets the aggregate check pass... The node starts up with min_required_fds reduced by 2 instead of failing'",
+     "resolution_evidence": "2026-09-12: 'Tested ACK 6f8f23866a92f7c74662429e29688dc060f83bd5... Overall, the code looks good to me.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "interface",
+     "harm": "Using colons for socket options conflicted with Windows filesystem paths containing drive letters.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-15: 'I do really think the \":\" options separator should be replaced by \",\" to avoid problems with windows paths'",
+     "resolution_evidence": "2026-07-28: 'Still I think it's nice that you switched to commas to match socat syntax more'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ViniciusCestarii",
+     "kind": "correctness",
+     "harm": "Absence of an upper bound check on connection limits could cause startup crashes, and resolved paths were lost in the listening log message.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-26: 'I believe it would be worth to add an upper bound check too because large values flow into the int FD reservation and overflow it'",
+     "resolution_evidence": "2026-09-15: 'Re-ACK 39b1c5a22c845857709d4e95d4205e0901e85b09'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "Eunovo",
+     "kind": "correctness",
+     "harm": "Socket paths containing commas could be mistakenly parsed as invalid socket options.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-11: 'The current implementation will accept unix:path,backup.sock=1 as valid when it should fail with Unknown socket option'",
+     "resolution_evidence": "2026-09-17: 'reACK 78a1251365ab0dbfa9267c30760566d3b04bcd08'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ViniciusCestarii",
+     "kind": "correctness",
+     "harm": "resolved socket path is lost in listener logging, leaving only bare argument in logs and InitError",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-28: 'This regresses the listener log line: before: Listening for IPC requests on address unix:/home/vinicius/.bitcoin/regtest/node.sock after: Listening for IPC requests on address unix'",
+     "resolution_evidence": "2026-09-01: 'ACK 7a839565cae797e87c43dc483066d47c2dffc568'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "Sjors",
+     "kind": "scope",
+     "harm": "premature libmultiprocess subtree update included ahead of upstream merge causing CI lint failure",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-30: 'Also it looks like the subtree is based on https://github.com/bitcoin-core/libmultiprocess/pull/269, which is still open. So this PR should be draft.'",
+     "resolution_evidence": "2026-07-11: 'Subtree PR adding the max connections PR has been merged and added to core https://github.com/bitcoin/bitcoin/pull/35684'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "Enables per-listener limits (e.g. distinguishing GUI vs mining clients) and fixes descriptor accounting.",
+     "substantive": true
+    },
+    {
+     "reviewer": "Eunovo",
+     "reason": "Thoroughly tested and reviewed socket limiting behavior and parser edge cases.",
+     "substantive": true
+    },
+    {
+     "reviewer": "xyzconstant",
+     "reason": "Exercised socket limiting and FD reservation edge cases on multiple platforms.",
+     "substantive": true
+    },
+    {
+     "reviewer": "ViniciusCestarii",
+     "reason": "Verified connection limiting behavior and resolved logging paths.",
+     "substantive": true
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "Approved approach for extensibility (e.g. future per-endpoint permissioning).",
+     "substantive": true
+    },
+    {
+     "reviewer": "kevkevinpal",
+     "reason": "Agreed inline options are cleaner than introducing global -ipcmaxconnections.",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus with multiple ACKs; all review suggestions on bounds, parsing, and arithmetic have been resolved.",
+   "reason": "The PR has received thorough review and approval from four contributors and members including IPC maintainer ryanofsky. Reviewers unanimously prefer per-listener configuration over a global option, and all raised edge cases and bug reports have been addressed with test coverage.",
+   "evidence": [
+    "ryanofsky: 'This fixes a gap in descriptor accounting, and adds a helpful connection limiting feature, and is nicely implemented.'",
+    "Eunovo: 'reACK 78a1251365ab0dbfa9267c30760566d3b04bcd08'",
+    "xyzconstant: 're-ACK 39b1c5a22c845857709d4e95d4205e0901e85b09 Nice changes'",
+    "ViniciusCestarii: 'Re-ACK 39b1c5a22c845857709d4e95d4205e0901e85b09'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (ryanofsky, Eunovo, xyzconstant, ViniciusCestarii, Sjors, kevkevinpal)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "interface",
+      "harm": "colon separator conflicts with Windows paths containing drive letters",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'none are too important or blocking, except I do really think the `:` options separator should be replaced by `,` to avoid problems with windows paths'",
+      "resolution_evidence": "2026-07-28: 'Still I think it's nice that you switched to commas to match socat syntax more, and allow a little more flexibility in the future.'"
+     },
+     {
+      "reviewer": "ViniciusCestarii",
+      "kind": "correctness",
+      "harm": "large max-connections values overflow FD reservations and crash the node on an assertion failure at startup",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-26: 'large values flow into the int FD reservation and overflow it: `-ipcbind=unix::max-connections=200000000000` aborts the node with `Assertion 'min_fd >= 0' failed`.'",
+      "resolution_evidence": "2026-06-29: 'Changed this to 1 for the lower bound and added an upper bound check.'"
+     },
+     {
+      "reviewer": "ViniciusCestarii",
+      "kind": "correctness",
+      "harm": "resolved socket path is lost in listener logging, leaving only bare argument in logs and InitError",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-28: 'This regresses the listener log line: before: Listening for IPC requests on address unix:/home/vinicius/.bitcoin/regtest/node.sock after: Listening for IPC requests on address unix'",
+      "resolution_evidence": "2026-09-01: 'ACK 7a839565cae797e87c43dc483066d47c2dffc568'"
+     },
+     {
+      "reviewer": "xyzconstant",
+      "kind": "correctness",
+      "harm": "size_t underflow and int overflow in aggregate FD checks permit invalid limits or crash at startup",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-22: 'size_t underflow lets the aggregate check pass... The node starts up with min_required_fds reduced by 2 instead of failing... dies on an assert instead of a clean InitError'",
+      "resolution_evidence": "2026-09-12: 'Tested ACK 6f8f23866a92f7c74662429e29688dc060f83bd5'"
+     },
+     {
+      "reviewer": "Sjors",
+      "kind": "scope",
+      "harm": "premature libmultiprocess subtree update included ahead of upstream merge causing CI lint failure",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-30: 'Also it looks like the subtree is based on https://github.com/bitcoin-core/libmultiprocess/pull/269, which is still open. So this PR should be draft.'",
+      "resolution_evidence": "2026-07-11: 'Subtree PR adding the max connections PR has been merged and added to core https://github.com/bitcoin/bitcoin/pull/35684'"
+     },
+     {
+      "reviewer": "Eunovo",
+      "kind": "correctness",
+      "harm": "paths containing commas could be confused with socket options or misparsed",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-11: 'The current implementation will accept `unix:path,backup.sock=1` as valid when it should fail with `Unknown socket option 'backup.sock'`. I think any `,` in the sock file path should be escaped'",
+      "resolution_evidence": "2026-08-19: 'ACK f466d0f4bb6b70b4dc534de78b6c2998ab0a6a96'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "IPC is generic, making per-address limits useful for different use cases (e.g. GUI vs mining clients)",
+      "substantive": true
+     },
+     {
+      "reviewer": "kevkevinpal",
+      "reason": "Cleaner and more reasonable approach than adding a global option",
+      "substantive": true
+     },
+     {
+      "reviewer": "xyzconstant",
+      "reason": "Limiting IPC connections per listener makes sense, verified feature behavior with manual testing",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Per-binding options allow future expansion for whitelisting and permissions",
+      "substantive": true
+     },
+     {
+      "reviewer": "ViniciusCestarii",
+      "reason": "Nice feature, approved after fixes to FD bounding and logging",
+      "substantive": false
+     },
+     {
+      "reviewer": "Eunovo",
+      "reason": "Approved after review and test coverage improvements",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "ryanofsky",
+      "stance": "objection",
+      "note": "Concept ACK and approved, but objected to colon separator due to Windows paths"
+     },
+     {
+      "login": "ViniciusCestarii",
+      "stance": "objection",
+      "note": "Concept ACK and approved, but raised concerns about FD overflow and log line regressions"
+     },
+     {
+      "login": "kevkevinpal",
+      "stance": "support",
+      "note": "Concept ACK, favored per-address limits over a global option"
+     },
+     {
+      "login": "fanquake",
+      "stance": "neutral",
+      "note": "cc'd Sjors"
+     },
+     {
+      "login": "Sjors",
+      "stance": "objection",
+      "note": "Concept ACK, but objected to unmerged libmultiprocess subtree and suggested draft status"
+     },
+     {
+      "login": "xyzconstant",
+      "stance": "objection",
+      "note": "Tested ACK, but identified FD calculation underflow and startup assertion crashes"
+     },
+     {
+      "login": "Eunovo",
+      "stance": "objection",
+      "note": "Approved, but raised issues regarding comma escaping in paths and option validation"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: multiple reviewers support per-address IPC limits over a global option; all criticisms regarding FD bounds, path formatting, and subtree syncing were resolved.",
+    "usage": {
+     "input_tokens": 22181,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 7967
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "xyzconstant",
+      "kind": "correctness",
+      "harm": "Underflow and overflow in file descriptor accounting arithmetic could cause node to bypass checks or assert-fail on startup.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-22: 'size_t underflow lets the aggregate check pass... The node starts up with min_required_fds reduced by 2 instead of failing'",
+      "resolution_evidence": "2026-09-12: 'Tested ACK 6f8f23866a92f7c74662429e29688dc060f83bd5... Overall, the code looks good to me.'"
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "interface",
+      "harm": "Using colons for socket options conflicted with Windows filesystem paths containing drive letters.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'I do really think the \":\" options separator should be replaced by \",\" to avoid problems with windows paths'",
+      "resolution_evidence": "2026-07-28: 'Still I think it's nice that you switched to commas to match socat syntax more'"
+     },
+     {
+      "reviewer": "ViniciusCestarii",
+      "kind": "correctness",
+      "harm": "Absence of an upper bound check on connection limits could cause startup crashes, and resolved paths were lost in the listening log message.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-26: 'I believe it would be worth to add an upper bound check too because large values flow into the int FD reservation and overflow it'",
+      "resolution_evidence": "2026-09-15: 'Re-ACK 39b1c5a22c845857709d4e95d4205e0901e85b09'"
+     },
+     {
+      "reviewer": "Eunovo",
+      "kind": "correctness",
+      "harm": "Socket paths containing commas could be mistakenly parsed as invalid socket options.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-11: 'The current implementation will accept unix:path,backup.sock=1 as valid when it should fail with Unknown socket option'",
+      "resolution_evidence": "2026-09-17: 'reACK 78a1251365ab0dbfa9267c30760566d3b04bcd08'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "Enables per-listener limits (e.g. distinguishing GUI vs mining clients) and fixes descriptor accounting.",
+      "substantive": true
+     },
+     {
+      "reviewer": "Eunovo",
+      "reason": "Thoroughly tested and reviewed socket limiting behavior and parser edge cases.",
+      "substantive": true
+     },
+     {
+      "reviewer": "xyzconstant",
+      "reason": "Exercised socket limiting and FD reservation edge cases on multiple platforms.",
+      "substantive": true
+     },
+     {
+      "reviewer": "ViniciusCestarii",
+      "reason": "Verified connection limiting behavior and resolved logging paths.",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Approved approach for extensibility (e.g. future per-endpoint permissioning).",
+      "substantive": true
+     },
+     {
+      "reviewer": "kevkevinpal",
+      "reason": "Agreed inline options are cleaner than introducing global -ipcmaxconnections.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Release notes are included as a standard part of the IPC feature change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release note updates that merely accompany a functional code change do not qualify for the docs category."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes IPC listening interfaces, protocol connection limits, and IPC-specific socket argument parsing.",
+    "band": "P2",
+    "reason_tag": "stability",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it closes an unconstrained file descriptor allocation hazard on IPC listening sockets and provides necessary capacity management for multiprocess listeners. As ryanofsky noted, 'This fixes a gap in descriptor accounting, and adds a helpful connection limiting feature' that allows independent limits for distinct consumers such as mining clients and GUI processes."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Does not touch mining template construction or interfaces::Mining directly.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "General IPC infrastructure updates used by external miners are categorized under IPC rather than mining."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Functional and unit tests only verify the new IPC feature behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests specific to a feature area belong to that feature area rather than test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The changes in init.cpp strictly service IPC file descriptor reservations and -ipcbind parsing.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Init and configuration handling dedicated solely to one subsystem's options belongs to that subsystem."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35037 allows setting per-listener connection limits on -ipcbind using comma-delimited options like max-connections=N, defaulting to 16 and capped at 256. It incorporates IPC listeners and client connection slots into startup file descriptor reservation checks, preventing unconstrained IPC connections from starving the node of descriptors. The changes enjoy broad review and strong support from ryanofsky, Eunovo, xyzconstant, and ViniciusCestarii, with all raised bounds checks and parser bugs resolved."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.046512
+}

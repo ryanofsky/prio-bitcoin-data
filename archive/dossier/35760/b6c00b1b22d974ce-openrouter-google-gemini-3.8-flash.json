@@ -1,0 +1,121 @@
+{
+ "number": 35760,
+ "input_hash": "b6c00b1b22d974ce",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:46+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19039,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5828
+ },
+ "cost_usd": 0.03613425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fail immediately when a wallet transaction record has a mismatched hash instead of triggering a full rescan on every startup.",
+    "Document that restoring from backup is the only supported corruption recovery path."
+   ],
+   "reviewability": [
+    "Ready to review. The logic is compact and self-contained with minimal pending changes."
+   ],
+   "agreement": [
+    "Strong support for failing fast on corruption instead of entering an infinite rescan loop (pablomartin4btc, rkrux, jeanpablojp, jonatack).",
+    "Nonblocking concern that users without backups cannot access remaining uncorrupted funds or export keys (polespinasa).",
+    "Minor nit noted on swapped parameters in the corruption error message (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it cleanly terminates an edge-case infinite rescan loop on corrupted transaction records.",
+      "It improves failure reporting and removes dead recovery paths without affecting normal wallet operation."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Unranked because the documentation updates accompany the wallet behavior change rather than standing as an independent docs initiative."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes wallet loading so that a transaction record whose stored database key does not match its deserialized hash returns DBErrors::CORRUPT instead of DBErrors::NEED_RESCAN. It completely eliminates DBErrors::NEED_RESCAN and the rescan_required flag in CWallet::AttachChain, adds unit test coverage for corrupted transaction records, and adds documentation to doc/managing-wallets.md advising users on backup restoration.",
+  "problem": "Previously, a transaction record with a mismatched hash caused the wallet to rescan the entire blockchain from genesis on every startup because the rescan never repaired or purged the corrupted record. Additionally, the corrupted transaction was partially added to in-memory wallet structures without spend tracking or TXO caching, risking state inconsistency.",
+  "discussion": {
+   "open_concerns": [
+    "polespinasa noted that disabling loading on corrupt transactions leaves users who lack backups with no way to access uncorrupted funds or export descriptors from Core.",
+    "jeanpablojp pointed out that the stored hash and calculated hash arguments are swapped in the strprintf error message in LoadTxRecords."
+   ],
+   "resolved_concerns": [
+    "pablomartin4btc noted the absence of recovery guidance, which was resolved by incorporating documentation on recovering from corrupted wallets into managing-wallets.md.",
+    "polespinasa identified that the initial unit test passed for the wrong reason due to a deserialization failure rather than a hash mismatch; this was corrected by adding a dummy input to the mock transaction."
+   ],
+   "author_status": "silent since 2026-08-26 after addressing previous test issues and documentation additions."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is small, passes CI, and includes dedicated unit test coverage. The minor error message swap flagged in review is not substantial enough to invalidate an assessment."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "General agreement on failing fast on corruption, with an unresolved concern from polespinasa about recovery options for users without backups.",
+   "reason": "Most reviewers agree that attempting an automatic rescan on corrupted transactions was broken and misleading. However, polespinasa raised a standing nonblocking objection that completely refusing to load leaves users without backups stranded without a way to salvage uncorrupted funds or export keys.",
+   "evidence": [
+    "pablomartin4btc supported failing hard with CORRUPT because rescan is not a reliable repair mechanism.",
+    "rkrux Concept ACKed, agreeing that the wallet should stop and fail fast instead of attempting automatic fixes on load.",
+    "jeanpablojp Approach ACKed after reproducing the corruption behavior on regtest.",
+    "polespinasa cautioned that users without backups are locked out of uncorrupted funds and suggested allowing descriptor exports or warning-only loads.",
+    "jeanpablojp noted swapped parameters in the strprintf corruption error message."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies wallet loading logic, wallet error types, and transaction database loading in src/wallet/.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it addresses a narrow reliability issue where corrupted transaction records caused a full blockchain rescan on every startup. The rescan never resolved the underlying corruption and left the wallet in a partially inconsistent in-memory state. Failing immediately and cleanly with DBErrors::CORRUPT is a solid improvement in error handling, but it affects an edge case seen only during database corruption."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Documentation additions to doc/managing-wallets.md and release notes directly describe the wallet code changes rather than forming a standalone documentation effort.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded from docs because the documentation changes are secondary guidance for the wallet behavior modification."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35760 makes wallet loading fail immediately with DBErrors::CORRUPT when a transaction record's stored database key does not match its deserialized hash, completely removing the legacy DBErrors::NEED_RESCAN state. Previously, such corruption triggered a full rescan from genesis on every startup without actually repairing the record or properly populating spend maps. The PR includes unit tests, release notes, and documentation in managing-wallets.md detailing backup restoration. Reviewers support the fail-fast approach, though polespinasa raised a concern regarding users who lack backups losing the ability to access unaffected funds."
+ },
+ "raw_text": null
+}

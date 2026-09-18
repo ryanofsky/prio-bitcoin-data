@@ -1,0 +1,181 @@
+{
+ "number": 25665,
+ "input_hash": "36b0258be30c2ab4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 66085,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 9101
+ },
+ "cost_usd": 0.11299630000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Rework util::Result so functions can return structured failure values, not just success values, plus multiple error and warning messages.",
+    "This lets wallet, kernel and validation code report richer, mergeable error information instead of ad hoc output parameters.",
+    "Directly enables three follow-up PRs (#25722 wallet loading, #29700 kernel/validation fatal-error propagation, #26022 ResultPtr) that have been waiting on it for years."
+   ],
+   "reviewability": [
+    "Paused. A maintainer (sedited, echoed by maflcko) suggested closing this PR and reopening fresh because 300+ comments make review impractical, and that suggestion has gone unanswered since 2026-05-29 despite continued force pushes.",
+    "No CI failure or rebase blocker otherwise; the code itself is mergeable."
+   ],
+   "agreement": [
+    "Mixed but leaning positive. Several members gave Concept/Approach ACKs and repeated re-ACKs over the years (sedited, laanwj, achow101, hebasto).",
+    "A standing design disagreement exists over whether util::Expected should replace or precede this class (hodlinator, arejula27, maflcko); author engaged at length and reviewers eventually agreed to disagree rather than block.",
+    "Most recently a long-time ACKer (sedited) now says the PR isn't getting real review and should be closed and redone, which the author has not directly addressed."
+   ],
+   "categories": []
+  },
+  "summary": "This PR extends util::Result to support returning a distinct failure value (not just a success value) and to accumulate multiple error and warning messages with a merge/Update() operation, shrinking the type's memory footprint in the process. It applies the new class to node::LoadChainstate and node::VerifyLoadedChainstate as a worked example, replacing the old tuple<status, bilingual_str> return type. It also adds a util/messages.h/.cpp module for error/warning message handling shared by the Result class, and touches kernel and wallet call sites mechanically to match the new interface. The PR has been open since 2022 and has undergone dozens of rebases and redesigns.",
+  "problem": "Existing util::Result could only report a single error string, and functions like LoadChainstate needed a way to return distinct, actionable failure codes as well as descriptive messages, and to accumulate errors/warnings from nested calls. This blocked the intended broader use of Result in wallet-loading (#25722) and kernel/validation fatal-error propagation (#29700).",
+  "discussion": {
+   "open_concerns": [
+    "Whether util::Result's approach is redundant with, or should be built on top of, util::Expected/std::expected; hodlinator, arejula27 and maflcko have proposed alternative designs and the author has defended the current design at length without full consensus (agreed to disagree in places).",
+    "Whether the PR should simply be closed and reopened fresh given 300+ comments make review impractical (sedited, maflcko, 2026-05), which the author has not directly answered."
+   ],
+   "resolved_concerns": [
+    "Missing explicit operator bool() regression fixed after sipa/hernanmarino flagged it.",
+    "Compiler warnings (missing-field-initializers, clang-tidy performance-no-automatic-move) fixed via targeted commits.",
+    "CI maybe-uninitialized false positive from this PR's own changes fixed with a CI flag tweak.",
+    "Early requests to split out interface-only changes were honored by spinning off #25721 and #29906."
+   ],
+   "author_status": "active as of 2026-09-03 (13 days silent per signals), but has not replied to the most recent suggestion (2026-05-29) to close and reopen the PR."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Suggested close/reopen",
+   "reason": "A maintainer (sedited) who had previously ACKed the PR said on 2026-05-29 that it isn't getting real review anymore given its size and history, and recommended closing and reopening as a fresh PR; maflcko agreed. This material suggestion has not been addressed by the author despite subsequent force pushes, so reviewing the current thread risks being moot if the PR is restarted."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Multiple Concept/Approach ACKs and repeat re-ACKs (sedited, laanwj, achow101), but a standing unresolved design debate over util::Expected vs util::Result, and a recent unaddressed suggestion to close and restart.",
+   "reason": "Support is real and has persisted across years of rework, but the most recent reviewer sentiment (including a repeat ACKer) is that the PR should be abandoned in its current form rather than merged as-is.",
+   "evidence": [
+    "laanwj: 'Concept and code review ACK 8b892d41...' (2025-10-23)",
+    "achow101: 'ACK 8b892d41...' (2025-10-27)",
+    "hodlinator/arejula27: argued util::Expected could replace or precede this, author rebutted at length, arejula27 eventually said 'keep your implementation' (2025-12-13)",
+    "sedited: 'This is clearly not getting review at the moment, so should be closed and re-attempted again in a fresh pull request' (2026-05-29), unanswered"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#25722 (wallet loading returns util::Result with structured errors)",
+    "#29700 (kernel/validation fatal-error and flush status propagation via Result::Update)",
+    "#26022 (ResultPtr specialization built on this Result design)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Core change is to src/util/result.h and the new src/util/messages.h/.cpp, the shared Result class used across wallet, kernel, and validation code.",
+    "band": "P2",
+    "reason_tag": "unblocks #25722/#29700",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "P2 because this is foundational shared infrastructure that three other substantive PRs (#25722 wallet error reporting, #29700 kernel fatal-error propagation, #26022 ResultPtr) explicitly depend on and have been rebasing against for years; it also shrinks Result's memory footprint from 72 to 8-16 bytes. It is judged on its own terms per the utils category rules, and the leverage factor (unblocking real follow-up work) is the strongest justification, though the design itself remains disputed."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Rewrites node::LoadChainstate and node::VerifyLoadedChainstate return types from tuple<status,string> to util::Result, touching src/node/chainstate.cpp/h substantially.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.18,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because the change is a structural refactor of error propagation during chainstate loading with no change to acceptance rules, chainstate integrity, or IBD behavior; reviewer hodlinator argued this specific example doesn't even need Result's extra features and would fit util::Expected just as well, undercutting its motivating value here."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "src/kernel/bitcoinkernel.cpp and CMakeLists.txt changes are mechanical call-site updates to match the new LoadChainstate/VerifyLoadedChainstate return type; the kernel API boundary itself is not the subject of the change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the kernel edits only follow mechanically from the validation-side interface change and don't alter kernel API semantics or boundary behavior."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "src/test/result_tests.cpp and setup_common.cpp changes pin the behavior of the new util::Result class specifically, not general test framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category's own exclusion, a test that pins one area's (here, utils') behavior belongs to that area rather than to test infrastructure."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "src/wallet/wallet.cpp has two small mechanical edits (bool{result} cast, dropping a const) made to satisfy clang-tidy warnings triggered by this PR's changes.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.05,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the wallet touch is a trivial compiler-warning fix incidental to this PR, not a wallet feature or fund-safety change; one of the two edits was later reverted as unnecessary after laanwj questioned it."
+   },
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "ci/test/00_setup_env_native_previous_releases.sh is modified to suppress a maybe-uninitialized false positive caused by this PR's own changes.",
+    "band": "P4",
+    "reason_tag": "CI fix",
+    "score": 0.12,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is a narrow workaround needed only to keep this PR's own diff building under one CI job's -Werror flags, not a general CI reliability improvement; maflcko separately noted part of the earlier CI workaround could be dropped as stale."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers will actually close and reopen this PR as suggested, which would reset its review history and priority framing.",
+   "Whether the unresolved util::Result vs util::Expected design debate will be resolved before or after merge, which affects how much of the current implementation survives.",
+   "Exact current HEAD state relative to the multi-year comment history makes it hard to confirm which nits are still open versus stale."
+  ],
+  "card": "This long-running (since 2022, 80+ force-pushes) refactor extends util::Result to carry structured failure values plus multiple mergeable error/warning messages, and applies it to node::LoadChainstate/VerifyLoadedChainstate as a worked example. Its main importance is as infrastructure: three other substantive PRs (#25722 wallet-loading errors, #29700 kernel fatal-error propagation, #26022 ResultPtr) explicitly depend on it and have been rebasing against it for years. Support is real (repeat ACKs from sedited, laanwj, achow101) but there is a long-standing, unresolved design debate over whether util::Expected/std::expected should be used instead, and most recently a repeat ACKer suggested closing and reopening the PR fresh because the 300+ comment thread makes review impractical, a suggestion the author has not yet addressed. The validation-side chainstate example itself is arguably weak motivation since it doesn't use Result's warning/multi-error features. No CI or merge blockers exist on the code itself, but review value is currently clouded by the closure suggestion."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

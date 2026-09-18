@@ -1,0 +1,133 @@
+{
+ "number": 30951,
+ "input_hash": "11892b81689f6f4c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:49+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33426,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3961
+ },
+ "cost_usd": 0.03992325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add an opt-in configuration option to disallow unencrypted IPv4 and IPv6 connections",
+    "Ensure node operators can prevent passive network snooping on clearnet traffic by requiring BIP 324 v2 encryption"
+   ],
+   "reviewability": [
+    "Needs rebase",
+    "Code has merge conflicts and an open design decision on whether to forbid inbound connections"
+   ],
+   "agreement": [
+    "Broad concept support for an opt-in v2-only clearnet option (mzumsande, sipa, ajtowns, laanwj, sedited)",
+    "Unresolved approach dispute on whether the flag must enforce listen=0 (gmaxwell, mzumsande, ViniciusCestarii oppose requiring it)",
+    "One outright objection arguing the option is premature and creates network risks (1440000bytes)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it provides a worthwhile opt-in privacy improvement against passive eavesdropping on clearnet",
+      "It is reasonably deferrable since v2 transport is already preferred by default and the option does not protect against active adversaries or hide node operation"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces a new configuration option `-v2onlyclearnet` that disallows unencrypted v1 P2P connections on IPv4 and IPv6 networks. When enabled, the node will only establish outbound clearnet connections if BIP 324 v2 encryption can be used, dropping v1 fallback and v1 reconnections. In its current revision, the option also enforces `-listen=0` to prevent accepting unencrypted clearnet inbounds.",
+  "problem": "Unencrypted v1 P2P traffic over clearnet allows passive network observers, such as internet service providers and corporate firewalls, to inspect Bitcoin message contents and detect transaction relays. Node operators seeking to avoid transmitting plaintext data across clearnet currently have to disable clearnet entirely or rely on overlay networks like Tor and I2P.",
+  "discussion": {
+   "open_concerns": [
+    "Approach disagreement over Option A (requiring listen=0 and dropping all inbounds) versus Option B (allowing inbound v2 connections and preserving listening capacity on the network)",
+    "Concerns from gmaxwell and mzumsande that tying a privacy option to listen=0 damages network listening capacity without protecting legacy v1 nodes",
+    "Persistent concept objection from 1440000bytes stating that the feature creates false privacy expectations and partition risks"
+   ],
+   "resolved_concerns": [
+    "vasild's initial Concept NACK was withdrawn after help text and release notes were updated to clearly state that v2 does not obscure node presence or protect against active MITM adversaries",
+    "Handling of unresolved DNS names when proxying was addressed so unverified destination hosts are not accidentally contacted via v1",
+    "A dependency on DNS seeds lacking v2 service flags was resolved upstream in PR #35766"
+   ],
+   "author_status": "Active, but currently addressing feedback after rebasing and missing the v32.0 feature freeze; postponed to v33.0."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts with master and requires a rebase. Additionally, reviewers are waiting on the author to decide between Option A (forcing listen=0) and Option B (allowing v2 inbounds)."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept supported, but disputed approach on whether to force -listen=0 (gmaxwell, mzumsande oppose; ajtowns, author currently implement it).",
+   "reason": "Most reviewers support adding an opt-in v2-only clearnet configuration, but there is an active disagreement on implementation approach. Reviewers including gmaxwell and mzumsande strongly object to requiring listen=0 because it unnecessarily strips listening sockets from the network, causing the PR to be postponed to v33.0.",
+   "evidence": [
+    "mzumsande, sipa, dergoegge, laanwj, sedited, fjahr, and others Concept ACKed adding an option to enforce v2 on clearnet.",
+    "gmaxwell strongly objected to forcing listen=0: 'I cannot express how strongly I disagree with forcing listen=0. It is an outright anti-feature to unnecessarily tie a security/privacy setting to providing resources to others'.",
+    "1440000bytes NACKed, claiming the change gives a false impression of hiding node operation and harms the network.",
+    "sedited confirmed postponement: 'looks to me that there is no agreement among reviewers about coupling it to listen=0... postponing this.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes a release notes fragment doc/release-notes-30951.md, but the documentation merely accompanies the P2P feature change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a primary docs change; accompanying release notes belong to the feature area."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies P2P connection handling in src/net.cpp and src/net.h to restrict clearnet transport protocol negotiation to BIP 324 v2.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Clear use case and real value for node operators who need a strict guarantee that outbound clearnet traffic is encrypted against passive wiretappers. It is reasonably deferrable as v2 is already the opportunistic default, and this opt-in flag does not defend against active MITM adversaries or hide node operation."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/init.cpp and src/common/netif.cpp only to wire up the P2P argument and use a network helper.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Parameter wiring in init.cpp for a P2P configuration flag belongs to P2P rather than shared utilities."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #30951 adds an opt-in -v2onlyclearnet configuration flag that disallows unencrypted v1 P2P connections to IPv4 and IPv6 peers. This allows privacy-conscious operators to protect outbound clearnet message contents against passive eavesdropping by ISPs or firewalls. While there is broad concept approval for the feature, the PR was deferred to milestone 33.0 due to an unresolved approach dispute over whether to force -listen=0 or permit v2-only inbounds. The branch is currently stale and needs a rebase."
+ },
+ "raw_text": null
+}

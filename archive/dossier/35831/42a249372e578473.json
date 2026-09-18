@@ -1,0 +1,170 @@
+{
+ "number": 35831,
+ "input_hash": "42a249372e578473",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23214,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6265
+ },
+ "cost_usd": 0.0559453,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets command-line options like -rpcwallet be placed after the command, matching GNU getopt conventions.",
+    "Fixes a bug where a misspelled or misplaced option after the command was silently swallowed as a positional argument, sometimes routing RPC calls to the wrong wallet."
+   ],
+   "reviewability": [
+    "Ready. The final push (67a8e5b) addressed every issue raised by w0xlt (lone dash, Windows slash paths, negative numbers, bitcoin-tx breakage) and w0xlt ACKed that exact commit."
+   ],
+   "agreement": [
+    "Strong: w0xlt did substantive review, found and got fixed several real edge-case bugs, then ACKed the final commit (w0xlt).",
+    "vicjuma raised a scope question about consistency across other tools but said they would wait for other reviews rather than object; author explained the narrower scope and a planned follow-up (pablomartin4btc, vicjuma)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it fixes a real silent-misparsing bug in ArgsManager that could route an RPC command to the wrong wallet, as the PR's own before/after examples show.",
+      "Affects every tool built on ArgsManager (bitcoind, bitcoin-cli, bitcoin-tx, bitcoin-wallet), so the fix has broad but not safety-critical reach."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because bitcoin-cli users hitting this bug get commands silently misdirected to the default wallet instead of an intended one, which the PR demonstrates concretely.",
+      "The fix also cleans up the wallet-not-specified error message that many multi-wallet users hit."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because bitcoin-tx's CommandLineRawTx had to be reworked to keep working with the new parser, and review turned up a real regression (trailing -json option breaking with 'unknown command') that was fixed before merge.",
+      "Scope for bitcoin-tx is intentionally limited here, with further GNU-style features deferred to a follow-up."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Unranked because the release note is a secondary artifact of a code change, not the subject of the PR, so it does not qualify as a docs-category change under this rubric."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR extends ArgsManager's command-line parser to accept options (like -rpcwallet or -wallet) after the command and its positional arguments, GNU/getopt-long style, instead of silently treating everything after the first non-option argument as positional. Unrecognized options after the command now produce an explicit error instead of being silently absorbed, and a '--' separator lets users pass dash-prefixed positional arguments explicitly. bitcoin-cli's CommandLineRPC and bitcoin-tx's CommandLineRawTx are updated to read from the new parsed command args rather than re-scanning argv, and bitcoin-wallet benefits automatically. Extracted as a focused subset of the larger closed PR #33540.",
+  "problem": "Users of bitcoind's tools (bitcoin-cli, bitcoin-tx, bitcoin-wallet) who place an option after a command or subcommand had that option silently dropped and treated as a positional argument, which could cause an RPC call to hit the wrong wallet or a tool to reject valid input with a confusing error, as shown in the PR's before/after examples.",
+  "discussion": {
+   "open_concerns": [
+    "vicjuma questioned whether the inconsistency between bitcoin-cli (which benefits from GetCommand()) and other tools like bitcoin-tx (which did not, at the time) should be addressed more broadly; author said this PR is intentionally scoped narrower with follow-ups planned, and vicjuma did not push back further."
+   ],
+   "resolved_concerns": [
+    "w0xlt: '--' only ended option processing after the command, not before it (e.g. 'bitcoin-wallet -help -- create' failed) \u2014 fixed in the final push.",
+    "w0xlt: on Windows, a post-command option with a path value like /datadir=C:/bitcoin was mistaken for a positional path \u2014 fixed by checking only the option name for embedded slashes.",
+    "w0xlt: a lone '-' after a command (e.g. 'bitcoin-cli echo -') was misidentified as an option \u2014 fixed by requiring length > 1.",
+    "w0xlt: bitcoin-tx broke on a trailing option like '-json' after the tx hex, throwing 'unknown command' \u2014 fixed by having CommandLineRawTx use gArgs.GetCommand()."
+   ],
+   "author_status": "active as of 2026-08-13, last push addressed all open review comments and received an ACK on that exact commit"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The final commit (67a8e5bea2) fixed every concrete issue w0xlt raised (the '--' scope bug, Windows path misparsing, lone-dash misparsing, bitcoin-tx regression), and w0xlt ACKed that exact commit the same day. No open material request remains unanswered; mergeable_state 'blocked' and 35 days of subsequent silence do not reflect any known pending change."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: w0xlt reviewed deeply, found and got several edge cases fixed, then ACKed the final commit; vicjuma's scope question was not pressed as a blocker.",
+   "reason": "A reviewer (w0xlt) engaged substantively across multiple rounds, surfaced real bugs that were fixed, and gave a final ACK on the exact head commit. The only other commentary (vicjuma) raised a design question about scope consistency but explicitly deferred to further review rather than objecting.",
+   "evidence": [
+    "w0xlt: 'Concept ACK' then later 'Approach ACK' then 'ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f' matching head_sha.",
+    "w0xlt found and the author fixed: '--' scope bug, Windows path misparsing, lone-dash misparsing, and a bitcoin-tx regression.",
+    "vicjuma: 'I will wait for other reviews on this to get a clear picture' after raising a scope-consistency question; author explained the PR is intentionally scoped narrower with a follow-up planned."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Follow-up work extending GNU-style parsing features to bitcoin-tx and other tools, as mentioned by the author (originally part of the closed #33540)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The core change is in src/common/args.cpp, ArgsManager::ParseParameters, which utils explicitly covers as 'argument and settings handling'.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a real silent-misparsing bug: the PR's own before/after transcripts show a misspelled or trailing -rpcwallet option being silently absorbed as a positional argument, which could route a command to the wrong wallet. The fix touches core argument-parsing logic shared by every Bitcoin Core command-line tool, giving it broad reach even though the individual failure mode is not severe."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "bitcoin-cli.cpp is explicitly listed as an rpc-category path; CommandLineRPC and the wallet-not-specified error message are changed.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because bitcoin-cli users could previously have RPC calls silently misdirected to the wrong or default wallet when -rpcwallet was placed after the command, as demonstrated concretely in the PR description ('request goes to the wrong wallet'). This is a correctness issue in a tool every RPC caller uses interactively."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "bitcoin-tx.cpp (CommandLineRawTx) and bitcoin-wallet behavior are directly reworked to consume the new parsed command, and bitcoin-tx.cpp is explicitly a tools path.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because review surfaced a concrete regression where a trailing option like -json after the tx hex broke with 'unknown command', which the author fixed by having bitcoin-tx read from ArgsManager's parsed command instead of re-scanning argv. The scope for bitcoin-tx is deliberately narrow here, with broader GNU-style support deferred to a follow-up, per the author's comment."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a release-notes file is added as a byproduct of the code change; the docs category explicitly excludes code changes that happen to update docs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a docs-primary PR; the release note is incidental to the args.cpp/bitcoin-cli.cpp/bitcoin-tx.cpp behavior change."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "mergeable_state is reported as 'blocked' while needs_rebase is false and CI is not failing; the cause of the blocked state (e.g. maintainer review requirement, branch protection) is unclear from the given signals.",
+   "It is not fully certain whether w0xlt's final ACK covers all edge cases exhaustively or whether a maintainer with fresh eyes might still find gaps in the Windows-specific logic.",
+   "The relationship to the closed #33540 (whether this PR fully supersedes it or is one of several planned follow-ups) is inferred from PR text, not independently verified."
+  ],
+  "card": "This PR makes bitcoind's command-line tools (bitcoin-cli, bitcoin-tx, bitcoin-wallet) parse options GNU/getopt-long style, allowing options like -rpcwallet or -wallet to appear after the command rather than being silently swallowed as positional arguments. The core change lives in ArgsManager (utils) with direct effects on bitcoin-cli (rpc) and bitcoin-tx (tools); a release note is the only docs artifact. The strongest evidence of importance is the PR's own before/after transcripts showing that a misplaced -rpcwallet option previously caused an RPC command to silently target the wrong wallet, and unrecognized options after a command are now hard errors instead of silent no-ops. Reviewer w0xlt did substantive, multi-round review, surfaced several real edge-case regressions (a '--' scope bug, a Windows path-vs-option ambiguity, a lone-dash misparse, and a bitcoin-tx regression breaking trailing -json), all of which were fixed in the final push, and then ACKed that exact commit. Reviewer vicjuma raised a scope-consistency question about other tools but deferred rather than objecting; the author explained the narrower scope with follow-up work planned. This PR was extracted from the larger, now-closed #33540."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

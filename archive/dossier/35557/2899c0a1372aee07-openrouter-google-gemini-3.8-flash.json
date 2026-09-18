@@ -1,0 +1,202 @@
+{
+ "number": 35557,
+ "input_hash": "2899c0a1372aee07",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 32010,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10954
+ },
+ "cost_usd": 0.065085,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow kernel applications to control clock time per chainstate manager instance rather than globally.",
+    "Prevent kernel code from accidentally calling nondeterministic system clocks."
+   ],
+   "reviewability": [
+    "The branch is clean and CI passes, with author force-pushes keeping it current.",
+    "A question from maflcko on whether this remains relevant after #35496 merged is still open."
+   ],
+   "agreement": [
+    "Constructive feedback on API design and test coverage (sedited, stickies-v).",
+    "Inline suggestions on chrono typing and test RAII helpers accepted (maflcko, seduless).",
+    "Open question on whether this change is needed after global mock time merged in #35496 (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it provides per-instance mock time for kernel callers and enforces determinism at link time.",
+      "Kernel already has global mock time from #35496, so instance-scoped time is an architectural cleanup rather than an urgent blocker."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it centralizes validation time queries into ChainstateManager without altering consensus rules.",
+      "It unblocks deterministic time control for kernel and fixes a minor test timing race in IBD logic."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it isolates nondeterministic clock functions so the kernel library cannot link them by mistake.",
+      "The change enforces library boundaries at link time without affecting runtime utility behavior."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P4 because it replaces integer timestamps with type-safe chrono time points inside mempool data structures.",
+      "This is an internal typing cleanup that does not change mempool behavior or policy."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds btck_chainstate_manager_set_clock_time to the kernel C API and introduces ChainstateManager::Now() as the single time-injection point across validation paths. Also moves NodeClock::now() into a separate file so libbitcoinkernel fails to link if nondeterministic clocks are called directly, and converts mempool timestamp fields to use chrono time points.",
+  "problem": "Libbitcoinkernel consumers and multi-instance tests currently lack a way to set mock time on a specific ChainstateManager instance without altering global state or relying on the host system clock.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko asked whether this PR is still relevant given that #35496 (adding global btck_set_mock_time) was merged"
+   ],
+   "resolved_concerns": [
+    "maflcko noted unnecessary duration and time_point casts in early revisions, which the author removed in favor of standard chrono methods",
+    "seduless suggested using FakeNodeClock in chainstatemanager tests instead of manual SetMockTime calls, which the author adopted",
+    "stickies-v suggested a callback-based btck_Clock abstraction; author explored it and concluded direct instance setting was simpler"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch builds cleanly, passes CI, and the author actively maintains it across recent rebases."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive, but maflcko questioned relevance after #35496 merged; author has not replied.",
+   "reason": "Reviewers have engaged constructively on typing and testing without opposing the approach, though maflcko asked if it remains necessary after #35496.",
+   "evidence": [
+    "sedited favored keeping the PR unified and requested test coverage exercising the chainman-scoped clock",
+    "seduless commended the test race fix and suggested using FakeNodeClock",
+    "stickies-v explored clock callback ergonomics",
+    "maflcko asked if the PR is still relevant after #35496 merged"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds btck_chainstate_manager_set_clock_time to the kernel C API and bitcoinkernel headers, and restricts kernel linkage to prevent nondeterministic clock calls.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Kernel consumers need to run validation deterministically without relying on process-global state. Merged PR #35496 already provided a basic global mock time for the kernel, so instance-scoped time is a valuable architectural refinement rather than an emergency blocker."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes time queries across validation paths (ContextualCheckBlockHeader, IsTipRecent, GuessVerificationProgress) to route through ChainstateManager::Now().",
+    "band": "P3",
+    "reason_tag": "refactor",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Injecting time through ChainstateManager cleans up scattered NodeClock::now() calls across validation and fixes an edge-case race condition in chainstatemanager IBD tests without altering consensus logic."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Touches src/util/time.h, time.cpp, and creates time_nondet.cpp to split nondeterministic clock definitions out of the kernel build.",
+    "band": "P3",
+    "reason_tag": "refactor",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Splitting now() implementations into time_nondet.cpp enforces at link time that libbitcoinkernel code does not accidentally call system time."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Refactors CTxMemPoolEntry time fields and CTxMemPool methods to use NodeClock::time_point instead of raw integer seconds.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Converting mempool integer timestamps to chrono time points is an internal cleanup that provides type safety but does not change mempool behavior or policy."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The test modifications update unit and fuzz tests to exercise the chainman-scoped clock rather than modifying test runner or framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/mempool.cpp for a single mechanical cast from MempoolTime to seconds, with no change to RPC output or interface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the author intends to keep the mempool chrono refactoring bundled here or split it out into a standalone PR as suggested in the description."
+  ],
+  "needs": [],
+  "card": "This pull request adds an API to set clock time on a ChainstateManager instance, allowing libbitcoinkernel consumers to validate blocks and headers deterministically without relying on system clocks or process-global state. It also moves nondeterministic clock calls into a separate source file so libbitcoinkernel cannot link against them, and updates mempool timestamp fields to use chrono time points. This improves upon the global mock time introduced in merged PR 35496 by scoping time to individual chainstate managers. Reviewers have helped refine chrono typing and test coverage, though a question from maflcko regarding whether this remains relevant after 35496 merged remains unanswered."
+ },
+ "raw_text": null
+}

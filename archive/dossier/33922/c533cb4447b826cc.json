@@ -1,0 +1,214 @@
+{
+ "number": 33922,
+ "input_hash": "c533cb4447b826cc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 37669,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8904
+ },
+ "cost_usd": 0.0835953,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets IPC mining clients (like Stratum v2 template providers) see how much memory the node is holding for block-template transactions outside the mempool.",
+    "Solves the problem that IPC clients can hold block templates indefinitely, pinning transaction memory that would otherwise be freed."
+   ],
+   "reviewability": [
+    "Ready to review, though it is stacked on the still-open block-template-manager PR #35675 and the diff mixes that base work with this PR's own commits.",
+    "Review #35675 first for the shared plumbing, then focus on the four commits unique to this PR."
+   ],
+   "agreement": [
+    "Concept ACKs from ryanofsky and ismaelsadeeq, full ACKs from vasild and enirox001, though those ACKs predate a later design switch to build on #35675 (ryanofsky, ismaelsadeeq, vasild, enirox001).",
+    "ismaelsadeeq argued client-managed memory release is the wrong model and proposed internal FIFO eviction instead, author disagreed and no resolution was reached but neither side blocks (ismaelsadeeq, Sjors).",
+    "A mutation-testing pass found a real reference-counting bug in the destructor logic, which was fixed and covered by an added test (brunoerg)."
+   ],
+   "categories": []
+  },
+  "summary": "Adds a getMemoryLoad() IPC method and internal bookkeeping (TxTemplateMap) so the node can report the memory footprint of transactions that are still referenced by outstanding block templates but no longer in the mempool. No limit is enforced; this is purely visibility/monitoring. The PR sits on top of the open #35675 block template manager PR and shares much of its plumbing, with only the last four commits (hasher refactor, memory tracking, GetTemplateMemoryUsage, getMemoryLoad) being unique to this PR. It has been rebased dozens of times as dependency PRs merged and as the author switched underlying designs.",
+  "problem": "IPC clients (e.g. Stratum v2 template providers via sv2-tp) can hold references to block templates indefinitely, and each held template pins the transactions it references outside the mempool, growing memory in a way the node cannot currently observe or account for. This is a real but currently small operational risk for external mining software built on the multiprocess mining interface.",
+  "discussion": {
+   "open_concerns": [
+    "ismaelsadeeq's concept objection that memory management should be handled internally via FIFO eviction rather than delegated to well-behaved clients remains unresolved, though non-blocking (agree to disagree).",
+    "The PR is stacked on #35675, itself open, so final shape may still shift."
+   ],
+   "resolved_concerns": [
+    "Thread-safety gap in the shared map identified by ryanofsky, fixed by adding a mutex.",
+    "Mutation-testing-found reference-count bug in ~BlockTemplateImpl fixed and covered by an expanded test (brunoerg).",
+    "Naming and wording nits from vasild addressed.",
+    "Hash-flooding DoS concern about CTransactionRef hashing resolved by switching to a salted hasher (vasild, maflcko)."
+   ],
+   "author_status": "active, force-pushed as recently as 2026-09-14, currently rebasing to track the evolving base PR #35675"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35675 first",
+   "reason": "Nothing currently blocks review of this PR's own commits, but it is based on the still-open #35675 block template manager PR and much of the diff shown is inherited from that base rather than unique to this PR. Reviewers should start with #35675 for the shared plumbing."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACKs and full ACKs exist (ryanofsky, ismaelsadeeq, vasild, enirox001), but they predate a later design switch and ismaelsadeeq's standing objection to client-managed memory release was never fully resolved though it is non-blocking.",
+   "reason": "Support is real and substantive (ryanofsky calls getMemoryLoad useful by itself, vasild gave a full ACK with signature), but a design disagreement about whether the node or the client should manage template eviction was settled by agreeing to disagree, not by a fix, and those ACKs were on an earlier version of the code before Sjors rebuilt the PR on top of #35675.",
+   "evidence": [
+    "ryanofsky: 'Concept ACK ... getMemoryLoad() function seems useful by itself'",
+    "ismaelsadeeq: 'Currently, I don't see much use for the exposed getMemoryLoad method ... we should not rely on the IPC client to manage our memory'",
+    "Sjors: 'FIFO deletion should be a last resort (not implemented here)'",
+    "vasild gave signed ACK on 04553cd and later d37e0fc, both before the July 2026 rebase onto #35675",
+    "brunoerg's mutation-testing report of an unkilled mutant, fixed by author"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35675
+   ],
+   "enables": [
+    "sv2-tp (stratum-mining/sv2-tp#63) client-side memory management for held block templates",
+    "progress on issue #33899, block template memory management for IPC clients"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Mining label; adds getMemoryLoad() to interfaces::Mining and mining.capnp, and tracks memory used by block-template transaction references.",
+    "band": "P2",
+    "reason_tag": "stability/monitoring",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Gives external mining software (sv2-tp) visibility into a real but currently small memory-growth risk from holding templates; author measured footprint as 'minuscule' on mainnet but the mechanism is a prerequisite for safely running external template providers at scale, and a client PR (sv2-tp#63) already consumes it."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds a new capnp method (getMemoryLoad) and expands interface_ipc.py to test template reference lifecycle (destroy(), drop-out-of-scope) across the process boundary.",
+    "band": "P3",
+    "reason_tag": "reliability",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "A mutation-testing pass by brunoerg found a genuine reference-counting bug in the BlockTemplate destructor logic that crosses the IPC boundary, fixed and now covered by a test; this is a real correctness improvement to interface mechanics, though the new IPC surface itself is narrow."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Moves CTransactionRefComp into util/hasher.h and adds a salted CTransactionRefSaltedHash, reused by multiple call sites (private_broadcast, mempool tracking).",
+    "band": "P3",
+    "reason_tag": "DoS-safe hashing",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "vasild and maflcko debated whether a naive hash of CTransactionRef could allow hash-flooding, and the PR settled on a salted hasher; this is a small but real infrastructure hardening reused beyond this PR's own map."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "RPC changes in the diff (EnsureBlockTemplateManager, getblocktemplate/generateblock routing) are inherited from the base PR #35675's block-template-manager refactor, not this PR's own commits per its description.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates following the BlockTemplateManager change made in the base PR; not this PR's contribution."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "CI/CMake entries for block_template_manager.cpp are part of the shared base-PR work, not unique to this PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No build-system change originates from this PR's own commits."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Fuzz and unit test setup churn (setup_common, fuzz harness resets) follows mechanically from the base PR's BlockTemplateManager introduction; the memory-tracking-specific tests are mining-area tests, not framework changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test changes pin mining/IPC behavior specifically rather than adding general test infrastructure."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "No validation rule, chainstate, or consensus logic is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Out of scope for validation."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/test/fuzz/fees.cpp is touched only to keep the fuzz harness compiling against the new BlockTemplateManager reset flow.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely a mechanical call-site update, not a wallet behavior change."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "It is hard to cleanly separate this PR's own contribution from the shared base PR #35675's block-template-manager refactor since the diff shown includes both; category judgments for mining/ipc/utils focus on the four commits the author says are unique to this PR (hasher refactor, memory tracking, GetTemplateMemoryUsage, getMemoryLoad).",
+   "Whether the current 2026-09 state of the PR has been re-reviewed after the July 2026 switch to basing on #35675 is unclear from the discussion; the listed ACKs are on earlier, different code.",
+   "Draft status combined with 45 force-pushes and continual rebasing suggests the PR may still be substantially reshaped once #35675 finalizes, which could affect how much of the current diff survives to final review."
+  ],
+  "card": "This PR adds a getMemoryLoad() IPC method and internal tracking (TxTemplateMap) so Bitcoin Core can report how much memory is consumed by transactions that block templates reference outside the mempool, addressing the risk that IPC clients (e.g. Stratum v2 template providers) can hold templates indefinitely and pin transaction memory. The author measured the real-world footprint as minuscule on mainnet so far, but the mechanism unblocks safer external use of the multiprocess mining interface (a consumer PR already exists in stratum-mining/sv2-tp#63). It is draft and stacked on the still-open #35675 (block template manager), sharing much of that PR's plumbing; only four commits are unique to this PR. Review is substantively positive (concept ACKs from ryanofsky and ismaelsadeeq, full ACKs from vasild and enirox001) but those ACKs predate a July 2026 rebase onto the new base, and ismaelsadeeq's objection that memory management should be handled internally via FIFO eviction rather than delegated to clients was never resolved, just left as a non-blocking disagreement. A mutation-testing pass caught and fixed a real reference-counting bug in the template destructor, and the salted-hash design for CTransactionRef was hardened against hash-flooding after discussion with vasild and maflcko."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,127 @@
+{
+ "number": 33954,
+ "input_hash": "8355fbcf6167eea7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10491,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3896
+ },
+ "cost_usd": 0.0313773,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a reusable 'auto_outbound_mode' test-framework feature that lets functional tests exercise the node's automatic outbound-connection logic (not just tests-initiated connections), then uses it to add coverage for stale-tip extra outbounts, periodic block-relay reconnects, and per-network outbound diversification."
+   ],
+   "reviewability": [
+    "Paused: author explicitly said after the last rebase that the PR is 'not ready for review yet' and still needs work.",
+    "Long history of review already happened and was addressed, but the current state is mid-rework."
+   ],
+   "agreement": [
+    "Positive: vasild gave a full ACK after extensive design back-and-forth, Bortlesboat also ACKed after running the tests locally.",
+    "No unresolved objections, all review threads were addressed by the author (vasild, Bortlesboat)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it only adds test coverage for already-merged outbound-connection features (stale-tip extra outbounds #11560, periodic block-relay reconnects #19858, network diversification #27213) rather than changing p2p behavior itself.",
+      "Improves confidence that existing connection-management logic keeps working, which is useful but not urgent since the behavior already ships."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P2 because it introduces a general-purpose framework capability ('auto_outbound_mode') that lets any test exercise node-initiated outbound connections, which the author notes could also help test anchors, feelers, and other addrman-driven logic.",
+      "Already reduces duplicated code in p2p_private_broadcast.py and is designed for reuse by future tests, giving it leverage beyond this one PR."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new test-framework feature, auto_outbound_mode, which lets functional tests transparently redirect a node's SOCKS5-proxied outbound connections to controlled Python peers, so tests can exercise connections the node itself decides to make (as opposed to test-initiated connections). It then adds a new functional test, p2p_outbound_management.py, covering stale-tip extra outbound connections, periodic block-relay-only reconnects, and per-network outbound diversification, and refactors p2p_private_broadcast.py to reuse the new framework code, cutting significant duplication.",
+  "problem": "Existing functional tests can only simulate outbound connections that the test itself initiates; there was no good way to test the node's own automatic outbound-connection decisions (stale-tip handling, periodic block-relay reconnects, network diversification), leaving these behaviors under-tested. This affects test coverage of p2p connection-management logic maintained by reviewers like vasild and mzumsande.",
+  "discussion": {
+   "open_concerns": [
+    "Author had an intermittent local test failure in p2p_private_broadcast.py after the latest rebase that needs investigation.",
+    "Design questions around auto_outbound_factory interface (index-only vs also passing requested address/port, per vasild referencing #34410) remain open but non-blocking.",
+    "Bortlesboat asked for a comment explaining the '46' scheduler-interval magic number; not yet confirmed addressed."
+   ],
+   "resolved_concerns": [
+    "Port-collision concerns for auto_outbound listener ports were resolved by adopting dynamic port allocation (cherry-picked from #34186).",
+    "Multiple naming/API-shape suggestions (auto_outbound_factory, decide_auto_outbound_where_to) were implemented by the author.",
+    "Concerns about ordering of tor/cjdns connection setup vs addrman population were addressed by restructuring the test's address-adding sequence."
+   ],
+   "author_status": "Active but reworking: after an August 2026 rebase the author stated the PR is 'not ready for review yet - still need to change some things / address feedback'."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "After the most recent rebase (2026-08-28), the author explicitly said the PR is 'not ready for review yet - still need to change some things / address feedback', which is an author-stated wait regardless of prior ACKs."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: vasild ACKed after detailed design discussion and Bortlesboat ACKed after local testing, no unresolved objections remain (vasild, Bortlesboat).",
+   "reason": "All review threads (port allocation, factory interface naming, IPv6 edge cases, ordering races) were raised and addressed by the author across several rounds, and two independent reviewers gave full ACKs on since-superseded commits; these ACKs are now stale due to the subsequent rebase but no substantive disagreement was ever registered.",
+   "evidence": [
+    "vasild: 'ACK 0cb08573...' after testing locally, 'I ran test_runner.py and p2p_outbound_management.py a bunch of times ... did not observe timeouts.'",
+    "vasild later gave a second ACK 'ACK c733d112...' after further changes.",
+    "Bortlesboat: 'ACK c733d112... Ran p2p_outbound_management.py and p2p_private_broadcast.py locally on Ubuntu 24.04, both pass.'",
+    "No reviewer raised a blocking harm; all comments were design/naming suggestions or clarifying questions."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Reuse of auto_outbound_mode by other tests such as feature_anchors.py or feeler-connection tests, per author's stated future uses.",
+    "Simplification already realized in p2p_private_broadcast.py (28 insertions/78 deletions per vasild's proposed diff)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Adds a new functional test (p2p_outbound_management.py) that pins the behavior of existing p2p outbound-connection-management logic (stale-tip extra outbounds, periodic block-relay reconnects, network diversification), which per the tests category definition belongs to the area it tests.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The new test only covers already-merged, existing behavior (#11560, #19858, #27213); it adds regression protection for real but non-critical connection-management logic rather than fixing or changing anything. vasild, the original implementer of the underlying private-broadcast proxy mechanism this builds on, gave a substantive ACK, indicating real interest in the coverage, but the PR does not change p2p behavior itself."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The first commit adds a new, general test-framework capability (auto_outbound_mode) to test_framework.py, explicitly intended for reuse beyond this PR's own test, matching the 'framework capabilities that unblock tests other areas need' criterion.",
+    "band": "P2",
+    "reason_tag": "framework capability",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Author states the framework addition 'allows to test the code in which the node decides to make connections' and lists further possible uses (anchors, feeler connections, other addrman-driven logic), and it already eliminated substantial duplicated code in p2p_private_broadcast.py per vasild's proposed simplification (28 insertions, 78 deletions). This gives it leverage across multiple existing and future tests beyond the immediate PR."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the reworking mentioned in the last comment (2026-08-28) is a large rewrite or a small fix is unclear from the discussion; this affects how soon it becomes reviewable again.",
+   "Whether the p2p-focused test commit should be judged separately from the tests-framework commit for priority purposes was inferred from the category definitions but not explicitly stated by the project."
+  ],
+  "card": "This PR adds a reusable test-framework feature, auto_outbound_mode, letting functional tests intercept and redirect a node's own automatically-initiated outbound connections via a SOCKS5 proxy, and uses it to add a new functional test covering stale-tip extra outbounds, periodic block-relay reconnects, and per-network outbound diversification (all pre-existing, already-merged behaviors). It also refactors p2p_private_broadcast.py to reuse the new framework code, removing significant duplication. Two reviewers, vasild (the original author of the underlying proxy-redirection mechanism) and Bortlesboat, gave full ACKs on earlier revisions after testing locally, with all design feedback addressed across many rounds. However, after a rebase in August 2026 the author said the PR is 'not ready for review yet - still need to change some things', so it is currently paused pending further author work despite the prior positive reviews. No PR dependencies are stated, though it deliberately builds on patterns from #29415 and #34186."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

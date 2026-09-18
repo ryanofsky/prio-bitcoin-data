@@ -1,0 +1,98 @@
+{
+ "number": 35747,
+ "input_hash": "e4399f8b857d2afb",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5730,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3024
+ },
+ "cost_usd": 0.0222563,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a wallet bug where FillPSBT could fail to sign an input it actually owns when the PSBT's witness_utxo and non_witness_utxo disagree.",
+    "Makes FillPSBT use the same UTXO-selection rule as SignPSBTInput so signing does not silently fail on malformed or mutated PSBTs."
+   ],
+   "reviewability": [
+    "Marked Needs rebase, so a review now risks being invalidated by a required rebase.",
+    "No open reviewer requests; the one reviewer question was answered by the author."
+   ],
+   "agreement": [
+    "One reviewer (vicjuma) questioned the motivation and threat model, author explained the malicious/buggy-coordinator scenario clearly.",
+    "No pushback after the explanation, so the concern reads as resolved rather than open."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it fixes a real but narrow correctness bug: FillPSBT could fail to sign an owned input when a PSBT coordinator supplies conflicting witness_utxo and non_witness_utxo.",
+      "The failure mode is a stuck/incomplete signature, not fund loss or a wrong signature, so it is a reliability fix rather than a fund-safety one.",
+      "Comes with regression tests pinning both the GetUTXO prefer/reject rules and the FillPSBT behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes FillPSBT in the wallet so it selects the SigningProvider using the same GetUTXO prefer/reject rule that SignPSBTInput already uses, instead of preferring witness_utxo unconditionally. Previously, if a PSBT's witness_utxo and non_witness_utxo disagreed, FillPSBT could pick keys for the wrong script and fail to complete a signature for an input the wallet actually owns. The PR adds a psbt.h doc comment clarifying GetUTXO's prefer/reject semantics, a unit test pinning those semantics, and a wallet regression test for the fix.",
+  "problem": "A PSBT input can carry both non_witness_utxo and witness_utxo; when they disagree (e.g. a malicious or buggy PSBT coordinator tampers with witness_utxo), FillPSBT previously chose the wrong script for key/signing-provider selection while SignPSBTInput used a different rule, causing signing to fail even though the wallet owned the appropriate input. This affects wallet users completing PSBTs with an external or mutated coordinator input.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "vicjuma asked why the check is sufficient and what motivates disagreeing UTXOs; author explained the malicious/buggy-coordinator threat model and clarified the risk is failure-to-sign, not wrong-signing; no further pushback from vicjuma."
+   ],
+   "author_status": "active, last force-pushed 2026-08-15"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "PR is labeled Needs rebase and mergeable_state is unknown; a review of the current diff may be invalidated once it is rebased."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: vicjuma's question about motivation was answered by the author with a concrete threat model, and no further objection followed.",
+   "reason": "Single reviewer engaged substantively; the author's explanation addressed the concern and there was no pushback, leaving no unresolved criticism.",
+   "evidence": [
+    "vicjuma: 'Why do I feel as if these checks are enough? ... Any risk involved?'",
+    "nervana21: explained a malicious/buggy PSBT coordinator scenario and that the risk is failure to sign, not signing the wrong UTXO",
+    "No further reply from vicjuma after the explanation"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "author notes a follow-up to refactor SignPSBTInput, PSBTInputSignedAndVerified, and decodepsbt fee totaling to also use GetUTXO, avoiding further divergence"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes src/wallet/scriptpubkeyman.cpp FillPSBT logic and adds wallet PSBT tests; labeled Wallet.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real correctness bug where FillPSBT could fail to sign an input the wallet owns when non_witness_utxo and witness_utxo disagree, as described: 'This could lead to an incomplete input even though the wallet owns the appropriate non_witness_utxo script.' The scenario requires a malicious or buggy PSBT coordinator supplying conflicting UTXOs, which is narrower than a routine user-facing failure, and the failure mode is incompleteness rather than fund loss or a wrong signature, per author's own characterization: 'the risk ... is just that signing fails or stays incomplete. We'd never sign the wrong utxo.' Comes with regression tests (fillpsbt_signs_despite_conflicting_witness_utxo, psbt2_getutxo) pinning the fix."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether malicious/mutated PSBTs with conflicting witness_utxo/non_witness_utxo are a realistic scenario in practice or purely theoretical was not conclusively settled in discussion.",
+   "Impact of the pending rebase on the current diff's content is unknown."
+  ],
+  "card": "This PR fixes a wallet bug where FillPSBT could fail to sign a PSBT input the wallet actually owns, when the input's non_witness_utxo and witness_utxo disagree, by routing FillPSBT's script/key selection through the same GetUTXO prefer/reject rule SignPSBTInput already uses. The problem, per the description, is that 'FillPSBT loaded keys for the witness_utxo script while SignPSBTInput signed the non_witness_utxo spend,' producing an incomplete signature even though the wallet holds the right key; the author clarifies the risk is failure-to-sign, not signing the wrong UTXO. The PR adds a regression test and a GetUTXO-semantics unit test. One reviewer (vicjuma) questioned the motivation and threat model; the author gave a concrete malicious/buggy-coordinator explanation and received no further pushback, so the concern reads as resolved. The PR is labeled Needs rebase, so a review now may need to be redone after rebase. No stated dependencies or blockers beyond that."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

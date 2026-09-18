@@ -1,0 +1,103 @@
+{
+ "number": 35139,
+ "input_hash": "e5725cf0a191d40b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28191,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4327
+ },
+ "cost_usd": 0.0512323,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds new C++ assert-style test macros (ASSERT, ASSERT_EQ, etc.) to replace Boost's BOOST_CHECK family.",
+    "Fixes correctness gaps in Boost's macros: signed/unsigned mismatches pass silently, checks are not thread-safe under tsan, and failures don't stop the test immediately.",
+    "Only one file (streams_tests.cpp) is converted so far as a proof of concept toward a full migration."
+   ],
+   "reviewability": [
+    "Paused, the author turned it to draft after a conflicting PR (#35713, removing Boost as the unit test runner) appeared, and said it's best to keep non-draft PRs to a minimum.",
+    "Code itself has been iterated on and is stable modulo IWYU nits; the open question is whether this design survives the competing Boost-removal effort."
+   ],
+   "agreement": [
+    "Concept ACK from sedited after initial skepticism about losing full-context test failures was discussed at length (sedited).",
+    "Author addressed the objection with concrete tsan/clang-tidy/IWYU evidence and offered to make fast-fail configurable, sedited then gave concept ACK (maflcko, sedited).",
+    "No unresolved blocking objections; a minor IWYU include nit from mercie-ux was fixed in a later push."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it fixes a real but narrow class of hidden problems: Boost's check macros silently pass on signed/unsigned mismatches, break under tsan when used off the main thread, and confuse IWYU and clang-tidy tooling.",
+      "It improves CI signal quality (author cites a real CI log where the true failure was buried) but the PR only converts one file so far and a competing PR proposes removing Boost as the test runner entirely, which could supersede this approach."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a new set of thread-safe, fast-failing, overflow-safe test assertion macros (ASSERT, ASSERT_EQ, ASSERT_NE, ASSERT_LT/GT/LE/GE, ASSERT_EQ_COLLECTIONS, ASSERT_EXCEPTION) to src/test/util/common.h as a drop-in replacement for Boost's BOOST_CHECK family, and converts src/test/streams_tests.cpp to use them as a demonstration. The macros use std::source_location and C++20 concepts/ranges to produce readable failure messages and abort immediately on failure. Only one test file has been converted; the intent is to roll this out project-wide once accepted.",
+  "problem": "Boost's check macros have several correctness and tooling problems that unit-test authors hit repeatedly: they compile and silently pass for mixed signed/unsigned comparisons (e.g. BOOST_CHECK_GT(-10, 10U) passes), they are not thread-safe and fail under tsan when called off the main thread, they cannot be reused in fuzz tests, they keep running after a failure making CI logs hard to read, and they confuse IWYU and clang-tidy. The author (a maintainer) says they keep running into these issues personally, including a case where CI logs did not show the real failure.",
+  "discussion": {
+   "open_concerns": [
+    "Whether losing Boost's continue-on-failure behavior (seeing all failing checks and full log context at once) is a net loss for debugging, raised by sedited; author proposed an opt-in env var as a compromise but has not implemented it.",
+    "How this PR relates to the parallel, more radical proposal (#35713) to remove Boost as the unit test runner entirely; author put this PR in draft partly for that reason."
+   ],
+   "resolved_concerns": [
+    "sedited's initial skepticism about the value of fast-failing macros was addressed with concrete tsan/clang-tidy/IWYU evidence and a real CI log example, leading to a Concept ACK.",
+    "mercie-ux's nit about an unused <typeindex> include (later found to need adjustment per IWYU) was fixed in a subsequent push."
+   ],
+   "author_status": "active, force-pushed most recently on 2026-08-20; put PR in draft on 2026-07-07 due to the conflicting #35713"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author paused, conflicting PR",
+   "reason": "The author explicitly turned this into a draft on 2026-07-07 because a conflicting PR (#35713, which proposes removing Boost as the unit test runner entirely) appeared, saying 'Probably good to keep the number of non-draft pulls to a minimum.' This signals the author wants the competing direction resolved before pushing this further, even though the current code itself is not known to be broken."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from sedited after a substantive back-and-forth about fast-fail semantics, no unresolved objections remain",
+   "reason": "sedited raised a real concern (losing full-context failures when debugging) but after the author explained concrete tsan/clang-tidy/IWYU problems with Boost's macros and offered a configurable fast-fail option, sedited gave a Concept ACK. mercie-ux's nit was fixed. No standing objections.",
+   "evidence": [
+    "sedited: 'Not sure about these changes... I'm also not sure if others would find that valuable' (2026-05-26)",
+    "maflcko: explained tsan/clang-tidy/IWYU problems with Boost macros and offered an env var to control fast-fail behavior (2026-05-28)",
+    "sedited: 'Concept ACK' (2026-07-07)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "a full project-wide migration off Boost's BOOST_CHECK macros toward tsan-safe, IWYU-friendly test assertions (only one file converted so far)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Labeled Tests; changes are entirely to src/test/util/common.{h,cpp} (shared test macro infrastructure) and a demonstration conversion of src/test/streams_tests.cpp.",
+    "band": "P3",
+    "reason_tag": "test infra improvement",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real, if narrow, class of hidden problems in the existing test framework: BOOST_CHECK_GT(-10, 10U) silently passes, checks are not tsan-safe when used off the main thread, and Boost's macros confuse IWYU and clang-tidy. The author cites a concrete CI failure that was hidden in a 10000-line log because Boost kept running after the real failure. However, the PR only converts one test file so far, and a competing PR (#35713) proposes removing Boost as the test runner entirely, which could make this approach moot; the author put this PR in draft for that reason."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will prefer this incremental macro-replacement approach over the more radical Boost-removal proposal in #35713 is unresolved and materially affects this PR's future.",
+   "No committed plan yet for converting the rest of the test suite, so the eventual scope and payoff (beyond the one demonstration file) is not yet visible."
+  ],
+  "card": "This PR adds new thread-safe, fast-failing, overflow-safe test assertion macros (ASSERT, ASSERT_EQ, ASSERT_EQ_COLLECTIONS, ASSERT_EXCEPTION) to replace Boost's BOOST_CHECK family in unit tests, converting one file (streams_tests.cpp) as a demonstration. It solves problems the author (a maintainer) says they repeatedly hit: Boost's macros silently pass on signed/unsigned mismatches, are not tsan-safe off the main thread, and hide real failures in long CI logs by continuing after the first failure. sedited raised a substantive objection about losing full-context debugging output but gave a Concept ACK after discussion; no unresolved objections remain. The author put the PR in draft because a conflicting PR (#35713) proposes removing Boost as the unit test runner entirely, which could make this incremental approach unnecessary, so review value depends on how that competing direction resolves. Only one file has been migrated, so the project-wide payoff is still speculative."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

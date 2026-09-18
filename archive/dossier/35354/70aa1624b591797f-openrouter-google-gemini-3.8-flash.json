@@ -1,0 +1,120 @@
+{
+ "number": 35354,
+ "input_hash": "70aa1624b591797f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:39+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27268,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4099
+ },
+ "cost_usd": 0.03582225,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent BIP 157 light clients from disconnecting or banning nodes when requesting compact filters for newly announced blocks"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "The latest push implements the reviewer-suggested per-peer parking approach and passes CI"
+   ],
+   "agreement": [
+    "Broad concept agreement on addressing the BIP 157 race condition in net processing (sedited, mzumsande, ajtowns)",
+    "ajtowns suggested parking the peer rather than blocking the message thread, which the author implemented",
+    "Awaiting final review on the latest push"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes an established interoperability bug where BIP 157 light clients disconnect or ban Bitcoin Core nodes (#29655, #27085)",
+      "Resolves a spec-noncompliant drop of filter requests when block announcements race filter index construction"
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P4 because the PR does not change index data structures, storage, or lookup logic",
+      "It only queries the existing index summary from net processing to detect when an index update is still in flight"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request fixes a race condition where BIP 157 compact filter requests (getcfilters, getcfheaders, getcfcheckpt) arrive before the node's block filter index has processed the newly connected block. Instead of ignoring the request and returning no response, net processing parks the peer's message processing until the filter index catches up with the tip. Once the filter is indexed, the pending request is answered in order, preventing external light clients from disconnecting or banning the node.",
+  "problem": "When a node validates and announces a new block, the block filter index updates asynchronously on the validation interface scheduler thread. If a BIP 157 light client asks for filters or filter headers during this brief window, Bitcoin Core drops the request with no reply, violating BIP 157 and prompting light clients like Neutrino or Kyoto to disconnect or ban the node.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "sedited and mzumsande objected to handling the race inside the index code or stalling the message thread on validation flushes",
+    "ajtowns suggested parking the requesting peer in net processing to preserve message order without blocking other peers, which the author implemented in the latest revisions"
+   ],
+   "author_status": "active, recently pushed the parking implementation with unit tests and benchmarks"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has adopted reviewer architectural feedback, CI is passing, and the code is ready for review of the parking implementation."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: reviewers agreed on handling the race in net_processing and parking peers; awaiting review on the latest push",
+   "reason": "Reviewers agreed the bug is worth resolving and guided the architectural design toward peer-level parking in net_processing rather than index-level locks or message-thread stalls.",
+   "evidence": [
+    "sedited objected to handling this at the index level and preferred net_processing",
+    "mzumsande agreed that index code should remain untouched and net_processing should evaluate the race using GetSummary",
+    "ajtowns proposed the per-peer request parking architecture and provided a prototype branch that the author adopted"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#29655",
+    "#27085"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies net_processing.cpp to change how P2P messages (getcfilters, getcfheaders, getcfcheckpt) and peer message processing are dispatched and deferred.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes an active network interoperability defect where BIP 157 light clients disconnect or ban full nodes due to dropped requests (#29655). BIP 157 explicitly expects responses for known advertised blocks, and failing to provide them degrades network connectivity between full nodes and light clients."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Does not modify any files in src/index/. It queries the existing BlockFilterIndex::GetSummary() API from net_processing.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of indexes because it introduces no changes to index storage, synchronization, or APIs. Earlier drafts modified src/index/, but those were removed at reviewer request."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35354 resolves a race condition where BIP 157 compact filter requests arriving immediately after a block announcement are dropped because the asynchronous filter index has not yet completed indexing. Dropping valid requests violates BIP 157 and causes light clients such as Neutrino to disconnect or ban the node. The PR updates net processing to park the peer and pause further message processing on that connection until the index catches up, answering requests in order without blocking the main message thread. Reviewers (sedited, mzumsande, ajtowns) agreed on moving the logic out of the index and into net processing, and the PR now implements ajtowns's suggested per-peer parking design."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,281 @@
+{
+ "number": 19461,
+ "input_hash": "836e8c0649e45b38",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 44852,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 9137
+ },
+ "cost_usd": 0.0919433,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets bitcoin-gui connect to an already-running bitcoin-node process over IPC instead of always spawning its own node",
+    "Enables starting and stopping the GUI independently of the node, part of the process-separation project"
+   ],
+   "reviewability": [
+    "Review the earlier stack (#29409, #10102, #19460) first since this PR is built on top of them",
+    "Author is actively rebasing (39 force pushes) and recently responded to a bug report, no material request is stuck unanswered"
+   ],
+   "agreement": [
+    "Concept ACK from two members (laanwj, meshcollider) with no objections to the approach",
+    "Sjors tested it live and found real crash bugs (node aborts on shutdown, GUI asserts with external signer) that the author acknowledged and tracked but has not yet fixed (ryanofsky, Sjors)"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because this is the concrete mechanism for running the GUI and node as separate processes, the stated goal of the multiprocess project",
+      "Unblocks independent start/stop of GUI from node and is a prerequisite step toward decoupled wallet/GUI processes"
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P3 because the vendored libmultiprocess subtree bump raises the minimum Cap'n Proto version and adds/adjusts CI configs (newdeps, olddeps, NetBSD releases)",
+      "Affects only multiprocess-enabled builds, a non-default configuration, limiting its reach"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it extends the functional test framework (combine_logs, assert_debug_log wallet flag, timeouts) to support multiprocess log separation and slower IPC-based notifications",
+      "Framework capability needed by other multiprocess PRs in the stack rather than a standalone test"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it wires bitcoin-wallet's tool code path to accept IPC connection options, letting the offline wallet tool talk to a running node",
+      "Narrow, only exercised in the experimental multiprocess build"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it changes btcsignals disconnect semantics so callback objects are destroyed eagerly instead of lingering, fixing unpredictable destruction timing used throughout init/shutdown paths",
+      "Real correctness fix for a shared signal utility, discovered because deferred destruction hung the multiprocess GUI test, but has node-wide reach beyond IPC"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an -ipcconnect option to bitcoin-gui so the GUI can attach to an already-running bitcoin-node process over IPC instead of always spawning its own node subprocess, letting the GUI be started and stopped independently. It is the last commit in a long stack (based on #29409, #10102, #19460) and the visible diff also carries all of those unmerged base commits: capnp wrappers for Chain/Wallet/Node/Handler interfaces, a libmultiprocess subtree bump, and a fix making btcsignals destroy disconnected callbacks eagerly. The description states default -ipcconnect=auto tries an existing node socket first and falls back to spawning a new node, with -noipcconnect, -ipcconnect (require), and -ipcconnect=unix:<path> variants.",
+  "problem": "Currently the GUI can only run by spawning and owning its own node process, so users cannot run a long-lived headless node and attach/detach a GUI to it independently, something operators of the experimental multiprocess build want as part of the process-separation project (tracked in #28722).",
+  "discussion": {
+   "open_concerns": [
+    "Sjors reported (2023-02, 2023-05) that stopping the node after the GUI disconnects causes an uncaught ipc::Exception and a crash (SIGABRT); author reproduced and filed libmultiprocess issue #169 but no fix has landed yet.",
+    "Sjors also found GUI asserts (sendcoinsdialog.cpp) when using an external signer over the connected setup; not yet investigated.",
+    "jimhashhq (2025-03) reported bitcoin-node crashes if bitcoin-gui connects without matching -disablewallet settings; acknowledged by author as a real bug to fix.",
+    "laanwj raised a minor question about comma-separated option help text; resolved by dropping the nonstandard formatting."
+   ],
+   "resolved_concerns": [
+    "Naming of the -ipcconnect option itself was accepted without objection (laanwj: 'ipcconnect SGTM as option name')."
+   ],
+   "author_status": "active, most recently force-pushed 2026-09-09 to keep the branch rebased on top of shifting upstream and sibling PRs"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #19460 first",
+   "reason": "The PR is the top of a four-deep stack (#29409, #10102, #19460, this PR); the base PRs should be reviewed first since this PR's diff includes their content. The author is actively maintaining the rebase (39 force pushes over 5+ years, most recently 2026-09-09) and no material reviewer request is currently unanswered past the threshold; known bugs are tracked in a linked libmultiprocess issue rather than being open review blockers."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACKs from laanwj and meshcollider with no objection to the approach, but Sjors found real crash bugs in live testing that remain unresolved and are treated as non-blocking bug reports rather than a veto.",
+   "reason": "Two members gave concept ACK early on with no substantive pushback on approach or naming. The only unresolved criticism is Sjors's repeated discovery of shutdown crashes and an external-signer assertion failure; the author acknowledged these as real bugs, opened a tracking issue, but has not shipped fixes, and Sjors has not treated them as blocking, just as things to fix before merge readiness.",
+   "evidence": [
+    "laanwj: 'Concept ACK... -ipcconnect SGTM as option name'",
+    "meshcollider: 'Concept ACK'",
+    "Sjors (2023-02, 2023-05): reports node aborts with ipc::Exception on shutdown and GUI asserts with external signer",
+    "ryanofsky: 'Thanks Sjors, I'm trying to reproduce the shutdown error... created bitcoin-core/libmultiprocess#169 to track it'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    29409,
+    10102,
+    19460
+   ],
+   "enables": [
+    "Independent start/stop of bitcoin-gui from bitcoin-node, a step in the process-separation project (#28722)",
+    "Future extension noted in the last commit: adding an -ipcbind option to bitcoin-wallet so the GUI can control wallet processes directly without going through the node"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Diff bumps the vendored libmultiprocess subtree's minimum Cap'n Proto version to 0.9, adds newdeps/olddeps CI configs, adjusts NetBSD CI releases, and updates root/src CMakeLists for the new ipc targets.",
+    "band": "P3",
+    "reason_tag": "dependency bump",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The Cap'n Proto minimum version bump and CI config additions (newdeps, olddeps pin, NetBSD release changes) are real build-system maintenance but confined to the non-default --enable-multiprocess configuration, so their reach is narrow; commit messages describe them as routine CI/version housekeeping rather than fixing a supported-platform breakage."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "doc/multiprocess.md and doc/design/libraries.md updates accompany the code change but are not the subject of the PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Docs changes here are incidental updates to a code PR, excluded per category definition ('a code change that also updates its docs')."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Core purpose of the PR: adds -ipcconnect to bitcoin-gui, touches interfaces::Init/Ipc, ipc/context.h, and the capnp wrapper layer for Chain/Wallet/Node/Handler that the GUI connection depends on.",
+    "band": "P2",
+    "reason_tag": "unblocks #28722",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "This is the concrete mechanism for the multiprocess project's stated goal of running node and GUI as separate processes ('This allows the GUI to be started and stopped independently of the node'), directly enabling further work like a future bitcoin-wallet -ipcbind option the author names. It is held back from P1 by real, currently-unfixed crash bugs found in testing (Sjors: node aborts on shutdown, GUI assert with external signer) that mean the interface is not yet reliable, and by the fact that it only affects the experimental, non-default multiprocess build."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "block_policy_estimator.h change is only a comment noting a capnp struct to update, no policy logic touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical annotation only; not a mempool change."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net.h and net_processing.h changes are comments pointing at capnp structs to keep in sync, no protocol behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical annotation only; not a p2p change."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "bitcoin-cli.cpp change adds a log_suffix argument to MakeBasicInit and rpc/request.h gets an added comment; no RPC behavior or interface change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Follows mechanically from the IPC init signature change; not an RPC feature or fix."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a wallet= flag to assert_debug_log/test_node.py, updates combine_logs.py to handle per-process log files, raises timeouts in feature_block.py/feature_taproot.py for slower multiprocess notification delivery, and adds btcsignals characterization/regression tests.",
+    "band": "P3",
+    "reason_tag": "framework capability",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The framework changes let functional tests find debug logs and tolerate timing when multiple processes are involved, a capability other multiprocess PRs in the stack need; commit message: 'Needed because BlockConnected notifications are a lot slower with the wallet running in separate process.' Value is mostly enabling, not fixing widespread flakiness."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "src/bitcoin-wallet.cpp and src/wallet/wallettool.cpp/h changes add IPC-connect wiring for the offline wallet tool, matching the tools category's bitcoin-wallet path.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Extends bitcoin-wallet to optionally talk to a running node over IPC, a real but narrow capability limited to the experimental multiprocess build with no external consumer demand cited in discussion."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "btcsignals.h/.cpp changes make disconnect() destroy callback state eagerly instead of leaving it alive until a later connect() call, with new characterization and regression tests in test/btcsignals_tests.cpp; also touches util/result.h default-construction behavior.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Commit message: 'a disconnected callback and any state it owned could stay alive indefinitely... That made destruction timing unpredictable for callbacks that own resources whose release has side effects,' concretely causing the multiprocess GUI test to hang. This is a real correctness fix to shared node-wide infrastructure (btcsignals is used across init/shutdown), not merely IPC-scoped, but it was found and motivated entirely by this stack's needs and has no independent bug report driving it."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/interfaces.cpp reorders restoreWallet's parameters and wallet/types.h/wallet.h/coincontrol.h add default constructors or comments purely to satisfy libmultiprocess's serialization requirements ('Libmultiprocess requires output parameters to be ordered after input parameters').",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These are mechanical call-site/API adjustments required by the IPC serialization layer, not substantive wallet behavior changes, matching the exclusion for mechanical edits that follow from a change elsewhere."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The provided diff spans the entire unmerged stack (#29409, #10102, #19460, plus this PR's own commit), so it is unclear how much of the reviewed content is properly attributable to this specific PR versus its bases; category assessments above err toward crediting the whole visible diff since that is what a reviewer opening this PR would see.",
+   "No maintainer has weighed in on the specific -ipcconnect design since 2022; whether laanwj's 2020 concept ACK still reflects current maintainer sentiment after 5+ years and many rebases is unclear.",
+   "It is unclear whether the reported crash bugs (shutdown abort, external-signer assert) have since been fixed in later force-pushes; the discussion log does not show a resolution."
+  ],
+  "card": "This PR adds an -ipcconnect option to bitcoin-gui so it can attach to an already-running bitcoin-node process instead of always spawning its own, letting the GUI start and stop independently of the node as part of the multiprocess process-separation project (#28722). It sits atop a long stack (#29409, #10102, #19460) and its visible diff also carries those unmerged base commits, including capnp interface wrappers and a real btcsignals fix that makes disconnected callbacks destroy eagerly. Two members gave concept ACK on the option itself, but live testing by Sjors turned up real unresolved crash bugs (node aborts on GUI shutdown, GUI assert with external signer) that the author has tracked but not yet fixed. The PR has been open since 2020, is still draft, and has been rebased dozens of times as the underlying stack evolved; it should be reviewed alongside its base PRs. Its core importance is as the concrete enabling step for GUI/node process separation, tempered by the fact that it only affects the experimental multiprocess build and has known reliability rough edges."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

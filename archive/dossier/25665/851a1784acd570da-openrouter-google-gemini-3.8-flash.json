@@ -1,0 +1,184 @@
+{
+ "number": 25665,
+ "input_hash": "851a1784acd570da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:05+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 61215,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4345
+ },
+ "cost_usd": 0.062205,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enhance util::Result to support failure payload values and accumulate warnings",
+    "Enable functions to return rich error context and status codes without out-parameters"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Passes CI and is rebased, though reviewers have requested reopening as a fresh PR due to thread length"
+   ],
+   "agreement": [
+    "Positive with caveats across multiple iterations",
+    "Prior ACKs from multiple maintainers (laanwj, achow101, sedited)",
+    "Ongoing discussion on overlap with util::Expected and requests to restart in a clean PR (maflcko, hodlinator, polespinasa)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it provides a shared error-handling utility for returning structured errors and warnings",
+      "Unblocks cleaner error propagation in wallet and kernel loading without being critical on its own"
+     ]
+    }
+   ]
+  },
+  "summary": "Extends the `util::Result` utility class to support returning non-void failure types (in addition to existing translated error strings), warning messages, and multiple error strings. It introduces an `Update()` method to chain or merge results across nested function calls, and migrates `LoadChainstate` and `VerifyLoadedChainstate` as initial consumers.",
+  "problem": "Functions performing multi-step operations like wallet loading or chainstate initialization often need to return structured error codes for control flow alongside descriptive user-facing warnings and errors. Previously, `util::Result` only supported a single error string, forcing functions to rely on ad-hoc out-parameters or std::tuple return types.",
+  "discussion": {
+   "open_concerns": [
+    "Debate over conceptual overlap with `util::Expected` (#34006) and whether error messages should be encapsulated inside `util::Expected` error payloads instead of a custom `Result` hierarchy (hodlinator, maflcko).",
+    "GitHub thread fatigue: multiple reviewers noted that with over 300 comments over several years, the PR is difficult to navigate and should be closed and reopened freshly (maflcko, polespinasa, sedited)."
+   ],
+   "resolved_concerns": [
+    "Separated message holding logic into `util/messages.h` to decouple message formatting from result mechanics (addressed hodlinator's feedback).",
+    "Aligned method names with standard `expected` interfaces (`error()`, `has_value()`).",
+    "Fixed spurious `-Werror=maybe-uninitialized` warnings in CI."
+   ],
+   "author_status": "Active; regularly rebasing and addressing feedback, last force-pushed in September 2026."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased, clean, and passes CI, though reviewers have suggested opening a fresh PR due to the huge comment history."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Broad support with multiple past ACKs, tempered by debate over overlap with util::Expected and requests for a fresh PR",
+   "reason": "Multiple maintainers have ACKed revisions over time (laanwj, achow101, sedited). However, discussion continues over whether `util::Result` or `util::Expected` is the right long-term abstraction, and several reviewers prefer closing and reopening cleanly.",
+   "evidence": [
+    "Concept and code review ACK from laanwj (2025-10-23) and achow101 (2025-10-27)",
+    "Repeated ACKs from sedited across revisions",
+    "hodlinator and maflcko argued for using or subclassing `util::Expected` (#34006)",
+    "maflcko, polespinasa, and sedited suggested closing and reopening a clean PR due to >300 comments"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#25722",
+    "#29700",
+    "#26022"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches a CI script only to suppress a compiler warning triggered by the utility code changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches `src/kernel/bitcoinkernel.cpp` call sites mechanically to adopt the new `LoadChainstate` return type; does not alter the kernel C API.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Follows mechanically from node/chainstate return type changes."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Contains unit tests in `src/test/result_tests.cpp` covering `util::Result`, which belongs to utils.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unit tests for a specific utility belong to the utils category."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Implements core changes to `src/util/result.h` and introduces `src/util/messages.h`.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because it enhances general error-handling primitives, reducing memory footprint for common Result instantiations and providing leverage for cleaner wallet and validation error bubbling (#25722, #29700), but is reasonably deferrable."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Changes `LoadChainstate` and `VerifyLoadedChainstate` signatures to use `util::Result` without changing validation logic or consensus rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Refactor of return signatures in validation setup functions without changing behavior."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only touches two lines in `src/wallet/wallet.cpp` to adapt to boolean conversion.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site adjustment; wallet usage is deferred to #25722."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 25665 expands `util::Result` to support returning custom failure types in addition to error strings, as well as warning messages and multiple errors, while reducing the memory overhead of the type. It enables chained functions to merge error and warning context cleanly without out-parameters, serving as the foundation for wallet loading cleanups (#25722) and kernel error handling (#29700). The PR has garnered multiple ACKs across its lifetime, but progress has been slowed by debates over its relationship with `util::Expected` and requests to reopen freshly to shed 300+ comments."
+ },
+ "raw_text": null
+}

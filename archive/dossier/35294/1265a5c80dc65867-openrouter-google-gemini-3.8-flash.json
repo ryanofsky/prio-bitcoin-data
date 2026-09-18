@@ -1,0 +1,108 @@
+{
+ "number": 35294,
+ "input_hash": "1265a5c80dc65867",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:21+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18880,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2017
+ },
+ "cost_usd": 0.02172375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent wallet load assertion crashes by updating transaction chain states",
+    "only after chain notifications are attached."
+   ],
+   "reviewability": [
+    "Ready for review."
+   ],
+   "agreement": [
+    "Strong support for fixing the race condition on wallet load (dergoegge, pablomartin4btc, shuv-amp)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes an assertion crash during wallet loading after unclean shutdowns or active chain movement."
+     ]
+    }
+   ]
+  },
+  "summary": "Defers updating wallet transaction states and abandoning inactive coinbase transactions until `AttachChain` has registered notification handlers, rather than during initial database record loading in `PopulateWalletFromDB`. It also adds a functional test reproducing wallet load behavior while blocks are being processed following an unclean shutdown.",
+  "problem": "When loading a wallet while the node is syncing or actively connecting blocks, transaction states were updated against a moving chain tip before notifications were hooked up. This created a race condition where a child transaction appeared confirmed while its parent coinbase was marked inactive, triggering an assertion failure (`!wtx.isConfirmed()`) and crashing the node (#34599).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "The test block count was reduced from 1000 to 100 to avoid excessive runtime while reliably reproducing the race (rkrux).",
+    "Explicit assertions comparing node and wallet heights were added to the functional test to clarify the test assertions (rkrux, l0rinc).",
+    "Retaining single-pass reverse iteration in `AttachChain` was confirmed to be necessary for performance and recursive abandonment ordering (achow101, l0rinc)."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, passes CI, and all reviewer feedback has been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus that deferring state updates until chain attachment resolves the crash bug (#34599).",
+   "reason": "Multiple contributors reviewed and tested the fix, confirming it eliminates the crash condition without side effects on offline wallet tools.",
+   "evidence": [
+    "shuv-amp tested and ACKed, verifying the test fails before the patch and passes after.",
+    "dergoegge approved after Antithesis testing.",
+    "pablomartin4btc verified the race window in detail and confirmed safety for offline wallet tooling."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds a wallet functional test and registers it in the test runner, but does not alter test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The PR adds a test specifically for wallet chain reconnection rather than modifying testing harnesses, linters, or runners."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies transaction state synchronization and loading sequence in `src/wallet/wallet.cpp` and `src/wallet/walletdb.cpp`.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes a crash-inducing bug reported in issue #34599. Deferring `updateState` and inactive coinbase abandonment until after chain notifications are attached guarantees that transaction state is evaluated against a coherent snapshot rather than a tip that is actively moving during database loading."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves wallet transaction state updating and inactive coinbase abandonment from initial database loading into `AttachChain` once chain notifications are hooked up. It resolves issue #34599, where concurrent block connections during wallet loading caused inconsistent confirmation states and triggered an assertion failure crash. Reviewers have confirmed the fix with functional and Antithesis tests, and the PR has strong consensus."
+ },
+ "raw_text": null
+}

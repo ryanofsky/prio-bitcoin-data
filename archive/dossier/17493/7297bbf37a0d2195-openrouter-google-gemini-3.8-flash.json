@@ -1,0 +1,179 @@
+{
+ "number": 17493,
+ "input_hash": "7297bbf37a0d2195",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:47:57+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28628,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3468
+ },
+ "cost_usd": 0.034476,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reject ambiguous configuration files at startup when single-value settings are specified multiple times",
+    "Prevent configuration settings from being silently ignored"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Based on #16545 and #17580, which should be reviewed first"
+   ],
+   "agreement": [
+    "Concept supported with caution regarding potential startup breakage for existing configs (JeremyRubin)",
+    "Resolved objection: concerns that existing user configs might fail startup were addressed by pointing to release notes (ajtowns)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it improves configuration safety by preventing silently ignored settings",
+      "Unblocks cleanup of reverse-precedence settings parsing logic in #17581"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies configuration file parsing to throw an error at startup if a non-list setting is assigned multiple times within the same configuration section. Instead of silently ignoring all but one value, it alerts the user to the ambiguity. It also adds test coverage and release notes.",
+  "problem": "Currently, assigning multiple values to a single-value option in the config file silently ignores values or relies on confusing precedence rules, which can lead users to believe a configuration was applied when it was actually ignored.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ajtowns expressed concern that valid setups in the wild with duplicate lines could fail on upgrade; conceded that release notes are the appropriate way to handle this and that warnings in debug logs would be overlooked",
+    "JeremyRubin raised whether identical duplicate values should be allowed; consensus leaned toward waiting for real-world demand before adding special cases"
+   ],
+   "author_status": "Active; periodically rebasing the branch on top of base PRs #16545 and #17580."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #16545 first",
+   "reason": "The code is technically reviewable and rebased cleanly, but it stacks on top of unmerged PRs #16545 and #17580 which contain the prerequisite flag infrastructure."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept supported by JeremyRubin; ajtowns raised upgrade breakage concerns but conceded to the approach.",
+   "reason": "JeremyRubin gave a Concept ACK noting the benefits of disallowing ambiguous configs. ajtowns initially raised a weak concept NACK over breaking existing setups upon upgrade, but accepted that release notes and an explicit error are preferable to silent ignores or easily missed warnings.",
+   "evidence": [
+    "JeremyRubin: 'Concept ACK... anything which could be intentionally repeated gets the new flag.'",
+    "ajtowns: 'Weak concept NACK on this... specifying setting=1 \\n setting=2 is something you might plausibly see in the wild, so this change has the potential to cause systems to not restart correctly...'",
+    "ajtowns follow-up: 'I agree a warning everyone will miss isn't that helpful... really that's what release notes and being careful about upgrades are for.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    16545,
+    17580
+   ],
+   "enables": [
+    "#17581"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches .github/workflows/ci.yml solely to increase fetch depth for stacked rebase testing.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system PR."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes doc/release-notes-17493.md and comments in args.h as documentation for a code change, not standalone documentation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The documentation updates accompany a core utility change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds unit and fuzz test coverage specifically for the ArgsManager changes, not general test framework changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests pin the new argument parsing behavior."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly modifies ArgsManager configuration parsing in src/common/config.cpp and src/common/args.cpp.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Improves configuration parsing reliability by throwing explicit errors instead of silently ignoring conflicting directives. As ryanofsky notes: 'Instead of silently ignoring settings, this change makes it an error to provide an ambiguous config file that provides assigns multiple values to a single-value setting.' It also unblocks #17581 to remove confusing reverse-precedence logic."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Updates chain parameter registration flags in src/chainparamsbase.cpp to mark list options explicitly.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change consensus or validation behavior."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Updates -wallet argument registration in src/wallet/init.cpp to include ALLOW_LIST.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Touches wallet initialization only to update argument registration flags."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #17493 modifies ArgsManager so that specifying multiple values for a single-value option in the same section of a configuration file triggers an error at startup. It solves the usability and configuration risk where users inadvertently provide ambiguous options that are silently ignored. The PR depends on base PRs #16545 and #17580, and enables removing confusing reverse-precedence logic in #17581. Agreement is positive: early concerns about startup breakage for existing configs were resolved in discussion."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,93 @@
+{
+ "number": 36132,
+ "input_hash": "dd865d26899ee65f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:55+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12862,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2170
+ },
+ "cost_usd": 0.017784,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Ensure mining transaction lookups return one entry per requested ID even if no mempool is present"
+   ],
+   "reviewability": [
+    "Ready",
+    "Small self-contained fix with tests, questions already answered"
+   ],
+   "agreement": [
+    "Strong support for maintaining interface contract consistency (Sjors, jeanpablojp, enirox001)",
+    "Alternative design question about documenting an error state instead was addressed (optout21, Sjors)"
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P4 because it fixes a theoretical contract violation in an edge case that likely never occurs in production",
+      "Maintains interface symmetry and protects callers from out-of-bounds indexing in test contexts"
+     ]
+    }
+   ]
+  },
+  "summary": "Updates `interfaces::Mining::getTransactionsByTxID` and `getTransactionsByWitnessID` to return a vector sized to the request with null entries when `NodeContext` lacks a mempool, rather than returning an empty vector. It also adds a unit test verifying this behavior.",
+  "problem": "The mining interface contract promises one nullable transaction per requested identifier to allow positional matching by callers. When no mempool is present, returning an empty vector breaks this positional indexing expectation.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Using `BasicTestingSetup` rather than inheriting unused `MinerTestingSetup` in the new unit test (jeanpablojp, fixed by author)",
+    "Whether the interface should throw or redefine the contract on a missing mempool instead (optout21, Sjors)"
+   ],
+   "author_status": "active (addressed test fixture feedback and pushed an update)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly tested, and the alternative contract suggestion raised by a reviewer was answered in discussion."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus with an explicit utACK from Sjors and Concept ACKs, with contract alternatives resolved.",
+   "reason": "Reviewers agreed that returning null entries consistent with missing transactions is preferable to empty vectors or throwing, and the minor design question has been answered.",
+   "evidence": [
+    "Sjors utACKed with rationale explaining why unifying unpopulated and missing mempool states is preferable for callers",
+    "jeanpablojp and enirox001 gave Concept ACKs supporting interface contract consistency",
+    "optout21 asked if redefining the contract would be simpler; Sjors explained why hiding the mempool readiness distinction benefits clients"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Modifies `interfaces::Mining` implementation in `src/node/interfaces.cpp` and adds a mining unit test.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the bug affects a scenario that reviewers note cannot actually occur in production mining workflows. As Sjors and enirox001 noted, `MakeMining` waits for chainstate and mempool initialization, making this primarily an internal interface consistency cleanup."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes `interfaces::Mining` lookup methods so that when no mempool is present, they return a vector matching the requested size filled with null pointers instead of an empty vector. This preserves the interface contract of 1:1 positional mapping between requested IDs and returned results. Reviewers note this scenario is largely theoretical in production because IPC and node startup initialize the mempool first, making this a minor consistency fix. Review state is positive with a utACK from Sjors, clean CI, and no open blockers."
+ },
+ "raw_text": null
+}

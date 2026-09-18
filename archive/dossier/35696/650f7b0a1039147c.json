@@ -1,0 +1,104 @@
+{
+ "number": 35696,
+ "input_hash": "650f7b0a1039147c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6280,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4785
+ },
+ "cost_usd": 0.0316113,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Move the I2P transport's leaseset encryption from legacy ElGamal-only to include newer ECIES-X25519 and post-quantum ML-KEM-768 types, following the I2P project's own recommendation.",
+    "Improves I2P transport security/PQ-readiness for Bitcoin Core users who run over I2P."
+   ],
+   "reviewability": [
+    "Paused: unresolved question over whether to use 6,4 or 6,4,0 and on timing, author has not replied since 2026-07-23 (over a month).",
+    "The code diff itself is trivial and easy to review once the encoding/timing question is settled."
+   ],
+   "agreement": [
+    "Mixed: I2P maintainer zzzi2p ACKs 6,4 as-is and recommends taking it with a release note, while jonatack suggests 6,4,0 or waiting, and janb84 raised fresh network stats afterward with no author response.",
+    "Concept support is present but the exact parameter choice and timing are unresolved between reviewers (jonatack, zzzi2p, janb84)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it strengthens the cryptography used for I2P peer connections, addressing the I2P project's stated deprecation of legacy ElGamal, but the affected population is a small niche of I2P transport users.",
+      "janb84's network data suggests only about 10% of nodes predate the required version, and I2P usage itself is a subset of that, limiting the practical blast radius either way."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes the I2P SAM session parameters used when creating leasesets from `4,0` (ECIES-X25519, ElGamal) to `6,4` (ML-KEM-768/ECIES-X25519, ECIES-X25519), dropping ElGamal support per the I2P project's current recommendation. It is a two-line change confined to src/i2p.cpp affecting how Bitcoin Core negotiates I2P leasesets.",
+  "problem": "The I2P project now considers ElGamal leaseset encryption legacy and recommends moving to ML-KEM-768/ECIES-X25519, which is relevant to Bitcoin Core's I2P transport users who want stronger, PQ-aware I2P sessions. Without this update, nodes keep using older, weaker encryption types by default.",
+  "discussion": {
+   "open_concerns": [
+    "Whether to use `6,4` (breaks compatibility with pre-#29200/v27 I2P peers whose SAM sessions only support ElGamal) or `6,4,0` (Java I2P does not support 3+ types and will fail sessions), per jonatack and zzzi2p's testing.",
+    "Timing: zzzi2p (I2P maintainer) suggests taking this in the next couple releases with a release note rather than immediately; janb84 posted fresh network statistics (2026-08-12) about the ~10% of affected pre-v27 nodes with no author reply since."
+   ],
+   "resolved_concerns": [
+    "Missing release note flagged by kevkevinpal was addressed via a separate PR (#35951) proposed by jonatack.",
+    "janb84's initial Approach NACK over backward-compatibility breakage was walked back after seeing usage stats ('I'm not that concerned anymore about splitting the network')."
+   ],
+   "author_status": "silent since 2026-07-23"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Open question, no author reply",
+   "reason": "jonatack and zzzi2p disagree on whether the leaseSetEncType value should be 6,4 or 6,4,0, and janb84 posted new network-impact data on 2026-08-12 that has gone unanswered; the author (jpk68) has not commented since 2026-07-23, exceeding the waiting-on-author threshold (35 days)."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept-supported but the exact parameter value (6,4 vs 6,4,0) and timing remain unresolved between jonatack and zzzi2p, with author silent since 2026-07-23.",
+   "reason": "kevkevinpal ACKed, jonatack gave concept ACK modulo an alternative (6,4,0), zzzi2p ACKed 6,4 as-is while recommending it be paired with a release note (now filed as #35951), and janb84's Approach NACK was withdrawn but new data was posted without author follow-up.",
+   "evidence": [
+    "kevkevinpal: 'ACK ... I validated that this is the correct change'",
+    "janb84: 'Approach NACK ... breaking backward compatibility ... isn't strong enough' then later 'I'm not that concerned anymore about splitting the network'",
+    "jonatack: 'Concept ACK ... modulo ... it may be better to set 6,4,0 instead'",
+    "zzzi2p: 'ACK to this PR as-is (6,4) ... I recommend maintaining Java I2P compatibility, rather than maintaining compatibility with pre-2024 ... type 0-only bitcoin peers'",
+    "janb84 (2026-08-12): posted updated node-version stats with no reply from author since"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Related release-note PR #35951 documenting the encryption change for v32.0"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "The PR modifies src/i2p.cpp, the I2P SAM session creation logic, which falls under the P2P category's network-type integrations (Tor, I2P, CJDNS).",
+    "band": "P3",
+    "reason_tag": "privacy/security upgrade",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Moves I2P transport off legacy ElGamal toward PQ-aware encryption as recommended by the I2P project (eyedeekay: 'there are good reasons to not use it ... as PQ gets rolled out in I2P, ElGamal will degrade in usability'), but the affected population is narrow: janb84 estimates only ~10% of nodes are pre-v27 and I2P usage itself is a small fraction of the network. zzzi2p, an I2P maintainer, treats the matter as non-urgent ('I wouldn't call it urgent or important. But it should happen at some point')."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the final merged value will be 6,4 or 6,4,0 is unresolved, which changes the actual compatibility tradeoff being assessed.",
+   "No clear read on how large the active I2P user base is within Bitcoin Core, which affects how much real-world impact this has.",
+   "Author's long silence (55 days) is close to but under the 60-day stale threshold; if it continues past that this would become Stale rather than Paused."
+  ],
+  "card": "This PR updates I2P SAM leaseset encryption parameters from `4,0` (ElGamal + ECIES-X25519) to `6,4` (ML-KEM-768/ECIES-X25519 + ECIES-X25519), following the I2P project's recommendation to retire legacy ElGamal. It matters to Bitcoin Core's I2P transport users' security/PQ posture, but the affected population is narrow: janb84 estimates only about 10% of nodes predate the required v26.1+ I2P support, and I2P itself is a minority transport. The change is small (2 lines) but discussion surfaced a real, unresolved tradeoff: jonatack favors `6,4,0` or waiting for backward compatibility with pre-v27 peers, while I2P maintainer zzzi2p endorses `6,4` as-is and calls the urgency low. The author has not responded since 2026-07-23, leaving both the exact parameter choice and fresh network-impact data (posted 2026-08-12 by janb84) unaddressed. A companion release-note PR (#35951) has been filed to document the change for v32.0."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

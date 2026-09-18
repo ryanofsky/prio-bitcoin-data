@@ -1,0 +1,140 @@
+{
+ "number": 35187,
+ "input_hash": "6882d6f4b46439c0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:18:35+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27514,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4831
+ },
+ "cost_usd": 0.03875175,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enable libbitcoinkernel users to validate blocks without maintaining a full local UTXO set.",
+    "Allow external applications to supply spent coins on demand via a callback."
+   ],
+   "reviewability": [
+    "Needs rebase after recent master changes."
+   ],
+   "agreement": [
+    "Concept supported, but an approach debate over callback versus in-memory container remains open (ajtowns).",
+    "Questions open regarding whether assumevalid should skip script checks in this mode (nervana21)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it adds a major capability for external consumers of the kernel library to validate blocks statelessly.",
+      "Directly exercised and needed by rust-bitcoinkernel downstream consumers."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it adds a non-mutating block validation entry point on ChainstateManager without altering consensus or internal validation behavior.",
+      "Serves primarily as an entry point for kernel validation rather than core node operation."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a C API endpoint and C++ wrapper to libbitcoinkernel for validating a block without requiring a complete local UTXO set. A new `ValidateBlock` method is exposed on `ChainstateManager` that executes `CheckBlock`, `ContextualCheckBlock`, and a check-only `ConnectBlock` against a custom `CCoinsViewCache` populated via a user-supplied coin-fetching callback.",
+  "problem": "External consumers of libbitcoinkernel, such as rust-bitcoinkernel or stateless verifiers, cannot validate full blocks without maintaining a complete local chainstate and UTXO database on disk.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns questioned the callback design, preferring an in-memory CoinsDb container to avoid non-deterministic lookups and expose UTXO deltas",
+    "nervana21 noted that ConnectBlock may skip script checks under assumevalid if the block is an ancestor of the assumevalid tip",
+    "optout21 noted the need for direct validation unit tests and more realistic test cases supplying all UTXOs"
+   ],
+   "resolved_concerns": [
+    "Switched from passing raw block undo data or dual arrays to a callback-based coin fetcher",
+    "Fixed coin confirmation height 31-bit limit handling and documented it",
+    "Added outpoint equality checks and unit tests"
+   ],
+   "author_status": "silent for 19 days, needs rebase"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and carries the 'Needs rebase' label."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive concept support, but ajtowns prefers a container over a callback and nervana21 flagged assumevalid script-skipping",
+   "reason": "Reviewers broadly support the capability, with concept ACKs from yuvicc, nervana21, ajtowns, and downstream prototype validation by alexanderwiederin. However, ajtowns raised an open approach objection arguing for an in-memory UTXO container rather than a dynamic callback, and nervana21 questioned whether assumevalid logic should apply during standalone validation.",
+   "evidence": [
+    "yuvicc and nervana21 gave Concept ACK",
+    "alexanderwiederin tested the callback API in rust-bitcoinkernel and supported the design",
+    "ajtowns preferred an in-memory btck_CoinsDb container over a lookup callback to avoid inconsistent lookups and track UTXO deltas",
+    "nervana21 questioned whether assumevalid should bypass script checks in ValidateBlock"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "rust-bitcoinkernel block validation without local UTXO set"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds C API endpoints, wrappers, and test coverage for bitcoinkernel block validation",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Adds API completeness for external consumers wanting to validate blocks statelessly. Alexanderwiederin demonstrated immediate downstream demand by writing a test suite in rust-bitcoinkernel using this interface."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds ChainstateManager::ValidateBlock to src/validation.cpp and src/validation.h",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Exposes a check-only block validation helper on ChainstateManager without altering consensus or internal node validation behavior. It serves primarily as the backing implementation for the kernel entry point."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool policy, data structures, or acceptance logic",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not relevant to mempool."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds a libbitcoinkernel C API and C++ wrapper to validate blocks against user-supplied coins without requiring a complete local UTXO database. It introduces `ChainstateManager::ValidateBlock`, which runs `CheckBlock`, `ContextualCheckBlock`, and a check-only `ConnectBlock` against a caller-provided coin-fetching callback. This allows external library consumers, such as rust-bitcoinkernel or stateless validators, to verify blocks independently of the node's disk state. Concept is well-supported, but the PR needs a rebase, and open design discussions remain regarding callback consistency versus an in-memory container and script-skipping under assumevalid."
+ },
+ "raw_text": null
+}

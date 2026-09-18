@@ -1,0 +1,110 @@
+{
+ "number": 35752,
+ "input_hash": "c95b8775b57293c3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:15+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28491,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3355
+ },
+ "cost_usd": 0.028447575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent wallet corruption and key loss by making encryption and passphrase updates atomic with disk writes.",
+    "Return actionable errors when wallet unlock or passphrase change fails."
+   ],
+   "reviewability": [
+    "Needs rebase against current master due to merge conflicts in wallet code."
+   ],
+   "agreement": [
+    "Strong support from wallet maintainers and contributors prior to recent push (achow101, w0xlt, jeanpablojp).",
+    "Prior review comments regarding transaction aborts and failure propagation have been resolved."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it eliminates silent failures where unpersisted keys or passphrase changes are published to memory but not disk.",
+      "Protects against fund loss and state corruption during disk or database write failures."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request ensures that wallet encryption, descriptor key additions, and passphrase changes update in-memory state only after database writes and transaction commits succeed. It also replaces boolean return values for wallet unlock and passphrase changes with structured error types, allowing callers to distinguish bad passphrases from underlying database or encryption errors. Fault-injection tests are added to verify behavior under database write, erase, and commit failures.",
+  "problem": "Wallet encryption and passphrase changes currently update in-memory key state and database records non-atomically. If a database write or transaction commit fails, the wallet can report success while leaving keys unpersisted or passphrases updated only in memory, risking fund loss upon node restart or leaving wallets unintentionally unlocked.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "achow101 questioned overly complex recovery logic and recommended simple failure propagation over complicated rollback caching.",
+    "w0xlt raised concerns about plaintext erase failures when adding new encrypted keys to already encrypted wallets.",
+    "jeanpablojp identified an issue where SQLite read errors in Exists() could silently skip required key erasures."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts with current master and is labeled Needs rebase."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: approved by achow101, w0xlt, and jeanpablojp on prior commit with all concerns addressed.",
+   "reason": "Multiple wallet contributors and maintainers substantively reviewed and ACKed the change. Reviewers identified edge cases around transaction handling and plaintext erasure, which the author incorporated before the latest rebase.",
+   "evidence": [
+    "achow101 provided Concept ACK and later full ACK on commit 50f07b2",
+    "w0xlt ACKed commit 50f07b2 after reviewing descriptor key propagation",
+    "jeanpablojp tACKed commit 50f07b2 and verified failure handling"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Changes to src/interfaces/wallet.h are mechanical updates returning util::Expected instead of bool to pass through wallet error codes, not changes to IPC architecture.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not an IPC pull request; interface signature adjustments follow solely from wallet refactoring."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies core wallet encryption and passphrase updating logic in src/wallet/wallet.cpp, scriptpubkeyman.cpp, and walletdb.cpp.",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it addresses a fund-safety and corruption defect where database write failures during key generation or encryption could expose unpersisted keys to memory and callers, risking irreversible fund loss if coins are received to keys never committed to disk. While triggered only on local storage or database failure, ensuring atomic synchronization between live key state and SQLite storage provides substantial and durable reliability."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35752 makes wallet encryption, passphrase modification, and descriptor key insertion atomic with their database transactions. It prevents scenarios where database write or commit failures leave the wallet reporting success while keys exist only in memory, preventing fund loss on subsequent restarts. It also introduces structured error returns so users and RPC callers can distinguish between incorrect passphrases and database write errors. The PR had received multiple ACKs from wallet maintainers before falling into merge conflicts, and now requires a clean rebase."
+ },
+ "raw_text": null
+}

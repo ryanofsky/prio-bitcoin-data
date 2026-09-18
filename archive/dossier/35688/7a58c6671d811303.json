@@ -1,0 +1,118 @@
+{
+ "number": 35688,
+ "input_hash": "7a58c6671d811303",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5785,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2300
+ },
+ "cost_usd": 0.0186913,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix a UBSan null-pointer warning that occurs when HMAC is called with an empty key, by using std::copy instead of memcpy.",
+    "Lets crypto fuzz targets exercise empty inputs directly instead of working around the sanitizer warning."
+   ],
+   "reviewability": [
+    "Ready. The author addressed all review feedback, shortened the commit message, and split the eval_script cleanup into its own commit."
+   ],
+   "agreement": [
+    "Strong support with no objections. maflcko suggested the std::copy approach and reviewed closely, sedited gave an ACK (maflcko, sedited)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes a real UBSan warning in a widely used crypto primitive, removing a workaround that forced fuzz targets to avoid empty inputs.",
+      "The fix is small, low risk, and confirmed to produce identical assembly, but the underlying bug was only a sanitizer nuisance, not a functional defect."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it improves fuzz coverage by allowing empty byte vectors into the crypto fuzz target and removes a stale workaround in eval_script fuzzing.",
+      "Improves signal quality for these fuzz targets but is narrow in scope."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces memcpy with std::copy in CHMAC_SHA256 and CHMAC_SHA512 so that empty HMAC keys no longer trigger a UBSan null-pointer warning, since std::copy has defined semantics for empty ranges while memcpy does not. It adds empty-key HMAC test vectors, lets the crypto fuzz target pass empty byte vectors directly instead of resizing them away, and removes a now-stale empty-input guard in the eval_script fuzz target since ConsumeRemainingBytes() already handles the empty case safely.",
+  "problem": "UBSan flags memcpy(dst, nullptr, 0) as passing a null pointer even though the copy length is zero, which previously forced the crypto and eval_script fuzz harnesses to avoid or special-case empty inputs, reducing fuzz coverage of the empty-key/empty-input path.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko questioned the commit message's confusing references to unrelated PR #35010 and asked for a cleaner, shorter message; author rewrote the commit message and split the eval_script change into a separate commit.",
+    "maflcko suggested using std::copy over memcpy with a rationale about type safety and defined semantics for empty ranges; author adopted it and confirmed with a godbolt comparison that generated assembly is identical."
+   ],
+   "author_status": "active, addressed all feedback and force-pushed the requested changes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All review feedback was addressed in a force-push on 2026-07-09: the commit message was cleaned up, std::copy was applied to both HMAC implementations, and the eval_script cleanup was split into its own commit. Nothing indicates further changes are pending."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: maflcko drove the design (std::copy) and raised only commit-message concerns, all resolved; sedited gave a plain ACK with no objections.",
+   "reason": "maflcko's substantive suggestion to use std::copy was adopted and confirmed with benchmarking; his only remaining concern (commit message clarity) was fixed. sedited approved with no reservations.",
+   "evidence": [
+    "maflcko: 'Why not use std::copy? ... copy has defined semantics for empty source ranges in all versions of C++.'",
+    "l0rinc: 'I switched both HMAC copies to std::copy, removed the unrelated references, and shortened the commit messages and PR description.'",
+    "sedited: 'ACK dc67c4cc39062875c6571f9188abc83cfc6e6b90'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner fuzz coverage of empty-input cases in crypto and eval_script fuzz targets."
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies src/test/fuzz/crypto.cpp and src/test/fuzz/eval_script.cpp to remove workarounds for a sanitizer issue, improving fuzz coverage of empty inputs.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Removes stale empty-input guards in two fuzz targets, letting them exercise empty byte vectors directly, described in the commit message: 'ConsumeRemainingBytes() already returns before copying when no bytes remain, so call it directly.' This is a minor but real improvement to fuzz coverage signal quality, not a major capability unlock."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Labeled Utils/log/libs; changes src/crypto/hmac_sha256.cpp and hmac_sha512.cpp, core cryptographic primitives under the utils category's scope.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Fixes a genuine UBSan null-pointer warning in HMAC when passed an empty key, per the description: 'Empty vectors can provide a null data() pointer, which triggers a UBSan null-pointer warning even for zero-length copies.' The fix is correct and confirmed to produce identical assembly via godbolt, but the underlying issue was a sanitizer nuisance rather than a functional or security bug, keeping it in the worthwhile-but-deferrable band."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "No independent confirmation that the UBSan warning actually blocks any CI job today, though the rationale is plausible and technically sound."
+  ],
+  "card": "This PR replaces memcpy with std::copy in CHMAC_SHA256 and CHMAC_SHA512 to fix a UBSan null-pointer warning triggered by empty HMAC keys, since memcpy(dst, nullptr, 0) is technically undefined while std::copy handles empty ranges cleanly. It also removes now-unnecessary empty-input workarounds in the crypto and eval_script fuzz targets, improving their coverage of empty inputs. Reviewer maflcko suggested the std::copy approach and pushed for a cleaner commit message, both of which the author (also a project member) implemented, and reviewer sedited gave a plain ACK. The PR is small, ready for merge, has no open objections, and carries no dependencies on other PRs. Its impact is a minor correctness and test-hygiene fix in shared crypto utility code rather than a user-facing or security-critical change."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

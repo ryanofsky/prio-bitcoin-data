@@ -1,0 +1,112 @@
+{
+ "number": 36280,
+ "input_hash": "0cb9d8e680a22b3d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3966,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2739
+ },
+ "cost_usd": 0.0190673,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes deserializing a compressed UTXO script throw on failure instead of silently returning an empty (anyone-can-spend) script.",
+    "Protects against a corrupted or malformed compressed script record turning an unspendable output into a spendable one."
+   ],
+   "reviewability": [
+    "Ready to review now, nothing pending or blocking."
+   ],
+   "agreement": [
+    "Approach-acked by sedited with no stated objections (sedited)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it closes a chainstate-integrity hazard: a corrupted compressed script currently decompresses silently into an anyone-can-spend script instead of erroring.",
+      "Currently only reachable via corruption/malformed data, not through normal validation, which caps the urgency."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P2 because it adds fuzz and unit coverage for a security-relevant decompression edge case (off-curve and wrong-Y P2PK scripts) that was previously untested.",
+      "Strengthens the fuzz harness's round-trip invariant checking for script compression, a consensus-adjacent code path."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes ScriptCompression::Unser throw std::ios_base::failure when DecompressScript fails, instead of silently leaving the script empty. It adds unit test coverage confirming the throw behavior for an off-curve P2PK, and a new test verifying that a P2PK with a valid X but wrong Y (also unspendable) is stored raw rather than compressed, since compressing it would recompute a valid Y on decompression and make the previously-unspendable output spendable. The fuzz harness for script (de)compression is also strengthened to assert that any successful decompression round-trips back to the same compressed record.",
+  "problem": "ScriptCompression::Unser ignores DecompressScript's return value, so if a compressed script record can't be decompressed (currently only possible via corruption), the resulting script is silently empty, which is consensus-wise anyone-can-spend instead of the intended unspendable off-curve P2PK. This is a latent chainstate-integrity hazard rather than a currently exploitable bug.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, PR just opened same day, force-pushed once"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Small, self-contained diff with no open review comments or known blockers; posted and force-pushed the same day with no pending questions."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Approach ACK from sedited with no substance given and no objections raised.",
+   "reason": "Only one reviewer has commented, giving an Approach ACK; nothing in the discussion contradicts the change, but the ACK is not detailed enough to call Strong.",
+   "evidence": [
+    "sedited: 'Approach ACK'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds unit tests in compress_tests.cpp for off-curve and wrong-Y P2PK compression/decompression behavior, and strengthens the script fuzz target's round-trip assertions, directly touching test infrastructure files (test/fuzz/script.cpp) beyond a single area's pinned behavior.",
+    "band": "P2",
+    "reason_tag": "test coverage",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P2 because the added coverage targets a genuine security-relevant edge case: unspendable off-curve/wrong-Y P2PK scripts and the corresponding compression/decompression round-trip, which the fuzzer previously did not check ('Whatever decompresses must re-compress to the same record' is a new fuzz invariant). This is exactly the kind of high-risk consensus-adjacent path coverage the tests category values, though it is incremental rather than opening new framework capability."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "compressor.h is used by chainstate/coin serialization; the change alters what happens when a compressed script fails to decompress during deserialization, a chainstate-integrity concern explicitly labeled Validation.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P2 because the bug, if triggered, silently converts an unspendable output into anyone-can-spend, a serious chainstate-integrity failure mode, per the description: 'an unspendable off-curve P2PK turns into an anyone-can-spend empty script.' It is capped below P1 because the author and reviewer both note this path is 'currently only reachable through corruption,' not through normal operation, so it is defensive hardening rather than a live exploitable bug."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this bug is reachable in any practical scenario beyond disk/database corruption is not fully explored in the discussion.",
+   "Only one reviewer (Approach ACK) has weighed in so far, so consensus on the exact exception-throwing approach (vs. alternative error handling) is not fully tested."
+  ],
+  "card": "This PR changes ScriptCompression::Unser to throw std::ios_base::failure when a compressed script cannot be decompressed, instead of silently leaving the script empty, which today is equivalent to anyone-can-spend. The author states the worst case is an unspendable off-curve P2PK becoming spendable after corruption, and adds unit and fuzz coverage for that scenario plus a related wrong-Y P2PK case. The bug is currently reachable only through data corruption, not normal validation, so this is a defensive integrity fix rather than an active exploit. One reviewer (sedited) gave an Approach ACK with no stated objections, and the PR is small, fresh, and appears ready for review with nothing pending. No dependencies or blocking issues are noted."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,153 @@
+{
+ "number": 34534,
+ "input_hash": "c8d46f103d7abc3b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:21+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16990,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3447
+ },
+ "cost_usd": 0.020185725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Expose manual prune lock management via RPC and a startup option",
+    "Prevent pruned nodes from discarding blocks required for subsequent wallet rescans"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "No blockers or pending changes known"
+   ],
+   "agreement": [
+    "Concept supported for external and unloaded wallet rescan safety (achow101, stickies-v)",
+    "Reviewed and approved across revisions (sedited)",
+    "Skepticism over whether manual pruning with prune=1 is sufficient (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it exposes a new interface for wallet backends and users to manage block retention on pruned nodes.",
+      "Solves a niche coordination problem between pruned nodes and inactive or external wallets without introducing consensus risk."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it interfaces with blockstorage pruning constraints and adds an init option that can override target prune sizes.",
+      "Touches optional prune-locking mechanisms rather than core consensus validation logic."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds `setprunelock` and `listprunelocks` RPCs, alongside a `-prunelockheight` startup option, to allow manual control over the node's block pruning locks. It exposes the internal BlockManager prune lock system to external wallets and scripts to keep blocks from being pruned while a wallet is temporarily unloaded.",
+  "problem": "On pruned nodes, if a wallet is not loaded while the node runs, blocks necessary for rescanning that wallet later can be deleted. External wallets using bitcoind as a backend also lack an explicit mechanism to lock block heights without reimplementing automatic prune management using `-prune=1` and manual `pruneblockchain` calls.",
+  "discussion": {
+   "open_concerns": [
+    "Andrew Toth questioned whether the motivation is compelling given that existing manual pruning with `-prune=1` and `pruneblockchain` can defer pruning until rescans finish."
+   ],
+   "resolved_concerns": [
+    "luke-jr requested changes on returning an object rather than an array in `listprunelocks` for future extensibility, which was implemented.",
+    "sedited raised concerns about thread safety when copying prune locks in the RPC, which was fixed with an explicit container copy inside `cs_main`.",
+    "rkrux suggested documenting that `-prunelockheight` can cause `-prune` targets to be exceeded, added release notes, and requested test coverage for wallet rescan scenarios, all addressed by the author."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Code is rebased, tests and CI pass, and feedback from reviewers has been addressed."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; sedited approved and stickies-v gave Concept ACK, while andrewtoth questioned whether existing manual pruning suffices.",
+   "reason": "Reviewers who engaged on implementation have approved or had their requests addressed. Andrew Toth questioned the necessity versus existing manual pruning options, which the author answered, but no formal objection or NACK was raised.",
+   "evidence": [
+    "sedited approved the PR: 'Re-ACK 9fa4953f01cab3ab8669b316224b4eeb8433a8d8'",
+    "stickies-v Concept ACKed after achow101 detailed the unloaded wallet rescan use case",
+    "andrewtoth asked whether '-prune=1' and 'pruneblockchain' could achieve the same goal, which fjahr addressed by explaining the burden of managing disk thresholds in client wallets"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Documentation changes consist solely of release notes accompanying the new RPCs and configuration option.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation is not the primary focus of this change."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds `setprunelock` and `listprunelocks` RPC methods in `src/rpc/blockchain.cpp` and carries the `RPC/REST/ZMQ` label.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it introduces new RPC methods that address a real operational limitation for external wallets running against pruned nodes. While achow101 and stickies-v endorse the use case for wallets, downstream applications have not actively queued up demanding this specific interface, making it worthwhile but deferrable."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Adds the `-prunelockheight` argument in `src/init.cpp`, but the option specifically controls block storage pruning behavior rather than shared utility libraries.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "An init argument whose sole purpose is configuring block storage pruning belongs to validation and rpc, not general utilities."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches `src/node/blockstorage.h` and adds an option that alters when block and undo files can be pruned by `BlockManager`.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it affects `BlockManager` pruning behavior and could cause disk consumption to exceed `-prune` configurations if locks are improperly held. It hooks into existing prune lock logic rather than changing consensus or validation rules."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds `setprunelock` and `listprunelocks` RPCs, alongside a `-prunelockheight` startup option, exposing the existing blockstorage prune locks mechanism to external users and tools. It prevents blocks necessary for future rescans from being pruned away when wallets are not continuously loaded on pruned nodes. Reviewers sedited and stickies-v have supported the approach while andrewtoth questioned whether existing manual pruning could suffice. The branch is clean, fully tested, and ready for review."
+ },
+ "raw_text": null
+}

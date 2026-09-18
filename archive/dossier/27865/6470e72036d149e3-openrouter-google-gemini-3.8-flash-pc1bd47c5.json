@@ -1,0 +1,573 @@
+{
+ "number": 27865,
+ "input_hash": "6470e72036d149e3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:18:51+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 59132,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 19291
+ },
+ "cost_usd": 0.108424875,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Accelerate balance queries and coin selection for wallets with large transaction histories.",
+    "Separate definitively unspendable transaction outputs into a distinct container so iteration skips spent coins."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Recent force-pushes addressed review comments without merge conflicts."
+   ],
+   "agreement": [
+    "Broad Concept support with verified 250x to 500x speedups on large wallets (remyers, w0xlt).",
+    "Multiple subtle correctness edge cases were found and fixed during iteration (w0xlt).",
+    "Four nonblocking correctness concerns about edge-case state updates await reviewer confirmation (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it provides massive speedups (250x to 500x in benchmarks) for high-activity wallets.",
+      "Solves severe latency in balance calculation and coin selection caused by scanning spent transaction history."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR optimizes wallet operations by partitioning the in-memory transaction output (TXO) cache into two separate sets: active spendable/unconfirmed TXOs and definitely unusable TXOs. Outputs spent by confirmed transactions or made invalid by conflicting blocks are moved to a dedicated unusable container so that balance checks and coin selection avoid scanning historical spent outputs. It also introduces internal transaction state caching within TXO objects and synchronizes TXO states during reorgs, abandonments, and wallet upgrades.",
+  "problem": "Since PR 27286, the wallet caches all transaction outputs owned by the wallet in memory and iterates over all of them during balance checks and coin selection preparation. In wallets with long transaction histories or hundreds of thousands of historical outputs, this iteration takes seconds per transaction creation, causing noticeable latency for high-activity wallet users.",
+  "discussion": {
+   "open_concerns": [
+    "Outputs unconfirmed by reorg and abandoned may be missing from balance and listunspent until wallet reload due to default min_depth in IsSpent check.",
+    "Block-conflicted outputs can trigger an assertion failure in getbalances after removeprunedfunds due to missing state checks during TXO reconstruction.",
+    "ReorderTransactions and m_from_me upgrades run before LoadWallet confirms load success, rewriting intact records even when loading a corrupted wallet.",
+    "Uninitialized m_from_me optional in CWalletTx leads to libc++ hardening aborts and undefined behavior during fuzz testing."
+   ],
+   "resolved_concerns": [
+    "Optional bool in CachedTxIsTrusted evaluated to true when false, incorrectly treating untrusted zero-conf change as trusted.",
+    "RemoveTxs failed to keep the new m_txos and m_unusable_txos cache sets in sync with deleted transactions.",
+    "MarkTXOUsable inside AddToWallet for inactive transactions re-added confirmed-spent inputs, causing subsequent GetBalance calls to crash on assertion."
+   ],
+   "author_status": "Active; force-pushed updates on 2026-09-14 and 2026-09-15 addressing recent review comments."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has green CI, clean merge status, and was recently force-pushed to address review feedback."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "t-bast",
+     "stance": "neutral",
+     "note": "Expressed interest and delegated testing to remyers"
+    },
+    {
+     "login": "remyers",
+     "stance": "support",
+     "note": "Concept ACK with synthetic wallet benchmarks showing a 250x speedup"
+    },
+    {
+     "login": "murchandamus",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "jonatack",
+     "stance": "support",
+     "note": "Concept ACK conditional on performance improvement for large wallets"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "Grammar correction in test code comment"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "Identified multiple subtle state synchronization bugs and benchmarked a 508x speedup"
+    },
+    {
+     "login": "Zeegaths",
+     "stance": "support",
+     "note": "Tested on regtest showing a 31% speedup on listunspent"
+    },
+    {
+     "login": "rkrux",
+     "stance": "support",
+     "note": "Concept ACK as a natural follow-up to PR 27286"
+    },
+    {
+     "login": "brunoerg",
+     "stance": "neutral",
+     "note": "Provided mutation testing analysis with a 94.8% mutation score"
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "objection",
+     "note": "Concept ACK but reported edge-case bugs in reorg/abandon, removeprunedfunds, wallet loading, and fuzzing"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Populated optional bool evaluated to true in conditional check even when value was false, treating untrusted zero-conf change as trusted",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-22: 'm_from_me = false passes because a populated optional converts to true'",
+     "resolution_evidence": "2026-05-26: 'Fixed. The unit test is not meaningfully helpful.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "CWallet::RemoveTxs did not maintain TXO cache sets, leading to desynchronization between mapWallet and m_txos/m_unusable_txos",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-23: 'CWallet::RemoveTxs() deletes wallet transactions, but it was not keeping the new TXO caches (m_txos and m_unusable_txos) in sync.'",
+     "resolution_evidence": "2026-07-01: 'Checking the states to revert them was starting to get a bit complicated, so I ended up doing the overkill thing of recomputing all of the TXOs after removing any transaction.'",
+     "sources": [
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Committing an inactive double-spend transaction moved confirmed-spent inputs into m_txos, causing assertion aborts in GetBalance",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-02: 'AddToWallet()\\'s isInactive() branch marks the inputs of an inactive tx usable again without checking whether another confirmed tx still spends them, which lets a confirmed-spent TXO back into m_txos and trips the new Assert(!wallet.IsSpent(outpoint, 1)) in GetBalance()'",
+     "resolution_evidence": "2026-07-02: 'I\\'ve changed MarkTXOUsable to always do an IsSpent check. Added a test in an earlier commit as well.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "correctness",
+     "harm": "Spendable coins missing from balance and listunspent after reorg and abandontransaction until wallet is reloaded due to min_depth default in IsSpent",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-27: 'After a reorg and abandontransaction, an output that should be spendable again is missing from the balance and from listunspent until the wallet is reloaded.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "dossier",
+      "dossier",
+      "dossier",
+      "thread",
+      "thread",
+      "thread",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "remyers",
+     "reason": "Measured a 250x speedup in fundrawtransaction on a large synthetic test wallet",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Verified a 508x speedup on high-history wallet benchmark in PR 34360",
+     "substantive": true
+    },
+    {
+     "reviewer": "Zeegaths",
+     "reason": "Reported a 31% speedup in listunspent on high-activity regtest setup",
+     "substantive": true
+    },
+    {
+     "reviewer": "murchandamus",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "jonatack",
+     "reason": "Concept ACK if it improves performance for wallets with many transactions",
+     "substantive": true
+    },
+    {
+     "reviewer": "rkrux",
+     "reason": "Concept ACK as a natural next step following PR 27286",
+     "substantive": true
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Blocked",
+   "summary": "Blocked: blocking objection open with no author reply (jeanpablojp)",
+   "reason": "Reviewers strongly support the PR's optimization, with benchmarks confirming 250x to 500x speedups for large wallets. While multiple previous bugs raised by w0xlt were fixed, jeanpablojp identified four concrete correctness edge cases on 2026-08-27; the author has pushed updates but has not yet commented to confirm resolution.",
+   "evidence": [
+    "remyers reported fundrawtransaction latency dropped from ~5s to ~20ms (250x speedup)",
+    "w0xlt benchmarked a ~508x speedup on WalletBalanceManySpent",
+    "w0xlt identified and helped fix several state synchronization bugs",
+    "jeanpablojp raised four edge cases regarding reorg/abandon balance updates, removeprunedfunds asserts, wallet load error handling, and uninitialized fuzz state"
+   ],
+   "model_state": "Mild",
+   "derivation": "blocking objection open with no author reply (jeanpablojp)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Blocked",
+    "derived": "Blocked",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "a false m_from_me boolean in an optional evaluated to true in CachedTxIsTrusted, treating untrusted zero-conf transactions as trusted",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-22: `m_from_me = false` passes because a populated optional converts to `true`",
+      "resolution_evidence": "2026-05-26: Fixed. The unit test is not meaningfully helpful."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "RefreshTXOsFromTx refreshed TXOs during legacy wallet migration before updating m_from_me, resulting in stale TXO metadata",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-23: `RefreshTXOsFromTx(*wtx)` creates or updates `WalletTXO` entries using the current `wtx->m_from_me` value... the refresh needs to happen after that assignment.",
+      "resolution_evidence": "2026-05-26: Fixed, but the issue is not reachable and the unit test is not meaningfully helpful."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "RemoveTxs erased transactions without properly updating the usable and unusable TXO sets",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-23: `CWallet::RemoveTxs()` deletes wallet transactions, but it was not keeping the new TXO caches (`m_txos` and `m_unusable_txos`) in sync.",
+      "resolution_evidence": "2026-07-01: Checking the states to revert them was starting to get a bit complicated, so I ended up doing the overkill thing of recomputing all of the TXOs after removing any transaction."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "safety",
+      "harm": "AddToWallet's isInactive branch marked inputs usable without verifying if another confirmed transaction spent them, triggering an assertion failure in GetBalance that crashes the node",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-02: `AddToWallet()`'s `isInactive()` branch marks the inputs of an inactive tx usable again without checking whether another **confirmed** tx still spends them, which lets a confirmed-spent TXO back into `m_txos` and trips the new `Assert(!wallet.IsSpent(outpoint, 1))` in `GetBalance()`, aborting the node on every subsequent balance query.",
+      "resolution_evidence": "2026-07-02: I've changed `MarkTXOUsable` to always do an `IsSpent` check. Added a test in an earlier commit as well."
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "after a reorg and abandontransaction, outputs that should be spendable remain missing from balances and listunspent until the wallet is reloaded",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: After a reorg and `abandontransaction`, an output that should be spendable again is missing from the balance and from `listunspent` until the wallet is reloaded.",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "safety",
+      "harm": "calling removeprunedfunds on a block-conflicted output causes an assertion abort (Assert(tx_depth >= 0)) in getbalances, terminating the node",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: And after `removeprunedfunds`, a block-conflicted output can take the node down on the next `getbalances`, tripping `Assert(tx_depth >= 0)`.",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "running the transaction upgrade and reorder loops prior to returning on database load errors causes intact records to be rewritten even when loading a corrupted wallet fails",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: `ReorderTransactions` used to sit after `LoadWallet`'s `if (result != DBErrors::LOAD_OK) return result;`, and now both it and the new upgrade loop run before that return. With one corrupt `tx` record, `loadwallet` fails and the intact records still get rewritten",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "safety",
+      "harm": "uninitialized optional m_from_me in CWalletTx triggers undefined behavior and libc++ assertion aborts in fuzz tests",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: `m_from_me` is an `optional<bool>` and `CWalletTx(tx, state)` doesn't set it. That's the three red fuzz jobs, all on `wallet_create_transaction`, with UBSan reporting `invalid-enum-load` and MSan the libc++ hardening assertion on `operator*`.",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "remyers",
+      "reason": "measured a 250x speedup on fundrawtransaction on large wallets",
+      "substantive": true
+     },
+     {
+      "reviewer": "murchandamus",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "jonatack",
+      "reason": "Concept ACK pending prerequisite PR #27286 to improve wallet performance with many transactions",
+      "substantive": true
+     },
+     {
+      "reviewer": "Zeegaths",
+      "reason": "benchmarked regtest wallet operations and confirmed 31% speedup on listunspent",
+      "substantive": true
+     },
+     {
+      "reviewer": "rkrux",
+      "reason": "Concept ACK as a natural step after PR #27286",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "measured ~508x speedup and ACKed the implementation",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "t-bast",
+      "stance": "neutral",
+      "note": "noted interest and said remyers would test and review"
+     },
+     {
+      "login": "remyers",
+      "stance": "support",
+      "note": "concept ACKed and measured a 250x speedup on a large synthetic test wallet"
+     },
+     {
+      "login": "murchandamus",
+      "stance": "support",
+      "note": "concept ACK"
+     },
+     {
+      "login": "jonatack",
+      "stance": "support",
+      "note": "concept ACK pending prerequisite PR #27286"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "pointed out a grammar typo in test comments"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "benchmarked and ACKed earlier iterations, but reported multiple correctness bugs and assertion crashes"
+     },
+     {
+      "login": "Zeegaths",
+      "stance": "support",
+      "note": "benchmarked against master on regtest, observing 31% speedup on listunspent"
+     },
+     {
+      "login": "rkrux",
+      "stance": "support",
+      "note": "concept ACK"
+     },
+     {
+      "login": "brunoerg",
+      "stance": "neutral",
+      "note": "ran mutation testing on wallet.cpp and reported unkilled mutants"
+     },
+     {
+      "login": "jeanpablojp",
+      "stance": "objection",
+      "note": "concept ACKed the idea but reported assertion aborts, balance discrepancies after reorgs, db corruption on load failure, and fuzz failures"
+     }
+    ],
+    "corrections": [],
+    "summary": "Blocked: jeanpablojp reported assertion crashes in getbalances, fuzz failures, and database rewrites on corrupt loads; author has not replied since 2026-08.",
+    "usage": {
+     "input_tokens": 17610,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 8423
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Populated optional bool evaluated to true in conditional check even when value was false, treating untrusted zero-conf change as trusted",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-22: 'm_from_me = false passes because a populated optional converts to true'",
+      "resolution_evidence": "2026-05-26: 'Fixed. The unit test is not meaningfully helpful.'"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "CWallet::RemoveTxs did not maintain TXO cache sets, leading to desynchronization between mapWallet and m_txos/m_unusable_txos",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-23: 'CWallet::RemoveTxs() deletes wallet transactions, but it was not keeping the new TXO caches (m_txos and m_unusable_txos) in sync.'",
+      "resolution_evidence": "2026-07-01: 'Checking the states to revert them was starting to get a bit complicated, so I ended up doing the overkill thing of recomputing all of the TXOs after removing any transaction.'"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Committing an inactive double-spend transaction moved confirmed-spent inputs into m_txos, causing assertion aborts in GetBalance",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-02: 'AddToWallet()\\'s isInactive() branch marks the inputs of an inactive tx usable again without checking whether another confirmed tx still spends them, which lets a confirmed-spent TXO back into m_txos and trips the new Assert(!wallet.IsSpent(outpoint, 1)) in GetBalance()'",
+      "resolution_evidence": "2026-07-02: 'I\\'ve changed MarkTXOUsable to always do an IsSpent check. Added a test in an earlier commit as well.'"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Spendable coins missing from balance and listunspent after reorg and abandontransaction until wallet is reloaded due to min_depth default in IsSpent",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'After a reorg and abandontransaction, an output that should be spendable again is missing from the balance and from listunspent until the wallet is reloaded.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Block-conflicted output can trigger node assertion crash in getbalances after removeprunedfunds",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'And after removeprunedfunds, a block-conflicted output can take the node down on the next getbalances, tripping Assert(tx_depth >= 0).'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "ReorderTransactions and upgrades execute before LoadWallet error check, rewriting records even when wallet load fails from corruption",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'ReorderTransactions used to sit after LoadWallet\\'s if (result != DBErrors::LOAD_OK) return result;, and now both it and the new upgrade loop run before that return. With one corrupt tx record, loadwallet fails and the intact records still get rewritten'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "safety",
+      "harm": "Uninitialized m_from_me optional causes undefined behavior and assertion aborts in fuzz target wallet_create_transaction",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": true,
+      "status": "open",
+      "evidence": "2026-08-27: 'm_from_me is an optional<bool> and CWalletTx(tx, state) doesn\\'t set it. That\\'s the three red fuzz jobs, all on wallet_create_transaction, with UBSan reporting invalid-enum-load and MSan the libc++ hardening assertion on operator*.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "remyers",
+      "reason": "Measured a 250x speedup in fundrawtransaction on a large synthetic test wallet",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Verified a 508x speedup on high-history wallet benchmark in PR 34360",
+      "substantive": true
+     },
+     {
+      "reviewer": "Zeegaths",
+      "reason": "Reported a 31% speedup in listunspent on high-activity regtest setup",
+      "substantive": true
+     },
+     {
+      "reviewer": "murchandamus",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "jonatack",
+      "reason": "Concept ACK if it improves performance for wallets with many transactions",
+      "substantive": false
+     },
+     {
+      "reviewer": "rkrux",
+      "reason": "Concept ACK as a natural next step following PR 27286",
+      "substantive": false
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Wallet benchmark PR 34360"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly refactors wallet transaction output tracking, spend analysis, and balance calculation in src/wallet/.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it addresses a severe, measurable performance bottleneck in large wallets, speeding up balance checks and coin selection preparation by 250x to 500x. remyers noted on 2023-09-12 that 'on a large synthetic test wallet I\\'m seeing a 250x speed up... ~5 seconds using v25.99.0... ~20 milliseconds using latest wallet-unspent-txos'. While normal wallets do not suffer as badly, this removal of O(total transactions) iteration is essential for high-activity nodes such as exchanges, payment processors, and Lightning nodes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 27865 segregates definitively unusable wallet transaction outputs (those confirmed spent or conflicted by reorgs) into a separate container so that routine wallet operations like balance calculation and coin selection do not scan the entire transaction history. This delivers dramatic performance improvements for high-activity wallets, with benchmarks demonstrating 250x to 500x speedups for fundrawtransaction and balance queries. Concept agreement is strong across multiple contributors and maintainers, though several subtle edge-case bugs in state synchronization and cache invalidation have required repeated refinement. Four nonblocking concerns regarding edge-case balance updates and crash scenarios raised by jeanpablojp remain open pending confirmation of recent force-pushes."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.04479375
+}

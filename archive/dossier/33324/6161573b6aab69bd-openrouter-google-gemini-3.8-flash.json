@@ -1,0 +1,148 @@
+{
+ "number": 33324,
+ "input_hash": "6161573b6aab69bd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:16:36+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29098,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5418
+ },
+ "cost_usd": 0.042141,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow node operators to obfuscate or rotate XOR keys for existing block and undo files without resyncing the blockchain",
+    "Provide a crash-safe, resumable file migration process via the -reobfuscate-blocks startup option"
+   ],
+   "reviewability": [
+    "Needs rebase against current master due to merge conflicts"
+   ],
+   "agreement": [
+    "Approval with substantive review and testing after hardening error handling and argument parsing (sedited)",
+    "Co-authored contributions and performance benchmarks on file chunking and progress reporting (ajtowns)",
+    "Unresolved design question whether this should be a standalone CLI utility rather than a daemon startup option (stickies-v, luke-jr, sedited)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it solves a real pain point for nodes synced before v28 by obfuscating existing block files to prevent antivirus false positives without requiring a full resync",
+      "It is an optional, one-time offline maintenance migration that is safely deferrable and does not impact normal consensus or validation runtime"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces the `-reobfuscate-blocks` startup option to migrate existing block and undo files (`blk*.dat` and `rev*.dat`) under a new or random XOR obfuscation key. The migration rewrites files in fixed-size chunks to temporary staged files, preserves file timestamps, commits directory changes to disk for crash safety, and is resumable if interrupted. It also adds progress reporting through kernel notifications and tests covering key rotation and interruption recovery.",
+  "problem": "Nodes that were synced prior to Bitcoin Core v28 store block and undo files without XOR obfuscation using a zero key, leaving them susceptible to false-positive deletion or quarantine by antivirus scanners. Currently, node operators cannot obfuscate existing block files or rotate XOR keys without redownloading the entire blockchain.",
+  "discussion": {
+   "open_concerns": [
+    "Whether block reobfuscation should be a bitcoind startup flag or a separate CLI utility binary such as part of bitcoin-util"
+   ],
+   "resolved_concerns": [
+    "Reading entire block files into memory at once was replaced with chunked 1 MiB stream processing",
+    "Preserving block file modification timestamps across the rewrite",
+    "Handling pruned node datadirs where early block files are missing",
+    "Replacing filesystem assertion aborts with recoverable runtime error handling",
+    "Restricting argument parsing so invalid hex keys fail immediately on startup"
+   ],
+   "author_status": "Active; rebased and pushed I/O error-handling hardening recently, but the PR has since developed merge conflicts."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and carries the Needs rebase label."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "sedited approved after hardening; stickies-v and luke-jr questioned in-node startup flag versus a separate tool",
+   "reason": "Reviewers support the functionality and have contributed improvements, with sedited approving the code after extensive iteration. However, multiple contributors noted an architectural preference for an external CLI tool rather than adding another one-off startup option to the daemon, though sedited accepted shipping it in the node first.",
+   "evidence": [
+    "sedited approved the PR (ACK 181753328a8e27c7fac5300a44885843c3b6855f) after review iterations on startup parsing and error handling",
+    "ajtowns suggested chunking, timestamp preservation, and benchmarked multi-threading options, co-authoring commits",
+    "stickies-v gave Concept ACK but suggested bundling into a utility like bitcoin-util instead of a startup flag",
+    "luke-jr agreed that a separate standalone utility would be cleaner than daemon startup code"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Touches src/index/base.cpp and related index files solely to remove an unused f_obfuscate parameter from BaseIndex::DB call sites, without changing index functionality.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental cleanup of an unused parameter in BaseIndex constructors; not a substantive index change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds test/functional/feature_reobfuscation.py to test the new block reobfuscation feature; does not modify test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Feature test addition belongs to the feature area (validation/blockstorage), not test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Adds small helper methods to Obfuscation and updates DirectoryCommit return status specifically to support block file migration.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Utility changes are localized helpers directly supporting the block storage migration rather than broad utility changes."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Substantially modifies block and undo file storage and initialization logic in src/node/blockstorage.cpp and src/init.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Provides a useful maintenance feature allowing node operators with pre-v28 datadirs to obfuscate their block files against antivirus interference without resyncing from scratch. Because this is an optional one-off migration and existing nodes run fine without it, it is worthwhile but reasonably deferrable."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Adds a -reobfuscate-blocks startup option to bitcoind to rewrite existing block and undo files with a random or user-specified XOR key in a crash-safe, resumable manner. This solves the problem where datadirs synced before v28 remain unobfuscated and subject to antivirus false-positive file corruption unless the user completely redownloads the blockchain. The PR has seen active review and approval from sedited with contributions from ajtowns, though stickies-v and luke-jr raised design questions regarding whether this belongs in the daemon or as an external utility. It currently needs a rebase to resolve merge conflicts with master."
+ },
+ "raw_text": null
+}

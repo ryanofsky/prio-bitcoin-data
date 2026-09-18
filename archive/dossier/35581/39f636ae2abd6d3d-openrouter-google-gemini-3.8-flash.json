@@ -1,0 +1,250 @@
+{
+ "number": 35581,
+ "input_hash": "39f636ae2abd6d3d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:47+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30329,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3606
+ },
+ "cost_usd": 0.03626925,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Avoid rebuilding full block templates on every tick in waitNext by tracking fee inflow via mempool updates",
+    "Consolidate mining and template creation helpers into a BlockTemplateManager"
+   ],
+   "reviewability": [
+    "Review #35675 first, which extracts the BlockTemplateManager base commits from this PR",
+    "Draft status reflects the stack dependency on #35675 rather than pending work"
+   ],
+   "agreement": [
+    "Strong conceptual support for separating the manager and tracking incremental chunk inflow (w0xlt, pablomartin4btc)",
+    "Author followed Sjors's request to split the base BlockTemplateManager into #35675 (Sjors, ismaelsadeeq)"
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it eliminates repeated cs_main locking and full block assembly on every waitNext tick",
+      "Replaces CPU-intensive polling with event-driven fee diagram tracking for external mining template providers"
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it caches staging diagram chunks and surfaces asynchronous MempoolUpdated notifications for fee rate deltas",
+      "Unblocks efficient external fee tracking without modifying core mempool validation rules"
+     ]
+    }
+   ]
+  },
+  "summary": "Introduces BlockTemplateManager to manage block creation, tip tracking, and submission state, while using mempool diagram notifications to incrementally track fee inflow for waitNext instead of rebuilding full templates every polling tick. It also updates template consumers across RPC and testing to avoid unnecessary full-block copies.",
+  "problem": "Currently, waitNext repeatedly locks cs_main and assembles a full block template on every tick merely to detect if mempool fee inflow warrants an updated template. In addition, mining free functions scattered in miner.cpp require threading ChainstateManager and KernelNotifications redundantly.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Sjors suggested splitting out BlockTemplateManager as a standalone preparatory PR; author split it into #35675.",
+    "pablomartin4btc raised minor doc and comment questions on IsStale and waitNext comments, addressed in #35675."
+   ],
+   "author_status": "active, split off base PR #35675 and keeping stack rebased"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35675 first",
+   "reason": "This PR is stacked on #35675, which isolates the initial BlockTemplateManager refactoring. Reviewing #35675 first avoids reviewing duplicate base commits."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support; feedback led to splitting out #35675 which author completed",
+   "reason": "Reviewers agreed on both the architectural consolidation and using cluster mempool fee-rate diagrams for inflow detection. The request to split out the base manager was promptly implemented.",
+   "evidence": [
+    "w0xlt Concept ACKed.",
+    "Sjors suggested splitting BlockTemplateManager into its own PR so other work could build on it.",
+    "pablomartin4btc Concept ACKed, praising the incremental snapshot tracking and note that the manager fuzz harness found an existing bug (#35580)."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35675
+   ],
+   "enables": [
+    "https://delvingbitcoin.org/t/determining-blocktemplate-fee-increase-using-fee-rate-diagram/2052",
+    "#33922"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Refactors block template generation, waitNext fee staleness tracking, and introduces BlockTemplateManager in src/node/miner.cpp.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because replacing full block assembly on every waitNext poll with incremental chunk-fee tracking removes unnecessary cs_main lock contention and CPU load during block generation for mining pools. It delivers meaningful operational benefits to Stratum v2 and mining template consumers."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Touches src/txmempool.cpp and ChangeSet to snapshot fee rate diagram chunks and introduce MempoolUpdated validation interface signals.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because caching fee rate diagram chunks in ChangeSet and emitting MempoolUpdated provides a clean event hook for subsystems tracking fee rate updates without holding the mempool lock, but does not alter mempool acceptance policy or data structures."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Only updates IWYU exclusion pattern in CI script to cover the new block_template_manager file.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not build category; the CI test script update is mechanical bookkeeping for a newly added source file."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Touches node/interfaces.cpp to call BlockTemplateManager, but does not modify IPC communication, serialization, or multiprocess protocols.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per IPC guidelines, a mining PR that adjusts interfaces::Mining or node context without altering IPC infrastructure belongs to mining, not IPC."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Adds MemPoolChunk structs to src/kernel/mempool_entry.h purely as data structures without altering libbitcoinkernel boundary APIs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The header addition is internal mempool plumbing and does not affect the kernel library API."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Updates getblocktemplate and server_util to fetch the template manager and avoid copying block internals.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change RPC interfaces, schemas, or RPC server mechanics; changes to src/rpc/mining.cpp are call-site adjustments following from the mining refactor."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds fuzz and unit test targets specifically exercising BlockTemplateManager and mempool chunk updates.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests pin the new mining and mempool manager functionality rather than modifying the general test framework."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Extracts GetHashFromWitnesses helper to util/hasher.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The hasher utility helper is incidental refactoring to support chunk hashing."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Adds MempoolUpdated to ValidationSignals and passes block height into removeForBlock in validation.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter consensus validity or chainstate invariants; signal plumbing in validationinterface serves mempool and mining consumers."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only updates wallet fuzz setup to reset BlockTemplateManager when recreating the mempool.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not wallet-related; the test fixture adjustment is mechanical."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35581 introduces a BlockTemplateManager and implements incremental fee-inflow tracking for waitNext, eliminating the need to lock cs_main and construct complete block templates on every polling tick. This provides significant CPU and lock contention relief for mining operations and template providers. Review is currently best focused on base PR 35675, which extracts the BlockTemplateManager groundwork at reviewer request. Concept support is strong, with fuzz tests already having identified an upstream mining bug (#35580)."
+ },
+ "raw_text": null
+}

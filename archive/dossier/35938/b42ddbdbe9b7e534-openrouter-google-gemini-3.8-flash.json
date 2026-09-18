@@ -1,0 +1,111 @@
+{
+ "number": 35938,
+ "input_hash": "b42ddbdbe9b7e534",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:08+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13864,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4165
+ },
+ "cost_usd": 0.02601675,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent bitcoind from overwriting a lost block XOR key with a null key",
+    "Avoid bad -reindex advice that silently discards intact block data"
+   ],
+   "reviewability": [
+    "Ready to review"
+   ],
+   "agreement": [
+    "Concept NACK citing low priority for handling local tampering (l0rinc)",
+    "Alternative approach suggested to improve corruption detection prompts (sedited)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it prevents destructive recovery advice when an XOR key is missing",
+      "Protects users from wiping block indices and forcing an unnecessary full resync"
+     ]
+    }
+   ]
+  },
+  "summary": "Detects whether existing block files are XOR-obfuscated when `blocks/xor.dat` is missing by inspecting block magic bytes. Instead of silently storing an all-zero XOR key and prompting users to perform a destructive `-reindex`, the node fails startup with an explicit error directing the user to restore the key or resync.",
+  "problem": "When `blocks/xor.dat` is missing, bitcoind assumes the blocks directory is either fresh or pre-v28 and stores a null XOR key. This makes existing obfuscated block data unreadable, falsely reports database corruption, and encourages a `-reindex` that silently resets the chain to height 0 and writes over genesis data.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc Concept NACKed, arguing that handling data loss from local tampering is not a priority compared to bigger issues.",
+    "sedited suggested the logic is too involved and preferred improving corruption detection so it does not trigger a reindex prompt on unreadable block files."
+   ],
+   "resolved_concerns": [
+    "sedited questioned a doc/files.md change in an earlier push, which the author subsequently dropped."
+   ],
+   "author_status": "active; responded to review feedback and force-pushed updates"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, there are no merge conflicts, and no blocking author action is pending."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc Concept NACKs as low priority; sedited suggested fixing the corruption prompt instead",
+   "reason": "l0rinc posted a Concept NACK arguing that graceful recovery from local tinkering is low priority. sedited questioned the approach and suggested adjusting the corruption prompt instead, to which the author explained why suppressing reindex prompts globally would harm valid use cases.",
+   "evidence": [
+    "l0rinc: 'We don't usually handle it gracefully when someone was fiddling with the local data... I think this isn't a priority: NACK.'",
+    "sedited: 'From what I can tell from your description the actual problem is that the current corruption detection logic will prompt a user to reindex... I think it would be preferable to improve that instead'",
+    "kwsantiago: 'That same error also covers problems where reindexing is the right fix, so suppressing the prompt across the board would hurt users that it currently helps'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Initial doc/files.md modification was removed in the latest force-push.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not touch documentation files."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches block file storage logic in src/node/blockstorage.cpp.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Addresses a genuine UX and data preservation failure where a missing 8-byte XOR key causes the node to suggest a reindex that silently discards the block index. While requiring out-of-band file deletion or storage faults to trigger, preventing destructive actions on intact block storage is worthwhile."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR checks whether existing block files are obfuscated when `blocks/xor.dat` is missing, failing startup with an explicit error instead of writing an all-zero key. Currently, bitcoind falsely reports database corruption and suggests running `-reindex`, which silently truncates the chain to height 0 and leaves intact block files unreadable. The change prevents irreversible reindexing when block data is still recoverable from backup keys. The PR is ready for review but currently disputed due to a Concept NACK from l0rinc regarding whether handling local data tampering is worth prioritizing."
+ },
+ "raw_text": null
+}

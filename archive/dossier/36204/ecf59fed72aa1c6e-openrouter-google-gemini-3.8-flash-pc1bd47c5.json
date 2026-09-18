@@ -1,0 +1,125 @@
+{
+ "number": 36204,
+ "input_hash": "ecf59fed72aa1c6e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:49:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19868,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3792
+ },
+ "cost_usd": 0.029121,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent slow or malicious HTTP clients from holding RPC connection slots indefinitely by sending incomplete requests."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "Clean diff with dedicated unit and functional tests."
+   ],
+   "agreement": [
+    "Concept approval with review feedback on timeout handling and tests (hodlinator)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it fixes a connection slot exhaustion vulnerability in the HTTP server.",
+      "Prevents unauthenticated clients from starving the node of RPC connections using slowloris-style trickled data."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces an HTTP request completion deadline to prevent clients from monopolizing connection slots indefinitely. Previously, -rpcservertimeout only checked for socket inactivity, allowing a client to keep a slot occupied by trickling request bytes slowly enough to avoid the idle timeout. The fix arms a non-resettable deadline upon receiving the first byte of a request, terminating connections that fail to finish sending their request within the timeout window.",
+  "problem": "Because -rpcservertimeout resets whenever bytes are read, an unauthenticated client trickling data can consume an RPC connection slot forever without ever finishing an HTTP request. With connection slots capped by -rpcmaxconnections (default 16), a handful of trickling sockets can exhaust all available slots and block all subsequent RPC calls.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Reviewer hodlinator suggested micro-optimizing condition evaluation ordering, which the author pushed back on due to branch likelihood and register caching.",
+    "Reviewer hodlinator suggested adopting mockable steady clock infrastructure from #36159; left as follow-up since #36159 has not merged."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, CI passes, and the author addressed reviewer feedback in recent updates."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "hodlinator",
+     "stance": "support",
+     "note": "Concept ACK and review comments on timeout logic, condition ordering, and test coverage"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "hodlinator",
+     "kind": "approach",
+     "harm": "Suboptimal condition check ordering could cause minor unnecessary evaluation overhead",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-09-11: \"nanonit: Feels like !m_req_busy would be the cheapest check and be the first one (same for is_idle).\"",
+     "resolution_evidence": "2026-09-14: \"Have to pushback on this one, m_req_busy is mostly false so the negate makes that true. It would cause an extra check that is mostly true and therefor does not short the evaluation.\""
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "hodlinator",
+     "reason": "Concept ACK 537944cb7869039912139793b58bc6296b64eebe",
+     "substantive": false
+    }
+   ],
+   "state": "Positive",
+   "summary": "Positive, with Concept ACK and review suggestions addressed (hodlinator)",
+   "reason": "The change received a Concept ACK from hodlinator with several suggestions on tests and timeout handling, all of which were addressed or answered by the author.",
+   "evidence": [
+    "2026-09-11 hodlinator: \"Concept ACK 537944cb7869039912139793b58bc6296b64eebe\"",
+    "2026-09-14 janb84: addressed review feedback and updated tests"
+   ],
+   "model_state": "Positive",
+   "derivation": "support without stated reasons, no open objection (hodlinator)",
+   "corrections": [],
+   "thread_read": {
+    "error": "HTTP 402: {\"error\":{\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"code\":402,\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retr"
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies src/httpserver.cpp and src/httpserver.h to manage client timeouts and connection lifecycles.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Prevents HTTP connection slot exhaustion through slowloris-style trickled requests. While RPC typically listens on localhost by default, unauthenticated local or network clients can starve all connection slots without reaching authentication."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Adds a completion deadline for incoming HTTP requests so clients cannot monopolize connection slots by trickling data indefinitely. Currently, the idle timeout resets on every received byte, allowing an attacker or slow client to exhaust -rpcmaxconnections without ever sending a full request or reaching authentication. Reviewer hodlinator provided a Concept ACK and detailed review comments that the author addressed. The PR is ready for review with unit and functional test coverage."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5"
+}

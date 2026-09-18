@@ -1,0 +1,172 @@
+{
+ "number": 36126,
+ "input_hash": "2da0d8dc938a6ad7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20149,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4771
+ },
+ "cost_usd": 0.0454103,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a persistent per-key label (by master key fingerprint) so multisig participants and hardware wallets can be identified, with new RPCs and GUI interfaces to set, get and list labels."
+   ],
+   "reviewability": [
+    "Not ready right now: the author marked the PR draft and said it will stay open until the project decides whether key labels should exist at all."
+   ],
+   "agreement": [
+    "Unresolved objection from achow101 (maintainer): scope mismatch with what was discussed and a correctness objection that fingerprints are collidable, not addressed with a fix (achow101).",
+    "Additional skepticism about value versus maintenance cost (rkrux).",
+    "Concept and approach support from several reviewers who tested the RPCs (jeanpablojp, Eunovo, vicjuma).",
+    "Author agrees the concept needs to be settled first and paused the PR pending that decision (polespinasa)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it is a genuine, requested UX improvement (multisig cosigner/HW identification, comparable to Sparrow Wallet per the author) but is not fund-safety critical and is explicitly disputed at the concept level, with a maintainer flagging that fingerprints can collide as a correctness concern for whatever key identifier is chosen."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P4 because the four new interfaces::Wallet methods have no GUI consumer yet and reviewers noted the RPCs bypass the interface entirely, so this is interface surface added ahead of any use."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a member: the release notes are incidental to the feature PR rather than the primary change."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the new functional test pins wallet key-label behavior specifically, so it belongs with the wallet area rather than the general test-infrastructure category."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new wallet database record mapping a master key fingerprint to a label, three new RPCs (setkeylabel, getkeylabel, listkeylabels), extensions to getaddressinfo and gethdkeys to surface those labels, and four new interfaces::Wallet methods so a future GUI can consume the same functionality, e.g. to name multisig participants or hardware wallets. It includes a new functional test covering single-key and multisig scenarios, plus release notes.",
+  "problem": "Users setting up multisig wallets or using multiple hardware devices currently have no built-in way to remember which key belongs to which participant or device; this PR proposes storing that association in the wallet itself so both RPC and future GUI consumers can show it consistently.",
+  "discussion": {
+   "open_concerns": [
+    "achow101 (maintainer): the design does not match what was discussed for key labeling (GUI-only, ephemeral during multisig setup, not persisted) and separately objects that fingerprints are collidable and unsuitable as the storage key; neither point has been addressed with a code change.",
+    "rkrux: skeptical that RPC-level key labeling is a priority compared to a guided multisig GUI flow, and questions whether the maintenance burden is justified.",
+    "Eunovo: setkeylabel silently overwrites an existing label without warning (author says this mirrors setlabel behavior and considers it a UX, not RPC, concern).",
+    "jeanpablojp: raised multiple correctness gaps in multi-key descriptor handling (sortedmulti, taproot script paths) that were fixed during review, and questioned whether interfaces::Wallet methods with no caller should exist."
+   ],
+   "resolved_concerns": [
+    "Multisig getaddressinfo failing to report key labels for sortedmulti/taproot script-path descriptors was fixed by adding a per-key key_labels object.",
+    "Ambiguous fingerprint-to-label resolution order (non-deterministic winner) was fixed per author confirmation ('good catch, fixed').",
+    "Typos in release notes flagged by maflcko were fixed.",
+    "Test assertion gaps flagged by jeanpablojp were incorporated by the author."
+   ],
+   "author_status": "Author (polespinasa) marked the PR as draft on 2026-09-10, stating it will stay open while the project decides whether key labels should be included at all, and that the PR is 'not in a rush to get merged'."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Concept decision pending",
+   "reason": "Author explicitly said the PR will remain draft until there is agreement on whether persistent key labels should exist at all, following a maintainer NACK on the core concept and design; reviewing the current code further is unlikely to be productive until that concept question is resolved."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "achow101 NACKs the whole approach (wrong scope, collidable fingerprint key) and rkrux leans NACK on value versus cost; author engages but has not resolved the fingerprint objection and paused the PR pending a concept decision.",
+   "reason": "A maintainer raised a blocking design objection (persistence and fingerprint choice) that the author has not directly refuted or fixed; the author is actively discussing but has effectively conceded the need for a prior concept decision by moving the PR to draft.",
+   "evidence": [
+    "achow101: 'this is not at all what we discussed... Also, DO NOT USE FINGERPRINTS, THEY ARE COLLIDABLE.'",
+    "rkrux: 'Concept ~0 (tending towards NACK)... I don't see much benefit in providing RPCs for setting or viewing key labels.'",
+    "jeanpablojp, Eunovo: Concept ACK with review comments, most addressed by author pushes.",
+    "vicjuma: Approach ACK after testing the RPCs.",
+    "polespinasa: 'Will mark as draft for now until we decide if we want to include labels or not.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Part of the broader multisig-setup UX project tracked in issue #35645; a future GUI multisig flow could consume the new interfaces::Wallet methods once the concept is agreed."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds wallet database records, CWallet accessors, and three new wallet RPCs plus wallet-facing interfaces::Wallet methods; core files under src/wallet/.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a real, if narrow, user-requested convenience (author cites parity with Sparrow Wallet's key labeling), but it is not fund-safety critical and a maintainer disputes the entire concept and storage design ('DO NOT USE FINGERPRINTS, THEY ARE COLLIDABLE' \u2014 achow101), so the underlying feature's value is unsettled rather than clearly high."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds four new methods to interfaces::Wallet (setKeyLabel, delKeyLabel, getKeyLabel, getKeyLabels) intended for future GUI consumption.",
+    "band": "P4",
+    "reason_tag": "unblocks GUI (future)",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P4 because the new interface methods currently have no consumer; jeanpablojp noted 'the four new interfaces::Wallet methods end up with no caller and no test,' and the ipc category ranks interface additions without a waiting consumer as P3 or below."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "release-notes-36126.md documents this PR's own RPCs as a normal accompaniment, not a standalone documentation change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a docs-category PR; the release notes are incidental to the feature and would be assessed as part of the wallet change, not on their own."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "wallet_keylabels.py functional test pins the behavior of this specific wallet feature, which the tests category explicitly assigns to the owning area instead.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category definition: tests that pin one area's behavior belong to that area (wallet), not to test-infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the project ultimately decides to persist key labels at all is unresolved; if the concept is rejected, this PR's priority in wallet would drop toward zero regardless of code quality.",
+   "Whether achow101's fingerprint-collision objection is fatal to the current design or fixable by switching the storage key (e.g., to full pubkey) is not yet discussed in the thread."
+  ],
+  "card": "This PR adds a persistent per-key label keyed by master key fingerprint to the wallet database, three new RPCs (setkeylabel/getkeylabel/listkeylabels), extensions to getaddressinfo and gethdkeys, and four new interfaces::Wallet methods for a future GUI to show friendly names for multisig participants or hardware wallets. The problem it targets is real but narrow: helping users identify which key belongs to which cosigner or device, a feature the author notes exists in wallets like Sparrow. A maintainer (achow101) issued a concept NACK, objecting both that persistent storage was not what was discussed (the GUI-only, ephemeral design) and that using collidable fingerprints as the storage key is unsound; another reviewer (rkrux) questions the value versus maintenance cost. Several other reviewers gave Concept/Approach ACKs and tested the RPCs. The author has paused the PR as draft pending a project decision on whether key labels should exist at all, so it is not currently reviewable for merge-readiness though the underlying design question is worth resolving."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,154 @@
+{
+ "number": 35167,
+ "input_hash": "c705f4597f09ad5c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30300,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5038
+ },
+ "cost_usd": 0.056896300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the bash check-deps.sh script with a Python version that reads doc/design/libraries.md directly as the source of allowed library dependencies.",
+    "Adds transitive dependency resolution and symbol demangling, and fixes a known macOS false-success bug in the old script."
+   ],
+   "reviewability": [
+    "Not ready right now: needs rebase and the author has been silent since April 29, well past the 141-day mark.",
+    "A maintainer (ryanofsky) left substantive suggested changes in May that remain unaddressed, and sedited pinged in July asking the author to follow up."
+   ],
+   "agreement": [
+    "Several concept ACKs (sedited, janb84, BrandonOdiwuor) and a full code-review ACK from ryanofsky, who called the approach a great idea.",
+    "ryanofsky also raised a standing objection: moving init/common.cpp out of libbitcoin_common conflicts with #30437 and #10102, which need the opposite change, and suggested an alternative commit.",
+    "That suggestion and other review comments (build-output suppression, error vs warning handling) have not been addressed by the silent author."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it improves CI signal by fixing a known false-success bug in check-deps.sh on macOS, per janb84's before/after comparison.",
+      "Also makes the check easier to maintain by deriving rules from the design doc instead of a hand-maintained allow-list, but this is an internal tooling change with no user-facing effect."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it is a developer-facing script used by contributors doing library-dependency work, not something operators or end users touch.",
+      "Adds real capability (transitive resolution, demangling) that reduces friction for contributors maintaining the library boundaries."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P3 because the accompanying doc/design/libraries.md rewrite is disputed by ryanofsky, who argues some of the new edges (GUI depending on cli/node/wallet, consensus depending on util) misrepresent the intended design and could mask real architectural problems.",
+      "Getting this right matters because the doc is now the input the script enforces against, so an inaccurate doc silently changes what future PRs are allowed to do."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces contrib/devtools/check-deps.sh with a Python script (check-deps.py) that parses the mermaid dependency graph in doc/design/libraries.md as the single source of truth for allowed inter-library symbol dependencies, automatically computing transitive closures instead of requiring them to be hand-listed. It also demangles C++ symbol names in error output, fixes a bug where the old script silently reported false success on macOS, and includes a commit moving init/common.cpp from libbitcoin_common to libbitcoin_node plus doc updates simplifying the dependency graph.",
+  "problem": "The old shell script required manually enumerating every transitive dependency and had a silent false-success bug on macOS (confirmed by janb84's testing), making the dependency check unreliable and tedious to maintain as libraries.md drifted from the enforced rules.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky: moving init/common.cpp to libbitcoin_node conflicts with #30437 and #10102, which need the file in libbitcoin_common for bitcoin-mine and wallet subprocess logging; suggested a specific alternate commit, not adopted.",
+    "ryanofsky: several added dependency edges (GUI->cli/node/wallet, consensus->util) may misrepresent the intended architecture rather than reflect real necessity; discussion with maflcko about Assume/Assert in consensus is unresolved.",
+    "ryanofsky: build-output suppression and warn-vs-error handling for missing/unbuildable libraries in check-deps.py should be tightened for CI use.",
+    "janb84: nm parsing across Linux/macOS and build-output visibility raised as concerns; regex was updated to address parsing but build-output behavior comment remains open.",
+    "sedited pinged in July asking the silent author to follow up on the pending review."
+   ],
+   "resolved_concerns": [
+    "janb84's original nm-parsing nit was addressed by switching to a regex that works cross-platform.",
+    "hebasto's question about whether libraries.md matches reality was answered by ajtowns explaining the script's scope and limitations."
+   ],
+   "author_status": "silent since 2026-04-29 (141 days), despite ryanofsky's May 20 review and sedited's July 4 ping for follow-up"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, author silent",
+   "reason": "The PR needs a rebase (mergeable_state dirty) and the author has not been active since 2026-04-29, well past the 60-day stale threshold, despite a substantive review from ryanofsky on 2026-05-20 and a follow-up ping from sedited on 2026-07-04."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Multiple concept ACKs and a full ACK from ryanofsky, but ryanofsky flags a standing conflict (init/common.cpp move) with two other in-flight PRs that the silent author has not addressed.",
+   "reason": "ryanofsky approved with 'concept ACK' and called the changes 'very nice' but explicitly requested the init/common.cpp commit be replaced with an alternative that avoids breaking #30437 and #10102, and raised further concerns about doc accuracy and error handling that remain open. No pushback or fix has occurred, but nobody has withdrawn support either.",
+   "evidence": [
+    "sedited: Concept ACK, then full re-ACK on 3c0e2f5.",
+    "janb84: Concept ACK, found the macOS false-success bug fixed by this PR.",
+    "BrandonOdiwuor: Concept ACK, minor UX concern about silent background builds.",
+    "ryanofsky: Approved with concept ACK and code review, but requested the init/common.cpp commit be swapped for a different one to avoid conflicting with #30437/#10102, and raised doc-accuracy and error-handling concerns, none yet addressed.",
+    "sedited (2026-07-04): asked author to follow up on pending review to give others confidence."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Clarifies the desired library dependency graph that #10102 (multiprocess) and #30437 (bitcoin-mine) build on, though ryanofsky notes the init/common.cpp commit here currently conflicts with what those PRs need."
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Changes ci/test/03_test_script.sh to invoke the new check-deps.py, and the PR's core purpose is a CI dependency-check tool.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real CI-reliability bug: janb84's testing shows the old shell script silently reported false success on macOS ('Success! No unexpected dependencies were detected' despite stale suppressions), while the new script correctly flags real violations. This is a CI-signal fix but affects only contributors running this specific check, not general build reliability.'"
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "contrib/devtools/check-deps.py is a developer tool under contrib/devtools, matching the tools category directly.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "A developer-productivity tool used by contributors maintaining library boundaries; ryanofsky called the approach ('parse dependencies from libraries.md, not require manually listing transitive deps') 'a great idea', but it has no direct effect on deployments or downstream software."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "One commit ('doc: Update library dependencies') substantively rewrites doc/design/libraries.md's dependency graph, and this content is directly disputed by ryanofsky.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "ryanofsky argues several new edges misrepresent intended architecture (e.g. 'GUI code calling node and wallet functions is a problem because it could indicate improper access to node/wallet internals'), which matters because the script now enforces this doc as ground truth. Unresolved, but scope is limited to internal design documentation rather than user-facing docs."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether ryanofsky's suggested alternative commit (referenced by hash in his own branch) has been privately coordinated with the author outside visible discussion.",
+   "Whether the conflicts with #35778, #35037, #30437, #28690 are simple rebase conflicts or indicate deeper design overlap that needs resolving first.",
+   "Exact severity of the init/common.cpp conflict with #30437/#10102 -- described as needing 'the opposite' change, but not confirmed as fully blocking those PRs."
+  ],
+  "card": "This PR converts contrib/devtools/check-deps.sh to a Python script that derives allowed inter-library dependencies directly from the mermaid graph in doc/design/libraries.md, adds transitive dependency resolution and symbol demangling, and fixes a bug where the old shell script silently reported false success on macOS (confirmed by janb84's before/after testing). It also includes a doc rewrite simplifying the dependency graph and a commit moving init/common.cpp from libbitcoin_common to libbitcoin_node. ryanofsky gave a full code-review ACK calling the approach 'a great idea' but flagged that the init/common.cpp move conflicts with #30437 and #10102, which need the file in the opposite library, and raised further concerns about doc accuracy and CI error-handling; none of this has been addressed. The author has been silent since 2026-04-29 (141 days), the PR needs a rebase, and sedited pinged in July asking for follow-up. It is a self-contained dev-tooling and docs change with no dependency blocking it, but review of the current diff is stale pending author response."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

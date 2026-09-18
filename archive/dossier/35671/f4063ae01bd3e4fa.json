@@ -1,0 +1,152 @@
+{
+ "number": 35671,
+ "input_hash": "f4063ae01bd3e4fa",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28373,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5563
+ },
+ "cost_usd": 0.0575943,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets external mining software like Stratum v2's Job Declarator Server validate a block template it built itself, using the node's own mempool instead of a separate mirror mempool.",
+    "Removes redundant transaction storage and round trips for pool operators running SV2 job declaration."
+   ],
+   "reviewability": [
+    "Paused because jeanpablojp asked on 2026-09-06 why makeTemplate() reports a different BIP-22 reason (stale-prevblk) than checkBlock() does for the same stale-prevblk case, and the author has not replied.",
+    "Several smaller doc nits from the same review are also unanswered but non-material."
+   ],
+   "agreement": [
+    "Strong support from four reviewers with concept ACKs and no objections to the design (ismaelsadeeq, pablomartin4btc, enirox001, jeanpablojp).",
+    "enirox001 raised several implementation nits, all addressed by the author in pushes.",
+    "One open question about a reject-reason inconsistency from jeanpablojp is unanswered (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it gives external template builders (the Stratum v2 Job Declarator Server, and potentially a future p2pool weak-block validator) a way to validate transactions against the node's mempool without a mirror, removing real duplicated infrastructure that a working prototype already exercises.",
+      "It is a new capability rather than a fix to an existing template or acceptance bug, so it does not rise to P1."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "Not a member because the change extends what the mining interface exposes over IPC rather than the IPC mechanism itself; no change to serialization, connection handling, or the capnp toolchain is the point of the PR."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the new functional test file pins the behavior of the mining TxCollection feature specifically, not the test framework or runner machinery."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a TxCollection interface to the Mining IPC surface that lets an external client (primarily the Stratum v2 Job Declarator Server) submit a list of wtxids, learn which are missing from the node's mempool, supply the missing transactions, and then have the node assemble and validate them into a block template. It also extracts a reusable CreateCoinbaseTx() helper from BlockAssembler::CreateNewBlock() and restricts several BlockTemplate methods (waitNext, getTxFees, getTxSigops, getCoinbaseTx) for externally generated templates since they don't apply.",
+  "problem": "Stratum v2's Job Declarator Server currently keeps its own mirror of the node's mempool, populated by repeated getBlock()/waitNext() calls plus requests to the miner for anything missing, purely so it can validate externally proposed templates. This duplicates the node's mempool and adds bandwidth and maintenance overhead for pool operators running SV2 infrastructure.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp (2026-09-06): makeTemplate() labels an ancestor prevhash as 'stale-prevblk' while checkBlock()'s TestBlockValidity() path labels the same case 'inconclusive-not-best-prevblk'; asks whether the divergence from the described getblocktemplate-proposal convention was deliberate. Unanswered for 10 days.",
+    "jeanpablojp: suggests a test case for a coinbase whose witness commitment does not match the collected transactions (not yet added).",
+    "jeanpablojp: doc nits on missing @param/@returns and on what getCoinbaseTx() should say for external templates."
+   ],
+   "resolved_concerns": [
+    "ViniciusCestarii's suggestion to split BlockTemplate into two capnp interfaces (narrow external one vs full one) instead of throwing on disallowed methods was discussed at length; author explained tradeoffs and both agreed it's a judgment call, not blocking ('I'm fine either way' - ViniciusCestarii).",
+    "pablomartin4btc's and enirox001's numerous implementation nits (duplicate wtxid check ordering, mutex scope, reserve() before mempool lock, Assert vs Assume, naming m_collected_txs -> m_tx_collection, missing size check before mempool loop) were all addressed by the author in the 2026-08-20 push.",
+    "enirox001's concern about the intra-commit sequencing of the 'make TxCollection create a BlockTemplate' vs 'restrict externally generated templates' commits was declined by the author ('I'd rather not grow the commit... commits are bisect-safe'), with no pushback."
+   ],
+   "author_status": "active, addressing review; last pushed 2026-08-20, silent 27 days since a 2026-09-06 reviewer question"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "A material question from jeanpablojp (2026-09-06) about an inconsistency in BIP-22 style reject reasons (stale-prevblk vs inconclusive-not-best-prevblk for the same case) has gone unanswered for 10 days, past the 7-day threshold, and could indicate the reason string needs correcting before the code should be reviewed further on that point."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Four reviewers gave concept ACKs with substantive engagement (ismaelsadeeq, pablomartin4btc, enirox001, jeanpablojp) and no one has objected to the design; a reason-string inconsistency question from jeanpablojp is open but not framed as a blocking harm.",
+   "reason": "Multiple reviewers independently support removing the JDS mirror-mempool approach and have engaged deeply with the implementation (enirox001: 'the main benefit is architectural... avoids duplicating transaction storage'), with all substantive nits addressed by the author and no unresolved objections to the change itself.",
+   "evidence": [
+    "ismaelsadeeq: 'Concept ACK'",
+    "pablomartin4btc: 'Concept ACK' plus several implementation nits, all fixed",
+    "enirox001: 'Concept ACK, I intend to benchmark this approach' then extensive review, nits all addressed",
+    "jeanpablojp: 'Concept ACK' with an open question about reject-reason consistency, not framed as blocking",
+    "ViniciusCestarii proposed an alternative interface split; both sides agreed it's a style choice, not blocking"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Stratum v2 Job Declarator Server implementations (demonstrated in stratum-mining/sv2-apps#599) that no longer need a mirror mempool",
+    "possible future p2pool weak-block validation via compact-block-style extension of TxCollection",
+    "Sjors/bitcoin#122 listed as a potential followup"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "The PR adds a new capnp interface (TxCollection) and Mining method, but the subject is what the mining interface exposes to external template builders, not IPC serialization, connection handling, or the capnp toolchain itself. Per the category's exclusion rule, a mining interface extension is ipc only when the interface mechanics are the point, which is not the case here.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: no IPC-label, and the change is scoped to what the Mining interface offers rather than to IPC infrastructure mechanics."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Labeled Mining; adds a new interfaces::Mining method (collectTxs) and TxCollection interface, extracts BlockAssembler::CreateCoinbaseTx(), and restricts BlockTemplate methods for externally generated templates, all core mining-interface subject matter with the SV2 Job Declarator Server as the demonstrated consumer.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it gives the Stratum v2 Job Declarator Server (and potentially future p2pool weak-block validation) a way to validate externally built templates against the node's real mempool, eliminating a duplicated mirror mempool; a working consumer prototype exists (stratum-mining/sv2-apps#599). It is new capability rather than a fix for a template-invalidity or acceptance bug, so it does not reach P1, but multiple reviewers treat it as a durable architectural improvement worth deliberate review (enirox001: 'the main benefit is architectural...')."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new interface_ipc_mining_tx_collection.py functional test pins the behavior of the mining TxCollection feature specifically, and is explicitly split out of the general mining IPC test file for runtime reasons rather than being framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per the category's own rule: tests that pin one area's behavior belong to that area (mining), not to test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the jeanpablojp reject-reason question reflects a genuine behavioral inconsistency (bug) or just a documentation mismatch; this affects both Reviewability and whether the mining band's bug_severity factor should be higher.",
+   "Whether the project intends TxCollection primarily as a stepping stone toward p2pool/compact-block reuse (raised speculatively by the author) or purely as an SV2 JDS feature, which would affect how much leverage to credit."
+  ],
+  "card": "placeholder"
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,169 @@
+{
+ "number": 35286,
+ "input_hash": "42ed1cc5875f99fc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15776,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5400
+ },
+ "cost_usd": 0.0441823,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a new RPC, testsubmitpackage, that lets wallets test-validate a parent+child (CPFP) transaction bundle against full package policy without touching the mempool.",
+    "Meant as a pre-flight check for fee-bumping packages, addressing a long-standing user request (issue #32160)."
+   ],
+   "reviewability": [
+    "Not reviewable right now: needs a rebase and the author has gone silent for an extended period.",
+    "Review comments and design questions from ismaelsadeeq are still open and unaddressed."
+   ],
+   "agreement": [
+    "Two concept ACKs on the idea (ismaelsadeeq, w0xlt), but the author himself questioned whether there's enough downstream demand to justify further iteration (instagibbs).",
+    "dergoegge asked for concrete confirmation of user demand and has had no reply in over a month.",
+    "Substantive code-review feedback from ismaelsadeeq (dedup helper, param naming, splitting the dry-run path) has not been addressed."
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it adds tooling that helps second-layer protocols like Lightning test CPFP packages before broadcast, a real pain point cited in discussion (LND-related testflight use), but it changes no actual policy or acceptance rules, only a test-only code path."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it's a new RPC method with some evidence of external consumer interest (LN implementations, referenced 2140-dev issue), but adoption is unconfirmed and the author himself is unsure enough users want it to keep iterating."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it threads a new test_accept-only branch through core package-acceptance internals (ATMPArgs, sibling-eviction gating, changeset handling), which a validation reviewer must scrutinize for behavioral leakage into the real submission path, even though no consensus or real acceptance rule changes."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": []
+    }
+   ]
+  },
+  "summary": "Adds a new testsubmitpackage RPC that validates a strict parent+child (1p1c) transaction bundle against full package-relay policy, including RBF and sibling-eviction checks, without mutating the mempool. It reuses and extends ProcessNewPackage/AcceptPackage machinery with a new test_package_feerates flag and threads test_accept-only handling through several validation.cpp code paths. A large new functional test file (686 lines) exercises the new RPC.",
+  "problem": "Wallets and higher layers (notably Lightning implementations doing CPFP fee-bumping) currently have no reliable way to test whether a proposed parent+child package would be accepted, including RBF and sibling-eviction outcomes, without actually broadcasting it. This PR is a partial fix for issue #32160.",
+  "discussion": {
+   "open_concerns": [
+    "ismaelsadeeq: several code-clarity requests unaddressed (naming of test_package_feerates, dedup of duplicated changeset-copy logic, splitting the individual-evaluation dry-run path out of ProcessNewPackage).",
+    "ismaelsadeeq: why is allow_sibling_eviction tied to test_accept, called 'weird to read'.",
+    "dergoegge (2026-07-01): asked for explicit confirmation that users want this, to decide whether the project should maintain it; no reply from author in over a month.",
+    "Author himself (2026-05-29) said there hasn't been much positive feedback and suggested pausing for more buy-in before iterating further."
+   ],
+   "resolved_concerns": [
+    "ajtowns's request for testing relative-locktime txs against out-of-mempool UTXOs was scoped out as a separate follow-up (issue referenced), not a blocker on this PR."
+   ],
+   "author_status": "silent since 2026-06-17, said in effect wait for more user buy-in before continuing"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, stale",
+   "reason": "The PR needs a rebase (mergeable_state dirty) and the author has been silent for 91 days, well past the 60-day stale threshold, on top of a substantial unaddressed round of code review from ismaelsadeeq."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACKs from ismaelsadeeq and w0xlt, but the author and dergoegge both flagged unresolved uncertainty about actual user demand, unanswered for over a month.",
+   "reason": "Support exists for the idea but the standing question of whether enough users want this (raised by the author himself and reiterated by dergoegge) has not been resolved, and code-level review comments remain open.",
+   "evidence": [
+    "ismaelsadeeq: 'Concept ACK, users normally test run submissions... very useful' plus detailed code review comments.",
+    "w0xlt: 'Concept ACK'.",
+    "instagibbs (author): 'I haven't had a lot of positive feedback yet on this PR... might make sense to look for more buy-in before iterating further.'",
+    "dergoegge: 'it'd be helpful for users that want this to say so explicitly... It's been a month... any update?' with no reply."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Partial fix for issue #32160 (testmempoolaccept package equivalent for CPFP)",
+    "Referenced by 2140-dev/bitcoin#24 as a prerequisite feature for LN implementations"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Adds package-feerate-aware test_accept handling (allow_sibling_eviction, changeset removals) directly in the package acceptance code paths used by mempool policy evaluation.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it gives wallets and LN implementations a way to pre-validate CPFP packages against real policy without broadcasting, a cited pain point (LND testflight prerequisite, GeorgeTsagk comment). It changes no actual acceptance rules, only exposes a test-only path, so it's tooling rather than a policy fix."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a new top-level RPC method testsubmitpackage with its own help text, argument conversion, and dedicated functional test file; labeled RPC/REST/ZMQ.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because there is some concrete evidence of external interest (LN-adjacent discussion, a linked issue in 2140-dev/bitcoin), but the author himself is uncertain enough users want it to keep pushing, and 'new methods without an external consumer asking rank low' per the rubric until that demand is confirmed."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies ATMPArgs construction, sibling-eviction assumptions, and changeset-removal handling inside MemPoolAccept/AcceptPackage in validation.cpp/h to support a test_accept-only package-feerate path.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because although gated behind test_accept and not touching consensus, it loosens an existing assertion (Assume(!m_allow_sibling_eviction || m_test_accept)) and duplicates changeset-copy logic in the core package-acceptance flow, which a validation reviewer flagged (ismaelsadeeq) as needing a cleaner split of the dry-run path from ProcessNewPackage to avoid subtle divergence risk between test and real submission behavior."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new test file (rpc_testsubmitpackage.py) pins the behavior of a single new RPC/mempool feature rather than adding general test-framework capability, so per the category definition it belongs to rpc/mempool, not tests infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the functional test is area-specific (testsubmitpackage RPC behavior), matching the exclusion for tests that pin one area's behavior rather than improving shared test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project ultimately wants to maintain this RPC is unresolved; dergoegge's request for explicit user confirmation went unanswered, so future direction (proceed, redesign, or abandon) is unclear.",
+   "Draft status combined with the author's own stated hesitation makes it ambiguous whether this counts as 'author said wait' (Paused) versus ordinary staleness; treated as Stale given the 91-day silence and pending rebase, but a case for Paused could also be made.",
+   "Depth of the design concern about sibling-eviction/test_accept interaction (ismaelsadeeq) was not fully resolved in-thread, so its true validation-safety weight is somewhat uncertain."
+  ],
+  "card": "This PR adds a new testsubmitpackage RPC that lets callers test-validate a parent+child (1p1c) CPFP package against full package-relay policy, including RBF and sibling-eviction outcomes, without mutating the mempool. It targets a real gap flagged in issue #32160 and echoed by LN-adjacent tooling (LND-style pre-broadcast testflight), but the author himself expressed doubt about how much user demand exists and paused further iteration pending buy-in. Reviewer ismaelsadeeq gave a concept ACK alongside substantial unaddressed code-review requests (deduplicating changeset-copy logic, splitting the test-only dry-run path out of ProcessNewPackage), and dergoegge's month-old request for explicit confirmation of user demand has gone unanswered. The PR is a draft, needs a rebase, and the author has been silent for over 90 days, so it is not currently reviewable. It touches core package-acceptance internals in validation.cpp in a way that a validation reviewer should check for leakage into the real submission path, even though behavior is gated behind test_accept."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

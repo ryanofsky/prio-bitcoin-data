@@ -1,0 +1,98 @@
+{
+ "number": 35839,
+ "input_hash": "ae8c64580d067eda",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:24+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19407,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2295
+ },
+ "cost_usd": 0.0176724,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent initial headers sync from stalling indefinitely when an inbound or manual peer returns empty headers while the node is still behind."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "Recent comments from reviewers are minor nits and test clarifications."
+   ],
+   "agreement": [
+    "Strong support for resolving the IBD stall on manual and inbound connections (jeanpablojp, hodlinator).",
+    "Prior discussion on edge cases and malicious stalling was scoped down to address the specific stall bug cleanly first (danielabrozzoni)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes an indefinite IBD stall where an inbound or manual peer answering with empty headers holds the single sync slot forever.",
+      "Restores headers sync liveness for node operators using addnode connections to peers that are also in IBD."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR releases an inbound or manual peer from the initial headers sync slot when it returns an empty headers message while the local best header is stale. It also institutes a retry delay on that peer and cancels its download deadline, allowing another eligible peer to take over headers synchronization.",
+  "problem": "During initial headers sync, a node assigns a single peer to fetch headers. If an inbound or manual peer returns an empty headers response because it is caught up or also in IBD, it continues holding the sync slot indefinitely because automatic eviction does not apply, preventing the node from asking other peers and stalling sync.",
+  "discussion": {
+   "open_concerns": [
+    "A question on whether bumping mocktime is strictly necessary in the test (danielabrozzoni)",
+    "Minor formatting and comment nits regarding column width and scheduler terminology (hodlinator)"
+   ],
+   "resolved_concerns": [
+    "CI test timeout caused by intermediate commit split resolved by squashing",
+    "Scope creep around deliberate reacquisition via known headers deferred to follow-up work",
+    "Fixed backoff timer expiring immediately when an empty response arrived late (jeanpablojp)",
+    "Added dedicated functional test coverage for manual peers via addnode (jeanpablojp)"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Code is clean, CI is passing, and remaining open reviewer comments are minor nits and questions."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on the bug fix; reviewers verified the stall scenario and gave Concept ACKs",
+   "reason": "Reviewers confirmed this fixes an open IBD stall issue (#34096) on manual peers, with concept support from multiple contributors and no objections to the approach.",
+   "evidence": [
+    "davidgumberg noted this fixes issue #34096 which happens on mainnet with addnode",
+    "jeanpablojp Concept ACKed and helped refine retry backoff logic and manual peer tests",
+    "hodlinator Concept ACKed latest push be1f152ffe"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies headers sync assignment and message handling in src/net_processing.cpp",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a confirmed bug where initial headers sync can stall indefinitely (issue #34096). While outbound peers are protected by eviction logic, manual and inbound peers currently retain the sync slot upon returning empty headers, preventing progress across eligible peers."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR prevents initial block download from stalling indefinitely when an inbound or manual peer returns empty headers while the node is behind. It fixes issue #34096 by clearing the sync-started state, cancelling the download deadline, and applying a retry backoff to the peer so an eligible alternative peer can take over. The change is small, targeted at src/net_processing.cpp, and has Concept ACKs from multiple contributors."
+ },
+ "raw_text": null
+}

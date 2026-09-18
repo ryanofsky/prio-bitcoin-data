@@ -1,0 +1,89 @@
+{
+ "number": 36129,
+ "input_hash": "a4598934b6dcbdbd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:46+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11912,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1476
+ },
+ "cost_usd": 0.00900555,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent order-dependent test failures in the external block file fuzzer by recreating the chainstate manager between inputs"
+   ],
+   "reviewability": [
+    "Ready for review"
+   ],
+   "agreement": [
+    "Positive with exploratory discussion on performance optimizations (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it eliminates state leakage across fuzz iterations in load_external_block_file",
+      "Ensures reproducible crash reports and consistent corpus coverage during randomized fuzz runs"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request resets and re-initializes the chainstate manager after each iteration of the `load_external_block_file` fuzz target. It also disables unused networking setup to prevent `PeerManager` dangling references and resets the deterministic random number generator seed.",
+  "problem": "`LoadExternalBlockFile()` adds headers to the block index even when validation fails, contaminating static global state across fuzz iterations and causing order-dependent corpus coverage and non-reproducible fuzz crashes.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko asked whether a dirty-guard would speed up execution by only resetting when chainstate modified; HowHsu answered that tracking all mutated state (like `m_last_notified_header`) is error-prone and proposed the unconditional reset as a baseline step"
+   ],
+   "author_status": "active; answered feedback and force-pushed updates"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly merges, passes CI, and the author addressed reviewer feedback with an explanation for why unconditional resets are currently needed."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; maflcko suggested a performance check and HowHsu explained why full resets are necessary",
+   "reason": "Reviewer engagement is collaborative with an optimization inquiry that the author addressed; no objections to the approach were raised.",
+   "evidence": [
+    "maflcko asked if a dirty-guard would be faster",
+    "HowHsu explained that checking index size is insufficient due to other order-dependent internal variables, proposing unconditional reset first"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies `src/test/fuzz/load_external_block_file.cpp` to ensure proper harness isolation and deterministic fuzzing execution.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Fixes state leakage across fuzz iterations in `load_external_block_file`. As the author notes, 'LoadExternalBlockFile() may add headers to the block index even when full block validation fails... making all-corpus coverage order-dependent.' Ensuring test harness determinism improves fuzz signal and reproducibility, though it affects a single fuzz target."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR resets the chainstate manager after each input in the `load_external_block_file` fuzz target. It solves an issue where partial imports pollute global chainstate, causing fuzzer corpus execution to be order-dependent. Deterministic test runs verify that all 930 existing corpus inputs now execute consistently in randomized order. Review is active and ready, with only a minor performance discussion on dirty checking raised so far."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,202 @@
+{
+ "number": 36244,
+ "input_hash": "1baf905440535b42",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26576,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7146
+ },
+ "cost_usd": 0.0637123,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Moves block validation off the shared P2P message thread onto a dedicated worker so other peers stay responsive during validation.",
+    "Solves a long-standing complaint that a slow block validation blocks pings, getdata, and other peer traffic on the single message-processing thread.",
+    "Aims for lower latency for peers and, as a side effect, modestly faster IBD."
+   ],
+   "reviewability": [
+    "Ready to review now, nothing known would invalidate it.",
+    "Draft is for feedback on the architecture, not because the code is broken."
+   ],
+   "agreement": [
+    "One reviewer asked about the underlying motivation and the author gave a detailed clarifying answer, no objections raised (andrewtoth).",
+    "No ACKs or NACKs yet, too early in review for a verdict."
+   ],
+   "categories": []
+  },
+  "summary": "This PR reworks how bitcoind processes newly received blocks: initial header/PoW checks still happen on the P2P message thread, but full validation, storage, and chain activation are handed to a single dedicated worker via a new validation_queue, with completion delivered through futures and the validation-signals task runner instead of synchronously. It narrows cs_main usage around block-source tracking, compact-block reconstruction, and SendMessages, and adds a large amount of new test infrastructure (a controllable future harness, IndexTestGuard, FuzzTaskRunner) to exercise the new concurrency. Roughly two-thirds of the diff is tests; production code changes are about 1,100 lines across validation, net_processing, net, kernel, mining RPC, and miner.cpp callers of the changed ProcessNewBlock signature.",
+  "problem": "On the single P2P message thread, processing one peer's block currently blocks responses to every other peer (pings, getdata, headers) until validation finishes, which the author measured causing tens-of-milliseconds to over 40ms stalls under sustained validation load such as IBD.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth questioned whether the real motivation was IBD speedup or steady-state responsiveness during validation; author clarified the primary goal is keeping peers responsive during validation generally, with IBD used only as a repeatable benchmark, and confirmed the approach is a stepping stone toward future concurrent validation work."
+   ],
+   "author_status": "active, most recent activity 2026-09-15, force-pushed twice since opening"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blockers: CI passes, no rebase needed, mergeable state is clean. The only open discussion item (andrewtoth's question about motivation) was answered substantively by the author with no follow-up request. Draft status reflects a request for approach feedback, not a known-incomplete implementation."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "One reviewer asked about the design rationale and the author gave a detailed answer; no objections raised (andrewtoth).",
+   "reason": "Only one reviewer has engaged so far, with a clarifying question rather than a criticism, which the author resolved with a substantive explanation of the tradeoffs and future direction. No ACKs, NACKs, or standing objections exist yet given the PR's age.",
+   "evidence": [
+    "andrewtoth asked whether the point was steady-state responsiveness rather than IBD speedup",
+    "w0xlt (author) confirmed responsiveness during validation is the main motivation and IBD was used only as a repeatable benchmark, with no pushback from andrewtoth afterward"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Author states this is 'a starting point for further concurrency improvements', explicitly citing eventual parallel validation of competing sibling blocks as a follow-on, and builds on the approach of previously closed PRs #18963 and #16324."
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Rewrites ProcessNewBlock's control flow (validation.cpp/h), adds validation_queue.cpp/h owned by ChainstateManager, changes block admission/storage/activation staging, and adds atomic block-check caching (primitives/block.h).",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Substantially restructures how blocks are admitted, stored, and activated to allow concurrent validation and messaging, a core validation-path change. Author's controlled benchmark shows a 5% IBD time reduction and much larger tail-latency improvements (e.g. PING/PONG response time down 98%), and the change is explicitly a foundation for future parallel block validation. It carries correctness risk (atomic block-check caches, narrowed cs_main scope) that reviewers must scrutinize carefully, which is itself a reason to prioritize review even though the code is still in flux."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "net_processing.cpp/h and net.cpp/h changes move block-source tracking and download bookkeeping out of cs_main, defer SendMessages work when cs_main is busy, and add per-peer pending-block-processing accounting.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Directly targets peer responsiveness under load, which is a liveness property the category cares about after attack-resistance; author's measurements show large reductions in block-serving and ping latency for other peers while one peer's block is validating. Reduces a real contention hazard in the shared message-processing thread that has been a known pain point since at least PR #16324."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "kernel/bitcoinkernel.cpp is updated to keep the C API's block-processing return value and BlockChecked callback semantics stable across the new future-based ProcessNewBlock, and ChainMan's destruction order changes to keep the kernel context alive through worker shutdown.",
+    "band": "P3",
+    "reason_tag": "boundary correctness",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "This is boundary-preservation work rather than new capability: the author manually re-emits BlockChecked for invalid blocks to keep the kernel API's documented feedback contract intact, and reorders context/manager destruction to avoid a shutdown hazard. Real but narrow value confined to keeping external kernel consumers unaffected by the internal async rework."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "rpc/mining.cpp's submitblock and generateblock RPCs are reworked to consume the new future-based ProcessNewBlock and to synchronize with the validation-signals queue before reading BlockChecked results.",
+    "band": "P3",
+    "reason_tag": "correctness",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Fixes a subtle correctness dependency: submitblock's 'duplicate' vs validation-error distinction now needs an explicit SyncWithValidationInterfaceQueue call because BlockChecked is no longer delivered synchronously. Necessary for existing RPC behavior to stay correct under the new async model, not a new feature."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds validation_queue_tests.cpp, ~1200 new lines in peerman_tests.cpp, a FuzzTaskRunner and controlled-future harness, and an IndexTestGuard used across multiple index test files; tests are roughly two-thirds of the diff.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Builds reusable test infrastructure (controllable futures, a serial fuzz task runner, an index lifecycle guard) that lets this and future concurrency work be tested deterministically, which is exactly the kind of framework capability the category values highest. Coverage is extensive: queued parent invalidation, duplicate attribution, disconnection during processing, and shutdown races are all exercised."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "init.cpp adds StartBlockProcessing/StopBlockProcessing calls at startup, interrupt, and shutdown, changing the shutdown/interrupt sequencing that other subsystems (mempool, networking, indexes) depend on.",
+    "band": "P3",
+    "reason_tag": "shutdown ordering",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Introduces a new ordering requirement (stop the block-processing worker before networking, mempool, and index dependencies are destroyed) that, if wrong, could cause use-after-destruction bugs during shutdown; the commit message for 'validation: Add block processing queue' explicitly calls out this ordering constraint. Confined to startup/shutdown sequencing rather than everyday logging or argument handling."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes to mempool acceptance, policy, or fee estimation; the only mempool-adjacent mention is preserving fee-filter calculation ordering relative to the chain lock in net_processing.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change; the fee-filter interaction is incidental to the p2p locking rework."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "node/miner.cpp changes (SubmitBlock) are mechanical adaptations to the new future-returning ProcessNewBlock signature, not a change to template construction or the Mining interface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the category rule, a call site updated only to keep compiling against a changed signature elsewhere does not make a PR a mining member; SubmitBlock's logic is otherwise unchanged."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the atomic block-check-cache and narrowed cs_main scope introduce subtle races has not yet been reviewed by a second reviewer; this assessment cannot independently verify correctness of the concurrency model.",
+   "The PR is explicitly a draft seeking approach feedback, so its final shape (and which category bands would apply to a later, split-up version) may change substantially.",
+   "No maintainer area labels are present, so category membership for kernel and rpc rests on reading the diff rather than a labeling prior."
+  ],
+  "card": "This draft PR moves full block validation off the shared P2P message thread onto a dedicated worker, so a peer's slow block validation no longer blocks responses (pings, getdata, headers) to every other peer, and narrows cs_main usage in block-source tracking and compact-block reconstruction. The author's controlled benchmark shows large peer-responsiveness gains (98% lower PING/PONG latency, 32-45% faster block serving) during a 10,000-block IBD run, with IBD time itself dropping about 5%, and frames the change as a foundation for future concurrent block validation. It is large (3,100+ lines, two-thirds tests) and touches validation.cpp, net_processing.cpp, net.cpp, the kernel C API, and mining RPCs whose callers had to adapt to the new future-based ProcessNewBlock. Only one reviewer has engaged so far with a clarifying question about motivation, which the author answered without objection; there are no ACKs or NACKs yet. The code appears reviewable now despite draft status, since the author opened it specifically to get feedback on the architecture, and nothing mechanical (CI, rebase, staleness) blocks review."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

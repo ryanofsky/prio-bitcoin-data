@@ -1,0 +1,97 @@
+{
+ "number": 35902,
+ "input_hash": "f9e4d94115e5d8bc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11836,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2725
+ },
+ "cost_usd": 0.0268673,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes bitcoind refuse to start if a configured ZMQ notifier fails to bind, and logs the real OS error instead of hiding it in debug logs.",
+    "Fixes a silent-failure trap where a node kept running with ZMQ effectively broken and no way to notice via getzmqnotifications."
+   ],
+   "reviewability": [
+    "Ready to review now. Author has responded to every reviewer request with pushes adding targeted tests and improving the error propagation."
+   ],
+   "agreement": [
+    "Support from two reviewers who tested it manually and via functional tests (pinheadmz, jeanpablojp)",
+    "No objections raised, only test-coverage requests, all since addressed by the author."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it fixes a real, previously reported bug (issue #33715) where ZMQ bind failures were invisible to operators relying on notifications.",
+      "Startup abort on misconfiguration is a meaningful reliability and correctness improvement for anyone using -zmqpub*, though it is not consensus- or fund-safety critical."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes ZMQ notifier initialization so that a bind failure (bad address, port already in use, etc.) aborts bitcoind startup with an error-level log message naming the notifier, address, and OS error, instead of silently continuing with a broken ZMQ interface. It threads a util::Result<void> through Initialize()/Create() in the ZMQ notifier classes and init.cpp so the failure reason propagates to InitError. It adds five functional-test cases in interface_zmq.py covering invalid address, partial-success-then-failure, an unreachable IP, and a port already taken by the node's own RPC server, with platform-specific expected error text.",
+  "problem": "Users who configure -zmqpub* addresses get no indication when a bind fails except an invisible debug-level log line, so a node can run for a long time with ZMQ effectively dead while the operator believes it works. Issue #33715 documents exactly this happening when a ZMQ port was already taken.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "pinheadmz asked that the failure reason be bubbled up to stdout instead of a generic 'Initializing ZMQ interface failed'; author reworked Initialize() to return util::Result<void> carrying the specific reason.",
+    "pinheadmz asked for functional tests covering specific expected error messages instead of a loose regex; author replaced the regex with exact string checks and added EADDRNOTAVAIL/EADDRINUSE test cases.",
+    "jeanpablojp noted the PR description was stale relative to the code; a documentation nit, not a code concern."
+   ],
+   "author_status": "active, pinged reviewers for another look on 2026-08-30 after last reviewer activity on 2026-08-17"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer requests (bubbling the specific error reason, adding targeted functional tests for specific errno cases) have been implemented in later pushes; nothing known is pending that would invalidate a fresh review. Author's 17-day silence is well under the 60-day stale threshold and there is no open material request."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from pinheadmz after manual testing of misconfigurations, Approach ACK from jeanpablojp after running the functional tests; no objections raised.",
+   "reason": "Two reviewers with concrete testing evidence want the change and its rationale (visibility of ZMQ failures, referencing prior issue #33715 and prior bug #17185); their code-level requests were all implemented and nobody has pushed back since.",
+   "evidence": [
+    "pinheadmz: 'Concept ACK. Built and tested locally with a variety of zmq misconfigurations, permissioned ports, busy ports, etc.'",
+    "jeanpablojp: 'Approach ACK. Built and ran interface_zmq.py, plus some manual broken-config scenarios, and the abort works.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes/resolves the underlying issue #33715 (ZMQ bind failure swallowed in debug logs); revives the closed PR #33727 with the same intent."
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "PR is entirely within src/zmq/* and init.cpp's ZMQ setup path, labeled RPC/REST/ZMQ; ZMQ notification setup falls under this category's scope.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real reported bug: ZMQ bind failures were previously silent, leaving operators believing notifications work when they don't (issue #33715). Startup now fails loudly with a specific message naming the notifier, address, and OS error, which is a durable reliability improvement for anyone depending on ZMQ notifications, though it does not touch consensus or fund safety."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "No maintainer (vs. contributor) has given a full ACK yet; whether this counts as sufficient concept buy-in for merge is a judgment call left to the project.",
+   "Whether the abrupt startup-abort behavior change (vs. previous silent continue) needs explicit sign-off as a behavior-compatibility concern wasn't directly discussed by reviewers, though the described rationale ties it to prior maintainer agreement in the referenced issue."
+  ],
+  "card": "This PR changes bitcoind so that a ZMQ notifier bind failure (e.g. address already in use, invalid address) aborts startup with an error-level message naming the notifier, address, and OS error, instead of silently continuing with a broken ZMQ setup. It fixes a real reported problem (issue #33715: a taken port left ZMQ silently non-functional) and revives a previously closed PR (#33727). Two reviewers (pinheadmz, jeanpablojp) gave Concept/Approach ACKs after manual and functional testing, and the author addressed all their requests including exact-string functional tests for several errno cases across platforms. No objections are outstanding, and the PR appears Ready for review with no rebase, CI, or stale-author issues. It touches only the ZMQ/RPC area; the util::Result<void> plumbing is incidental to that fix rather than a utils-focused change."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,123 @@
+{
+ "number": 36066,
+ "input_hash": "41948a0b61cf4936",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10633,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2787
+ },
+ "cost_usd": 0.0259743,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Splits ConnectBlock into a mutating version and a new const-index TestConnectBlock, removing the fJustCheck flag so check-only calls no longer need a dummy mutable CBlockIndex."
+   ],
+   "reviewability": [
+    "Ready to review, all review comments applied and CI issues were merge-conflict related, now fixed."
+   ],
+   "agreement": [
+    "Concept ACK from a reviewer who liked the mutability clarity (l0rinc), but a maintainer flagged that the refactor still leaves Chainstate-level side effects during check-only calls and pointed toward a broader side-effect-free redesign (purpleKarrot).",
+    "Author agrees the deeper redesign is the right direction but argues this PR is a compatible small step, no explicit objection to merging this PR itself."
+   ],
+   "categories": []
+  },
+  "summary": "This PR refactors Chainstate::ConnectBlock by splitting out a shared internal ConnectBlockChecks helper, and introduces a new TestConnectBlock method that takes a const CBlockIndex& instead of the mutable pointer plus fJustCheck flag used previously. The check-only call site (TestBlockValidity) and the fuzz harness are updated to use the new method. The change is described as a pure refactor with no behavior change.",
+  "problem": "The check-only mode of ConnectBlock took a mutable CBlockIndex* even though it never mutates it, forcing callers to construct a dummy mutable index and relying on an easy-to-misuse fJustCheck flag. This is a code-hygiene issue felt by reviewers and future maintainers of this consensus-critical function, and is a stepping stone toward the stated goal in issue #35904 of a side-effect-free validation library.",
+  "discussion": {
+   "open_concerns": [
+    "purpleKarrot noted that TestConnectBlock still mutates Chainstate-level state (num_blocks_total, timing counters, validation cache) despite being 'check-only', and pointed to issue #35904 for a fuller side-effect-free redesign; author acknowledged this is a valid deeper issue but argues the current PR is a compatible, small, low-risk step and has not made further code changes addressing the Chainstate-level mutation itself.",
+    "l0rinc suggested keeping the PR very small/trivially-correct and splitting it further, referencing a local split branch; author has not yet split the PR."
+   ],
+   "resolved_concerns": [
+    "l0rinc's inline suggestions (reuse pindex->GetBlockHash(), pass index by const reference, update stale comments) were all applied by the author in the 2026-09-11 force-push.",
+    "CI fuzz build failures were diagnosed as silent merge conflicts with an unrelated merged PR (#35850) and fixed by rebasing."
+   ],
+   "author_status": "active, addressing review, most recently force-pushed and replied 2026-09-11"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All actionable inline review comments have been applied in the latest force-push, and the CI failures were merge-conflict artifacts that have since been resolved by rebasing. The open discussion about deeper side-effect-free refactoring is a design direction question, not a reason review of the current diff would be wasted."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACK from l0rinc; purpleKarrot raised a standing concern about remaining Chainstate side effects that the author acknowledges but treats as out of scope for this small step.",
+   "reason": "One reviewer explicitly supports the mutability clarification with a stated reason, and no one opposes merging this PR itself, but a maintainer's substantive critique (that 'check-only' still isn't truly side-effect-free) stands unresolved by a fix, only accepted as valid but deferred to a larger future effort.",
+   "evidence": [
+    "l0rinc: 'Concept ACK... Separating the check-only entry point makes the CBlockIndex mutability clearer and removes fJustCheck from the public interface.'",
+    "purpleKarrot: 'calling TestConnectBlock still has the side effect of mutating num_blocks_total, for example' pointing to issue #35904.",
+    "optout21: 'I agree that the right approach would be to rework ConnectBlock... I think that the small change from this PR is compatible with the approach laid out in #35904.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Described by author as triggered by and compatible with #35187 (kernel: Block validation without complete UTXO set), and a small step toward the side-effect-free validation library discussed in issue #35904."
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly restructures Chainstate::ConnectBlock, the core consensus validity-checking function, splitting it into ConnectBlockChecks/ConnectBlock/TestConnectBlock; carries the Validation label.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because this is a pure refactor with no stated behavior change ('No behavior change (pure refactor)' per description), so it carries no direct correctness or performance benefit today. It has some leverage as a small step toward #35187 and the side-effect-free validation library goal in issue #35904, but a maintainer (purpleKarrot) points out the refactor does not yet achieve true side-effect isolation, limiting how much it actually unblocks."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies the fuzz harness src/test/fuzz/connect_block.cpp (renaming the fuzz target and updating the call to TestConnectBlock) and a functional test comment string.",
+    "band": "P4",
+    "reason_tag": "call site update",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the fuzz test change is a mechanical adaptation to the new TestConnectBlock signature and target rename, not new coverage or a framework capability; the functional test edit is a comment/string fix only."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The path hint matches src/validation.cpp generically, but nothing in this PR touches mempool policy, acceptance, or relay; it is purely about ConnectBlock's chainstate-connection logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the change is confined to block connection validity checks and chainstate updates, unrelated to mempool acceptance or policy rules."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers ultimately want this incremental refactor merged now versus waiting for the larger side-effect-free redesign discussed in #35904 is not fully settled in the thread.",
+   "The listed conflicting open PRs (#36000, #35751, #35646, #35570, #35511, #29700) all touch validation.cpp; potential rebase churn is a Reviewability-adjacent fact but no explicit rebase need was flagged in signals."
+  ],
+  "card": "This PR splits Chainstate::ConnectBlock into a shared ConnectBlockChecks helper plus a new TestConnectBlock method with a const CBlockIndex&, removing the fJustCheck flag and the need for callers to construct a dummy mutable index for check-only validation. It is a pure refactor with no stated behavior change, aimed as a small step toward the side-effect-free validation library discussed in issue #35904 and compatible with the in-progress #35187 kernel work. A maintainer, purpleKarrot, pointed out the refactor does not eliminate remaining Chainstate-level side effects (counters, timing, validation cache) during 'check-only' calls, a concern the author accepts as valid but treats as out of scope for this incremental step. Reviewer l0rinc gave a Concept ACK and supplied inline suggestions that the author has since applied in a rebase; CI failures were diagnosed as merge-conflict artifacts and fixed. The PR touches only validation.cpp/h and a fuzz harness call site, is Ready for review, and its importance rests mainly on unblocking future refactoring rather than any immediate correctness or performance gain."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

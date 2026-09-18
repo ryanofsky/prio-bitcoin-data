@@ -1,0 +1,108 @@
+{
+ "number": 36098,
+ "input_hash": "f1f9c4af8ac0df00",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25484,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4600
+ },
+ "cost_usd": 0.049890300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a mechanism for fuzz targets to declare 'reachability goals' (specific code paths reached) and detect at shutdown if the current corpus stopped exercising them.",
+    "Lets a future CI job catch silent loss of fuzz coverage on high-value paths like IBD/non-IBD message handling, P2P handshakes, package acceptance, and compact block reconstruction."
+   ],
+   "reviewability": [
+    "Ready to review now, no known blocker.",
+    "Author last pushed 2026-08-31 addressing prior feedback (two-phase register/observe protocol); a handful of design questions from Crypt-iQ on 2026-09-03 remain open but are not material blockers per current signals."
+   ],
+   "agreement": [
+    "Strong support: maflcko approved, and brunoerg and nervana21 gave concept ACKs.",
+    "No objections raised; discussion is mostly design refinement (higher-level goals, per-feature coverage, exit semantics) rather than pushback on the change (maflcko, dergoegge, Crypt-iQ)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P2 because it gives corpus CI a way to detect silently lost coverage of high-value fuzz paths (IBD/non-IBD message handling, P2P handshake completion, package/tx acceptance, compact block reconstruction), which the author states was the motivating gap.",
+      "It is infrastructure only in this PR (no CI job wired up yet), so the benefit is not yet realized, but multiple experienced reviewers engaged substantively on the design, suggesting real perceived value for fuzzing quality across mempool, p2p, and validation targets."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a 'reachability goal' mechanism to the fuzzing utilities: fuzz targets register named goals identified by source location, mark them observed while processing inputs, and the process reports at shutdown which goals were never reached. Setting FUZZ_ENFORCE_REACHABILITY=1 makes the process fail if a registered goal is unmet, intended for a nightly CI job that replays static qa-assets corpora to catch silent loss of coverage. The PR instruments several existing fuzz targets (process_message(s), p2p_handshake, p2p_transport_serialization, package_eval, tx_pool, cmpctblock, partially_downloaded_block, policy_estimator_io, validation_load_mempool, utxo_snapshot) with goals for their highest-value code paths.",
+  "problem": "Fuzz corpora can silently stop exercising important code paths (e.g. a corpus regression or upstream change) without anyone noticing, since a fuzz target that no longer reaches a valuable branch still 'passes'. This affects contributors and reviewers who rely on the fuzz corpus to catch regressions in consensus, mempool, and p2p code.",
+  "discussion": {
+   "open_concerns": [
+    "dergoegge and Crypt-iQ explored whether goals could be extended with richer comparison primitives (ReachabilityGoalGt etc.) or reused by other fuzzers/tools (AFL++ IJON, Antithesis); treated as future follow-up, not blocking.",
+    "maflcko suggested validation_load_mempool's goal should check specific features (txs, unbroadcast set, fee deltas) rather than plain load success; not yet implemented.",
+    "Crypt-iQ questioned buffering to std::cerr and use of std::_Exit vs std::exit in the destructor; maflcko replied explaining intent (2026-09-17) but no author follow-up push since."
+   ],
+   "resolved_concerns": [
+    "Lazy goal registration causing early returns to hide unregistered goals: resolved by switching to an explicit two-phase register/observe protocol (HowHsu, 2026-08-31).",
+    "Doxygen comment style and Mutex+annotation nits from maflcko were addressed in later pushes.",
+    "Incorrect process_messages goal condition (mempool sequence assertion direction) was fixed after maflcko pointed out the inverted logic."
+   ],
+   "author_status": "silent since 2026-08-31 (17 days), last reviewer activity 2026-09-17 from maflcko answering Crypt-iQ's questions"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blocker: CI passes, no rebase needed, and the author's last push already resolved the structural design concern (two-phase register/observe). Remaining reviewer questions (exit semantics, per-target goal granularity) are open but not flagged as blocking further review per computed waiting-on-author signal."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: maflcko approved with reasoning and brunoerg and nervana21 gave concept ACKs, no objections raised.",
+   "reason": "A maintainer (maflcko) reviewed in depth across many rounds and approved, and two other contributors gave concept ACKs. Follow-up design discussion (dergoegge, Crypt-iQ) raises enhancement ideas and clarifying questions, not objections to the change itself.",
+   "evidence": [
+    "maflcko: 'lgtm. I wonder if reachability goals can be formulated at a higher level' (APPROVED review)",
+    "brunoerg: 'Concept ACK'",
+    "nervana21: 'Concept ACK'",
+    "dergoegge: 'I think what's in this PR already provides value' while proposing follow-up extensions"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35482
+   ],
+   "enables": [
+    "A future nightly CI job that replays qa-assets corpora with FUZZ_ENFORCE_REACHABILITY=1 to detect fuzz coverage regressions",
+    "Possible future extensions mentioned in discussion: richer goal comparison primitives, use by external fuzzers (AFL++ IJON, fuzzamoto), production-code assertions (Antithesis-style)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The PR's entire diff is under src/test/fuzz, adding a reachability-tracking utility (src/test/fuzz/util/reachability.{h,cpp}) and instrumenting existing fuzz targets; it carries the Fuzzing label.",
+    "band": "P2",
+    "reason_tag": "test coverage",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it builds a reusable framework capability meant to catch silent loss of fuzz coverage on security-relevant paths (IBD/non-IBD processing, package acceptance, compact block reconstruction), which the author states is the point: 'Setting FUZZ_ENFORCE_REACHABILITY=1 makes the process fail if any registered goal was not reached.' The benefit depends on a not-yet-built nightly CI job, and reviewers (maflcko, dergoegge, Crypt-iQ) spent significant effort probing the design's generality and correctness, indicating real but not yet fully realized value."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the benefit materializes depends on a nightly CI job that does not exist yet in this PR; the priority band assumes that follow-through happens.",
+   "Whether the open design questions from Crypt-iQ (std::_Exit vs std::exit, stderr buffering) constitute a material open request under the Paused definition is unclear given the conflicting signal (author_silent_days=17 vs waiting_on_author_days=0); I deferred to the provided signal.",
+   "Whether coinselection.cpp (proposed by brunoerg as an example, not merged) should be considered part of this PR's scope; I excluded it since it was not committed."
+  ],
+  "card": "This PR adds a reachability-goal tracking utility for fuzz targets: targets register named goals and mark them observed per input, and the process reports/optionally fails at shutdown if a goal was never reached across the replayed corpus. It solves the problem of fuzz corpora silently losing coverage of high-value paths (IBD/non-IBD message handling, P2P handshake completion, compact block reconstruction, package/tx acceptance) without anyone noticing, intended to back a future nightly CI job replaying qa-assets. Evidence of importance: extensive engaged review from maflcko (approved), dergoegge, and Crypt-iQ debating design generality, plus concept ACKs from brunoerg and nervana21; no objections raised. It is a follow-up to merged PR #35482 and depends on it. Currently ready to review, though the CI integration that would realize its value is not yet built, and a few open design questions (exit semantics, per-feature granularity) remain unaddressed since the author's last push 17 days ago."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

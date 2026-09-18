@@ -1,0 +1,99 @@
+{
+ "number": 35786,
+ "input_hash": "2d192164dc4423fc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11389,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3634
+ },
+ "cost_usd": 0.030965299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Removes wallet code that marks parent transactions dirty and notifies the GUI whenever one of their outputs is spent, since these cached values no longer depend on spend status."
+   ],
+   "reviewability": [
+    "Ready to review, the code is stable after multiple force-pushes and rebases with no CI or merge issues.",
+    "A newly raised edge case about keypool expansion is only two days old and unanswered, but does not yet block review."
+   ],
+   "agreement": [
+    "Broad concept support from several reviewers who traced the removed logic back to PR #27286 and confirmed the cache no longer needs it (pablomartin4btc, Bicaru20, w0xlt, rkrux).",
+    "Two full ACKs after rebase confirmed no substantive changes since original review (pablomartin4btc).",
+    "Unaddressed objection: a concrete failing functional test shows the removed invalidation is still needed when a spend expands the wallet's keypool and reveals a previously-unrecognized output, causing gettransaction to under-report the amount (w0xlt), author has not yet replied."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it is an internal cache-correctness cleanup with no direct new capability, but a reviewer found a concrete edge case (keypool expansion via a spend) where removing the invalidation causes gettransaction to under-report a transaction's amount.",
+      "This is a real, if narrow, wrong-balance-display risk, the kind of thing wallet users notice, so it deserves review attention before merge even though the core simplification is otherwise sound."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes cache invalidation and GUI notification logic in the wallet that runs whenever one of a transaction's outputs is spent. The author argues this logic became dead work after PR #27286 moved the wallet's available-balance tracking out of CWalletTx's per-tx cache, since a spend no longer changes the cached incoming/outgoing amounts or from-me flag of the parent transaction. The PR deletes MarkInputsDirty and its call sites, drops the CommitTransaction notification loop, and adds tests asserting cached values are unchanged across spend, mempool, and abandon paths.",
+  "problem": "The described problem is dead computation and a spurious GUI refresh notification on every spend, which the author frames as pure cleanup following a completed refactor (#27286). The value is developer clarity and removing what reviewer rkrux called flow-breaking MarkDirty calls, not a user-facing pain point.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt (2026-09-15) provided a functional test showing that when a spend triggers keypool expansion, causing a previously-unrecognized wallet output to become recognized, the parent transaction's cached amount is not refreshed without the removed invalidation, so gettransaction under-reports the total by omitting the newly-recognized output. Author has not yet responded (2 days)."
+   ],
+   "resolved_concerns": [
+    "pablomartin4btc's wording nits and struct/comment placement suggestions were addressed or explicitly declined by furszy without pushback.",
+    "pablomartin4btc asked why AddWalletDescriptor's own MarkDirty call was sufficient to cover the descriptor-import exception; discussion continued without objection."
+   ],
+   "author_status": "active until 2026-09-14, pushed most recently that day; the edge-case objection was raised the next day and has not yet been addressed"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blockers: CI passes, no rebase needed, and the code has been stable through multiple review rounds. A substantive correctness question about keypool-expansion edge cases was raised on 2026-09-15 but is only two days old, well under the waiting threshold, so it does not yet pause review, though it should be checked before merge."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Multiple concept and full ACKs after the code stabilized, but w0xlt just posted a concrete failing test showing a real edge-case regression (wrong reported amount after keypool expansion); author has not replied yet.",
+   "reason": "The PR had accumulated Concept ACKs (w0xlt, rkrux) and full ACKs (Bicaru20, pablomartin4btc) confirming the core reasoning, but a late substantive objection with reproducing evidence has not been addressed, so it cannot be called resolved support yet.",
+   "evidence": [
+    "pablomartin4btc: 'Concept ACK... Both are dead work; removing them is correct.'",
+    "Bicaru20: 'ACK 0ec1a08131... tests check the cached values are not changed.'",
+    "pablomartin4btc: 'ACK 9a075fca1253...confirmed only the typo fix and a rebase.'",
+    "w0xlt: 'This invalidation is still needed in a narrow case... the parent's amount remains 1 BTC when 2 BTC is expected,' with an attached failing functional test, no author reply yet."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "The PR modifies CWalletTx caching semantics, MarkDirty/MarkInputsDirty logic, and CommitTransaction/SyncTransaction/RecursiveUpdateTxState behavior, all core wallet internals, matching the Wallet label.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Primarily a dead-code removal following #27286's refactor, which is low-value cleanup on its own. But w0xlt's functional test demonstrates a genuine, if narrow, correctness regression: after removing the invalidation, gettransaction can under-report a transaction's amount once a spend causes keypool expansion to reveal a previously-unrecognized wallet output. That elevates it above pure cosmetic cleanup, since 'wrong balances' is explicitly a wallet user-reliability concern, but the scenario is acknowledged by its own reporter as 'a very narrow edge case.'"
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether furszy will address or dispute w0xlt's edge case; the outcome could move this back toward Positive/Strong if fixed, or reveal a broader problem if the scenario is more common than described.",
+   "No maintainer beyond furszy (author) and reviewers below top-maintainer level have weighed in with an authoritative view on whether the edge case is disqualifying or fixable with a narrower change."
+  ],
+  "card": "This PR removes cache invalidation (MarkInputsDirty) and a GUI notification that fire whenever a wallet-owned output is spent, arguing both became dead work after PR #27286 moved balance tracking out of the per-tx cache. It carries new tests asserting cached amounts are unchanged across spend, mempool, and abandon paths, and had accumulated several Concept ACKs and full ACKs (pablomartin4btc, Bicaru20, w0xlt, rkrux) confirming the reasoning after multiple rebases. On 2026-09-15, however, w0xlt posted a concrete failing functional test showing that removing the invalidation causes gettransaction to under-report an amount when a spend triggers keypool expansion and reveals a previously-unrecognized wallet output; the author has not yet responded. The change is otherwise internal cleanup with modest user-facing stakes, but this newly raised edge case ties it to the 'wrong balances' failure mode wallet users notice. No dependencies or stack relationships; several other open wallet PRs touch overlapping files but do not block it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

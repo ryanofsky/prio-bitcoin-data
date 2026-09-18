@@ -1,0 +1,121 @@
+{
+ "number": 34533,
+ "input_hash": "1f075871b49febfc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:15+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13633,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2790
+ },
+ "cost_usd": 0.02068725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Ensure unconfirmed wallet transactions rebroadcast via private connections",
+    "Prevent rebroadcasts from leaking node IP when private broadcast is enabled"
+   ],
+   "reviewability": [
+    "Needs rebase and has been inactive for several months.",
+    "Blocked by unresolved transaction dependency and package relay concerns."
+   ],
+   "agreement": [
+    "Concept supported for privacy consistency (pablomartin4btc, w0xlt, andrewtoth).",
+    "Unresolved concern that CPFP/dependent transactions will fail to rebroadcast without package relay (achow101, instagibbs)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes an IP privacy leak where private broadcast transactions are subsequently broadcast to all peers on the periodic rebroadcast timer.",
+      "Protects users relying on -privatebroadcast from deanonymization through unmined transaction rebroadcasts."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it connects wallet rebroadcast logic to the private broadcast network transport without altering the underlying p2p relay protocols.",
+      "Important for end-to-end privacy guarantees of the private broadcast feature."
+     ]
+    }
+   ]
+  },
+  "summary": "Updates the wallet rebroadcast logic to respect `-privatebroadcast=1`. When enabled, periodic rebroadcasts of unconfirmed wallet transactions use the private broadcast mechanism rather than standard broadcast to all connected peers.",
+  "problem": "When `-privatebroadcast` is enabled, transactions initially sent privately can later be leaked over standard broadcast during periodic wallet rebroadcasts (every 12\u201336 hours), defeating the privacy benefits for users who rely on private broadcast.",
+  "discussion": {
+   "open_concerns": [
+    "achow101 pointed out that private broadcast dispatches individual transactions to random peers, which breaks or indefinitely delays rebroadcasting dependent transactions (e.g., CPFP) without package support or mempool synchronization.",
+    "Disagreement on how to handle transactions if the node is restarted with -privatebroadcast disabled (w0xlt noted lack of per-transaction tracking, though agreed to keep it simple)."
+   ],
+   "resolved_concerns": [
+    "Misleading log message printing txid instead of wtxid was addressed in the first commit."
+   ],
+   "author_status": "silent since 2026-04-28 (rebased to draft; inactive for >140 days)"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts against master and the author has been silent for over 140 days."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept supported, but achow101 raised blocking concerns regarding CPFP failures without package private broadcast.",
+   "reason": "Reviewers generally approve the privacy rationale, but achow101 and instagibbs noted that without package relay or coordination between parent and child broadcasts, dependent transactions can get permanently stuck or delayed during rebroadcast. The author acknowledged this issue but has not implemented a resolution.",
+   "evidence": [
+    "pablomartin4btc Concept ACK: 'This is necessary to support the private transaction broadcast mechanism introduced in #29415'",
+    "w0xlt ACKed after discussing per-transaction tracking",
+    "andrewtoth ACKed and suggested #34707 might help handle CPFP failures",
+    "achow101: 'I'm not convinced that this is ready for the wallet until there is support for private broadcasting of packages'",
+    "vasild agreed that CPFP handling is an issue ('Correct. Possible solutions to that...')"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies transaction resubmission in src/wallet/wallet.cpp.",
+    "band": "P2",
+    "reason_tag": "privacy",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Prevents wallet rebroadcasts from deanonymizing users who explicitly enable `-privatebroadcast`. Citing pablomartin4btc: 'This is necessary to support the private transaction broadcast mechanism introduced in #29415 when transactions are rebroadcast or resubmitted'. Because transaction origin privacy is an explicit priority within the wallet domain, fixing this gap is strategically important."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Tagged with Private Broadcast label; affects how transactions leave the node over p2p network connections.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The PR routes wallet resubmissions through the private broadcast subsystem rather than changing p2p wire protocols or connection mechanisms directly. While necessary for end-to-end privacy across the P2P boundary, the core P2P relay logic is not being changed."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 34533 ensures that when -privatebroadcast=1 is enabled, periodic wallet transaction rebroadcasts use private broadcast connections instead of broadcasting to all peers. This fixes a privacy leak where privately broadcast transactions are subsequently revealed to all connected peers upon rebroadcast. Reviewers support the privacy motivation, but achow101 raised unresolved concerns that unconfirmed package/CPFP transactions will fail to rebroadcast without package-aware private relay. The PR is currently marked draft, has merge conflicts, and the author has been silent for over 140 days."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,205 @@
+{
+ "number": 35642,
+ "input_hash": "5eb9b8234fbde1e1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:06+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27021,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4173
+ },
+ "cost_usd": 0.0359145,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Automatically compute headers-sync DoS protection parameters at node startup instead of hardcoding them in chainparams",
+    "Remove a recurring release-maintenance chore and prevent protection degradation as chains age"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "The author recently reworked the optimization algorithm to address reviewer concerns about batching assumptions"
+   ],
+   "agreement": [
+    "Strong support for moving parameter computation to runtime (ajtowns, darosior, fjahr, sedited)",
+    "Technical critiques regarding edge-case non-termination and incomplete-batch modeling were resolved in recent pushes (shuv-amp, darosior)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it ensures headers presync DoS parameters remain optimal automatically over time",
+      "Eliminates the risk of parameter staleness without requiring manual maintenance every release cycle"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it decouples p2p headers-sync configuration from the kernel chain parameters",
+      "Removes peer-management structures from CChainParams as part of kernel boundary cleanup"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because it retires an obsolete developer script once runtime computation takes over"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR implements the headers presync parameter optimization algorithm directly in C++, computing commitment period and redownload buffer sizes at node startup based on chain age and minchainwork height. It removes hardcoded headers-sync parameters from chainparams and deletes the offline Python generation script. Unit tests and fuzz tests are added to verify solver correctness and termination.",
+  "problem": "Headers presync DoS parameters were previously generated offline by an ad-hoc Python script and hardcoded into chain parameters for each release, requiring maintainer intervention and leaving nodes running old software with degrading DoS margins over time.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ajtowns questioned whether runtime clock values could leak node timing via parameters; sipa showed values change only once every ~22 days during IBD",
+    "shuv-amp identified infinite loops in the solver for small minchainwork heights and zero timespans, which sipa fixed with bounded loops and fuzz tests",
+    "darosior noted the batch-of-2000 model in Python and initial C++ underestimated attacks where attackers abort mid-batch; sipa addressed this by switching to a simpler single-header arrival model"
+   ],
+   "author_status": "active, recently reworked the algorithm to use a simpler continuous model and force-pushed updates"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has clean mergeable state, passing CI, and the author recently resolved reviewer comments with an updated approach."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept and approach support; previous technical concerns regarding edge cases and attack modeling have been addressed.",
+   "reason": "Multiple maintainers and contributors (ajtowns, darosior, fjahr, sedited) have provided Concept and Approach ACKs. Author engaged with and addressed edge-case termination issues raised by shuv-amp and attack-modeling gaps raised by darosior.",
+   "evidence": [
+    "sedited, darosior, fjahr gave Concept ACKs",
+    "ajtowns gave Approach ACK",
+    "shuv-amp helped isolate solver hang conditions, which sipa addressed",
+    "darosior commented on batch attack assumptions, prompting sipa's recent simplification"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes headers-sync DoS parameter calculation in src/headerssync.cpp and net_processing.cpp",
+    "band": "P3",
+    "reason_tag": "DoS protection",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it improves the robustness of headers synchronization DoS defense against degradation over time. Computing parameters dynamically removes reliance on maintainers predicting software lifespans and updating chainparams."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Removes p2p-specific HeadersSyncParams and related accessors from src/kernel/chainparams.h and chainparams.cpp",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because removing headers-sync networking options from CChainParams helps cleanly separate p2p logic from the kernel consensus parameters."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Removes contrib/devtools/headerssync-params.py",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because deleting the Python devtool script is a minor cleanup following the migration of the logic to the node core."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Does not alter build systems, CI, or platform configurations",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "The change to doc/release-process.md is purely ancillary to the code removal of the release step",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Added tests and fuzzers specifically target the headers-sync optimizer and do not touch test infrastructure",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Adding minchainwork_height to Consensus::Params provides data for p2p parameter sizing without altering consensus or chainstate validation rules",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves the computation of headers presync DoS parameters (commitment period and redownload buffer size) from an offline Python script committed to chainparams to an on-the-fly startup calculation in C++. This eliminates a manual maintainer task during release cycles and prevents defense degradation as the chain grows past software release dates. Support is strong with Concept ACKs from multiple contributors and an Approach ACK from ajtowns; earlier concerns regarding convergence and attack models were resolved in recent pushes. It is ready for review."
+ },
+ "raw_text": null
+}

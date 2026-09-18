@@ -1,0 +1,116 @@
+{
+ "number": 35901,
+ "input_hash": "d0c1859ac2777d8e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:51+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23307,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3812
+ },
+ "cost_usd": 0.03177525,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Ensure wallet rescans detect transactions paying to look-ahead addresses when the pool-expanding transaction appears later in the same block",
+    "Prevent wallets from displaying an incorrect, underreported balance following a rescan or descriptor import"
+   ],
+   "reviewability": [
+    "Needs rebase against master following the merge of PR 34681",
+    "The author is also evaluating a proposed rewrite of the loop algorithm"
+   ],
+   "agreement": [
+    "Concept ACK on fixing the bug (achow101, molnard)",
+    "Reviewers demonstrated edge cases where the shrinking-prefix approach still misses transactions (molnard, jeanpablojp)",
+    "Reviewer proposed an alternative fixed-point loop that the author is currently evaluating (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a silent wallet balance underreporting bug during rescan and descriptor import without requiring a manual second rescan",
+      "Resolves intra-block ordering edge cases that directly impact user-visible wallet reliability"
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a bug in ScanForWalletTransactions where transactions paying to addresses just outside the current look-ahead pool are missed if the pool-expanding transaction appears later in the same block's vtx order. The PR introduces a loop that re-scans the block prefix processed prior to the last pool expansion, and adds a functional test reproducing the failure across reload, importdescriptors, and cascading multi-expansion scenarios.",
+  "problem": "When scanning a block in vtx order, an output to a key outside the current look-ahead pool is skipped as not-mine; if a subsequent transaction in the same block expands the pool via TopUp, the skipped transaction is not re-examined during that pass. This leaves the wallet with an underreported balance after rescan, descriptor import, or wallet load, with no warning to the user.",
+  "discussion": {
+   "open_concerns": [
+    "The prefix-only rescan does not revisit transactions located after the expansion point, missing child spends that spend recovered look-ahead outputs (molnard)",
+    "Cascaded receives occurring after the expansion position are also missed if they only become recognized after earlier look-ahead outputs are found (jeanpablojp)",
+    "An alternative loop that retries unmatched transactions until no new wallet transactions match was proposed and benchmarked to resolve both issues (jeanpablojp)"
+   ],
+   "resolved_concerns": [
+    "Double-firing of walletnotify on rescan passes was mitigated by bounding rescans to the prefix rather than rescanning the whole block (jeanpablojp)",
+    "Redundant checks were avoided by skipping range-end collection when SyncTransaction returns false (molnard)"
+   ],
+   "author_status": "Silent since 2026-08-29, when they noted they were analyzing jeanpablojp's suggested algorithm replacement."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master following the merge of #34681, and the core algorithm is under discussion for replacement with a fixed-point retry loop."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept agreed, but reviewers identified remaining edge cases where prefix rescan misses transactions and suggested a loop rewrite (molnard, jeanpablojp).",
+   "reason": "Reviewers agreed the bug is real and needs fixing, but demonstrated concrete cases where the PR's prefix-only scan still fails to catch spends or chained receives, leaving balances wrong. An alternative implementation has been proposed and is being evaluated by the author.",
+   "evidence": [
+    "achow101 gave Concept ACK-ish and noted rescan overhead on 2026-08-10",
+    "molnard gave Concept ACK on 2026-08-27, noting an unspent classification gap with intra-block child spends",
+    "jeanpablojp reported a test case where cascaded receives past scan_end are missed, providing an alternative implementation and benchmark on 2026-08-29",
+    "pablomartin4btc acknowledged the gap and confirmed they are analyzing the suggested fix on 2026-08-29"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies CWallet::ScanForWalletTransactions in src/wallet/wallet.cpp and adds a wallet rescan functional test.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a silent incorrect wallet balance bug on rescan. Under the wallet rubric, wrong balances fall under user-visible reliability, which warrants deliberate reviewer attention even though funds are not permanently lost."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The functional test added (wallet_rescan_intrablock_ordering.py) specifically exercises wallet rescan logic rather than test framework utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a tests category member because tests targeting a specific subsystem belong to that subsystem rather than test infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR addresses a bug where ScanForWalletTransactions misses transactions to look-ahead keys if the pool-expanding transaction appears later in the same block, leaving wallet balances underreported after a rescan or descriptor import. The proposed patch re-scans the block prefix preceding the last pool expansion and adds extensive regression tests. Reviewers demonstrated edge cases where the prefix-only approach still leaves transactions or spends unrecorded, and suggested an alternative fixed-point retry loop. The PR currently needs a rebase following the merge of refactoring PR 34681."
+ },
+ "raw_text": null
+}

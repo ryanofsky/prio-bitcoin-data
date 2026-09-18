@@ -1,0 +1,96 @@
+{
+ "number": 35874,
+ "input_hash": "687afab081dd44bd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:26+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13693,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3447
+ },
+ "cost_usd": 0.023196,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent inbound peers from bypassing transaction-relay connection limits via BIP35 mempool requests.",
+    "Preserve compatibility with legitimate BIP37 SPV clients such as bitcoinj."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Reworked to address reviewer feedback and applies cleanly."
+   ],
+   "agreement": [
+    "Positive direction following reviewer feedback.",
+    "gmaxwell suggested disallowing mempool requests when fRelay is false.",
+    "schildbach clarified bitcoinj SPV behavior to ensure compatibility.",
+    "No open objections remain after the author's push."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it closes an inbound connection-accounting bypass in peer message handling.",
+      "The issue only affects nodes running with non-default bloom filters enabled."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request ignores BIP35 mempool messages from inbound peers that have disabled transaction relay (fRelay=false), unless the peer has explicit mempool permissions. Inbound peers loading a BIP37 bloom filter enable transaction relay at that time, subjecting them to standard inbound relay limits while maintaining SPV client compatibility.",
+  "problem": "When a node serves bloom filters (NODE_BLOOM), an inbound peer setting fRelay=false can request full mempool inventory via BIP35 while staying accounted as a block-relay-only peer, bypassing the inbound transaction-relay connection limits introduced in #28463.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "darosior questioned whether earlier revisions altered inv relay behavior for fRelay=false peers; author added regression tests and subsequently simplified the approach.",
+    "gmaxwell questioned whether fRelay=false peers should be permitted to request mempool inventory at all, prompting a check with bitcoinj maintainer schildbach on SPV filterload sequencing."
+   ],
+   "author_status": "active; addressed review feedback with a rebased rework"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is compact, CI is passing, and previous reviewer feedback has been addressed in the current push."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; guided by feedback from gmaxwell and schildbach with no standing objections.",
+   "reason": "Reviewers discussed whether mempool requests should be allowed at all for fRelay=false peers and confirmed compatibility requirements, which the author incorporated into the final approach.",
+   "evidence": [
+    "gmaxwell suggested fRelay=false peers should probably not be allowed to request mempool inventory.",
+    "schildbach confirmed that bitcoinj sends filterload prior to mempool in SPV mode.",
+    "l0rinc reworked the patch to ignore mempool requests when transaction relay is disabled."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies P2P message handling in src/net_processing.cpp for BIP35 mempool messages.",
+    "band": "P3",
+    "reason_tag": "DoS protection",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because it patches an inbound connection-accounting loophole where peers avoid tx-relay eviction while still retrieving mempool dumps. Impact is limited because BIP35 requires NODE_BLOOM, which is disabled by default."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Ignores BIP35 mempool requests from inbound peers that have disabled transaction relay (fRelay=false), unless explicitly granted mempool permissions. This closes a loophole introduced in #28463 where peers could bypass inbound transaction-relay connection capacity limits on nodes with NODE_BLOOM enabled. Input from gmaxwell and bitcoinj maintainer schildbach shaped the fix to preserve legitimate SPV filterload flows. The change is small, tests pass, and it is ready for code review."
+ },
+ "raw_text": null
+}

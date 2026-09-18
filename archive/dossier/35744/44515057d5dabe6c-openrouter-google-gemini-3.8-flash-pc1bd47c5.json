@@ -1,0 +1,236 @@
+{
+ "number": 35744,
+ "input_hash": "44515057d5dabe6c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:39:33+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 32389,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6353
+ },
+ "cost_usd": 0.0481155,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent node crashes when AssumeUTXO cache resizing races with active UTXO set scans",
+    "Add checked shared mutex support to lock order debugging and thread safety analysis"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "All reviewer feedback has been addressed and CI passes"
+   ],
+   "agreement": [
+    "Strong support with collaborative design from andrewtoth and a Concept ACK (sedited)",
+    "Initial approach feedback on mutex design was fully addressed and co-authored (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it prevents a LevelDB abort when AssumeUTXO cache rebalancing occurs during active UTXO scans",
+      "Long-running scans like scantxoutset and gettxoutsetinfo would otherwise cause the node to crash"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it brings shared mutexes under DEBUG_LOCKORDER tracking and Clang thread safety analysis",
+      "It also fixes lock order tracking when shared locks are released out of LIFO order"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request prevents `CCoinsViewDB::ResizeCache()` from destroying active LevelDB iterators and causing an abort during AssumeUTXO cache rebalancing. It introduces a shared lock (`m_db_mutex`) held by active cursors and compaction while requiring exclusive locking for cache resizing. To support this safely, it extends Bitcoin Core's synchronization infrastructure with checked `SharedMutex` and `SharedLock` wrappers and updates `DEBUG_LOCKORDER` to handle non-LIFO lock release.",
+  "problem": "RPCs like `gettxoutsetinfo`, `scantxoutset`, and `dumptxoutset` retain LevelDB cursors after releasing `cs_main`. If AssumeUTXO cache rebalancing calls `ResizeCache()` concurrently, it replaces `m_db` and triggers a LevelDB assertion failure or abort. Furthermore, existing shared mutex usage bypassed lock order debugging and static thread safety analysis.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Replacing an atomic counter approach with a shared mutex to avoid custom synchronization logic",
+    "Handling out-of-order (non-LIFO) lock releases in DEBUG_LOCKORDER when long-lived shared locks outlive outer locks",
+    "Ensuring AssertLockHeld(cs_main) is checked during ResizeCache"
+   ],
+   "author_status": "active; addressed all reviewer design suggestions in updated commits"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code incorporates reviewer suggestions, cleanly passes CI, and has no outstanding questions or blocking conflicts."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "andrewtoth",
+     "stance": "objection",
+     "note": "suggested replacing atomic counter approach with a shared mutex and extending lock-checking machinery"
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Gave Concept ACK"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "andrewtoth",
+     "kind": "approach",
+     "harm": "Atomic counter approach was non-standard compared to using a shared mutex for read/write synchronization",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-18: \"I'm not sure about this approach with an atomic counter though. Would it make sense to instead have a shared mutex...\"",
+     "resolution_evidence": "2026-07-25: l0rinc: \"Thanks, took your suggestions, @andrewtoth. I reworked the fix around it...\"",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "andrewtoth",
+     "reason": "Favored the shared mutex approach and provided code snippets to extend sync.cpp for non-LIFO lock checking",
+     "substantive": true
+    },
+    {
+     "reviewer": "sedited",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: andrewtoth collaboratively guided the shared-locking design and co-authored commits, accompanied by a Concept ACK from sedited.",
+   "reason": "Reviewers have substantively shaped and supported the PR, with design suggestions integrated and no open objections remaining.",
+   "evidence": [
+    "andrewtoth proposed the shared mutex design on 2026-07-18 and provided lock-checking diffs on 2026-07-26",
+    "sedited left a Concept ACK on 2026-09-08"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (andrewtoth)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Positive",
+    "objections": [
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "an atomic counter approach is less suitable than a shared mutex for managing cursor lifetimes against cache resizing",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-18: \"I'm not sure about this approach with an atomic counter though. Would it make sense to instead have a shared mutex that would allow multiple consumers to take a read lock along with the cursor, which are then released in the destructor?\"",
+      "resolution_evidence": "2026-07-26: \"Thanks, I do like this better.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "andrewtoth",
+      "stance": "objection",
+      "note": "suggested replacing atomic counter approach with a shared mutex and extending lock-checking machinery"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "Concept ACK"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive; andrewtoth's suggestion to use a shared mutex instead of an atomic counter was implemented, and sedited Concept ACKed",
+    "usage": {
+     "input_tokens": 6534,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2401
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "Atomic counter approach was non-standard compared to using a shared mutex for read/write synchronization",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-18: \"I'm not sure about this approach with an atomic counter though. Would it make sense to instead have a shared mutex...\"",
+      "resolution_evidence": "2026-07-25: l0rinc: \"Thanks, took your suggestions, @andrewtoth. I reworked the fix around it...\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "andrewtoth",
+      "reason": "Favored the shared mutex approach and provided code snippets to extend sync.cpp for non-LIFO lock checking",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies CCoinsViewDB cursor management and cache resizing in src/txdb.cpp and src/txdb.h.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Prevents a node abort in LevelDB when AssumeUTXO cache resizing races with active UTXO set scans. A crash during node operation due to concurrent RPC execution and chainstate sync is a clear stability issue."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Extends synchronization primitives in src/sync.cpp and src/sync.h with SharedMutex, SharedLock, and non-LIFO lock release detection.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Brings shared locking into the project's lock-order tracking and Clang thread-safety analysis frameworks. It also fixes lock tracking corruption when shared locks outlive enclosing critical sections."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a bug where AssumeUTXO cache rebalancing via ResizeCache() can invalidate live LevelDB iterators held by gettxoutsetinfo or scantxoutset, causing an abort. It ensures cursors and compaction hold a shared lock while cache resizing requires exclusive access to the DB wrapper. To enable this safely, it adds checked SharedMutex wrappers and non-LIFO lock tracking to Bitcoin Core's synchronization utilities. Review is in a ready state with strong collaboration from andrewtoth and a Concept ACK from sedited."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01390425
+}

@@ -1,0 +1,141 @@
+{
+ "number": 35936,
+ "input_hash": "24ba67e0db3441be",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 7268,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4586
+ },
+ "cost_usd": 0.0316043,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make the node reliably disconnect peers that send oversized getblocks/getheaders locators, closing a gap where a malformed count let the peer stay connected instead."
+   ],
+   "reviewability": [
+    "Ready to review, the author just pushed a fix for the gap a reviewer found and addressed a design question with a clear rationale."
+   ],
+   "agreement": [
+    "Positive, jeanpablojp found a real gap where counts above MAX_SIZE stayed connected and author fixed it (jeanpablojp)",
+    "Design question about matching the HEADERS-style local check was answered with a technical rationale and no pushback (mzumsande, sedited, ajtowns)",
+    "Existing ACKs are stale, predating the fix for the gap (achow101, jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it closes a real gap in disconnect enforcement for malformed locators, a minor DoS/anti-abuse hardening rather than a critical exploit.",
+      "Fixes a concrete bug (peer not disconnected as intended) with a reviewer-confirmed edge case, but the practical harm of a lingering non-conforming peer is limited."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes an overflow/range-check gap in the shared LimitedVectorFormatter used by any LIMITED_VECTOR caller, a real but narrow correctness improvement to a primitive.",
+      "Adds a dedicated exception type for callers to distinguish size-limit failures, a modest but reusable capability."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Not a member: CBlockLocator and its serialization are p2p-facing protocol handling, not consensus validity or chainstate logic."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes getblocks/getheaders handling so that a locator advertising an oversized hash count is rejected and the peer disconnected before hash allocation, rather than failing generic deserialization and leaving the peer connected. Adds a dedicated LimitedVectorExceededError to serialize.h so LIMITED_VECTOR callers can distinguish size-limit failures from other deserialization errors, and extracts a shared ReadBlockLocator helper used by both message handlers. Includes a characterization test and a new net_tests case, plus a functional test verifying the boundary at 101/102 hashes.",
+  "problem": "Bitcoin Core enforces MAX_LOCATOR_SZ only after deserializing the locator's hashes; a peer that advertises an oversized count but sends a truncated payload triggers a generic stream failure before the size check runs, so the misbehaving peer is never disconnected. This weakens the node's enforcement of locator-size limits against malformed or adversarial peers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp found that counts above ReadCompactSize's MAX_SIZE still bypassed disconnection; author fixed it by reading the count with range_check=false and widening to uint64_t, confirmed by the reporter's re-test description.",
+    "mzumsande and sedited asked why not reuse the HEADERS-style local read instead of adding CBlockLocator::LimitedRead and a new exception type; ajtowns explained the HEADERS approach is a special case due to a serialize/deserialize format mismatch and argued the new approach preserves encapsulation better, with no further objection.",
+    "ajtowns's naming nit about s.ignore(4) vs s.ignore(sizeof(DUMMY_VERSION)) was addressed by author with a rationale (documents intent) and not pushed further."
+   ],
+   "author_status": "active, force-pushed 2026-09-04 to address jeanpablojp's finding and commented explaining the design choice"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No open material question blocks review; the author just addressed the one substantive gap a reviewer found (locator counts above MAX_SIZE) with a force push, and the remaining design discussion was resolved by explanation without further pushback."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: jeanpablojp's real finding about oversized-count locators bypassing disconnection was fixed by the author; a design alternative (HEADERS-style local parsing) was raised by mzumsande/sedited and resolved by ajtowns's rationale with no objection.",
+   "reason": "Substantive review occurred (jeanpablojp reproduced and confirmed a genuine gap, author fixed it) and the remaining design preference was addressed with technical reasoning that nobody contested. Existing ACKs (achow101, jeanpablojp) are stale relative to the latest fix.",
+   "evidence": [
+    "jeanpablojp: 'The same message still leaves the peer connected once the count goes above MAX_SIZE' and proposed a concrete diff, later confirmed fixed after author's push",
+    "mzumsande: asked why not reuse the HEADERS local-parsing approach; sedited agreed with a slight preference for consistency",
+    "ajtowns: explained why HEADERS' local approach is a special case and why the exception-based approach is preferable, ending the thread",
+    "l0rinc: 'Rebased and addressed @jeanpablojp's finding: counts above MAX_SIZE now also disconnect, with regression coverage'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes net_processing.cpp message handling for GETBLOCKS/GETHEADERS to enforce disconnection on oversized locators, labeled P2P.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P2 because it closes a real enforcement gap where a malformed or adversarial locator left the peer connected instead of disconnected, confirmed and extended by jeanpablojp's testing to cover counts above MAX_SIZE. It is a genuine bug fix in the node's anti-abuse handling, though the practical harm of the gap (a lingering non-conforming connection) is moderate rather than severe."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies the shared LimitedVectorFormatter and ReadCompactSize usage in serialize.h, and adds a new exception type used by any LIMITED_VECTOR caller.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it fixes a real correctness gap in a widely-used serialization primitive: LimitedVectorFormatter previously relied on ReadCompactSize's MAX_SIZE range check, letting oversized counts throw a generic error instead of the size-limit-specific one. The fix (reading without range check, widening to uint64_t for 32-bit correctness) is narrow but improves a primitive other callers may use."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "CBlockLocator and its deserialization are p2p protocol-layer constructs, not consensus validity, chainstate, or UTXO logic; the primitives/block.h path hint does not make this a validation change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a validation change; CBlockLocator handling belongs to p2p message processing, and the diff does not alter block or transaction validity, chainstate, or UTXO logic."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the current head (after 2026-09-04 fixes) has received a fresh substantive review from achow101/jeanpablojp beyond the earlier stale ACKs is not fully clear from the record."
+  ],
+  "card": "This PR closes a gap in getblocks/getheaders handling where a peer sending a truncated locator with an oversized advertised hash count was not disconnected, because generic vector deserialization failed before the existing MAX_LOCATOR_SZ check ran. It adds a dedicated LimitedVectorExceededError to the shared LimitedVectorFormatter so callers can distinguish size-limit failures, and a shared ReadBlockLocator helper for both message types. Reviewer jeanpablojp found and confirmed a deeper variant of the bug (counts above ReadCompactSize's MAX_SIZE also bypassed disconnection), which the author fixed with a force push, and a design question about matching the existing HEADERS-style local-parsing approach was resolved by ajtowns's explanation without further objection. The PR is ready for fresh review since existing ACKs from achow101 and jeanpablojp predate the latest fix. No stated dependencies or blockers; conflicts noted with two unrelated open PRs (#36244, #35027) touching overlapping files."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

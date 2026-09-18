@@ -1,0 +1,129 @@
+{
+ "number": 34872,
+ "input_hash": "6664309ccf804796",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21340,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5509
+ },
+ "cost_usd": 0.050291300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes wallet history RPCs (gettransaction, listtransactions, listsinceblock) report honest, conservative accounting for transactions that mix wallet-owned and foreign inputs, such as CoinJoins and payjoins.",
+    "Currently these RPCs report a wrong fee and misattribute foreign outputs as wallet sends when only some inputs are wallet-owned."
+   ],
+   "reviewability": [
+    "Stale: needs rebase, and author has been silent since 2026-07-08 (70+ days), leaving a maintainer's rebase/response request and multiple reviewer questions unanswered.",
+    "A reviewer's time reviewing the current diff risks being wasted since the design itself has shifted twice already and a rebase is pending."
+   ],
+   "agreement": [
+    "Disputed approach: achow101 gave a concept NACK on the original design ('even more misleading to not show any send entries at all') and has not revisited after the author's subsequent rework.",
+    "rkrux initially leaned NACK, then gave a concept ACK once the author reworked the accounting model, but has not completed a full review since.",
+    "murchandamus raised many substantive, unresolved clarification and design questions (P2A handling, wording, formula correctness) in a 2026-07-15 review that the author has not yet responded to (achow101, rkrux, murchandamus)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR changes wallet history RPCs (gettransaction, listtransactions, listsinceblock) to stop applying normal all-inputs-wallet-owned accounting to transactions that spend a mix of wallet-owned and foreign inputs. It adds input-ownership caching, a new history-accounting helper, and reports either normal per-output send/fee accounting (when all foreign inputs are known to have zero value) or a single conservative aggregate 'send' entry with no address/vout/fee plus 'receive' entries for wallet-owned outputs. It exposes new fields (involves_mixed_inputs, wallet_debit, wallet_credit) and documents the change in a release note, with substantial functional test coverage added.",
+  "problem": "Wallet history RPCs currently misreport fees and falsely attribute foreign outputs as wallet-initiated sends for transactions like CoinJoins and payjoins where the wallet owns only some inputs, an issue tracked since 2018 in #14136 and felt by users and tools relying on gettransaction/listtransactions for accurate accounting, especially after wallet restore or rescan when transaction-intent metadata is unavailable.",
+  "discussion": {
+   "open_concerns": [
+    "achow101 (maintainer) gave a concept NACK on the approach: 'I think it's even more misleading to not show any send entries at all for transactions where we participate in the inputs,' and has not revisited after the author's subsequent redesign.",
+    "murchandamus raised many detailed, unresolved questions in a 2026-07-15 review (P2A input handling, formula correctness for fee = credit - debit - fee vs sign conventions, unclear wording of 'attributable'/'unattributed', whether all-outputs-to-wallet mixed-input cases should be a 'receive', and commit message clarity) that remain unanswered.",
+    "rkrux's initial NACK concern that removing send details for partially-owned transactions could itself be misleading was addressed by a design rework, but rkrux's concept ACK is provisional pending full review that has not happened.",
+    "sedited (maintainer) explicitly asked on 2026-09-09 for a rebase and response to murch's comments, unanswered as of now."
+   ],
+   "resolved_concerns": [
+    "The original design (dropping all send details for mixed-input transactions) was reworked in response to luke-jr/rkrux/achow101/murchandamus feedback into a debit/credit-based accounting model with a conservative aggregate send entry plus receive entries, which earned rkrux's concept ACK on the new direction."
+   ],
+   "author_status": "silent since 2026-07-08, 70+ days, with an outstanding maintainer request to rebase and respond to review comments"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, author silent",
+   "reason": "The PR is labeled Needs rebase and mergeable_state is dirty. The author has had no activity since 2026-07-08 (70+ days, exceeding the 60-day stale threshold), leaving a maintainer's 2026-09-09 request to rebase and address murchandamus's detailed 2026-07-15 review unanswered."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "achow101's concept NACK on the design stands unaddressed by achow101 directly; murchandamus's extensive 2026-07-15 questions are also unanswered since the author's last activity predates them.",
+   "reason": "A maintainer (achow101) explicitly NACKed the approach and has not returned to evaluate the subsequent rework; separately, a different maintainer-level reviewer (murchandamus) raised many substantive open questions about correctness and clarity that the silent author has not addressed, and sedited has asked for a response with no reply.",
+   "evidence": [
+    "achow101: 'I think it's even more misleading to not show any send entries at all for transactions where we participate in the inputs.' (NACK)",
+    "rkrux moved from NACK to concept ACK after the author's redesign but has not completed a full review",
+    "murchandamus (2026-07-15): multiple unresolved questions on P2A handling, sign conventions in fee calculation, and terminology ('attributable', 'unattributed')",
+    "sedited (2026-09-09): 'can you rebase and respond to murch's review comments?' unanswered"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress toward fixing long-standing issue #14136 (wrong gettransaction info for CoinJoin transactions)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly changes wallet history accounting (receive.cpp/h, rpc/transactions.cpp, wallet.cpp/h, transaction.h) and is labeled Wallet.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a long-standing, well-known misreporting bug (issue #14136, open since 2018) where history RPCs report a wrong fee and falsely attribute foreign outputs as wallet sends for mixed-input transactions like CoinJoins and payjoins. This is a correctness-of-reported-data issue, not a fund-safety or corruption risk, so it sits in the 'wrong balances/confusing output' tier rather than higher. The underlying problem is real but not urgent: no funds are lost, and the PR's own description frames it as a partial fix pending a possibly richer future metadata layer."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Adds a release note (doc/release-notes-34872.md) but this is a code change that also updates its docs, not a docs-primary PR per the category's exclusion rule.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the release note accompanies a wallet code change; docs category explicitly excludes code changes that happen to update their own docs."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds functional and unit tests (wallet_gettransaction_mixed_inputs.py, wallet_listtransactions.py changes, wallet_tests.cpp) but these pin wallet-specific behavior rather than test framework/infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per the tests category definition, a test that pins the behavior of one area (here, wallet accounting) belongs to that area, not to test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether achow101's concept NACK on the original design still applies to the reworked debit/credit model, since achow101 has not commented since the rework.",
+   "Whether the extensive open review from murchandamus (unanswered since author went silent) reflects a fundamentally disputed design or just needs polishing responses.",
+   "The PR conflicts with several other open wallet PRs (#35786, #35716, #35501, #27865) touching overlapping wallet internals; unclear how much rebase effort or design collision this implies."
+  ],
+  "card": "This PR reworks how bitcoind's wallet history RPCs (gettransaction, listtransactions, listsinceblock) report transactions that mix wallet-owned and foreign inputs, such as CoinJoins and payjoins, replacing the current misleading full-fee/full-send accounting with a conservative fallback that reports only what the wallet can prove: wallet debit, wallet credit, and per-output receives, falling back to per-output send/fee accounting only when foreign inputs are provably zero-value. It targets long-standing issue #14136 (open since 2018) about wrong gettransaction info for CoinJoin-like transactions. The design has been substantially reworked once already after a maintainer (achow101) gave a concept NACK saying dropping send entries entirely was 'even more misleading', and another maintainer (murchandamus) left an extensive, still-unanswered 2026-07-15 review raising correctness and wording concerns. The PR needs a rebase and the author has been silent for 70+ days despite a 2026-09-09 maintainer request to respond; it also conflicts with several other open wallet-internals PRs (#35786, #35716, #35501, #27865)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

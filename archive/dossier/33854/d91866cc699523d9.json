@@ -1,0 +1,194 @@
+{
+ "number": 33854,
+ "input_hash": "d91866cc699523d9",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19637,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6134
+ },
+ "cost_usd": 0.051713300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes reindex ignoring -assumevalid, which today can force much slower reindexes than necessary.",
+    "Delays connecting reindexed blocks until headers sync gives enough chainwork to know assumevalid applies."
+   ],
+   "reviewability": [
+    "Not ready to review as-is: needs rebase and mergeable state is dirty, plus many recent force-pushes.",
+    "Underlying design question about background-thread block connection during reindex was reworked but not re-reviewed since."
+   ],
+   "agreement": [
+    "Concept ACK with no objection to the goal (l0rinc).",
+    "mzumsande raised a concrete concern that connecting a long chain could stall the message-handling thread and disconnect peers, which the author addressed by moving connection to a background thread (mzumsande, Eunovo).",
+    "gmaxwell raised an unresolved concern that recommending lower -minimumchainwork undermines assumevalid's security model, with no author reply since (gmaxwell)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it fixes a real, reproduced defect where reindex ignores -assumevalid and does unnecessary full script verification, verified independently by l0rinc with logs.",
+      "Also touches ActivateBestChain/reindex sequencing directly, a core validation path, and a reviewer flagged a possible stall/DoS risk in the new sequencing that was redesigned but not re-verified."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it changes when headers and blocks are accepted/requested during reindex (LoadingBlocks guards), which affects peer connectivity and could cause disconnects if block connection blocks message processing.",
+      "This risk was explicitly raised by a reviewer and prompted a design change to run connection on a background thread instead of msghand."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P3 because the change touches block storage import/reindex mechanics (LoadExternalBlockFile, ImportBlocks, out-of-order block handling) which affects reindex sync time, a burden users of long reindexes feel directly.",
+      "No index-specific correctness change; the storage code is refactored to support the new sequencing rather than to fix a storage bug."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Unranked because the PR does not touch mempool policy, acceptance, or fee estimation code."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it adds a new mutex/condition-variable for header-tip waits and reworks background-init-thread sequencing, which is startup/threading infrastructure.",
+      "The change is narrowly scoped to support this feature rather than a general improvement to shared threading or logging utilities."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes reindex behavior so that if the best known header's chainwork is below -minimumchainwork, the node skips ActivateBestChain and waits for headers sync to complete before connecting reindexed blocks, so that -assumevalid is correctly applied instead of being silently ignored. It reworks net_processing's LoadingBlocks guards to allow header sync (but not block requests) during reindex, adds a header-tip wait mechanism in init.cpp, and refactors LoadOutOfOrderBlocks out of LoadExternalBlockFile. It also preserves the old force-activation behavior for libbitcoinkernel's ImportBlocks consumers.",
+  "problem": "During reindex, if a prior IBD stopped before the chain reached -minimumchainwork, the node loses the assumevalid block from its index and falls back to full script verification, making reindex take much longer than necessary. This affects node operators and developers who reindex on chains that previously stopped early, and was independently reproduced by reviewer l0rinc with debug logs showing the behavior flip.",
+  "discussion": {
+   "open_concerns": [
+    "gmaxwell's concern that suggesting lower -minimumchainwork as a workaround weakens the security assumption behind -assumevalid (no author reply since 2025-11-27).",
+    "mzumsande's original concern about offline reindex no longer completing without peers, and whether waiting on headers sync is acceptable trade-off (partially discussed, not fully resolved with a final decision)."
+   ],
+   "resolved_concerns": [
+    "mzumsande's concern that block connection could block the msghand thread for hours and cause peer disconnects; author redesigned connection to happen on the background init thread instead.",
+    "l0rinc's request for an automated log-based test and hodlinator's request for a clarifying log message; both implemented by author in later commits."
+   ],
+   "author_status": "active via many force-pushes through 2026-07-21, but no discussion reply since 2025-11-27"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a 'Needs rebase' label and mergeable_state is dirty despite 17 force-pushes, and no reviewer has re-engaged with the reworked design (background-thread connection, header-tip wait) since November 2025."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACK from l0rinc; mzumsande's stall/disconnect concern was addressed by a redesign, but gmaxwell's security concern about relying on lower -minimumchainwork remains unaddressed.",
+   "reason": "One reviewer supports the goal, a design concern about blocking the network thread was resolved by rearchitecting to a background thread, but a later substantive security concern from gmaxwell has gone unanswered for months while the author kept force-pushing without replying to it.",
+   "evidence": [
+    "l0rinc: 'Concept ACK' after reproducing the bug and confirming the fix's log output.",
+    "mzumsande: connecting blocks after headers sync could stall msghand and disconnect peers; Eunovo: 'the outstanding blocks will be connected on the background init thread' addressing this.",
+    "gmaxwell: making -minimumchainwork configurable 'may violate the underlying security assumption' behind assumevalid; no author response recorded since."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Better reindex-with-assumevalid ergonomics referenced by issue #31494, superseding the closed alternative approach in #31615."
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Substantively changes ActivateBestChain sequencing during reindex, LoadExternalBlockFile/LoadOutOfOrderBlocks, and ChainstateManager behavior in validation.cpp/h; carries the Validation label.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a reproduced defect (l0rinc's log demonstration) where assumevalid is silently ignored during reindex, causing avoidable full script verification and slower reindexes. A reviewer (mzumsande) also flagged a stall/disconnect risk in the new sequencing, which the author addressed by moving block connection off the message-handling thread, but the redesign has not been re-reviewed."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Removes/moves LoadingBlocks() guards in net_processing.cpp that control header and block request handling during reindex; this is a direct behavior change to peer message handling.",
+    "band": "P2",
+    "reason_tag": "reliability",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "mzumsande warned the new flow could cause the node to be busy connecting a long chain, missing pings and disconnecting peers while new connections never complete handshake; this was mitigated by moving connection to a background thread, but the p2p-facing guard changes (headers now processed during reindex, blocks gated separately) are exactly the kind of DoS-adjacent behavior this category cares about."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Refactors block storage import machinery in node/blockstorage.cpp/h (ImportBlocks, LoadExternalBlockFile, ImportingNow) to support conditional activation during reindex.",
+    "band": "P3",
+    "reason_tag": "performance",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The change targets reindex sync time, which this category cares about (long initial builds are felt directly by operators), but it is a mechanism refactor in service of the validation-level fix rather than a storage-correctness change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool policy, acceptance, or fee estimation code is touched by this diff.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; the PR does not touch src/validation.cpp mempool-relevant paths or any mempool files."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds a new mutex/condition-variable (m_header_tip_mutex/cv) and reworks the background init thread's sequencing in init.cpp and kernel_notifications.h/cpp.",
+    "band": "P3",
+    "reason_tag": "startup sequencing",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Startup thread synchronization is exactly the kind of shared infrastructure this category judges on its own terms, but the added mutex/cv is narrowly built for this reindex feature rather than a general-purpose improvement other areas would reuse."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the redesigned background-thread connection fully resolves mzumsande's stall/disconnect concern has not been confirmed by mzumsande directly.",
+   "Whether gmaxwell's security-model concern about -minimumchainwork is considered blocking for this PR specifically, or a separate pre-existing issue the maintainers will handle independently, is unclear from the discussion.",
+   "The PR's true rebase/CI state at the current head (ce8eeac9be) beyond the 'Needs rebase' label is not directly observed."
+  ],
+  "card": "This PR fixes a reproduced bug where -assumevalid is silently ignored during reindex when the previous IBD stopped short of -minimumchainwork, causing needless full script verification and much slower reindexes; reviewer l0rinc confirmed the before/after log behavior directly. It changes reindex sequencing to wait for headers sync before connecting blocks, and reworks net_processing's LoadingBlocks guards and the background init thread's synchronization to support this. Reviewer mzumsande initially warned the new flow could stall the message-handling thread and cause peer disconnects; the author redesigned block connection to run on a background thread in response. A later comment from gmaxwell argues that recommending a lowered -minimumchainwork undermines the security assumption behind assumevalid, and this has not been addressed by the author since November 2025. The PR is labeled Needs rebase with a dirty mergeable state despite 17 force-pushes, and no reviewer has re-engaged with the reworked design since."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

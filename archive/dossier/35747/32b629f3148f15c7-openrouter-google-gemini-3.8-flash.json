@@ -1,0 +1,90 @@
+{
+ "number": 35747,
+ "input_hash": "32b629f3148f15c7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:44+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14422,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2716
+ },
+ "cost_usd": 0.0210015,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent PSBT signing failures when an input carries conflicting witness and non-witness UTXOs.",
+    "Align FillPSBT key selection with SignPSBTInput by routing through GetUTXO."
+   ],
+   "reviewability": [
+    "Needs rebase against current master."
+   ],
+   "agreement": [
+    "Question regarding motivation and risk addressed by author; awaiting follow-up or formal ACKs (vicjuma)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it resolves an edge-case signing failure on malformed or mutated PSBTs without risk of fund loss.",
+      "Ensures consistent UTXO precedence across wallet PSBT methods."
+     ]
+    }
+   ]
+  },
+  "summary": "Updates `DescriptorScriptPubKeyMan::FillPSBT` to look up an input's UTXO via `PSBTInput::GetUTXO` rather than directly inspecting `witness_utxo`. This ensures key lookup prefers a valid `non_witness_utxo` and rejects invalid inputs consistently with `SignPSBTInput`.",
+  "problem": "When a PSBT input carries both `witness_utxo` and `non_witness_utxo` with conflicting scripts, `FillPSBT` previously selected signing keys based on `witness_utxo` while `SignPSBTInput` attempted to sign for `non_witness_utxo`, causing signing to fail unexpectedly even when the wallet owned the input.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "vicjuma inquired whether internal logic could ever produce conflicting UTXOs and what risks were involved; nervana21 clarified that this addresses mutated or buggy external coordinator PSBTs and cannot lead to signing the wrong UTXO."
+   ],
+   "author_status": "silent since 2026-08-15 force-push"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with current master and requires a rebase."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "Neutral; vicjuma raised questions about the attack model and risks which the author answered, with no follow-up.",
+   "reason": "No explicit Concept ACKs or code ACKs have been posted. A reviewer asked clarifying questions on motivation and threat model, which the author answered satisfactorily without further objections.",
+   "evidence": [
+    "vicjuma questioned the scenario where UTXOs disagree and the associated risks",
+    "nervana21 explained that a buggy or adversarial coordinator could cause signing to fail and that funds are not at risk"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes DescriptorScriptPubKeyMan key lookup in src/wallet/scriptpubkeyman.cpp and adds wallet PSBT unit tests.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because this fixes an edge-case bug where PSBT signing fails for owned inputs on inputs with conflicting UTXO data. As the author notes, 'the risk with the old FillPSBT behavior is just that signing fails or stays incomplete. We'd never sign the wrong utxo', meaning fund safety is never compromised."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Fixes FillPSBT in the wallet to select signing providers using PSBTInput::GetUTXO instead of inspecting witness_utxo directly. This solves an issue where an input with conflicting witness and non-witness UTXO fields caused FillPSBT to fetch keys for one script while SignPSBTInput expected another, failing to sign valid owned inputs. Fund safety is not affected as signing never produced invalid or incorrect signatures. The change currently needs a rebase and has neutral discussion with no formal ACKs yet."
+ },
+ "raw_text": null
+}

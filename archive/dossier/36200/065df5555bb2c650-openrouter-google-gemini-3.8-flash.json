@@ -1,0 +1,95 @@
+{
+ "number": 36200,
+ "input_hash": "065df5555bb2c650",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T17:12:06+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13394,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2223
+ },
+ "cost_usd": 0.01838175,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent RPC authentication failures from blocking HTTP server worker threads",
+    "Eliminate a denial-of-service vector where clients holding network access exhaust the worker pool"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Open design questions regarding the brute-force trade-off invite reviewer input"
+   ],
+   "agreement": [
+    "Support for removing the worker sleep to address the cheap DoS vector (willcl-ark)",
+    "Discussion remains open on trade-offs between DoS resistance and password guess rates"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it addresses a resource exhaustion vector on the HTTP server",
+      "Impact is low because exploiting the DoS requires already having network access to the RPC port"
+     ]
+    }
+   ]
+  },
+  "summary": "Removes the 250 ms UninterruptibleSleep executed upon HTTP RPC authentication failure and adds a functional test ensuring valid RPCs are not delayed by failed authentications. The sleep was originally added to mitigate timing attacks and slow brute-forcing, but timing resistance is now handled by TimingResistantEqual.",
+  "problem": "Any client with network access to the node's RPC port can easily tie up all HTTP worker threads by submitting requests with invalid Basic auth credentials, causing denial of service for legitimate authenticated callers.",
+  "discussion": {
+   "open_concerns": [
+    "Removing the sleep increases the rate at which an unauthorized client with network access can guess RPC passwords",
+    "The author is considering alternatives such as rate-limiting, a dedicated slow-reply thread, or documenting external fail2ban configurations"
+   ],
+   "resolved_concerns": [
+    "PR description updated to acknowledge that removing the sleep increases the guess rate"
+   ],
+   "author_status": "active; evaluating design trade-offs and alternative approaches"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is small, passes CI, and is ready for evaluation, with design trade-offs on password guessing inviting discussion."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support from willcl-ark to fix the DoS vector, with ongoing discussion on guess-rate trade-offs",
+   "reason": "Reviewer willcl-ark noted that the sleep helped deter brute-forcing but explicitly supported removing it because the DoS vector is cheaper and easier to exploit.",
+   "evidence": [
+    "willcl-ark noted the sleep also slows password guessing, but concluded: 'I think the DoS vector identified here is cheaper/easier to hit (and more annoying), so I'd be in favour of patching that up as you propose.'",
+    "hodlinator moved to draft to explore trade-offs between DoS prevention and guess-rate limiting"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies HTTP RPC request authentication handling in src/httprpc.cpp",
+    "band": "P3",
+    "reason_tag": "DoS protection",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Addresses resource exhaustion in the HTTP server interface by removing a thread sleep that lets an admitted client tie up all HTTP workers. The severity is low because an attacker must already be permitted network access to the RPC listener, making this a worthwhile but deferrable DoS fix."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR removes a 250 ms worker-thread sleep triggered on RPC authentication failure in src/httprpc.cpp to prevent clients with RPC network access from exhausting HTTP workers and causing a denial of service. While removing the sleep increases the potential password guessing rate, timing attacks are already addressed by TimingResistantEqual. willcl-ark favored patching the DoS vector over keeping the sleep, while discussion remains open on alternatives like external fail2ban documentation. The patch is small and ready for review on the security trade-off."
+ },
+ "raw_text": null
+}

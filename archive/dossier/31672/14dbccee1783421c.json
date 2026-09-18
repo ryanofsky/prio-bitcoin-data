@@ -1,0 +1,162 @@
+{
+ "number": 31672,
+ "input_hash": "14dbccee1783421c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21659,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6619
+ },
+ "cost_usd": 0.0561603,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a cpu_load field to getpeerinfo showing how much CPU time the message-handling thread has spent on each peer, as a first step toward CPU-based peer monitoring and possible future anti-DoS peer prioritization."
+   ],
+   "reviewability": [
+    "Paused: senior reviewers (sipa, ajtowns) raised design-level objections about whether this belongs in production getpeerinfo at all, and the author has not replied since April 2026."
+   ],
+   "agreement": [
+    "Disputed. Early concept ACKs from several members (jonatack, sipa, theStack, laanwj, 1440000bytes, BrandonOdiwuor, yuvicc) and a tested ACK (jonatack), plus a weak NACK (rebroad).",
+    " Later, sipa argues this metric is exploratory and should be a separate experimental RPC with a decaying average rather than a getpeerinfo field, and ajtowns says the metric is not actionable or comparable across peers (sipa, ajtowns).",
+    " Neither concern has been addressed by the author since April 2026."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a new optional cpu_load field to the getpeerinfo RPC, reporting the CPU time (user + system) the message-handling thread has spent on a given peer, normalized by connection duration. It implements the measurement via clock_gettime on POSIX and GetThreadTimes on Windows, adds a CpuTimer/ThreadCpuTime utility in util/time, and extends bitcoin-cli -netinfo to display the new field. Two commits, with 15 force-pushes reflecting substantial iteration on implementation and wording since January 2025.",
+  "problem": "Node operators and researchers currently have no built-in way to see how much CPU each peer's message processing costs, information that is useful on its own and could eventually support CPU-aware peer prioritization or DoS defenses (referenced issue #31033). The author and several reviewers have empirically observed large (60x+) disparities in per-peer CPU cost, motivating the feature.",
+  "discussion": {
+   "open_concerns": [
+    "sipa (2026-05-26): doubts this belongs in the 'production' getpeerinfo RPC; suggests an explicit experimental resource-usage RPC and a decaying rather than overall average, since many design questions (real time vs CPU time, cross-thread work, weighting useful vs wasted work) remain unresolved.",
+    "ajtowns (2026-08-11): argues the metric is not actionable, doesn't distinguish valuable from wasteful peer work, and isn't comparable across peers with different connection durations; suggests raw wall-clock time or per-message-type stats or a flame graph would be more useful.",
+    "rebroad (2025-07-28): NACK, calling cpu_load alone a useless metric unless normalized by transactions accepted; author partially agreed this could be a useful addition but not a blocker.",
+    "theStack raised a Windows-support documentation gap, which was addressed."
+   ],
+   "resolved_concerns": [
+    "ajtowns's question about CPU time vs real time was answered substantively by the author (2026-04-29): CPU time isolates cost attributable to a specific peer, real time is polluted by unrelated system load.",
+    "maflcko's concern about single-threaded message handling was acknowledged as valid but deferred to future work if message processing ever becomes multi-threaded.",
+    "Several nits from maflcko, fanquake, and jonatack (code style, build-system checks, release-note wording) were implemented across multiple force-pushes."
+   ],
+   "author_status": "silent since 2026-04-29; sipa's and ajtowns's most recent design objections (May and August 2026) remain unanswered"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "sipa and ajtowns raised unresolved design-level objections (whether this belongs in getpeerinfo at all vs an experimental RPC, whether cpu_load is actionable/comparable) after the author's last activity on 2026-04-29; these would materially change the PR's shape if adopted, and the author has not responded."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Early concept ACKs and a tested ACK exist, but sipa and ajtowns later raised substantive, unresolved design objections about whether this metric belongs in getpeerinfo at all; author has not replied since April 2026.",
+   "reason": "Multiple members (jonatack, sipa, theStack, laanwj, 1440000bytes, BrandonOdiwuor, yuvicc) gave concept or tested ACKs early on, and testers (0xB10C, BrandonOdiwuor) confirmed the metric behaves sensibly. However sipa (2026-05-26) argues this should be an experimental separate RPC with a decaying average, and ajtowns (2026-08-11) argues the metric isn't actionable or comparable across peers; both are substantive critiques of the approach, not style nits, and remain open with no author response.",
+   "evidence": [
+    "sipa: 'I'm not sure about making it part of the production RPC getpeerinfo... I think it may be better to create an explicitly experimental resource usage dump info RPC.'",
+    "ajtowns: 'it doesn't seem to result in actionable metrics... it's not comparable between peers because of differences in peer behaviour and length of time connected.'",
+    "rebroad: 'NACK. cpu load alone is a useless metric.'",
+    "jonatack: 'Light initial tested ACK 9cc8ca3b...'",
+    "yuvicc: 'Code-review ACK 52f1efc0...'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced by issue #31033 (prioritizing peer processing based on CPU usage) as a possible first step toward CPU-aware peer prioritization/DoS defenses"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a new field to getpeerinfo's JSON output and updates bitcoin-cli -netinfo; carries the RPC/REST/ZMQ label.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a new, optional, backwards-compatible field with real but contested value: several reviewers found the numbers meaningful for spotting expensive peers (BrandonOdiwuor's IBD test found a peak cpu_load of 91.7 concentrated in one peer), but sipa and ajtowns argue the field is not actionable or comparable across peers and may belong in a different, experimental interface rather than the stable getpeerinfo RPC. No external consumer has asked for this field specifically; the demand is mostly internal/exploratory (issue #31033)."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Adds an m_cpu_time field to CNode and CNodeStats, and wraps message processing in CConnman::ThreadMessageHandler with a CpuTimer, changing per-peer stats tracked in net.cpp/net.h.",
+    "band": "P3",
+    "reason_tag": "DoS protection",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because laanwj frames the eventual payoff as anti-DoS measures ('most concretely useful for anti-DoS measures ... reporting it is a still useful first step'), but this PR itself only adds visibility, not a defense, and ajtowns and sipa doubt the specific metric will be the one actually used for that purpose, calling into question how much of that future value this exact implementation captures."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds new ThreadCpuTime()/CpuTimer utilities and an atomic nanoseconds accumulator operator in src/util/time.h/.cpp.",
+    "band": "P4",
+    "reason_tag": "new utility",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because this is narrow, single-consumer infrastructure (only used by the CNode CPU-time tracking added in this same PR), not a broadly reused pattern; maflcko flagged a latent correctness assumption (single-threaded message handling) that the author acknowledged but did not need to fix now."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "An earlier revision added a cmake/introspection.cmake check, but per the discussion ('This removes all build system changes from this PR, thanks!') that was dropped; no build files remain in the final diff.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the cmake introspection check discussed with fanquake was removed and does not appear in the current diff."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "doc/release-notes-31672.md is added, but only as an incidental release note for the RPC feature, not the primary subject of the PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per category rule: 'a code change that also updates its docs' belongs to that code's area, not docs."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether ajtowns's and sipa's most recent objections (August 2026) should be treated as blocking (pushing Agreement to Blocked) or as strong-but-nonblocking design preferences; the text does not use NACK language but the substance is a fundamental design disagreement about the RPC's shape.",
+   "Whether the author's absence since April 2026 reflects a considered pause versus simple inactivity; no explicit 'wait' statement was found.",
+   "Whether p2p maintainers would consider the m_cpu_time bookkeeping in net.cpp/net.h substantive enough to warrant their own review attention versus treating it as incidental to the RPC feature."
+  ],
+  "card": "This PR adds an optional cpu_load field to getpeerinfo, exposing per-peer CPU time spent by the message-handling thread, normalized by connection duration, plus a matching bitcoin-cli -netinfo column and new ThreadCpuTime/CpuTimer utilities. The problem is that operators and researchers currently lack built-in visibility into per-peer CPU cost, which the author and testers (0xB10C, BrandonOdiwuor) confirmed varies by 60x or more and is referenced as a possible first step toward CPU-aware peer prioritization (issue #31033) and future anti-DoS defenses (laanwj). Early concept ACKs came from several members, but the discussion later surfaced unresolved substantive objections: sipa doubts this belongs in the stable getpeerinfo RPC at all and wants an experimental interface with a decaying average, and ajtowns argues the metric isn't actionable or comparable across peers; neither has been addressed since the author's last activity in April 2026. The PR has been through 15 force-pushes over 19 months of iteration and touches rpc, p2p (CNode/ThreadMessageHandler), and utils (new CPU-time helpers), with no external dependency but a stated link to issue #31033."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

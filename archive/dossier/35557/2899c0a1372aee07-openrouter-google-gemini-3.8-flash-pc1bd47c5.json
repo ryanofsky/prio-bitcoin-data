@@ -1,0 +1,371 @@
+{
+ "number": 35557,
+ "input_hash": "2899c0a1372aee07",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:34:33+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 42389,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 16630
+ },
+ "cost_usd": 0.09415425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow kernel applications to control clock time per chainstate manager for deterministic validation.",
+    "Eliminate kernel dependency on global system clock state and prevent nondeterministic clock calls at link time."
+   ],
+   "reviewability": [
+    "Ready to review; cleanly rebased and passing CI."
+   ],
+   "agreement": [
+    "Positive support for per-instance clock approach with added fuzz and kernel tests (sedited).",
+    "Resolved discussion on alternative clock callback API (stickies-v).",
+    "Open inquiry on relevance following the merge of mock-time PR 35496 (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it eliminates global clock state from validation execution in libbitcoinkernel.",
+      "Provides a scoped C/C++ API allowing independent, deterministic multi-instance validation runs."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it unifies clock queries in validation paths under ChainstateManager::Now without changing consensus rules.",
+      "Fixes a nondeterministic timing race in IBD state transitions during tests."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it isolates nondeterministic clock calls into a separate translation unit excluded from the kernel build.",
+      "Enforces architectural boundaries at link time to prevent accidental clock leakage."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds btck_chainstate_manager_set_clock_time to the kernel C API and introduces ChainstateManager::Now as the unified clock injection point across validation paths. Moves NodeClock::now into an isolated translation unit omitted from the kernel library to catch accidental nondeterministic clock calls at link time. Refactors mempool time representation to use chrono time points and fixes a timing race in IBD test assertions.",
+  "problem": "Validation code and kernel consumers previously relied on the global NodeClock, preventing kernel applications from executing deterministic block and header validation independently across multiple chainstate manager instances.",
+  "discussion": {
+   "open_concerns": [
+    "Maflcko asked whether this PR remains relevant following the merge of global mock-time PR 35496, and noted a conceptual conflict with PR 35906."
+   ],
+   "resolved_concerns": [
+    "Chrono conversions and casts in validation time handling were streamlined to native time points per maflcko's review.",
+    "Stickies-v proposed a btck_Clock callback abstraction, which author explored in an alternate branch but retained the setter as more direct for application state.",
+    "Sedited requested test coverage exercising the scoped clock, which the author added in the kernel unit tests and utxo_total_supply fuzz target."
+   ],
+   "author_status": "Active; author rebased over conflicting PRs and force-pushed repeatedly through September 2026."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch is rebased on master, clean of merge conflicts, passing all CI checks, and active."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "reviewed chrono type usage and fuzz test mock time; later asked if the PR is still relevant after #35496 merged"
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Favored the setter API over constructor options and suggested adding fuzz test coverage."
+    },
+    {
+     "login": "stickies-v",
+     "stance": "objection",
+     "note": "Warned about ergonomic risks of setting clocks across separate objects and suggested a clock callback type."
+    },
+    {
+     "login": "seduless",
+     "stance": "neutral",
+     "note": "Suggested using FakeNodeClock to clean up test mock time handling."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "stickies-v",
+     "kind": "interface",
+     "harm": "Managing separate clock timestamps across multiple objects could be awkward and error-prone compared to a shared clock object.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-06-23 'This could get a bit annoying and potentially dangerous when users need to start managing clocks across multiple places.'",
+     "resolution_evidence": "2026-06-29 'My instinct is that it doesn't because if you're creating multiple chainstate managers... setting the time directly on the relevant objects' (author explanation, no further pushback)",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "direct access to test-only global mock time may cause silent bugs if mocktime was not used and side-steps g_used_system_time sanitizer",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-18: 'the call to GetMockTime here looks wrong for several reasons: It directly access the test-only global of the mock time, which may be 0, and thus may lead to silent bugs if mocktime was not used here? It side-steps the g_used_system_time runtime sanitizer.'",
+     "resolution_evidence": "2026-06-18: 'Makes sense, switched GetMockTime() -> Now()'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "usefulness",
+     "harm": "",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-17: 'That one was merged, so is this here still relevant? Also, this conflicts with https://github.com/bitcoin/bitcoin/pull/35906#discussion_r3726539086'",
+     "resolution_evidence": "",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "sedited",
+     "reason": "Supports the per-chainstate-manager setter approach as flexible for test setups and consistent with existing mock-time workflows.",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: sedited supports the per-instance setter approach; stickies-v's API suggestion was answered without objection.",
+   "reason": "Sedited provided explicit conceptual backing for the scoped setter approach, and the author addressed stickies-v's alternative proposal with experimental code and detailed rationale.",
+   "evidence": [
+    "sedited (2026-06-21): 'if we set it like here, it can be moved any number of times. I think I prefer that, as it seems to overlap more closely with the current global mechanics.'",
+    "stickies-v (2026-06-23): suggested btck_Clock callback API; author answered on 2026-06-29 with prototype and trade-off comparison."
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (sedited)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "stickies-v",
+      "kind": "interface",
+      "harm": "managing clocks across multiple places could be annoying and potentially dangerous",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-06-23: 'This could get a bit annoying and potentially dangerous when users need to start managing clocks across multiple places. Perhaps a more ergonomic alternative could be to add a btck_Clock type'",
+      "resolution_evidence": "2026-06-29: 'My instinct is that it doesn't because if you're creating multiple chainstate managers or other objects that accept times... I wouldn't assume that multiple objects would want to have the same time set.'"
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "correctness",
+      "harm": "direct access to test-only global mock time may cause silent bugs if mocktime was not used and side-steps g_used_system_time sanitizer",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-18: 'the call to GetMockTime here looks wrong for several reasons: It directly access the test-only global of the mock time, which may be 0, and thus may lead to silent bugs if mocktime was not used here? It side-steps the g_used_system_time runtime sanitizer.'",
+      "resolution_evidence": "2026-06-18: 'Makes sense, switched GetMockTime() -> Now()'"
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "usefulness",
+      "harm": "",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-17: 'That one was merged, so is this here still relevant? Also, this conflicts with https://github.com/bitcoin/bitcoin/pull/35906#discussion_r3726539086'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "prefers setting clock like this over setting in options because time can be moved any number of times and overlaps more closely with current global mechanics",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "reviewed chrono type usage and fuzz test mock time; later asked if the PR is still relevant after #35496 merged"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "supported keeping commits together and preferred the PR's time setter approach over options"
+     },
+     {
+      "login": "stickies-v",
+      "stance": "objection",
+      "note": "suggested a btck_Clock callback interface to avoid managing clocks across multiple places"
+     },
+     {
+      "login": "seduless",
+      "stance": "neutral",
+      "note": "suggested using the FakeNodeClock RAII helper in a test"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive, though maflcko questioned whether the PR remains relevant after #35496 merged",
+    "usage": {
+     "input_tokens": 8158,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 7901
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "stickies-v",
+      "kind": "interface",
+      "harm": "Managing separate clock timestamps across multiple objects could be awkward and error-prone compared to a shared clock object.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-06-23 'This could get a bit annoying and potentially dangerous when users need to start managing clocks across multiple places.'",
+      "resolution_evidence": "2026-06-29 'My instinct is that it doesn't because if you're creating multiple chainstate managers... setting the time directly on the relevant objects' (author explanation, no further pushback)"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "Supports the per-chainstate-manager setter approach as flexible for test setups and consistent with existing mock-time workflows.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35906 First steps towards a stateless, side-effect free validation library"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds btck_chainstate_manager_set_clock_time to the kernel public C API and bitcoinkernel wrapper.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Removes global NodeClock state from validation within libbitcoinkernel, fulfilling a core goal of the kernel project to enable multi-instance, side-effect-free library usage."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes ChainstateManager to inject validation time via ChainstateManager::Now across IBD, header, and tip verification paths.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Unifies time fetching across validation checks into ChainstateManager without changing consensus logic, and resolves an intermittent timing race in the IBD status unit test."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies util/time.h and util/time.cpp, and introduces util/time_nondet.cpp to restrict NodeClock::now linking.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Restructures time utility compilation to enforce determinism boundaries at link time, preventing kernel source files from accidentally calling nondeterministic clock methods."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Mempool code changes are internal type adjustments using std::chrono time points that carry no policy or behavior alterations.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Internal modernization of mempool entry time representations to support the time utility cleanup, without changing mempool mechanics."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/mempool.cpp solely for a mechanical conversion following the mempool time type update.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical callsite update in mempool RPC."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Updates tests and fuzz targets to exercise the new chainstate clock API, without altering test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Specific test updates for validation and kernel coverage rather than test framework changes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds btck_chainstate_manager_set_clock_time to the kernel API, replacing global NodeClock access in validation with a scoped ChainstateManager::Now injection point. It also separates nondeterministic clock methods into a distinct translation unit to enforce at link time that libbitcoinkernel code does not depend on system time. The work allows external library consumers to run deterministic validation across multiple chainstate instances without interfering with global state. Review is active and ready, with substantive support from sedited and resolved discussion on alternative clock APIs, though maflcko questioned whether the PR remains necessary after the merge of global mock time in PR 35496."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.03574725
+}

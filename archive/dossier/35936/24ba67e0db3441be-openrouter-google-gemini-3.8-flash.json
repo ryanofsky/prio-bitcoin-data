@@ -1,0 +1,134 @@
+{
+ "number": 35936,
+ "input_hash": "24ba67e0db3441be",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:21:59+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15568,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2876
+ },
+ "cost_usd": 0.022461,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Disconnect peers that send oversized block locators in getblocks or getheaders messages even when the payload is truncated.",
+    "Avoid allocating memory for excessive locator hashes before validating the advertised size."
+   ],
+   "reviewability": [
+    "Ready. Clean mergeable state with passing CI following the author's September 4 push."
+   ],
+   "agreement": [
+    "Positive with consensus around the approach.",
+    "Support and previous testing on the logic from jeanpablojp and achow101, with earlier feedback from ajtowns.",
+    "Inline questions on whether to handle this via custom stream loops rather than exceptions were addressed by ajtowns and l0rinc without further objection (mzumsande, sedited)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it hardens peer disconnect handling against malformed and truncated locator messages.",
+      "Peers advertising oversized counts now reliably disconnect immediately rather than consuming allocation memory or lingering on the connection."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it refines the limited vector serialization formatter to throw a distinct exception.",
+      "Enables message parsers to isolate length violations from general stream failures without manual deserialization loops."
+     ]
+    }
+   ]
+  },
+  "summary": "Enforces `MAX_LOCATOR_SZ` during stream deserialization rather than after reading locator hashes for `getblocks` and `getheaders` messages. Adds a dedicated `LimitedVectorExceededError` exception to the `LIMITED_VECTOR` serialization formatter and introduces `CBlockLocator::LimitedRead` to detect oversized counts before allocating vector memory.",
+  "problem": "Peers sending truncated `getblocks` or `getheaders` payloads with advertised locator counts exceeding `MAX_LOCATOR_SZ` trigger generic deserialization errors before reaching the post-deserialization size check. Consequently, the node fails to disconnect the misbehaving peer as intended and may allocate memory before parsing fails.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp noted that counts above MAX_SIZE (33,554,432) threw generic std::ios_base::failure from ReadCompactSize range checks, bypassing the disconnect path; addressed in the September 4 force push by passing range_check=false and widening the size variable to uint64_t.",
+    "mzumsande and sedited questioned using exception control flow versus local stream parsing loops; ajtowns and l0rinc clarified that local manual loops would duplicate vector reading logic in net_processing, and no further objections were raised."
+   ],
+   "author_status": "Active; rebased and addressed all review feedback on 2026-09-04."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Branch is clean, CI passes, and all reviewer feedback has been incorporated."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; prior ACKs from achow101 and jeanpablojp, with design rationale endorsed by ajtowns.",
+   "reason": "The approach received an Approach ACK and tACK from jeanpablojp, ACK from achow101, and co-authorship/rationale support from ajtowns. Questions regarding exception handling were answered without dispute.",
+   "evidence": [
+    "jeanpablojp gave an Approach ACK and tACK, suggesting an extension for counts over MAX_SIZE which was adopted.",
+    "achow101 ACKed commit 725bf357d.",
+    "ajtowns defended the exception design against manual open-coded loops in net_processing.",
+    "mzumsande and sedited inquired about consistency with the HEADERS parser but did not block."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes message parsing and peer disconnection logic for getblocks and getheaders in src/net_processing.cpp.",
+    "band": "P3",
+    "reason_tag": "DoS protection",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because it corrects an edge-case bug in P2P protocol enforcement where peers sending truncated oversized locators escaped disconnection. While not a severe vulnerability, fixing it prevents lingering misbehaving connections and avoids unneeded allocations."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Extends LIMITED_VECTOR in src/serialize.h with a dedicated LimitedVectorExceededError exception class.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it improves the serialization utility layer by differentiating size limit violations from generic deserialization corruptions, allowing call sites across the codebase to cleanly catch limit violations."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches src/primitives/block.h only to add a deserialization helper method for CBlockLocator; does not alter consensus rules, validation logic, or chainstate.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Non-member. The addition of CBlockLocator::LimitedRead in primitives/block.h is a helper for P2P deserialization and does not touch validation code or behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35936 ensures that getblocks and getheaders messages reject and disconnect peers advertising locator counts over MAX_LOCATOR_SZ before allocating hashes, even if the payload is truncated. It introduces a dedicated LimitedVectorExceededError in serialize.h and adds CBlockLocator::LimitedRead to catch oversized counts during stream parsing. The change hardens p2p message handling against malformed inputs and prevents misbehaving peers from remaining connected. Review state is positive, with prior ACKs and testing from achow101 and jeanpablojp and rationale support from ajtowns."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,596 @@
+{
+ "number": 26966,
+ "input_hash": "ee6e6ad681f2e958",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:17:00+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 110282,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12524
+ },
+ "cost_usd": 0.1296765,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Accelerate initial sync for optional indexes by processing blocks concurrently across worker threads",
+    "Significantly reduce the time needed to build compact block filters on multi-core systems with fast storage"
+   ],
+   "reviewability": [
+    "Review is paused pending a rebase onto the merged ThreadPool PR (#33689)",
+    "The branch currently has merge conflicts and the author placed it in draft"
+   ],
+   "agreement": [
+    "Strong support and ACKs for the block filter index speedup (ryanofsky, pinheadmz, Sjors, mzumsande)",
+    "Approach NACK citing txindex performance regressions and PR complexity (l0rinc)",
+    "Open concern about LevelDB write contention causing txindex slowdowns (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it dramatically speeds up initial index construction, reducing block filter generation time by up to 6x on SSDs",
+      "Initial sync time drops from over seven hours to under one hour, eliminating a major bottleneck for node operators using compact filters"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it introduces a generic thread pool utility in src/util",
+      "The utility has since been carved out and merged separately in #33689, making its presence here temporary"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces a multi-threaded execution model for the initial synchronization of optional indexes (block filter index and txindex). It introduces a two-phase block processing architecture in BaseIndex (CustomProcessBlock and CustomPostProcessBlocks) and adds a user-configurable -indexworkers option backed by a thread pool.",
+  "problem": "Building optional indexes sequentially takes many hours during initial sync because single-threaded block reading and filter computation cannot utilize multi-core processors.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc submitted an Approach NACK stating that txindex benchmarks show a 3-13% slowdown rather than a speedup, and requested breaking the large PR into smaller steps",
+    "andrewtoth corroborated the txindex slowdown on SSDs, observing that LevelDB write contention offsets parallel digest gains"
+   ],
+   "resolved_concerns": [
+    "mzumsande noted HDD performance degradation due to head seeking; furszy added an explicit warning to the -indexworkers help text",
+    "ismaelsadeeq reported an intermittent crash on shutdown; furszy resolved a lifetime race condition in Sync() worker access",
+    "Concerns regarding ThreadPool ownership and interrupt handling were addressed by extracting ThreadPool into #33689"
+   ],
+   "author_status": "paused; author converted PR to draft to rebase after #33689 merged"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Rebase after #33689",
+   "reason": "The author converted the pull request to draft and noted they are waiting to rebase after the extracted ThreadPool PR (#33689) is merged. The PR is also marked with merge conflicts."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Sjors",
+     "stance": "support",
+     "note": "tested on Ryzen and confirmed massive speedup on SSD"
+    },
+    {
+     "login": "mzumsande",
+     "stance": "support",
+     "note": "Concept ACK; tested on signet and reviewed threadpool code"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Concept ACK and suggested separating parallelization logic"
+    },
+    {
+     "login": "maflcko",
+     "stance": "question",
+     "note": "asked about CI failure and interaction with AssumeUTXO"
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Concept ACK, detailed code review, and contributed fuzz test harness"
+    },
+    {
+     "login": "andrewtoth",
+     "stance": "objection",
+     "note": "observed txindex slowdown on SSD and suggested disabling parallel sync for txindex"
+    },
+    {
+     "login": "yancyribbens",
+     "stance": "neutral",
+     "note": "grammar nit in unit tests"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "support",
+     "note": "Approach ACK and suggested opportunistic post-processing design"
+    },
+    {
+     "login": "ismaelsadeeq",
+     "stance": "support",
+     "note": "Concept ACK, tested on mainnet, and reported intermittent crash"
+    },
+    {
+     "login": "pinheadmz",
+     "stance": "support",
+     "note": "re-ACK after running on mainnet full node and benchmark testing"
+    },
+    {
+     "login": "brunoerg",
+     "stance": "support",
+     "note": "ran fuzz target overnight and provided coverage reports"
+    },
+    {
+     "login": "Eunovo",
+     "stance": "neutral",
+     "note": "contributed recursive task submission test case and design feedback"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "objection",
+     "note": "Approach NACK due to txindex slowdown and excessive PR complexity"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "l0rinc",
+     "kind": "approach",
+     "harm": "txindex parallelization suffers a 3-13% slowdown, and combining thread pool infrastructure with index logic adds excessive complexity",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2025-10-12: 'The txindex parallelization appears to be broken (showing 3-13% slowdowns rather than speedups)... Approach NACK from me.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "andrewtoth",
+     "kind": "correctness",
+     "harm": "txindex sync on SSD is ~7% slower than master due to LevelDB write contention across threads",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2025-10-13: 'master was ~7% faster than this PR with 5 workers on an SSD. Maybe we don't enable parallel sync for txindex?'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "mzumsande",
+     "kind": "correctness",
+     "harm": "parallel indexing on HDDs causes a 2x slowdown compared to master due to disk seek penalties",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-10-07: 'observed a slowdown on a HDD compared to master (by a factor 2)... Should it be mentioned in the -indexworkers help'",
+     "resolution_evidence": "2025-10-07: furszy updated -indexworkers help text in init.cpp to document that parallel indexing may slow down HDDs",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "kind": "correctness",
+     "harm": "intermittent segfault observed while testing parallel index sync on mainnet",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-08-12: 'Fwiw I encountered a segfault previously while testing on master on previous PR HEAD...'",
+     "resolution_evidence": "2025-08-12: 'There was a very subtle bug on which the worker threads might have accessed an index Sync() local variable post-destruction.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "sedited",
+     "kind": "correctness",
+     "harm": "thread pool fuzz test timed out during destruction / joining of threads",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-09-16: 'It seems to have found something: ... ERROR: libFuzzer: timeout after 1608 seconds'",
+     "resolution_evidence": "2025-10-10: 'Left the fuzz target (threadpool) running overnight, performance is reasonable and didn't get any memory leak.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "Approach ACK, praised design and suggested opportunistic post-processing pipeline",
+     "substantive": true
+    },
+    {
+     "reviewer": "pinheadmz",
+     "reason": "ACK after code review and mainnet benchmarks demonstrating significant sync time reduction",
+     "substantive": true
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "Tested and confirmed block filter sync speedup from 35m down to 4m26s with 32 workers",
+     "substantive": true
+    },
+    {
+     "reviewer": "mzumsande",
+     "reason": "Concept ACK and verified performance improvements on SSDs",
+     "substantive": true
+    },
+    {
+     "reviewer": "sedited",
+     "reason": "Concept ACK and confirmed promise in parallelization approach",
+     "substantive": true
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "reason": "Concept ACK and mainnet testing",
+     "substantive": true
+    },
+    {
+     "reviewer": "brunoerg",
+     "reason": "Fuzz testing execution and coverage reporting",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc holds an Approach NACK over txindex slowdowns and PR complexity, while author paused to rebase after #33689",
+   "reason": "The PR has strong concept support and ACKs from several contributors for its block filter performance gains, but l0rinc logged an Approach NACK pointing out that txindex is slower when parallelized and urging that the PR be broken down. The author agreed to split the ThreadPool work (which merged in #33689) and is investigating the txindex performance before rebasing.",
+   "evidence": [
+    "l0rinc: 'Approach NACK from me. Breaking this into smaller, more manageable chunks would significantly improve the chances of getting this important work merged'",
+    "andrewtoth: 'master was ~7% faster than this PR with 5 workers on an SSD. Maybe we don't enable parallel sync for txindex?'",
+    "furszy: 'Drafted while work continues on #33689. Once the thread pool is included, I'll rebase this one and continue moving forward.'"
+   ],
+   "model_state": "Disputed",
+   "derivation": "blocking objection open, author engaging (l0rinc)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Disputed",
+    "derived": "Disputed",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "approach",
+      "harm": "txindex initial sync suffers a 3-13% slowdown on SSD and ARM hardware, and the PR complexity is too high to review safely",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-10-12: 'The txindex parallelization appears to be broken (showing 3-13% slowdowns rather than speedups)... that's an Approach NACK from me.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "txindex sync is ~7% slower with 5 workers on an SSD compared to master",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-10-13: 'I also measured the txindex with -indexworkers=15 on a 32 vcpu machine and it was slightly slower than master... Maybe we don't enable parallel sync for txindex?'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "kind": "correctness",
+      "harm": "intermittent segfault observed while testing parallel index sync on mainnet",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-08-12: 'Fwiw I encountered a segfault previously while testing on master on previous PR HEAD...'",
+      "resolution_evidence": "2025-08-12: 'There was a very subtle bug on which the worker threads might have accessed an index Sync() local variable post-destruction.'"
+     },
+     {
+      "reviewer": "mzumsande",
+      "kind": "interface",
+      "harm": "parallel indexing on HDDs causes a 2x slowdown due to disk seek contention without warning in documentation",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-10-07: 'I also observed a slowdown on a HDD compared to master (by a factor 2)... Should it be mentioned in the -indexworkers help that it is not advisable to use this option on a HDD?'",
+      "resolution_evidence": "2025-10-07: 'Updated, thanks for testing!'"
+     },
+     {
+      "reviewer": "sedited",
+      "kind": "correctness",
+      "harm": "thread pool fuzz test timed out during destruction / joining of threads",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-09-16: 'It seems to have found something: ... ERROR: libFuzzer: timeout after 1608 seconds'",
+      "resolution_evidence": "2025-10-10: 'Left the fuzz target (threadpool) running overnight, performance is reasonable and didn't get any memory leak.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "pinheadmz",
+      "reason": "tested on mainnet full node and confirmed indexing finished in ~16 hours vs >48 hours on master",
+      "substantive": true
+     },
+     {
+      "reviewer": "ryanofsky",
+      "reason": "praised the approach and overall design for index parallelization",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "verified up to 16x speedup on SSD for blockfilterindex",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "supported the concept and helped refine the thread pool utility and fuzz testing",
+      "substantive": true
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "supported the concept and tested index sync performance",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "Sjors",
+      "stance": "support",
+      "note": "tested extensively and reported major speedups on SSD (up to 16x), while noting HDD bottlenecks"
+     },
+     {
+      "login": "mzumsande",
+      "stance": "support",
+      "note": "reviewed, reported HDD slowdown and requested doc warning, suggested splitting out thread pool"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "concept ACK"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "asked about CI failure and AssumeUTXO compatibility"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "concept ACK, extensive code review, wrote a fuzz test"
+     },
+     {
+      "login": "andrewtoth",
+      "stance": "neutral",
+      "note": "reviewed threadpool concurrency, noted txindex slowdown on SSD, suggested separating threadpool PR"
+     },
+     {
+      "login": "yancyribbens",
+      "stance": "neutral",
+      "note": "nit comment on test wording"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "support",
+      "note": "approach ACK, provided detailed design suggestions on opportunistic post-processing"
+     },
+     {
+      "login": "ismaelsadeeq",
+      "stance": "support",
+      "note": "concept ACK, reviewed and reported a segfault during sync testing"
+     },
+     {
+      "login": "pinheadmz",
+      "stance": "support",
+      "note": "ACK and re-ACK, verified substantial speedups on full node sync benchmarks"
+     },
+     {
+      "login": "brunoerg",
+      "stance": "neutral",
+      "note": "ran the fuzz target overnight and provided a coverage report"
+     },
+     {
+      "login": "Eunovo",
+      "stance": "neutral",
+      "note": "suggested a unit test for recursive task submission and asked about batching"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "objection",
+      "note": "approach NACK citing txindex regressions and PR complexity, urging smaller incremental steps"
+     }
+    ],
+    "corrections": [],
+    "summary": "Disputed: l0rinc gave an Approach NACK over txindex slowdowns and PR size; author agreed to split the thread pool into a dedicated PR and drafted this PR.",
+    "usage": {
+     "input_tokens": 43830,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 4862
+    }
+   },
+   "first_read": {
+    "state": "Disputed",
+    "model_state": "Disputed",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "approach",
+      "harm": "txindex parallelization suffers a 3-13% slowdown, and combining thread pool infrastructure with index logic adds excessive complexity",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-10-12: 'The txindex parallelization appears to be broken (showing 3-13% slowdowns rather than speedups)... Approach NACK from me.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "correctness",
+      "harm": "txindex sync on SSD is ~7% slower than master due to LevelDB write contention across threads",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-10-13: 'master was ~7% faster than this PR with 5 workers on an SSD. Maybe we don't enable parallel sync for txindex?'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "mzumsande",
+      "kind": "correctness",
+      "harm": "parallel indexing on HDDs causes a 2x slowdown compared to master due to disk seek penalties",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-10-07: 'observed a slowdown on a HDD compared to master (by a factor 2)... Should it be mentioned in the -indexworkers help'",
+      "resolution_evidence": "2025-10-07: furszy updated -indexworkers help text in init.cpp to document that parallel indexing may slow down HDDs"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "Approach ACK, praised design and suggested opportunistic post-processing pipeline",
+      "substantive": true
+     },
+     {
+      "reviewer": "pinheadmz",
+      "reason": "ACK after code review and mainnet benchmarks demonstrating significant sync time reduction",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Tested and confirmed block filter sync speedup from 35m down to 4m26s with 32 workers",
+      "substantive": true
+     },
+     {
+      "reviewer": "mzumsande",
+      "reason": "Concept ACK and verified performance improvements on SSDs",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Concept ACK and confirmed promise in parallelization approach",
+      "substantive": true
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "Concept ACK and mainnet testing",
+      "substantive": true
+     },
+     {
+      "reviewer": "brunoerg",
+      "reason": "Fuzz testing execution and coverage reporting",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [
+    33689
+   ],
+   "enables": [
+    "#34489"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Modifies BaseIndex, BlockFilterIndex, and TxIndex to support concurrent block digestion and out-of-order execution",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it addresses the multi-hour initial synchronization bottleneck of optional indexes by parallelizing block processing. Node operators building compact block filters experience a 2x to 6x speedup on SSDs, dropping sync times from over seven hours to under one hour."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test modifications only cover the introduced ThreadPool and index features rather than the testing framework",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The unit and fuzz tests are focused exclusively on verifying the ThreadPool and parallel index syncing; they do not alter the test runner or general testing infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Introduces ThreadPool under src/util/threadpool.h for concurrent task execution",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because adding a general-purpose ThreadPool utility provides clear value to background worker operations across the node. However, this component was split into #33689 and already merged into master, meaning it will be dropped from this branch upon rebase."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Does not touch validation logic or consensus rules",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The maintainer label 'UTXO Db and Indexes' covers both validation and optional indexes. This PR strictly alters optional indexes in src/index/ and does not modify consensus, chainstate, or block validation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 26966 introduces multi-threaded block processing for initial index synchronization in BaseIndex, BlockFilterIndex, and TxIndex via a new -indexworkers flag. Benchmarks from multiple reviewers confirm dramatic speedups for the block filter index (from over 7 hours to under 1 hour on SSDs). However, reviewers identified that txindex experiences slight slowdowns due to LevelDB write contention, leading to an Approach NACK from l0rinc. The PR is currently paused in draft while the author rebases after the ThreadPool utility was merged upstream in #33689."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.051105
+}

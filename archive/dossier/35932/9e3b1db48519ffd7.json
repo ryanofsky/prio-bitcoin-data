@@ -1,0 +1,75 @@
+{
+ "number": 35932,
+ "input_hash": "9e3b1db48519ffd7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13764,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 1712
+ },
+ "cost_usd": 0.0237303,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [],
+   "reviewability": [],
+   "agreement": [],
+   "categories": []
+  },
+  "summary": "This PR fixes a shutdown-time crash in IPC mining by making disconnectIncoming() wait for in-flight server call bodies to finish before the node frees state they might dereference. It splits Connection teardown into an idempotent disconnect() method separate from the destructor, adds a ServerObjectTracker to count live ProxyServer objects per connection, and adds Connection::waitDrained() that blocks until that count reaches zero. The IPC-side change then disconnects non-parent incoming connections, waits for them to drain, logs if the wait actually blocks, and only then destroys the connections.",
+  "problem": "IPC-mining nodes can hit an assertion failure (Assert(m_node.chainman)) during shutdown because disconnectIncoming() cancels the KJ promise of an in-flight call but does not stop a server call body already dispatched to a worker thread, which can then dereference node state freed right after shutdown proceeds. This is a real, reported crash (bitcoin/bitcoin#35845, #33387) hitting anyone running the mining interface over IPC.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "Author pushed a follow-up (pr/diswait.5) on 2026-08-12 to adapt to an upstream libmultiprocess accessor change; no reviewer engagement yet."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Depends on libmultiprocess#335",
+   "reason": "Author states in the description this is a draft because it depends on unmerged libmultiprocess changes (bitcoin-core/libmultiprocess#335), though the code is otherwise stated to be ready to review. CI is currently failing and the PR's mergeable_state is unstable, consistent with the unmerged upstream dependency."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer has commented yet; only the author has pushed updates.",
+   "reason": "distinct_reviewers is 0 and there are no review comments in the discussion log, only the author's own force-push note.",
+   "evidence": [
+    "Author (ryanofsky) posted only a force-push notification, no reviewer has weighed in."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "The PR changes IPC infrastructure directly: Connection lifecycle/teardown, a new ServerObjectTracker mechanism, and libmultiprocess proxy code, plus the bitcoin-side Ipc::disconnectIncoming logic in src/ipc/capnp/protocol.cpp. This is exactly the interface mechanics and connection management the ipc category covers.",
+    "band": "P1",
+    "reason_tag": "bug fix",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 3,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P1 because it fixes a shutdown-time assertion crash for IPC-mining nodes, described by the author as 'an assertion failure in MinerImpl::chainman() during shutdown of an IPC-mining node' tied to two separate bug reports (#35845, #33387). Crashes during shutdown are a stability/reliability defect that directly affects anyone using the multiprocess mining interface, which is the project's current stated external IPC consumer, so getting this right matters for IPC reliability even though the fix is narrowly scoped and the author lists explicit remaining limitations."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No reviewer has yet engaged, so it's unclear whether the libmultiprocess-side design (ServerObjectTracker, disconnect()/waitDrained() split) will be accepted as-is upstream.",
+   "The draft status is explicitly tied to an unmerged libmultiprocess PR (#335), but it's unclear how long that dependency will take to resolve or whether it changes the bitcoin-side code once merged.",
+   "Cannot fully verify severity of the underlying crash beyond the author's description and the two linked issue numbers, since issue contents were not provided."
+  ],
+  "card": "Fixes a real shutdown-time assertion crash (Assert(m_node.chainman)) hit by IPC-mining nodes when an in-flight async call body outlives disconnectIncoming(), per bugs bitcoin/bitcoin#35845 and #33387. The fix adds a Connection::disconnect()/waitDrained() split and a ServerObjectTracker in libmultiprocess so shutdown can wait for in-flight server call bodies before freeing node state. It is marked draft because it depends on an unmerged libmultiprocess companion PR (#335), though the author states the code is otherwise ready to review. No reviewer has yet commented (0 distinct reviewers), and CI is currently failing. This is P1 for the ipc category as a stability fix for the multiprocess mining consumer, though it carries stated intentional limitations (parent connection not drained, m_impl destructors not waited for)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

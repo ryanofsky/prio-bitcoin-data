@@ -1,0 +1,100 @@
+{
+ "number": 34322,
+ "input_hash": "84488304cf146764",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4209,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2906
+ },
+ "cost_usd": 0.020145299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Persist in-flight private-broadcast transactions to disk so a node restart doesn't lose a submitted transaction before it's broadcast."
+   ],
+   "reviewability": [
+    "Not reviewable now: draft, needs rebase, and author has been silent for over six months after pivoting to a different design in PR #34707."
+   ],
+   "agreement": [
+    "Concept ACK from two reviewers but with real reservations: vasild worries about extended on-disk exposure and wants a retention-time option, craigraw argues this design doesn't go far enough and prefers a broadcast-pool approach (vasild, craigraw)",
+    "Author agreed the broadcast-pool direction is better and opened a separate PR (#34707) as an alternative first step, suggesting this PR's approach may be superseded (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it solves a real but narrow pain point, losing an unbroadcast private-broadcast transaction on node restart, for users of the still-experimental privatebroadcast feature.",
+      "Reviewers flagged a more valuable direction (a broadcast pool with scheduled/decoy transactions per craigraw) that the author is now pursuing separately in #34707, reducing the leverage of reviewing this specific implementation."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds persistence for the private-broadcast feature: transactions that have been submitted via sendrawtransaction but not yet fully broadcast are dumped to a new privatebroadcast.dat file on shutdown and reloaded on startup, so they aren't lost if the node restarts mid-broadcast. It includes serialization/deserialization helpers, init-time load/dump logic gated by -privatebroadcast, a fuzz target, and functional test coverage.",
+  "problem": "Currently, transactions queued for private broadcast live only in memory in the peer manager; if the node restarts before broadcast completes, the transaction is silently lost, which matters to operators and applications relying on sendrawtransaction with privatebroadcast=1.",
+  "discussion": {
+   "open_concerns": [
+    "tankyleo raised that persisting broadcast transaction data to disk changes the risk profile for non-wallet, broadcast-only nodes; author responded with mitigations (0600 permissions suggested by vasild, decoy transactions, early file removal) but no code change was made to address this fully.",
+    "craigraw argued this PR's approach is too narrow and that a broadcast-pool design (handling fee-driven mempool eviction and scheduled broadcast) would deliver much more value; author agreed and said '#34329 should be merged first' and later opened #34707 pursuing that direction instead."
+   ],
+   "resolved_concerns": [
+    "Dependency on #34329 was resolved: it merged 2026-02-19."
+   ],
+   "author_status": "silent since 2026-03-02; opened #34707 as an alternative first step, suggesting this PR's approach may be superseded"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent, needs rebase",
+   "reason": "PR is in draft, marked 'Needs rebase', and the author has had no activity for 199 days after opening a separate PR (#34707) pursuing an alternative broadcast-pool approach, suggesting this PR's design may no longer be the intended path."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACKs from vasild and craigraw, but both flag standing concerns: security exposure of persisted data (vasild) and a preference for a broader broadcast-pool design (craigraw); author agrees and is pursuing the latter elsewhere.",
+   "reason": "Both reviewers explicitly endorsed the concept while raising unresolved but non-blocking reservations, and the author's own response (pivoting to #34707) indicates agreement that a different design may be preferable, though nobody formally opposes merging this PR.",
+   "evidence": [
+    "vasild: 'Concept ACK... benefits... out-weigh the concerns about storing the transaction on disk' but suggests a retention-time option not yet implemented.",
+    "craigraw: 'Concept ACK. However, I don't think this change goes far enough' and proposes a broadcast-pool design.",
+    "andrewtoth: 'I think #34329 should be merged first' and later opened #34707 as 'a first step towards this,' implicitly deprioritizing this PR's approach."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34329
+   ],
+   "enables": [
+    "Was intended to build on #34329 (merged); superseded in intent by author's own follow-up #34707 pursuing a broadcast-pool design"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Labeled 'Private Broadcast', changes how the node's private-broadcast transaction relay data is persisted and reloaded, which is peer/broadcast-management behavior under the p2p area.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it addresses a real but narrow problem, a submitted private-broadcast transaction being lost on node restart, which matters to operators running privatebroadcast=1 but is a niche, opt-in feature. Reviewer craigraw noted 'losing broadcasted transactions due to a node restart is probably quite rare' compared to the broader broadcast-pool use case he'd prefer, and the author has since pivoted to pursuing that broader design in a separate PR (#34707), reducing this PR's standalone leverage."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Unclear whether this PR will be continued, closed in favor of #34707, or rebased once #34707's design direction is settled.",
+   "Whether the security concern about persisting sensitive broadcast data to disk (raised by tankyleo) would need a concrete fix (e.g., file permissions, encryption) before merge is undetermined."
+  ],
+  "card": "This draft PR persists in-flight private-broadcast transactions to a privatebroadcast.dat file so they survive a node restart, addressing transaction loss for the opt-in privatebroadcast=1 feature. Two reviewers gave Concept ACKs, but vasild raised a security concern about persisting sensitive broadcast data to disk and craigraw argued the design should instead be a broader broadcast-pool feature (also referencing feature requests #30471 and #34118); the author agreed the broadcast-pool idea is preferable and opened a separate PR, #34707, pursuing that direction, then went silent for over six months. The PR is currently draft, marked needs-rebase, and its own author's pivot suggests this specific approach may be superseded. Depends on #34329 (merged 2026-02-19). Priority is modest: the underlying restart-data-loss problem is real but narrow and opt-in, and reviewer sentiment favors a different, more valuable design."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

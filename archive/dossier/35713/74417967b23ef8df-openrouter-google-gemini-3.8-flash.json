@@ -1,0 +1,185 @@
+{
+ "number": 35713,
+ "input_hash": "74417967b23ef8df",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:39+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 42351,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4319
+ },
+ "cost_usd": 0.0479595,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace Boost.Test with an in-house header-only unit test runner to improve test diagnostics and eliminate a Boost dependency.",
+    "Unify inconsistent test assertion macros and enable future test framework features like parallel test execution."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "The branch is rebased, CI is green, and recent review feedback on test runner edge cases has been addressed."
+   ],
+   "agreement": [
+    "Strong support for replacing the test runner to enable deeper test customization and better output (josibake).",
+    "Concept approval with thorough testing of runner edge cases such as filtering, output flushing, and seed reproducibility (jeanpablojp).",
+    "Detailed review feedback on compile-time string formatting and compiler warnings resolved by the author (maflcko, fanquake)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P2 because replacing the external test runner removes long-standing macro inconsistency and provides informative failure output across all unit tests.",
+      "It unblocks targeted test framework improvements such as test concurrency that external libraries make difficult."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P3 because it eliminates Boost.Test from depends, CMake, vcpkg, and Guix, reducing the build system dependency footprint without altering production binaries."
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces Boost.Test with a custom, in-house header-only testing framework in src/test/util/framework.h. Migrates all unit test suites across the repository to the new framework via scripted diff while retaining macro compatibility shims. Removes Boost.Test configuration from depends, CMake, vcpkg, and Guix scripts.",
+  "problem": "Boost.Test suffers from inconsistent assertion macros, poor diagnostic messages when expressions fail without custom stream operators, and lack of integration with Bitcoin Core types and execution needs. Developers also carry recurring maintenance overhead in build scripts and Guix workarounds for Boost.Test quirks.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Compile-time static assertions when string representations are missing for compared types (maflcko).",
+    "Undefined behavior or segfaults on null C-string comparisons (jeanpablojp).",
+    "Buffering issues losing crash diagnostic output and seed reproducibility under randomized test runs (jeanpablojp).",
+    "Retention of fatal linker warning flags in Guix build scripts after removing Boost workarounds (jeanpablojp, fanquake)."
+   ],
+   "author_status": "Active; addressing review feedback and force-pushing updates promptly."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is clean, merge state is clean, and prior review threads have been addressed in recent pushes."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept ACKs from josibake and jeanpablojp with substantial review from maflcko and fanquake.",
+   "reason": "Multiple contributors support removing Boost.Test for better maintainability and extensibility, and technical issues raised during review have been resolved.",
+   "evidence": [
+    "josibake gave a Strong Concept ACK citing customizability and future concurrent testing needs.",
+    "jeanpablojp gave a Concept ACK and provided extensive testing on runner flags, signal handling, and seed reproduction.",
+    "maflcko provided detailed review regarding stringification fallbacks and static assertions, which the author incorporated."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future unit test runner concurrency and expanded custom test assertion tooling."
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Removes Boost.Test build configuration from depends/packages/boost.mk, cmake/module/AddBoostIfNeeded.cmake, vcpkg.json, and contrib/guix/libexec/build_linux.sh.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Simplifies the build and depends configuration by eliminating Boost.Test, but does not affect the production build or binary release integrity."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Touches src/ipc/test/ipc_tests.cpp only mechanically to update the test include header.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Only touches an IPC test file mechanically as part of repository-wide header migration."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/test/kernel/test_kernel.cpp mechanically to update the test runner entry macro and include header.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not affect libbitcoinkernel code or boundary interfaces; only adjusts the kernel unit test harness."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Introduces a complete custom test runner in src/test/util/framework.h and migrates all unit test suites across the project.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because replacing Boost.Test resolves chronic developer pain with test macros and expression diagnostics while unblocking future test infrastructure improvements like harness parallelization."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Changes to contrib/guix/libexec/build_linux.sh are build-related rather than changes to developer or operator tooling scripts.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No developer or operational tools under contrib or src are modified."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches test files in src/wallet/test mechanically to replace includes and fix a minor uninitialized variable compiler warning.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet logic, RPCs, descriptor code, or coin selection behavior is modified."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request replaces the Boost.Test unit test framework with a tailored, header-only test runner located in src/test/util/framework.h and updates all unit test files via scripted diff. It addresses longstanding limitations of Boost.Test including unintuitive assertion macros, uninformative failure messages, and awkward external integration, while eliminating Boost.Test from depends and CI builds. Strong support has been voiced by reviewers who note that an in-house framework will improve test diagnostics and enable future architectural enhancements such as test concurrency. The PR is clean, well-tested, and actively maintained with no blocking objections."
+ },
+ "raw_text": null
+}

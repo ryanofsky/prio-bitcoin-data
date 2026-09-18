@@ -1,0 +1,127 @@
+{
+ "number": 34775,
+ "input_hash": "a5b01afa90edcc78",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:57+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17601,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3257
+ },
+ "cost_usd": 0.0254145,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Clarify and simplify the kernel C API by making the logging callback explicitly global to match internal implementation reality."
+   ],
+   "reviewability": [
+    "Ready to review. The author recently rebased and addressed review suggestions by retaining RAII in the C++ wrapper."
+   ],
+   "agreement": [
+    "Concept ACK from sedited, favoring the pragmatic simplification over multiplexed handles.",
+    "Approach ACK and design improvements from w0xlt for the RAII wrapper.",
+    "Alternative approach preference noted by ryanofsky toward contextualized logging (#30342), which author addressed as currently out of scope."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it is a clean-up of the C and C++ kernel logging API rather than a critical bug fix or new functional capability.",
+      "It eliminates the misleading impression of multiple independent loggers while bitcoinkernel relies on a global logger singleton."
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the per-connection `btck_LoggingConnection` interface in the libbitcoinkernel C API with a single global callback setter `btck_logging_set_callback`. Retains scoped RAII behavior in the C++ wrapper via a revised `Logger` class that owns the global callback registration.",
+  "problem": "The existing kernel logging API uses connection handles that imply multiple independent loggers can be created, whereas the underlying Bitcoin Core logging system is a global singleton. This mismatch causes confusion and unnecessary API complexity for consumers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "w0xlt and sedited noted that unit tests could leak global logging state into subsequent tests, which stickies-v addressed by preserving RAII cleanup in the C++ Logger wrapper."
+   ],
+   "author_status": "active, recently rebased and updated the C++ wrapper on 2026-09-17"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is rebased on master, CI is passing, and the author addressed recent review feedback."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Supported by sedited and w0xlt; ryanofsky raised preference for contextualized logging, which author answered.",
+   "reason": "sedited and w0xlt provided Concept and Approach ACKs. ryanofsky questioned limiting the API instead of pursuing contextualized logging (#30342), but the author clarified the trade-off and unversioned nature of the API.",
+   "evidence": [
+    "sedited: 'Not having separate connections seems simpler... Concept ACK'",
+    "w0xlt: 'Approach ACK'",
+    "ryanofsky: 'I think it would be a mistake to limit functionality of the logging/debuging/tracing API prematurely...'",
+    "stickies-v: replied that the unversioned interface can be evolved later and contextualized logging currently lacks broad demand"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#34374"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Directly modifies the libbitcoinkernel C API header and implementation in src/kernel/.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is an API cleanup that aligns the kernel interface with its underlying global logger implementation. It improves clarity for downstream API consumers, but does not provide new validation capabilities or resolve a critical bug."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test_kernel.cpp solely to test the updated kernel logging API, not the test harness or framework itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Kernel unit tests belong to the kernel category rather than general test infrastructure."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Carries the Validation label because kernel work is organized under validation, but does not touch consensus or validation logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify validation rules, block verification, or chainstate management."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #34775 simplifies the libbitcoinkernel C API by replacing individual logging connection handles with a single global logging callback setter. This prevents the misleading impression that multiple independent loggers can be attached when the underlying logging engine is a global singleton. Reviewers sedited and w0xlt support the change, while ryanofsky expressed a preference for contextualized logging. The PR is ready for review following a recent push adding RAII safety to the C++ wrapper."
+ },
+ "raw_text": null
+}

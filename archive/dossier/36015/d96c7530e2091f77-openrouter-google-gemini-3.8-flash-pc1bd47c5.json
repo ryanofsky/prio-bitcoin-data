@@ -1,0 +1,425 @@
+{
+ "number": 36015,
+ "input_hash": "d96c7530e2091f77",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:46:55+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34168,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10512
+ },
+ "cost_usd": 0.065046,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent memory exhaustion in the transaction orphanage from witness-heavy transactions.",
+    "Store orphan transactions in serialized form so weight strictly bounds memory usage without rejecting valid BitVM-style transactions."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "All prior reviewer concerns and performance spikes have been addressed in recent pushes."
+   ],
+   "agreement": [
+    "Strong support from reviewers after substantial design iteration.",
+    "Earlier approach objection about breaking BitVM transactions was resolved by storing transactions serialized (instagibbs).",
+    "Memory and CPU spikes in 1P1C package evaluation were resolved by deferring deserialization (jeanpablojp, instagibbs).",
+    "Concept approvals and testing from multiple contributors (w0xlt, Crypt-iQ, jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes a 28x memory accounting underestimation in the transaction orphanage.",
+      "Peers could previously hold over 1GB of memory in orphans while staying under their standard weight allowances.",
+      "Secures node resource bounds without breaking relay of standard transactions with many small witness elements."
+     ]
+    }
+   ]
+  },
+  "summary": "Bounds memory usage in the transaction orphanage by storing orphan transactions in serialized form instead of deserialized CTransactionRef objects. It deserializes transactions only when they are evaluated or handed out, and updates 1P1C candidate package selection to operate on txids and wtxids before materializing the selected child. This ensures that transaction weight functions as a true upper bound on memory usage without rejecting complex transactions with large witness element counts.",
+  "problem": "The orphanage relies on transaction weight as a proxy for memory usage when bounding allocations per peer and globally. Because deserialized witness stack elements incur individual heap allocation overheads, a standard-weight transaction containing many 1-byte witness elements can consume over 11MB of memory (28 times its accounted weight), allowing peers to bypass intended orphanage memory ceilings.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Initial metric-replacement design could reject standard-weight transactions with many small witness items like BitVM transactions, resolved by adopting serialized storage instead.",
+    "Initial serialized implementation caused a ~1s CPU delay and ~1GB memory spike during 1P1C package search by eagerly deserializing candidate children, resolved by filtering by txid/wtxid first.",
+    "Test asserting object reference difference between input and output transaction in unit tests was added."
+   ],
+   "author_status": "active, addressed all review feedback and suggestions in recent force pushes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI, clean merge status, and incorporates all requested design adjustments and benchmarks."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "objection",
+     "note": "Concept ACK, questioned mixing refactors with hardening"
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "objection",
+     "note": "tACK on early commit, benchmarked memory consumption, raised memory spike in 1P1C lookup"
+    },
+    {
+     "login": "instagibbs",
+     "stance": "objection",
+     "note": "Objected to initial metric change; proposed serialized storage and provided lazy child evaluation patch"
+    },
+    {
+     "login": "Crypt-iQ",
+     "stance": "support",
+     "note": "Concept ACK"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "instagibbs",
+     "kind": "approach",
+     "harm": "Changing the admission metric would break relay for standard witness-heavy transactions like BitVM",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-24: 'I\\'m pretty worried that the new behavior would cause subtle user breakage, epsecially considering something BitVM-like'",
+     "resolution_evidence": "2026-08-25: 'Force-pushed addressing @instagibbs\\' approach.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "safety",
+     "harm": "Find1P1CPackage materializing all child orphans creates a ~1GB memory spike",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-26: 'Every matching child is rebuilt before Find1P1CPackage looks at the first one... that\\'s 1,047.6 MB live against the 37.4 MB accounted for it'",
+     "resolution_evidence": "2026-09-09: 'Addressed suggestion from @instagibbs - fixing Find1P1CPackage.'",
+     "sources": [
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "instagibbs",
+     "kind": "safety",
+     "harm": "Find1P1CPackage deserializing many orphans causes ~1s CPU delay and ~1GB memory usage",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-09-08: 'we\\'re now deserializing potentially many orphans, which on my machine can cause ~1s of cpu time at ~1GB of memory usage'",
+     "resolution_evidence": "2026-09-09: 'Addressed suggestion from @instagibbs - fixing Find1P1CPackage.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "l0rinc",
+     "kind": "scope",
+     "harm": "Mixing refactors and hardening increases review friction and conflicts with concurrent PRs",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-18: 'the change mixes refactors and hardening - can you check if it\\'s possible to simplify and do refactors that aren\\'t strictly related in follow-ups instead?'",
+     "resolution_evidence": "2026-08-18: 'forgot to push since my latest local change. Just did it.'",
+     "sources": [
+      "dossier"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "instagibbs",
+     "reason": "Proposed serialized storage solution to enforce upper bound without discarding valid transactions, co-authoring child lookup optimization",
+     "substantive": true
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "reason": "Tested and verified that memory-heavy orphans trigger eviction on head and reproduced memory metrics",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "Crypt-iQ",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "l0rinc",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus on serialized approach; earlier concerns regarding BitVM support and 1P1C evaluation overhead have been resolved.",
+   "reason": "The author worked closely with reviewers (especially instagibbs and jeanpablojp) to overhaul the design, address relay compatibility, and resolve a temporary memory spike in 1P1C package selection. No objections remain open.",
+   "evidence": [
+    "instagibbs suggested the serialized orphan approach on 2026-08-24, which author adopted on 2026-08-25.",
+    "jeanpablojp confirmed memory calculations and highlighted 1P1C deserialization cost on 2026-08-26.",
+    "instagibbs provided a patch to only deserialize selected 1P1C candidates on 2026-09-08, which the author incorporated on 2026-09-09."
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (instagibbs, jeanpablojp)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Positive",
+    "objections": [
+     {
+      "reviewer": "instagibbs",
+      "kind": "approach",
+      "harm": "Changing orphanage memory metrics could cause subtle breakage for transactions with many small witness elements like BitVM",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-24: \"I'm pretty worried that the new behavior would cause subtle user breakage, epsecially considering something BitVM-like (with lots of 20b and 1b elements in witness data i.e. winternitz sigs). Rather than change the metrics entirely, could you consider an alternative where the stored transactions are in serialized form, and deserialized only when required?\"",
+      "resolution_evidence": "2026-08-25: \"Force-pushed addressing @instagibbs' approach.\""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "safety",
+      "harm": "Find1P1CPackage deserializes all candidate children at once before evaluation, allowing an attacker to hold over 1GB in memory",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-26: \"Every matching child is rebuilt before Find1P1CPackage looks at the first one. With 94 orphans of 199,000 1-byte items, one per peer, all announced by a single peer, that's 1,047.6 MB live against the 37.4 MB accounted for it, where one at a time would be 11.1 MB.\"",
+      "resolution_evidence": "2026-09-09: \"Addressed suggestion from @instagibbs - fixing Find1P1CPackage.\""
+     },
+     {
+      "reviewer": "instagibbs",
+      "kind": "safety",
+      "harm": "Finding potential 1P1C packages deserializes many orphans simultaneously, taking ~1s CPU time and ~1GB memory",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-08: \"When finding potential 1P1C packages, we're now deserializing potentially many orphans, which on my machine can cause ~1s of cpu time at ~1GB of memory usage on top of normal.\"",
+      "resolution_evidence": "2026-09-09: \"Addressed suggestion from @instagibbs - fixing Find1P1CPackage.\""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Unit test in orphanage_tests.cpp passed even without the implementation change",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-26: \"This test passes without the change. Reverting just src/node/txorphanage.cpp to before 493561a34285, the whole suite still passes, since the only difference the API exposes is the identity of the returned object.\"",
+      "resolution_evidence": "2026-09-09: \"Good point, I could add a BOOST_CHECK(ptx_out != ptx) right after it.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "l0rinc",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "Crypt-iQ",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "support",
+      "note": "Concept ACK; suggested separating unrelated refactors"
+     },
+     {
+      "login": "jeanpablojp",
+      "stance": "objection",
+      "note": "Tested memory usage, flagged 1GB live memory spike in Find1P1CPackage and a false-positive test"
+     },
+     {
+      "login": "instagibbs",
+      "stance": "objection",
+      "note": "Objected to changing accounting metrics and proposed storing serialized txs; later flagged 1P1C CPU and memory spike"
+     },
+     {
+      "login": "Crypt-iQ",
+      "stance": "support",
+      "note": "Concept ACK"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive: instagibbs redirected the approach to storing serialized orphans and flagged a 1P1C package deserialization memory spike with jeanpablojp; both resolved.",
+    "usage": {
+     "input_tokens": 6063,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 4946
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "instagibbs",
+      "kind": "approach",
+      "harm": "Changing the admission metric would break relay for standard witness-heavy transactions like BitVM",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-24: 'I\\'m pretty worried that the new behavior would cause subtle user breakage, epsecially considering something BitVM-like'",
+      "resolution_evidence": "2026-08-25: 'Force-pushed addressing @instagibbs\\' approach.'"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "safety",
+      "harm": "Find1P1CPackage materializing all child orphans creates a ~1GB memory spike",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-26: 'Every matching child is rebuilt before Find1P1CPackage looks at the first one... that\\'s 1,047.6 MB live against the 37.4 MB accounted for it'",
+      "resolution_evidence": "2026-09-09: 'Addressed suggestion from @instagibbs - fixing Find1P1CPackage.'"
+     },
+     {
+      "reviewer": "instagibbs",
+      "kind": "safety",
+      "harm": "Find1P1CPackage deserializing many orphans causes ~1s CPU delay and ~1GB memory usage",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-08: 'we\\'re now deserializing potentially many orphans, which on my machine can cause ~1s of cpu time at ~1GB of memory usage'",
+      "resolution_evidence": "2026-09-09: 'Addressed suggestion from @instagibbs - fixing Find1P1CPackage.'"
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "scope",
+      "harm": "Mixing refactors and hardening increases review friction and conflicts with concurrent PRs",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-18: 'the change mixes refactors and hardening - can you check if it\\'s possible to simplify and do refactors that aren\\'t strictly related in follow-ups instead?'",
+      "resolution_evidence": "2026-08-18: 'forgot to push since my latest local change. Just did it.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "instagibbs",
+      "reason": "Proposed serialized storage solution to enforce upper bound without discarding valid transactions, co-authoring child lookup optimization",
+      "substantive": true
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Tested and verified that memory-heavy orphans trigger eviction on head and reproduced memory metrics",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "Crypt-iQ",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies TxOrphanage and TxDownloadManagerImpl to control memory consumption of unconfirmed transactions held during peer-to-peer relay.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Fixes a substantial resource accounting flaw in peer-to-peer transaction relay. Adversaries could abuse standard transactions containing many witness items to inflate orphan memory 28x past peer quotas (up to ~1GB across default peer connections). The solution prevents DoS attacks while preserving relay functionality for standard witness-heavy protocols."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches src/policy/packages.cpp only to add a helper function (GetPackageHashFromWtxids) used by p2p tx download manager; does not alter mempool policy or validation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Package policy and acceptance rules are unchanged; the package hash helper is merely a mechanical adjustment to allow p2p code to avoid deserialization."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test updates and benchmarks are specific coverage additions for the orphanage changes rather than changes to generic test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes to unit tests, fuzz targets, and benchmarks follow directly from the p2p orphanage modifications."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 36015 modifies TxOrphanage to store orphan transactions in serialized format so that weight acts as an exact upper bound on memory usage. Under the previous model, deserialized transactions with many small witness elements could consume 28 times their accounted weight in heap memory, exposing nodes to memory exhaustion DoS attacks from peers sending standard-weight BitVM-like transactions. The implementation avoids deserializing candidate children during 1P1C package lookup unless selected, keeping memory and CPU costs minimal. Reviewers strongly support the approach following collaborative fixes for potential performance overheads, and the PR is ready for final review."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.02309475
+}

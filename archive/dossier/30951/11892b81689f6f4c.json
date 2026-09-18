@@ -1,0 +1,132 @@
+{
+ "number": 30951,
+ "input_hash": "11892b81689f6f4c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30706,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4263
+ },
+ "cost_usd": 0.053427300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a -v2onlyclearnet option so outbound connections to IPv4/IPv6 peers must use encrypted BIP324 (v2) transport.",
+    "Aimed at operators who want protection from passive traffic inspection (ISPs, firewalls, censors)."
+   ],
+   "reviewability": [
+    "Needs rebase, and the design itself (should this force -listen=0?) is still contested.",
+    "Maintainers explicitly postponed it from v32 to v33 pending agreement on that question."
+   ],
+   "agreement": [
+    "Many concept ACKs over two years (sipa, mzumsande, dergoegge, laanwj, kristapsk, fjahr, sedited, ViniciusCestarii, danielabrozzoni) but the core design choice is disputed.",
+    "gmaxwell states strong disagreement with coupling the option to listen=0, calling it an anti-feature.",
+    "mzumsande and ViniciusCestarii favor an alternative (allow v2-only inbound) instead of the author's chosen approach.",
+    "Author has surveyed the tradeoffs but not yet converged with reviewers, and maintainers postponed merge pending consensus (mzumsande, sedited)."
+   ],
+   "categories": []
+  },
+  "summary": "Adds a -v2onlyclearnet startup option that prevents the node from making (or falling back to) v1/plaintext outbound connections to IPv4/IPv6 peers, while still allowing v1 on Tor/I2P/CJDNS since those are already encrypted. The option requires -listen=0 to avoid the risk of a v1-only eclipse attack surface, and includes an IsClearnet() helper, init-time validation, and functional tests. The PR has been open since September 2024 and has gone through several implementation approaches (outbound+inbound v2-only, then outbound-only) based on extensive review feedback.",
+  "problem": "Users concerned about passive network observers (ISPs, firewalls, censors) inspecting or fingerprinting their Bitcoin traffic currently have no way to guarantee all outbound clearnet connections are encrypted; v1 fallback silently defeats BIP324's privacy goal. Roughly 70% of reachable nodes already support v2, making an opt-in enforcement option newly practical.",
+  "discussion": {
+   "open_concerns": [
+    "Whether the option should force -listen=0 (current approach, 'option A') or instead allow only v2 inbound while permitting listening ('option B'); gmaxwell, mzumsande, ViniciusCestarii, andrewtoth, davidgumberg have weighed in without consensus.",
+    "gmaxwell's structural objection that tying a privacy setting to giving up listening capacity is counterproductive for the network, not addressed by a code change.",
+    "Whether DNS-seed/fixed-seed addresses should be treated as v2 by default so v2-only nodes can bootstrap peers (raised by gmaxwell, partially addressed by merged PR #35766)."
+   ],
+   "resolved_concerns": [
+    "Earlier Concept NACK from vasild (fear that v2-only gives a false sense of anonymity) was withdrawn after discussion clarified the option only protects against passive observers, not active ones.",
+    "Several code review nits from luke-jr, fjahr, w0xlt, danielabrozzoni, ajtowns were addressed in later pushes (helper function IsClearnet, error message wording, edge cases for unresolved proxy destinations)."
+   ],
+   "author_status": "active but currently needs to rebase; last force-push 2026-08-13 was 'just a rebase', substantive design comments from 2026-09-10 (ViniciusCestarii) not yet answered"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked needs_rebase and mergeable_state is dirty. Maintainers (fanquake, mzumsande, sedited) also explicitly postponed the PR to v33 because there is no agreement among reviewers on the listen=0 coupling design, so a code review right now risks being invalidated by an approach change."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Broad concept support but the core design choice (forcing -listen=0) is actively disputed by gmaxwell, mzumsande, and others; maintainers postponed the PR pending resolution.",
+   "reason": "Multiple long-time contributors have raised a structural objection to the current approach that the author has not yet resolved by changing course or convincing objectors, and the project has paused the PR because of it.",
+   "evidence": [
+    "gmaxwell: 'I cannot express how strongly I disagree with forcing listen=0... it's analogous to saying anyone running a limited node must be listen=0'",
+    "mzumsande: 'I still don't find the reason for tying it to -listen=0... compelling'",
+    "ViniciusCestarii: 'Concept ACK, though I'd prefer option B'",
+    "sedited/mzumsande: postponed the PR because 'there is no agreement among reviewers about coupling it to listen=0'",
+    "Many concept ACKs (sipa, kristapsk, laanwj, dergoegge, fjahr, sedited, pinigapic-lang, davidgumberg) support the general idea"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on issue #29618 (V2 Only Option)",
+    "Complements #29415 (private broadcast over Tor/I2P) as another step toward reducing plaintext transaction relay",
+    "Builds on #35766 (merged) which makes seed-derived addresses default to v2"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Core P2P connection-management change: adds logic in CConnman to skip v1 outbound connections and v1 reconnections for clearnet peers, plus a new IsClearnet() netbase helper. Carries the P2P label.",
+    "band": "P2",
+    "reason_tag": "privacy feature",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it is a real, substantial privacy-hardening option for operators concerned about passive traffic inspection, echoed by many long-standing contributors (sipa: 'reasonable to offer an outbound-v2-only option' now that v2 adoption is ~70%). It is not P1 because it's opt-in and narrow in its actual privacy guarantee (does not hide that a node runs Bitcoin, per vasild/davidgumberg), and the design is still contested rather than settled, meaning the durable value is uncertain until the listen=0 question is resolved."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes a release-notes file and help text, but these are secondary to the code change; the PR's subject is behavior, not documentation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a docs-primary PR; release notes and help text are incidental to the net.cpp/net.h behavior change."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches netbase.h/netbase.cpp (IsClearnet helper) but these are network-classification helpers used by p2p logic, not general utils/logging/args infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The netbase changes are p2p-scoped helpers (clearnet vs privacy-network classification), not shared cross-area utility infrastructure as the utils category defines it."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will ultimately land on option A (current, tied to listen=0) or option B (allow v2-only inbound), which affects how much of the current diff survives review.",
+   "Exact weight to give the postponement to v33 versus ongoing concept engagement when scoring priority; treated here as a sign of contested design rather than lowered importance per the rules."
+  ],
+  "card": "This PR adds a -v2onlyclearnet option forcing outbound IPv4/IPv6 connections to use encrypted BIP324 v2 transport, aimed at protecting node operators from passive traffic inspection by ISPs or censors; it requires -listen=0 in its current form. Discussion spans two years and 22 distinct reviewers, with broad concept support (sipa, laanwj, kristapsk, dergoegge, fjahr, sedited) but a live, unresolved dispute over whether coupling the option to -listen=0 is sound design (gmaxwell strongly objects, mzumsande and ViniciusCestarii prefer an alternative allowing v2-only inbound). Maintainers explicitly postponed the PR from v32 to v33 because of this disagreement, and it currently needs a rebase. The strongest evidence of importance is the project's own stated goal for BIP324 adoption and the fact that ~70% of reachable nodes already support v2, making enforcement newly viable, but the PR's fate hinges on resolving the design dispute rather than further code review."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

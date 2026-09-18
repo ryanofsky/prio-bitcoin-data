@@ -1,0 +1,92 @@
+{
+ "number": 36109,
+ "input_hash": "13d9776857432997",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:57:26+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14720,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3252
+ },
+ "cost_usd": 0.023235,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Harden and unify test utilities that attach block templates to arbitrary fork parents",
+    "Prevent invalid block construction when tests build blocks at low heights or across halvings"
+   ],
+   "reviewability": [
+    "Paused: open feedback on mempool fee handling and suggested test cases awaiting author response"
+   ],
+   "agreement": [
+    "Concept ACK with local testing and suggestions for test coverage (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it consolidates fork-block construction and prevents latent test failure modes",
+      "No existing test currently fails, making the improvement preventative rather than urgent"
+     ]
+    }
+   ]
+  },
+  "summary": "Consolidates parent-dependent block template reconstruction logic into a shared RebuildBlockForParent helper used by BuildChain and MinerTestingSetup::Block. The helper updates the previous block hash and timestamp, recalculates the proof-of-work target and block subsidy for the parent's actual height, and pads coinbase input scripts at low heights to satisfy the two-byte minimum length.",
+  "problem": "Test utilities that repoint active-tip block templates to arbitrary parents previously copied the active tip's work target and subsidy, and could create coinbase scripts that violate minimum length at heights 1 through 16. Existing test callers avoided these cases or worked around them locally, but future tests constructing fork blocks could produce silently invalid blocks.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp noted that RebuildBlockForParent overwrites coinbase nValue strictly with GetBlockSubsidy, which would drop fees if a template included mempool transactions, and suggested disabling mempool on the MinerTestingSetup template call",
+    "jeanpablojp provided two test case snippets covering the target and subsidy/padding recalculation, as current suites do not fail if those lines are removed"
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since submission on 2026-08-28"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "Reviewer jeanpablojp raised a material design question regarding mempool fee handling in the rebuilt coinbase and offered test fixtures; the PR has been waiting 8 days on an author reply."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; jeanpablojp tested and Concept ACKed with suggestions on fee handling and test coverage",
+   "reason": "The only reviewer provided a Concept ACK and reported successful local testing of each commit against master, alongside actionable suggestions for improvement.",
+   "evidence": [
+    "jeanpablojp gave Concept ACK after testing each commit and running unit tests against master",
+    "jeanpablojp suggested setting .use_mempool = false on the MinerTestingSetup template call to prevent fee mismatch",
+    "jeanpablojp supplied two fixture tests to cover the recalculated difficulty and coinbase script"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Changes test helper functions in src/test/util/mining.cpp and assertions in src/test/validation_block_tests.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Deduplicates fork block construction logic and guards against subtle test-block invalidity across halvings and low heights. The author explicitly notes that 'existing callers already avoid these cases or handle them locally, so no current test fails', making this a worthwhile internal hardening change rather than a fix for flaky or broken tests."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #36109 extracts and hardens the shared logic for repointing block templates to arbitrary fork parents in test helpers. It recalculates the proof-of-work target and block subsidy from the target parent and pads short BIP34 coinbase scripts. No existing tests currently fail because existing callers avoid these boundaries, so the benefit is preventative hardening for future test writers. Review is currently paused waiting on author feedback regarding reviewer suggestions about mempool fee preservation and test additions."
+ },
+ "raw_text": null
+}

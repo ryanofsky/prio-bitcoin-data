@@ -1,0 +1,166 @@
+{
+ "number": 35591,
+ "input_hash": "5d4294d46daca43c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:31+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34299,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2923
+ },
+ "cost_usd": 0.0366855,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Implement the Erlay transaction reconciliation protocol (BIP 330)",
+    "Reduce transaction relay bandwidth while strengthening eclipse resistance with extra outbound connections"
+   ],
+   "reviewability": [
+    "Needs rebase due to conflicts with recent p2p and build PRs",
+    "Author also notes the full implementation will be split into smaller PRs for merge"
+   ],
+   "agreement": [
+    "Technical engagement without blocking objections (brunoerg)",
+    "Discussion focused on mutation test gaps, DoS bounds from sketch decoding, and connection eviction"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because Erlay provides a major architectural improvement to transaction relay bandwidth and eclipse resistance.",
+      "It significantly decreases inv message overhead while adding four low-bandwidth outbound reconciliation connections."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Not a member because changes to src/rpc/net.cpp are purely mechanical documentation and validation updates for the new connection type."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because test and benchmark additions are dedicated specifically to exercising Erlay p2p reconciliation."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member because argument parsing in init.cpp merely forwards the p2p option to connman."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request provides a complete implementation of Erlay (BIP 330) transaction reconciliation. It introduces an `OUTBOUND_FULL_RECONCILIATION` connection type, protocol message handlers (`reqtxrcncl`, `sketch`, `reconcildiff`, `reqsketchext`), sketch computation and decoding logic via minisketch, connection eviction handling, and functional and benchmark tests.",
+  "problem": "Transaction announcement via flood and trickle fanout consumes significant network bandwidth and limits how many outbound peers a node can maintain without excessive overhead. Erlay replaces redundant inv announcements with set reconciliation, lowering bandwidth consumption and allowing nodes to maintain additional outbound connections to resist eclipse attacks.",
+  "discussion": {
+   "open_concerns": [
+    "Whether to retain the sketch extension phase or drop it in favor of slightly higher initial sketch capacity and fanout fallback.",
+    "Capping the maximum sketch capacity lower to mitigate quadratic minisketch decoding DoS vectors (up to 30+ seconds on large sketches).",
+    "Whether to negotiate reconciliation via BIP 434 feature negotiation rather than sendtxrcncl."
+   ],
+   "resolved_concerns": [
+    "Addressed test gaps identified by mutation testing regarding boundary conditions and transaction inventory filtering.",
+    "Restricted reconciliation result byte parsing to 0 or 1 per BIP 330.",
+    "Added eviction handling for extra reconciliation connections during v2-to-v1 downgrades."
+   ],
+   "author_status": "Active; recently added eviction logic and benchmarks, though currently waiting for design feedback on sketch sizing and negotiation."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and carries the 'Needs rebase' label. In addition, the author indicated this complete branch is intended for testing and validation and will be split into smaller PRs for merging."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive engagement; brunoerg raised DoS and eviction concerns which the author addressed or benchmarked.",
+   "reason": "Reviewer brunoerg provided detailed mutation testing reports and raised technical questions regarding decoding CPU DoS risks and connection limits during fallback. Author responded actively and implemented updates, with general consensus on the direction.",
+   "evidence": [
+    "brunoerg reported mutation testing survivors around extension handling and boundary limits.",
+    "brunoerg questioned potential DoS from minisketch decoding times taking 31+ seconds on large sketches.",
+    "sr-gi added benchmarks confirming quadratic decode costs and proposed reducing sketch limits and removing extensions.",
+    "sr-gi refactored eviction logic to cover outbound reconciliation peers to resolve connection overages."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Implements BIP 330 transaction reconciliation protocol messages, new peer connection types, and peer eviction logic.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Erlay is a strategically important p2p protocol upgrade. It substantially improves node bandwidth efficiency during transaction relay and bolsters network partition and eclipse resistance by enabling four additional outbound reconciliation connections without proportional bandwidth penalties."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/net.cpp only to expose the new connection type string in help text and input parsing for addconnection.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates to RPC net connection type documentation do not constitute substantive RPC work."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New Python functional tests and benchmarks exclusively test Erlay p2p functionality.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests validating a specific domain belong to that domain (p2p) rather than general test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/init.cpp only to register the -txreconciliation option and set options on connman.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Passing initialization options for a P2P protocol subsystem is not a utility change."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request implements the full Erlay transaction reconciliation protocol (BIP 330) along with an outbound-full-recon connection type to dramatically reduce transaction announcement bandwidth while increasing outbound connectivity against eclipse attacks. The change is strategically important (P2 in p2p) as a network-wide scaling and security enhancement. Technical review is positive, with brunoerg providing mutation test reports and raising DoS concerns regarding quadratic minisketch decode times. The PR currently needs a rebase and the author intends to carve it into smaller reviewable PRs for actual merging."
+ },
+ "raw_text": null
+}

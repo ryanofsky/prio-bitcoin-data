@@ -1,0 +1,169 @@
+{
+ "number": 35733,
+ "input_hash": "35e649b1e39448eb",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24918,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5241
+ },
+ "cost_usd": 0.0525293,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Removes the FillableSigningProvider class, folding its behavior into LegacyDataSPKM now that the legacy wallet is gone.",
+    "Converts remaining users (tests, bitcoin-tx) to FlatSigningProvider with explicit script handling."
+   ],
+   "reviewability": [
+    "Ready to review, no open blockers.",
+    "Author has addressed all reviewer-found issues with fixes; last force-push 2026-09-14."
+   ],
+   "agreement": [
+    "Strong support: rkrux gives concept ACK citing the cleanup value, jeanpablojp gives approach ACK after building and testing (rkrux, jeanpablojp).",
+    "jeanpablojp and vicjuma both found real bugs during hands-on testing (oversized P2SH redeemScript signing, fuzz harness script-counting mismatch, lost script_sign coverage) and author fixed all of them (jeanpablojp, vicjuma, achow101).",
+    "No unresolved objections remain."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it restructures LegacyDataSPKM's key/script handling and fixes a real signing bug (scripts over 520 bytes could be pushed into a consensus-invalid transaction), a narrow but genuine fund-safety edge case caught during review.",
+      "Mostly a maintenance consolidation now that the legacy wallet class hierarchy is simplified."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because bitcoin-tx's signing path is rewritten to use FlatSigningProvider directly, and review testing surfaced and fixed the same oversized-script signing bug for this tool's users.",
+      "Affects anyone using bitcoin-tx to manually sign raw transactions with large redeem scripts."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because several fuzz harnesses (script_sign, spkm_migration) had subtle correctness bugs introduced by the naive AddCScript-to-LoadCScript conversion, which the author fixed after reviewer testing (jeanpablojp).",
+      "Restores fuzz coverage that would otherwise have silently regressed."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because it only removes a stale reference to the deleted class from developer-notes.md, a trivial cleanup with no functional effect."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes the FillableSigningProvider class from src/script/signingprovider.h/cpp, since its only real remaining user was LegacyDataSPKM (used for migrating legacy wallets) and its functionality is inlined directly into that class. All other users (unit tests, fuzz tests, benchmarks, and bitcoin-tx) are converted to use FlatSigningProvider instead, in some cases with explicit script insertion replacing the old implicit segwit-script learning. A related fix restricts signing of oversized (>520 byte) P2SH redeemScripts, since the old code could otherwise produce a consensus-invalid transaction.",
+  "problem": "FillableSigningProvider was extracted from the legacy wallet years ago to build the SigningProvider abstraction, but with legacy wallet code removed elsewhere, keeping it as a separate class is unnecessary indirection that complicates the signing-provider hierarchy for maintainers and downstream code (tests, bitcoin-tx) that only used it out of convenience.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp found that the 520-byte script push limit wasn't enforced correctly for both P2SH and P2WSH after the FlatSigningProvider conversion in bitcoin-tx; achow101 added a commit enforcing it in signing.",
+    "jeanpablojp found LoadCScript vs AddCScript semantics differed (LoadCScript returns true without storing oversized scripts), causing the spkm_migration fuzz target to miscount; achow101 fixed it.",
+    "jeanpablojp noted script_sign fuzz target lost implicit P2WPKH script insertion and pubkey lookup that AddKey used to provide; achow101 restored the explicit insertions."
+   ],
+   "author_status": "active, last force-push 2026-09-14, silent 2 days"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer-identified issues (script size enforcement, fuzz harness bugs) have been fixed in subsequent pushes, and no material request remains open. Author is still active as of 2026-09-14."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Positive with concept and approach ACKs (rkrux, jeanpablojp) and hands-on testing ACK from vicjuma; all bugs found during review were fixed by the author with no remaining objections.",
+   "reason": "Multiple reviewers engaged substantively, found real bugs, and the author fixed all of them; no one has raised a standing objection to the approach.",
+   "evidence": [
+    "rkrux: 'Concept ACK ... to containerise the codepath related to legacy wallets while discouraging usage of this seemingly outdated signing provider.'",
+    "jeanpablojp: 'Approach ACK. Built and ran the tests.'",
+    "vicjuma: 'ACK for the bitcoin-tx changes.' after manual testnet/regtest verification.",
+    "jeanpablojp found three concrete bugs (script size enforcement, fuzz counting, lost script_sign coverage); achow101 replied 'I added a commit to enforce this in signing.' / 'Fixed.' / 'Done.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Further simplification of the SigningProvider hierarchy now that legacy wallet support is fully contained in LegacyDataSPKM"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Removes a one-line reference to FillableSigningProvider from doc/developer-notes.md as a side effect of the class removal.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because it's a trivial removal of a now-stale sentence referencing a deleted class, with no effect on meaning beyond that."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Touches src/test/fuzz/key.cpp, src/test/fuzz/script_sign.cpp, src/test/util/setup_common.cpp, transaction_utils.{cpp,h}, and many unit test files converting FillableSigningProvider usage to FlatSigningProvider.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because jeanpablojp's review caught and the author fixed real regressions in fuzz coverage: 'LoadCScript returns true without storing it ... so added_script counts a script that was never stored' and the script_sign target losing key-derived script/pubkey lookups it relied on, both since fixed."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "src/bitcoin-tx.cpp's MutateTxSign is rewritten to build a FlatSigningProvider directly instead of FillableSigningProvider, with manual key/script insertion.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because review testing by vicjuma and jeanpablojp surfaced a real signing bug in bitcoin-tx (oversized P2SH redeemScripts could be signed into a consensus-invalid transaction) which the author then fixed by enforcing the size limit in sign.cpp, directly benefiting bitcoin-tx users manually signing transactions with large redeem scripts."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "src/wallet/scriptpubkeyman.{cpp,h} is restructured so LegacyDataSPKM subclasses SigningProvider directly and inlines the key/script maps and ImplicitlyLearnRelatedKeyScripts logic previously in FillableSigningProvider.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it's a maintenance consolidation of the legacy-wallet migration code path ('the only real user of FillableSigningProvider is LegacyDataSPKM' per the description) that also fixes a genuine signing correctness bug (oversized scripthash redeemScripts) shared with the general signing path, a narrow but real fund-safety-adjacent edge case."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the MAX_SCRIPT_ELEMENT_SIZE fix in sign.cpp has any behavioral effect beyond the narrow 16-of-16-multisig-class edge case the reviewer tested.",
+   "Whether any other in-tree or downstream consumers of FillableSigningProvider outside this diff exist that weren't caught by CI."
+  ],
+  "card": "This PR removes the legacy FillableSigningProvider class from Bitcoin Core's signing-provider hierarchy, inlining its behavior directly into LegacyDataSPKM (the only real remaining user, for migrating legacy wallets) and converting all other users, tests, benchmarks, and the bitcoin-tx tool, to FlatSigningProvider. It is a cleanup that follows the prior removal of the legacy wallet, reducing an indirection layer that no longer has a reason to exist as its own class. During review, jeanpablojp and vicjuma manually tested the conversion and found real correctness bugs: bitcoin-tx could sign an oversized P2SH redeemScript into a consensus-invalid transaction, and two fuzz harnesses lost coverage or miscounted due to subtle AddCScript-versus-LoadCScript semantic differences; achow101 fixed all of them in follow-up commits. The PR now has concept and approach ACKs from three reviewers with no open objections, and the author remains active (last force-push 2026-09-14). No stated external dependency or blocking PR."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

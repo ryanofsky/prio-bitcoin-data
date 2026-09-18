@@ -1,0 +1,111 @@
+{
+ "number": 34698,
+ "input_hash": "fafee9503517e9c0",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12238,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3770
+ },
+ "cost_usd": 0.0324943,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevents wallet funding and sendall from leaking an internal exception when MiniMiner can't calculate bump fees for a large unconfirmed cluster.",
+    "Adds a clear error message and regression test for the scenario in issue #29711."
+   ],
+   "reviewability": [
+    "Ready. Author reworked AvailableCoins to return util::Result<CoinsResult> as achow101 suggested and pushed the change on 2026-08-19."
+   ],
+   "agreement": [
+    "Positive. achow101 raised a design objection to the original error-signaling approach and the author implemented the suggested fix (achow101, shuv-amp)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it fixes a confusing/wrong error surfaced to users who hit a specific large-unconfirmed-cluster edge case, improving reliability but only for a narrow trigger condition (>500 unconfirmed ancestors).",
+      "Unblocks nothing else; scope is limited to this one error path in AvailableCoins/FetchSelectedInputs."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug where MiniMiner's calculateIndividualBumpFees returns an empty map when it cannot compute bump fees for a large unconfirmed transaction cluster, causing wallet code to index into the map and surface an internal std::out_of_range/map::at style failure to users. It changes AvailableCoins to return util::Result<CoinsResult> so the error can propagate cleanly through transaction creation, sendall, and listunspent, and adds a functional regression test plus fuzz/unit coverage for the failure path.",
+  "problem": "Wallets with more than ~500 unconfirmed ancestor transactions selected as inputs get a nondescript internal error instead of a clear message when the wallet tries to compute bump fees, as described in issue #29711. This affects any user or application funding transactions from a large unconfirmed input set.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "achow101 suggested avoiding an optional<>-based interface change and keeping the map; author reworked it accordingly.",
+    "achow101 argued AvailableCoins should propagate errors via util::Result<CoinsResult> rather than an ad hoc mechanism; author implemented this in the 2026-08-19 push."
+   ],
+   "author_status": "active, last pushed 2026-08-19 addressing review feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author's latest push (2026-08-19) implements the error-propagation design achow101 requested; nothing known would invalidate a fresh review, though it has not yet been re-reviewed since that push."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "achow101's design concern about how AvailableCoins should report errors was addressed by switching to util::Result<CoinsResult>; no outstanding objections.",
+   "reason": "Single reviewer (achow101) raised concrete design feedback twice, both times the author implemented the requested change; no unresolved criticism remains, but no explicit ACK has been given post-fix.",
+   "evidence": [
+    "achow101: 'Changing this to be std::optional seems a bit unnecessary... equivalently easy to check for !empty()' \u2014 author simplified accordingly",
+    "achow101: 'I don't think this is the right way to propagate errors out of AvailableCoins... this could return a util::Result<CoinsResult>' \u2014 author implemented this on 2026-08-19"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Resolves issue #29711 (nondescript error for large unconfirmed input sets)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "PR is labeled Wallet and changes wallet/spend.cpp, wallet/rpc/spend.cpp, wallet/rpc/coins.cpp, and wallet/interfaces.cpp to fix how bump-fee calculation failures propagate to users.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes a real but narrow-trigger bug: users whose funding request touches more than ~500 unconfirmed ancestor transactions get a confusing internal error instead of a clear one, per issue #29711 ('Nondescript error message for 502nd unconfirmed transaction'). It improves reliability of a specific edge case rather than a commonly hit path, and does not unblock other work."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added functional test, fuzz target adjustment, and unit test all pin the behavior of one area (wallet bump-fee calculation via MiniMiner), which per the tests category definition belongs to that area rather than to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the fuzz and unit test changes are regression coverage for a specific wallet/mempool bug, not changes to the test framework, fuzzing harness capabilities, or CI machinery itself."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether an unhandled map::at exception in this path could actually crash the node process or is always caught by the RPC dispatcher and returned as a generic error; this affects how severe the underlying bug truly is.",
+   "No maintainer ACK has landed yet on the final (2026-08-19) design, so it's unclear how strongly the project wants this exact approach versus alternatives like extending CoinsResult with error state as achow101 first floated."
+  ],
+  "card": "This PR fixes a bug where MiniMiner's bump-fee calculation can silently fail (returning an empty map) when a wallet's unconfirmed input set exceeds MiniMiner's cluster limit, causing wallet funding and sendall to index into the map and leak a nondescript internal exception to users, per issue #29711. It changes AvailableCoins to return util::Result<CoinsResult> so the failure propagates as a clear wallet error, and adds a functional regression test plus fuzz/unit coverage. The single reviewer, achow101, raised two rounds of design feedback (avoid an optional-returning interface, then use util::Result for error propagation) and the author implemented both, most recently on 2026-08-19, with no unresolved objections. The bug is real but narrow: it only triggers when a wallet's selected or available unconfirmed inputs exceed roughly 500 ancestors. No dependencies block this PR, though it lists a passive file conflict with the unrelated #35511 CAmount refactor."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

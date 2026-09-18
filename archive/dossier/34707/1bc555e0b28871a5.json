@@ -1,0 +1,164 @@
+{
+ "number": 34707,
+ "input_hash": "1bc555e0b28871a5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 49969,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5876
+ },
+ "cost_usd": 0.0807553,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Keeps privately-broadcast transactions in the queue after they come back from the network instead of deleting them, and exposes receipt time/peer via the getprivatebroadcastinfo RPC.",
+    "Aimed at letting users and future features (like periodic rebroadcast until confirmation) introspect and reuse this metadata."
+   ],
+   "reviewability": [
+    "Ready to review now, latest comments (2026-09-15) are only nits with no material open questions."
+   ],
+   "agreement": [
+    "Three members (vasild, optout21, danielabrozzoni) support and ACKed the change with vasild giving detailed pro-arguments.",
+    "instagibbs raised a concept NACK questioning whether the feature is worth the added complexity and scope creep, and disputes the author's privacy/timing-attack justification.",
+    "Author engaged with instagibbs's objection but the two did not reach agreement, and instagibbs stepped back to let others weigh in rather than continuing to block (instagibbs).",
+    "No new objection has appeared since, and the PR continued gathering ACKs (vasild, optout21)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it extends the private-broadcast queue (a P2P/privacy feature) with retained metadata and a claimed but disputed fix for a timing-attack privacy leak (andrewtoth).",
+      "It is a stepping stone toward persisting broadcasts across restarts (#34322) and a rebroadcast-until-confirmed feature requested in issue #30471, but its own direct benefit is modest and contested (instagibbs)."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds new fields (received_by_us address/time) to getprivatebroadcastinfo, giving external tooling visibility they previously lost once a tx was received back (vasild).",
+      "No external consumer has asked for this specific field; value is speculative diagnostic tooling rather than a reported pain point."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes the private broadcast module so that transactions received back from the network stay in the in-memory queue (marked as no longer pending) instead of being removed, and records which peer they were received from and when. The getprivatebroadcastinfo RPC now surfaces this as a received_by_us object with address and time. To bound memory, the queue evicts the oldest non-pending transaction when at the existing 10,000-transaction cap (from prior PR #35406).",
+  "problem": "Previously, once a privately-broadcast transaction was received back from the network, all metadata about it (who it was sent to, when, who returned it) was discarded, so users and tooling built on getprivatebroadcastinfo could not distinguish 'never broadcast', 'successfully broadcast', or 'broadcast but node restarted' states, and could not audit round-trip timing.",
+  "discussion": {
+   "open_concerns": [
+    "instagibbs's concept NACK (2026-09-02, reiterated 2026-09-09) that the feature adds scope/complexity for a niche use case and that private broadcast should not become a general rebroadcast/introspection mechanism; he also disputes the author's claim that this closes a timing-attack privacy leak from #29415, and the thread ended without agreement, with instagibbs stepping back rather than retracting.",
+    "optout21's 2026-09-15 comment that the eviction `if` (not `while`) does not guarantee the queue stays under the cap after insertion, still open as of the latest activity."
+   ],
+   "resolved_concerns": [
+    "vasild's suggestion to separate 'in mempool' / 'acceptable' / 'rejected' states was implemented via an enum, simplifying the logic (andrewtoth).",
+    "vasild's and rkrux's naming/structure nits (TxSendStatus->TxBroadcastStatus, received->received_by_us, GetPendingTransactions removal) were addressed.",
+    "danielabrozzoni's point about time_added not being reset on re-Add was fixed and covered by a unit test.",
+    "instagibbs's memory-growth/DoS concern was addressed by a separate merged PR (#35406) capping the queue at 10,000 entries, which this PR now builds on for eviction.",
+    "instagibbs's double-decrement correctness concern on attempts_remaining was fixed (set to 0 once received)."
+   ],
+   "author_status": "active, last responded 2026-09-15 asking optout21/danielabrozzoni for re-review; addressing nits as they arrive"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blockers: CI passes, no rebase needed, and the most recent comments (2026-09-15) are minor nits (line-breaking, an off-by-one eviction guarantee) raised the same day with no waiting period elapsed. The earlier concept-NACK discussion with instagibbs did not invalidate the code; it is a merge-worthiness question, not a code-review blocker."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive with three member ACKs (vasild, optout21, danielabrozzoni), but instagibbs's concept NACK about scope/value and disputed privacy benefit remains unresolved by agreement rather than by a fix.",
+   "reason": "Multiple substantive reviewers support the change and have re-ACKed after rounds of fixes, while one reviewer's standing objection to the change's justification was met with detailed rebuttal from another maintainer and the objector disengaged without withdrawing, leaving a live but non-blocking disagreement.",
+   "evidence": [
+    "vasild: 'Approach ACK'/'ACK' across multiple revisions, and rebutted instagibbs point-by-point defending the RPC-visibility and timing-attack value.",
+    "optout21: 'ACK... Overall, I'm for it' after listing pros/cons.",
+    "danielabrozzoni: 'tACK', noting only a minor edge case.",
+    "instagibbs: 'concept NACK for now... I'm not persuaded this change is net positive', later 'Not saying it's not useful to a couple people, but I don't think it's worth it... I'll let others weigh in now.'",
+    "andrewtoth engaged directly with instagibbs's specific privacy-leak counter-claim; instagibbs replied 'neither necessary nor sufficient' and did not respond further."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#34322 (node: Persist private broadcast transactions over node restarts) builds on this queue-retention behavior",
+    "issue #30471 (Feature Request: Broadcast Pool) motivates keeping received tx metadata for future rebroadcast-until-confirmed functionality"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a release-notes file is added alongside the code change; documentation is not the primary subject of the PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the release note is a byproduct of a p2p/rpc feature change, not the PR's subject."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Labeled P2P and Private Broadcast; changes net_processing.cpp and the PrivateBroadcast queue's core behavior (what is retained, evicted, and marked received).",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Extends the private-broadcast privacy feature with retained receive metadata and a disputed claim of closing a timing-attack privacy leak from #29415 (andrewtoth), which vasild finds credible but instagibbs disputes as 'neither necessary nor sufficient'. Its clearer value is as groundwork for a rebroadcast-until-confirmed feature (#34322, issue #30471) that multiple wallets/services have requested according to the linked issue, but that dependent work is not yet merged, so the leverage is real but not yet realized."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies the getprivatebroadcastinfo RPC's help text and output shape in src/rpc/mempool.cpp, adding a new received_by_us object.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "vasild argues the change lets external programs distinguish 'never broadcast' from 'broadcast concluded successfully' from 'unsure after restart', a real but narrow gap for tooling built on this RPC; no external consumer has explicitly asked for this exact field, so user_value is modest per the category's 'new methods without an external consumer asking rank low' guidance, though this is an additive field on an existing method rather than a new method."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test and fuzz-harness changes (private_broadcast_tests.cpp, fuzz/private_broadcast.cpp) exclusively pin the behavior of the private-broadcast p2p feature, which the tests category explicitly assigns to that area rather than to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per the category's own carve-out: area-specific tests belong to their area (p2p), not to test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether instagibbs's concept NACK should be read as fully withdrawn (he says 'I'll let others weigh in now') or as a standing but non-blocking objection; I treated it as the latter (Positive w/ caveats) since no explicit retraction was given.",
+   "Whether the claimed timing-attack privacy fix is real or incidental; the discussion leaves this technically unresolved, so I did not weight it heavily in the p2p security_stability factor.",
+   "Long PR lifetime (created 2026-03, still open 2026-09) with many force-pushes; per the rules this should not affect priority, and I have excluded it from the banding rationale."
+  ],
+  "card": "This PR changes the private-broadcast module so transactions received back from the network stay in the in-memory queue with recorded peer/time metadata instead of being deleted, and surfaces that via a new received_by_us field on the getprivatebroadcastinfo RPC, evicting the oldest finished entry once the existing 10,000-tx cap is hit. It targets private-broadcast users and tooling that currently lose all visibility into a transaction once it round-trips back to the node, and is pitched by the author as a stepping stone toward a node-driven rebroadcast-until-confirmed feature requested in issue #30471 and pursued further in open PR #34322. Three members (vasild, optout21, danielabrozzoni) ACKed after several review rounds, while instagibbs raised a concept NACK questioning whether the feature's value justifies the added complexity and disputing the author's claim that it closes a related timing-attack privacy leak; the disagreement was aired at length but not formally resolved, with instagibbs stepping back to let others weigh in. The code itself is currently reviewable, with only minor nits open as of the latest activity (2026-09-15). No hard external dependency blocks this PR; it depends conceptually on nothing merged but sets up #34322."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,128 @@
+{
+ "number": 29418,
+ "input_hash": "e3ceb7d1b3350d6d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25174,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4846
+ },
+ "cost_usd": 0.0508103,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a new RPC, getnetmsgstats, exposing global per-message network traffic broken down by direction, network, connection type, and message type.",
+    "Lets node operators and monitoring tools see exactly how bandwidth is spent across peer types and message kinds, beyond what per-peer getpeerinfo/getnettotals offer."
+   ],
+   "reviewability": [
+    "Not reviewable right now: it needs a rebase (label present) and the author has been silent for months.",
+    "Once rebased the diff is fairly self-contained (net.cpp/net.h stats class plus a new RPC) and reviewers have already been through several rounds."
+   ],
+   "agreement": [
+    "Multiple concept ACKs and one full ACK, with no standing objection (epiccurious, danielabrozzoni, stickies-v, waketraindev).",
+    "stickies-v's objection to the aggregation option was resolved by the author removing that feature entirely."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a new RPC, getnetmsgstats, that reports cumulative network traffic (bytes and message counts) broken down by direction, peer network, connection type, and message type, aggregated globally in CConnman rather than per-peer. It introduces a NetStats class storing atomic counters in a 4D array, hooks it into CNode::ReceiveMsgBytes and CConnman::SocketSendData, and adds a functional test exercising the new RPC's output format and behavior under partial message reads.",
+  "problem": "Per-peer traffic stats (bytessent_per_msg etc.) are lost once a peer disconnects, so operators cannot get a global, historical breakdown of bandwidth by network, connection type, or message type. Node operators with capped or metered bandwidth want to know where their traffic goes; this is tracked in issue #26337 and has had two prior PR attempts.",
+  "discussion": {
+   "open_concerns": [
+    "danielabrozzoni asked for a clarifying comment on the two-Record-call pattern (addressed by author in 2026-05-18 push).",
+    "danielabrozzoni floated replacing hard-coded functional test values with P2PInterface-based checks but did not follow up with a concrete change; not a blocking concern."
+   ],
+   "resolved_concerns": [
+    "stickies-v opposed the RPC-side result-aggregation option as unnecessary interface complexity; author agreed and removed the aggregation feature entirely in the 2026-06-12 push.",
+    "maflcko's style nits (verbose named-argument comments, RPC help wording) were applied by the author.",
+    "jonatack's several inline nits (test log levels, RPCArg hint wording, code layout) were addressed across pushes."
+   ],
+   "author_status": "silent since roughly mid-2026; repeatedly pinged for rebase by sedited (2026-03-09, 2026-05-14, 2026-08-10) with only one intervening rebase push on 2026-06-12"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a 'Needs rebase' label and mergeable_state is dirty; author_silent_days is reported at 96, well past the 60-day staleness threshold, despite periodic pings from sedited for a rebase."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from epiccurious, danielabrozzoni, and stickies-v plus a tested ACK from waketraindev, with the one substantive objection (aggregation feature) resolved by removal.",
+   "reason": "Multiple reviewers over a long review history endorsed the concept and the design converged after the author dropped the contested aggregation option; no reviewer currently objects to the remaining scope.",
+   "evidence": [
+    "epiccurious: 'Concept ACK'",
+    "stickies-v: 'Concept ACK ... I quite strongly oppose the aggregation option' then author removed it and stickies-v did not re-object",
+    "waketraindev: 'ACK ... Tested on master and with v30.1 in my node monitoring dashboard'",
+    "danielabrozzoni: 'Concept ACK, reviewed up to ... still haven't finished review'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Implements bitcoin/bitcoin#26337 (per-message traffic stats), previously attempted in #27534 and #28926"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Primary artifact is a new RPC (getnetmsgstats) with its own help text, examples, and functional test; carries the RPC/REST/ZMQ label.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it is a genuinely requested feature (issue #26337, two prior PR attempts) with at least one real external consumer, waketraindev, who said 'Tested on master and with v30.1 in my node monitoring dashboard,' but it does not touch correctness, compatibility, or security of the existing RPC surface, and 0xB10C noted overlapping tracepoint-based alternatives already exist for advanced users."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "The diff modifies core net.cpp/net.h hot paths (CNode::ReceiveMsgBytes, CConnman::SocketSendData) and the ConnectionType enum, but only to add passive instrumentation feeding the RPC; it changes no relay, DoS, privacy, or connectivity behavior. The category file explicitly places 'RPCs that merely report peer state' outside p2p, and here the net.cpp/h changes exist solely to serve that reporting purpose.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a p2p behavior change; the net.cpp instrumentation is mechanical support for the new RPC and has no effect on protocol correctness, attack resistance, or relay, so it is excluded per the category's own carve-out for reporting-only RPC support code."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added functional test (test/functional/rpc_net.py) pins the behavior of the new getnetmsgstats RPC specifically, which per the category definition belongs to the RPC area rather than to test-infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test changes are area-specific (pin one RPC's output), not framework or coverage-infrastructure work, so they do not count toward the tests category per its own scope note."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project ultimately wants a dedicated global-stats RPC versus relying on tracepoints (0xB10C's alternative) was never resolved; this affects the strategic case but not the current agreement, since nobody objected on those grounds.",
+   "Exact reason for the discrepancy between last_author_activity (2026-06-12) and author_silent_days (96) is unclear; treated the provided signal as authoritative for staleness.",
+   "Performance impact of the added atomic increments on every message send/receive was not measured or discussed, though likely negligible."
+  ],
+  "card": "Adds a new RPC, getnetmsgstats, that exposes global (not per-peer) network traffic broken down by direction, peer network, connection type, and message type, implemented via a new NetStats class hooked into CNode::ReceiveMsgBytes and CConnman::SocketSendData. It solves a real gap for node operators who want historical bandwidth breakdowns that survive peer disconnects, tracked in issue #26337 and attempted twice before (#27534, #28926); a production user, waketraindev, reports already using it in a node-monitoring dashboard. Review has been substantive over two years, with concept ACKs from epiccurious, danielabrozzoni, and stickies-v, and the one real design objection (an RPC-side aggregation option) was resolved when the author removed that feature in June 2026. The PR currently needs a rebase and the author has gone quiet for months despite repeated pings from sedited, so it is not reviewable as-is. No open PR dependencies; earlier overlap with #29421 was resolved by merge and rebase."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,114 @@
+{
+ "number": 35984,
+ "input_hash": "16158cfd3cbc4c55",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4293,
+  "cache_creation_input_tokens": 14063,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2921
+ },
+ "cost_usd": 0.03647675,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops the wallet from producing SIGHASH_SINGLE signatures when there is no output at the input's index.",
+    "Closes a footgun where such signatures stay valid even if outputs are later reordered or swapped, letting funds be redirected without the signer's consent.",
+    "Applies the fix to walletprocesspsbt, which previously lacked the guard that legacy signing already had."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "The only prior ACK (achow101) predates a later force-push, so it no longer covers the current diff, but nothing is known to be pending."
+   ],
+   "agreement": [
+    "Concept ACK and full ACK, both without objection (l0rinc, achow101).",
+    "No standing criticism or disagreement found in the discussion."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P1 because an unpatched signer can produce a SIGHASH_SINGLE signature that stays valid after outputs are swapped, letting funds be redirected without the owner's consent.",
+      "Fund safety is the top priority for this category and this closes a signature-malleability footgun that affects any PSBT signing flow, not just the fixed SignTransaction path."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves the existing SIGHASH_SINGLE-with-missing-output guard into CreateSig itself, so both SignTransaction and SignPSBTInput (used by walletprocesspsbt) refuse to produce a detached signature when there is no output at the input's index. Previously only SignTransaction had this check; PSBT signing lacked it, letting walletprocesspsbt sign such inputs. A functional test covering legacy, bech32, and bech32m address types is added, plus two unrelated test-robustness tweaks (picking a specific coinbase UTXO instead of listunspent()[0]).",
+  "problem": "SIGHASH_SINGLE with no corresponding output commits to nothing (fixed sighash 1 for legacy, zeroed hashOutputs for segwit v0), so the resulting signature stays valid even if the transaction's outputs are later reordered or swapped. This can let an attacker redirect funds without the wallet owner's consent, and the walletprocesspsbt RPC path did not guard against it even though raw signing already did.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc suggested Fixes #35977 be added to the description for auto-close; author added it.",
+    "l0rinc suggested an optional characterization-test commit; treated as a nonblocking suggestion, not a requirement."
+   ],
+   "author_status": "active, last force-push 2026-09-13"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready, ACK stale",
+   "reason": "Nothing known would invalidate a review of the current code. The single full ACK from achow101 (2026-08-17) predates a later force-push (2026-09-13), so that ACK no longer covers the current commit and a fresh look is warranted, but there is no open question or announced rework."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from l0rinc and full ACK from achow101, no objections raised, though achow101's ACK predates the latest force-push.",
+   "reason": "Both reviewers who engaged supported the change for the stated fund-safety rationale; no criticism, blocking or otherwise, appears in the discussion.",
+   "evidence": [
+    "l0rinc: 'Concept ACK', suggested an optional characterization-test commit (nonblocking)",
+    "achow101: 'ACK 0fa39483fb891d7dd0e35942c927646756550132' (predates the 2026-09-13 force-push)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #35977 (psbt: refuse transaction-independent SIGHASH_SINGLE signatures)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "The change is to src/script/sign.cpp's signing logic used by both raw signing and SignPSBTInput/walletprocesspsbt, directly affecting wallet fund safety.",
+    "band": "P1",
+    "reason_tag": "fund safety",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fund safety is directly at stake: per the description, 'the signature stays valid even when outputs are swapped, which is a footgun that lets funds be redirected without the owner's consent.' The wallet's PSBT signing path (walletprocesspsbt) lacked a guard that raw signing already had, so this closes a real gap in a fund-handling code path.'"
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The change is entirely in wallet signing logic (script/sign.cpp); the RPC surface (walletprocesspsbt) is unchanged, only its behavior via the underlying signer. The test file touches rpc_psbt.py but per category rules, wallet RPC behavior changes are wallet, not rpc, unless the RPC machinery itself changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC interface or machinery is modified; this is a wallet-internal signing fix exercised through an existing RPC, so it does not belong in this category."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the achow101 ACK should be treated as still valid despite the later force-push (bot marks it 'stale_ack'), which affects how much re-review is truly needed.",
+   "Whether the segwit v0 case should eventually get an explicit opt-in as the author suggests, which is a follow-up design question not blocking this PR."
+  ],
+  "card": "This PR closes a fund-safety footgun: a SIGHASH_SINGLE signature for an input with no matching output commits to nothing, so it stays valid even after outputs are swapped, letting funds be redirected without the signer's consent (per the PR description and linked issue #35977). It moves the existing guard (already present in raw SignTransaction) into CreateSig so the PSBT signing path (walletprocesspsbt) is also protected, and adds a functional test across legacy, bech32, and bech32m address types. Review state is Ready; the only full ACK (achow101) predates a later force-push and should be re-confirmed, but no design questions are open. l0rinc gave Concept ACK and achow101 gave ACK, with no objections raised. No dependencies; it directly resolves open issue #35977."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

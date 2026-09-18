@@ -1,0 +1,262 @@
+{
+ "number": 35511,
+ "input_hash": "d5041fea107d4f7c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 40317,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 10507
+ },
+ "cost_usd": 0.0942583,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Turn CAmount from a raw int64_t typedef into a real class so amounts can't be built from bools, floats, or mismatched integer types, or left uninitialized.",
+    "Aims to prevent a recurring class of bugs that has already bitten the project twice, and lay groundwork for a future range-bounded amount type."
+   ],
+   "reviewability": [
+    "Paused. The core design (literal syntax, whether to split the PR, whether to add a bounded amount type) is still being reworked as of the latest push.",
+    "Reviewing the current diff risks being wasted since the author dropped the `_sats` literal entirely in the most recent push and reviewers have not weighed in on that since."
+   ],
+   "agreement": [
+    "Disputed. Concept ACKs from sedited and ryanofsky, but l0rinc formally requested changes wanting a smaller, gradual rollout and clearer bounded-amount semantics (l0rinc).",
+    "maflcko and Sjors also suggested splitting the PR to make it reviewable (maflcko, Sjors), and optout21 and purpleKarrot pushed back on parts of the design itself (optout21, purpleKarrot).",
+    "Author has partially responded (dropped the `_sats` UDL, added scripted diffs) but the splitting request is not fully resolved."
+   ],
+   "categories": []
+  },
+  "summary": "This RFC converts CAmount from a plain int64_t typedef into a proper C++ class across the entire codebase, disallowing implicit construction from bools/floats, uninitialized amounts, cross-type comparisons, and nonsensical amount*amount multiplication. It touches 184 files (mostly mechanical call-site updates for the new type) and evolved through 12 commits and 11 force-pushes, including scripted diffs and a literal-suffix (`_sats`) that was later replaced by a `*sats` multiplication operator. Two smaller pieces were already split off and merged (#35456, #35372).",
+  "problem": "CAmount as a raw int64_t has caused real bugs in the past (implicit bool conversion, mismatched-width comparisons) and allows uninitialized or nonsensical amount arithmetic; this affects every area of the codebase that handles money (wallet, mempool, mining, RPC).",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc (CHANGES_REQUESTED): wants a smaller, gradual introduction of a bounded amount type, explicit unchecked-vs-validated amount split, and clarification of AmountCompression/serialization invariants under the new type.",
+    "ryanofsky, maflcko, Sjors: PR is very large and should be split, e.g. introducing the `_sats`/unit literal or the class conversion as separate, smaller PRs.",
+    "purpleKarrot: opposes user-defined literals on principle, citing the P3045 std::quantity proposal's rejection of UDLs; prefers `*sats`-style multiplication.",
+    "optout21: prefers keeping implicit numeric convertibility and questions whether disallowing all implicit numeric interop is worth the churn; also raises separating absolute amounts from deltas."
+   ],
+   "resolved_concerns": [
+    "janb84 caught and hodlinator fixed a real bug where the capnp CustomBuildField for CAmount silently failed to write values back (fixed with an added regression test).",
+    "janb84's nit about mempool_persist.cpp temporaries was addressed by switching to direct CAmount deserialization.",
+    "maflcko's LIFETIMEBOUND/const-ref question on amount.h was addressed in a later push.",
+    "hodlinator adopted ryanofsky's suggestion to use `*sats` multiplication instead of the `_sats` literal in the latest push."
+   ],
+   "author_status": "active, most recently reworking core design in response to feedback (force-pushed 2026-08-25 to remove the `_sats` literal entirely)"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "The fundamental approach (literal syntax vs multiplication operator, whether to split into a bounded amount type first, whether to shrink this PR) is still unsettled. The most recent push (2026-08-25) removed the `_sats` UDL used throughout the earlier reviewed commits and replaced it with `*sats`, meaning prior review of those commits no longer applies, and no reviewer has looked at the new shape since."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept ACKs from sedited and ryanofsky, but l0rinc formally requested changes wanting a smaller rollout and clearer bounded-amount semantics; several others independently asked for the PR to be split.",
+   "reason": "l0rinc's CHANGES_REQUESTED review raises unresolved, substantive concerns about scope and semantics (bounded vs unbounded amounts, serialization invariants) that the author has only partially addressed; maflcko, ryanofsky, and Sjors independently pushed for splitting the PR, which the author has only partly done via #35456/#35372.",
+   "evidence": [
+    "l0rinc (CHANGES_REQUESTED): 'I am also not comfortable with taking such a large change in one step... I would prefer introducing a new amount type first.'",
+    "ryanofsky: 'the PR seems very big. Could it make sense to split up somehow...'",
+    "maflcko: 'It should be trivial to split [certain commits] up and then reduce the size of this pull by two thirds.'",
+    "optout21: prefers a more gradual, less restrictive design (concept-level disagreement).",
+    "hodlinator (author): acknowledges the concerns, has removed the `_sats` literal and adopted scripted diffs, but the overall single-PR class conversion remains unsplit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future work on a range-bounded amount type ([0, MAX_MONEY]) and a possible separate AmountDelta type, both explicitly named as follow-ups by the author.",
+    "Already spawned two merged preparatory PRs (#35456, #35372); further splitting was requested by reviewers but not yet done for the class-conversion core."
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "CAmount is defined in src/consensus/amount.h but functions as shared infrastructure (a core numeric primitive used across the whole node); the PR's substance is entirely about the safety semantics of this primitive type, matching utils' 'primitives first' criterion.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Prevents a recurring bug class: the description cites two prior bugs (0026b330, 890a09b) caused by CAmount's loose typedef semantics, and the class design closes those holes plus uninitialized-amount and nonsensical-multiplication bugs. It is also explicitly a stepping stone toward a future range-bounded amount type, giving it leverage, but the approach itself remains disputed (see agreement)."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "The PR adds custom Cap'n Proto build/read field overloads for the new CAmount class and, in doing so, a reviewer (janb84) caught and the author fixed a real bug where amounts weren't actually written back to the capnp message; this is a genuine change to IPC serialization mechanics, not a mechanical call-site edit.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "janb84: 'Current code gets a local copy... Nothing is written back to the Cap'n Proto message,' a bug introduced and then fixed within this PR's own serialization glue for the new type, with a regression test added. Narrow in scope since it only exists because of this PR's own type change, not a pre-existing external-facing gap."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds ConsumeMoney() overloads with a minimum-value parameter and new IPC test coverage for passing CAmount across the process boundary, which are framework-level additions rather than area-specific test pinning.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The new ConsumeMoney() overload and the capnp round-trip test for CAmount (added after janb84's bug report) are minor framework additions that only exist to support this PR's own refactor, not general coverage gaps other areas were missing."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches kernel/bitcoinkernel.cpp, kernel/coinstats.cpp, and kernel/mempool_entry.h, but only as mechanical call-site adaptation to the new CAmount type (e.g. CheckedAdd on .Int()); no change to the kernel API surface or boundary.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the kernel-file edits are follow-on adjustments to compile against the new CAmount, not changes to what the kernel API exposes or how it behaves."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Many mempool files (txmempool.cpp/h, policy/*, mempool_entry.h) are edited, but only to adapt existing fee arithmetic to CAmount's new explicit-construction rules; no policy or acceptance-rule behavior changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical adaptation only (e.g. UpdateModifiedFee wrapping SaturatingAdd via .Int()); mempool semantics are unchanged, so this does not meet the 'touches' bar for membership."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "node/miner.h, mining_types.h, and rpc/mining.cpp get default-initializers and type adjustments for CAmount fields, with no change to template construction logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely mechanical follow-on edits (e.g. CAmount nFees{0};) with no behavioral change to block template assembly."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net_processing.h/.cpp changes are limited to giving CNodeStateStats::m_fee_filter_received a default initializer and fixing comparisons for the new type; no protocol or relay behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site fix only; does not touch relay, DoS, or connection logic."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "RPC files (blockchain.cpp, mining.cpp, rawtransaction.cpp, etc.) only get amount-formatting call sites adjusted for the new type (.Int() calls, 0*sats literals); no RPC interface or return-value semantics change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No change to what any RPC method returns or accepts; purely mechanical compile-fix edits."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-tx.cpp gets a 4-line mechanical adjustment for the new CAmount type; no behavioral change to the tool.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Trivial mechanical edit, not a functional change to the tool."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "consensus/amount.h, consensus/tx_verify.cpp, coins.cpp, and primitives/transaction.* are touched, but the change is a structural safety refactor of the amount type that does not alter what the node accepts, rejects, or how chainstate is maintained.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Per the validation category's own carve-out, structural refactors passing through validation files without changing validation behavior are excluded; l0rinc did flag a real open question about MoneyRange enforcement in AmountCompression, which the author says is unchanged from master, so no behavioral shift is claimed or shown."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/coinselection.cpp, spend.cpp, receive.cpp, etc. are heavily touched, but only to adapt to CAmount's explicit-construction and comparison rules (e.g. replacing 0.5*COIN test literals); no change to coin selection, fee bumping, or fund-safety logic itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site adaptation across wallet code; l0rinc's concern about the COIN/2 test literal was about test-code float imprecision, not a fund-safety change to wallet logic."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether validation and wallet should be counted as members given how pervasively CAmount's semantics (initialization, comparison) are used in their core logic, even though no behavior changes are claimed.",
+   "Whether the ipc capnp bug (missed write-back) should be treated as this PR introducing-then-fixing its own defect versus a genuine external-facing serialization gap this PR happened to expose.",
+   "The PR's ultimate direction (UDL vs multiplication operator, whether to split into a bounded-amount-type PR first) is still unresolved as of the latest push, so priority and reviewability could shift materially with the next design iteration."
+  ],
+  "card": "This RFC converts CAmount from a plain int64_t typedef into a real C++ class, closing off a recurring bug class (implicit bool/float conversion, uninitialized amounts, mismatched-width comparisons, nonsensical amount*amount multiplication) that has already caused two prior bugs cited in the description. It is a large (1486/1258 across 184 files), still-evolving draft: the author force-pushed 11 times, most recently on 2026-08-25 to drop the `_sats` literal syntax in favor of a `*sats` multiplication operator after sustained design pushback. Concept ACKs came from sedited and ryanofsky, but l0rinc formally requested changes wanting a smaller, more gradual rollout with a separate bounded-amount type, and maflcko, Sjors, optout21, and purpleKarrot all raised distinct scope or design objections; two smaller preparatory pieces were already split off and merged (#35456, #35372). Because the core approach is still in flux and the latest push invalidates the commits reviewers previously looked at, this is best read as Paused/still-reworking rather than ready for a full line-by-line review. Its highest-value angle is as a utils-category safety improvement to a widely used primitive, with only a narrow, incidental IPC serialization bug fix as a secondary concrete benefit; other touched areas (wallet, mempool, mining, rpc, p2p, validation) are affected only through mechanical call-site adaptation."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

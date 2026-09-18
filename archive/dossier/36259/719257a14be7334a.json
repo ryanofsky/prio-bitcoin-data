@@ -1,0 +1,91 @@
+{
+ "number": 36259,
+ "input_hash": "719257a14be7334a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6321,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 1604
+ },
+ "cost_usd": 0.0157473,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a race in the new HTTP server that can drop a pipelined client's response and disconnect it early",
+    "Makes m_keep_alive updates atomic with the send buffer so the I/O thread never sees an inconsistent state"
+   ],
+   "reviewability": [
+    "Ready to review now, small self-contained fix with a deterministic regression test",
+    "No blockers or open questions noted"
+   ],
+   "agreement": [
+    "Concept ACK with supporting rationale and no objections (winterrdog)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it fixes a real but narrow race in the HTTP server that can drop a response for pipelining clients",
+      "Low severity since bitcoin-cli does not pipeline and the window is small, but it affects any HTTP client library that does pipeline requests"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a race condition in the new HTTP server implementation where HTTPRemoteClient::Send() set m_keep_alive before acquiring m_send_mutex and appending to the send buffer, while the I/O thread reads both under the mutex after draining the buffer. It moves the m_keep_alive assignment into the same critical section as the buffer append and changes the field from std::atomic_bool to a plain bool annotated GUARDED_BY(m_send_mutex), letting Clang's thread-safety analysis enforce the invariant. A new deterministic unit test using a mock socket reproduces the interleaving and fails without the fix.",
+  "problem": "A pipelining HTTP client sending a keep-alive request followed by a close request can have its second response silently dropped: the worker clears m_keep_alive out of order with the I/O thread's decision to disconnect once the send buffer drains. This affects any HTTP client library that pipelines requests against bitcoind's HTTP/RPC server, though the author notes bitcoin-cli itself does not pipeline, making this a low-severity, narrow-window bug.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Small, self-contained fix with a deterministic regression test demonstrating the bug and its resolution. No open questions or mechanical blockers noted."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from winterrdog with a substantive rationale, no objections raised.",
+   "reason": "One reviewer (winterrdog) gave a concept ACK explaining why the fix is correct (keeping related state changes in sync under the same lock), and nobody has objected.",
+   "evidence": [
+    "winterrdog: 'concept ACK ... this keeps the related state changes in sync and does not allow the I/O thread to view an inconsistent state'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Correctness follow-on to the new HTTP server work from #35182/#35829/#36007/#36174"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly modifies src/httpserver.cpp/.h, the HTTP server backing RPC/REST, labeled RPC/REST/ZMQ.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because the bug is real and could drop a response and prematurely disconnect a pipelining client, per the description's step-by-step trace and the reproducing regression test. The author explicitly characterizes the severity as low: 'The window is small and bitcoin-cli does not pipeline, so this is a low-severity fix,' which limits practical impact to non-bitcoin-cli HTTP clients that pipeline requests."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether any real-world RPC/REST client actually pipelines requests against bitcoind, which would raise practical severity beyond what the author estimates."
+  ],
+  "card": "This PR fixes a race in Bitcoin Core's new HTTP server where m_keep_alive was updated outside the lock guarding the send buffer, allowing a pipelining client's second response to be dropped and the connection closed prematurely. The fix moves the flag update into the same critical section as the buffer append and marks it GUARDED_BY(m_send_mutex) for compiler enforcement, with a deterministic regression test that fails without the change. The author states the bug's severity is low since bitcoin-cli does not pipeline requests and the race window is small, though other HTTP clients that pipeline could hit it. Review state is Ready: the PR is small, self-contained, and already has a concept ACK from winterrdog with a substantive rationale and no objections. No dependencies block this PR, and it is a correctness follow-on to the recent libevent-replacement HTTP server work (#35182, #35829, #36174)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

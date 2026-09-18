@@ -1,0 +1,135 @@
+{
+ "number": 29843,
+ "input_hash": "890b1dd578b1f5e3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:46+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 38841,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3506
+ },
+ "cost_usd": 0.04227825,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow testnet nodes to accept non-standard scripts into the mempool with -acceptnonstdtxn=1",
+    "Enable easier testing of proposed soft forks and new opcodes on test networks"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Clean merge state and passing CI with recent feedback on flag verification design"
+   ],
+   "agreement": [
+    "Broad concept approval for testnet soft-fork testing (benthecarman, glozow, fjahr, ismaelsadeeq, 1440000bytes)",
+    "Approach supported with minor open question on compile-time vs unit-test checks (sedited)"
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it adds a valuable testing tool for proposed script changes on test networks",
+      "Confined strictly to non-mainnet chains without altering mainnet policy rules"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it clarifies consensus vs policy flag separation in CheckInputScripts",
+      "Adds compile-time and runtime checks ensuring consensus flags stay within standard bounds"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies `-acceptnonstdtxn=1` (test networks only) to skip non-mandatory script verification checks during mempool acceptance, allowing transactions that use unassigned opcodes (such as OP_NOPx or OP_SUCCESS) into the mempool. It introduces `GetAllConsensusScriptFlags()` to ensure consensus rules are not bypassed, adds compile-time checks in `GetBlockScriptFlags()`, and explicitly differentiates block and mempool verification contexts in `CheckInputScripts`.",
+  "problem": "Developers testing proposed soft-fork features (such as new opcodes on signet or regtest) cannot relay or accept transactions using non-mandatory script features into their node's mempool even when `-acceptnonstdtxn=1` is enabled.",
+  "discussion": {
+   "open_concerns": [
+    "sedited questioned whether the custom compile-time `StandardScriptVerifyFlags` wrapper in `GetBlockScriptFlags` is overly intrusive and whether that invariant could be validated in a unit test instead."
+   ],
+   "resolved_concerns": [
+    "Distinguishing block vs mempool script error reporting in `CheckInputScripts` was discussed thoroughly with ismaelsadeeq and instagibbs, resolved by introducing the `CheckInputScriptsFor` enum.",
+    "Ensuring soft-fork flags on non-mainnet chains cannot lead to consensus-invalid mempool transactions was addressed by introducing `GetAllConsensusScriptFlags()`."
+   ],
+   "author_status": "Active; addressed prior review rounds with force-pushes and structural refactorings."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI and no merge conflicts. The remaining comment is an implementation design suggestion from sedited that does not invalidate ongoing code review."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; broad concept support with minor open discussion on compile-time check mechanics (sedited)",
+   "reason": "Multiple maintainers and contributors provided Concept ACKs and Approach ACKs. luke-jr suggested reserving the existing behavior under a separate value, but general consensus favored keeping the testnet change simple. sedited's recent design question is constructive and non-blocking.",
+   "evidence": [
+    "benthecarman, glozow, fjahr, 1440000bytes, and ismaelsadeeq gave Concept ACKs.",
+    "sedited gave Approach ACK with minor follow-up suggestions.",
+    "luke-jr suggested making it `-acceptnonstdtxn=2` based on Knots behavior."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Changes mempool policy script verification flags in `MemPoolAccept::PolicyScriptChecks` under `-acceptnonstdtxn=1`.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "It delivers a clear use case for protocol and application developers testing proposed soft-fork extensions on testnets without requiring separate forks of Bitcoin Core. Its impact is limited to test networks, making it a solid P3."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches `src/validation.cpp` and `src/validation.h` to adapt `CheckInputScripts` and adds flag invariants to `GetBlockScriptFlags` and `ChainstateManager`.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Clarifying whether `CheckInputScripts` checks for block consensus or mempool standardness improves internal validation invariants, and compile-time verification that `GetBlockScriptFlags` is bounded by standard flags guards against unexpected consensus/policy discrepancies."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches p2p functional test files purely to test transaction acceptance and rejection behavior; no p2p protocol or relay logic is altered.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a P2P change; the test modifications only verify mempool acceptance and rejection paths over the test framework p2p connection."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #29843 updates `-acceptnonstdtxn=1` on test networks so that it skips non-mandatory script checks during mempool validation. This allows developers on regtest and signet to test transactions using experimental opcodes (like OP_NOPx or OP_SUCCESS) through standard bitcoind mempools. The change refactors CheckInputScripts to explicitly distinguish mempool and block validation errors and introduces compile-time checks in GetBlockScriptFlags. The PR is Ready with broad Concept ACKs and an Approach ACK from sedited."
+ },
+ "raw_text": null
+}

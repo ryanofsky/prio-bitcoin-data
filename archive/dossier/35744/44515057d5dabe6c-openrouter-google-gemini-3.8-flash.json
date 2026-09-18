@@ -1,0 +1,118 @@
+{
+ "number": 35744,
+ "input_hash": "44515057d5dabe6c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:43+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23710,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3771
+ },
+ "cost_usd": 0.03192375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent LevelDB crashes when cache resizing runs during UTXO RPC scans",
+    "Add shared mutex wrappers with lock-order and contention checking"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Author implemented all reviewer suggestions and CI passes"
+   ],
+   "agreement": [
+    "Strong support for shared mutex approach and lock-order integration (andrewtoth)",
+    "Concept ACK (sedited)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it prevents a node abort caused by LevelDB iterator invalidation",
+      "Resolves a race between long-running UTXO RPC scans and AssumeUTXO cache rebalancing"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it integrates shared mutexes into the lock-order checker",
+      "Supports non-LIFO lock releases so long-lived read locks do not corrupt lock diagnostics"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request ensures that CCoinsViewDB iterators and compaction hold a shared lock on a new database mutex, preventing ResizeCache from resetting m_db while iterators remain active. It also extends the synchronization framework with SharedMutex, SharedLock, and READ_LOCK primitives that hook into DEBUG_LOCKORDER and support non-LIFO lock releases.",
+  "problem": "RPCs such as gettxoutsetinfo, scantxoutset, and dumptxoutset keep LevelDB iterators open after releasing cs_main. If AssumeUTXO cache rebalancing calls ResizeCache concurrently, the underlying database wrapper is reset while an iterator is still live, causing LevelDB to abort.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Replacing atomic cursor counters with an RAII shared mutex (andrewtoth)",
+    "Supporting non-LIFO lock releases in DEBUG_LOCKORDER when shared locks outlive outer locks (andrewtoth)",
+    "Enforcing cs_main assertion inside ResizeCache (andrewtoth)"
+   ],
+   "author_status": "active; last pushed an update incorporating all suggested shared-lock and sync framework improvements"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch cleanly addresses reviewer feedback, includes thorough unit tests, and CI passes with no open blocking questions."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: andrewtoth co-authored and shaped the shared mutex and sync framework design; sedited Concept ACKed",
+   "reason": "The initial atomic counter approach was redesigned to use shared mutexes following collaboration with andrewtoth, who provided patch snippets. sedited added a Concept ACK with no dissent.",
+   "evidence": [
+    "andrewtoth suggested replacing the atomic counter with a shared mutex holding read locks across cursor lifetimes",
+    "andrewtoth proposed integrating shared mutexes into DEBUG_LOCKORDER and handling non-LIFO lock releases",
+    "sedited left a Concept ACK"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies CCoinsViewDB cursor management and cache resizing in src/txdb.cpp and src/txdb.h.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Prevents an application abort during concurrent UTXO scans and AssumeUTXO cache rebalancing. LevelDB iterators are kept valid until destroyed, preventing crashes when ResizeCache() replaces m_db."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Extends the synchronization framework in src/sync.h and src/sync.cpp with SharedMutex and non-LIFO lock tracking.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Introduces SharedMutex, SharedLock, and READ_LOCK with DEBUG_LOCKORDER and Clang thread safety analysis support. Handling out-of-order lock releases enables shared locking primitives across the codebase without corrupting lock tracking state."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR prevents LevelDB aborts by holding a shared lock on coins DB cursors and compaction so that ResizeCache waits for active iterations to finish before resetting the database wrapper. In doing so, it introduces SharedMutex, SharedLock, and READ_LOCK to the synchronization utilities with full DEBUG_LOCKORDER tracking and non-LIFO lock popping. It resolves a crash hazard reported during review of cache compaction and AssumeUTXO rebalancing. The approach was shaped collaboratively with andrewtoth and has a Concept ACK from sedited."
+ },
+ "raw_text": null
+}

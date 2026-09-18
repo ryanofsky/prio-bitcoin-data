@@ -1,0 +1,146 @@
+{
+ "number": 36000,
+ "input_hash": "ba4c578fd1f473c1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:28+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29361,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2636
+ },
+ "cost_usd": 0.02640315,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prefetch blocks asynchronously during chain activation to overlap disk I/O with block connection"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "Recent minor cleanup suggestion on invalid block handling remains open"
+   ],
+   "agreement": [
+    "Strong support with thorough benchmarking reproducing double-digit speedups (andrewtoth)",
+    "Minor edge-case cleanup suggestion open to discard prefetched blocks on invalid tip (w0xlt)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it brings substantial and verified speedups to reindexing and IBD",
+      "Accelerates reindexing by up to 35-50% and IBD by 10-15% across varied hardware"
+     ]
+    }
+   ]
+  },
+  "summary": "Adds an asynchronous block read-ahead mechanism (`BlockFetcher`) to `Chainstate` that prefetches up to 4 upcoming blocks using a 2-worker thread pool while previous blocks are being connected. The prefetcher also clears and warms its queue with sibling blocks during reorgs, avoiding redundant reads for caller-provided blocks.",
+  "problem": "Block reading and deserialization historically happen synchronously right before block connection, preventing disk I/O from overlapping CPU-intensive validation during IBD, reindexing, and reorgs.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt suggested calling m_block_fetcher->Clear() when a block is found invalid so prefetched descendants do not linger in memory"
+   ],
+   "resolved_concerns": [
+    "Thread pool churn spamming logs on every ActivateBestChain call resolved by making Chainstate own the pool",
+    "Staged queue depth adjusted to 4 and workers to 2 following empirical benchmarking across SSD and HDD setups",
+    "Reorg sibling prefetching during DisconnectTip incorporated into the prefetch lifecycle",
+    "Circular dependency in build between blockfetcher and blockstorage resolved by using std::function"
+   ],
+   "author_status": "active, last pushed updates addressing reviewer benchmarks and threading feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Code is clean, CI passes, and the approach is settled with reviewer benchmarks and an ACK."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong approval with independent benchmarks validating performance gains (andrewtoth)",
+   "reason": "andrewtoth extensively tested the feature across multiple machines and configurations, confirmed double-digit speedups for IBD and up to 35% on reindexing, and approved the PR.",
+   "evidence": [
+    "andrewtoth: 'ACK 3547915bfb... Managed to see speedup in IBD benchmarks... Nice speedups, especially for reindex-chainstate.'",
+    "w0xlt: minor diff suggestion to clear prefetched blocks when ConnectTip finds a block invalid"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Optional index sync parallelization (#34489)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Doc changes are developer notes and release notes incidental to the validation optimization.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental documentation updates do not make this a documentation PR."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/CMakeLists.txt only to add blockfetcher.cpp to bitcoinkernel as part of internal Chainstate wiring.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter the kernel public API, boundary, or library architecture."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes to transaction acceptance, replacement, cluster mempool, or fee policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes are strictly within block fetching and connection in Chainstate."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly alters block connection pipeline and chainstate activation in src/validation.cpp.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Significantly improves reindex and IBD block connection performance, a core validation metric felt directly by node operators. Independent benchmarks from both author and reviewer verify 13-15% wall-clock reductions in IBD and 35-50% in reindex-chainstate."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Adds a background BlockFetcher thread pool to Chainstate that reads and deserializes blocks ahead of ConnectTip, overlapping disk I/O with script and state validation. This directly benefits anyone performing initial sync or reindexing, with benchmarks demonstrating 12-15% faster IBD and 35-57% faster reindexing. Reviewer andrewtoth tested and ACKed after reproducing the performance gains, and the implementation is clean and ready for final review."
+ },
+ "raw_text": null
+}

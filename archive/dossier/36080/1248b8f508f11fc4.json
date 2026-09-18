@@ -1,0 +1,123 @@
+{
+ "number": 36080,
+ "input_hash": "1248b8f508f11fc4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11696,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2906
+ },
+ "cost_usd": 0.0276323,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop the node from disconnecting good peers during IBD just because they were too busy serving requested blocks to answer a ping in time.",
+    "Fixes real unnecessary disconnections seen when downloading over multiple slow-bandwidth peers."
+   ],
+   "reviewability": [
+    "Ready to review, actively iterating with reviewers.",
+    "Author has addressed each round of feedback with code fixes."
+   ],
+   "agreement": [
+    "Strong support with two concept ACKs and no unresolved objections (l0rinc, danielabrozzoni).",
+    "Reviewer-found edge cases were investigated and dismissed as fringe or already true on master, with no pushback (danielabrozzoni)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes real-world wrongful disconnections of well-behaved peers during IBD, a reliability issue affecting anyone syncing with limited bandwidth across many peers.",
+      "Other timeout mechanisms already backstop misbehaving peers, so the fix narrows scope to a genuine false-positive rather than removing protection."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the added functional test pins p2p-specific ping/block-download behavior, which belongs to the p2p area per the category rules, not to test infrastructure itself."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR suspends the p2p ping timeout while a peer is actively serving requested blocks, adding a short grace period after the last new block before the timeout resumes. It moves the ping-timeout disconnect check out of MaybeSendPing into SendMessages so it can access per-peer block-in-flight state, and adds a new functional test (p2p_ping_ibd.py) exercising the scenario.",
+  "problem": "During IBD with bandwidth split across many peers, a well-behaved peer can be busy serving requested blocks (which are prioritized over other messages) and fail to answer a ping within 20 minutes, causing the node to wrongly disconnect it even though the peer did nothing wrong. This is described in linked issue #35761.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc's nit about test ordering to show before/after behavior was addressed by moving parts of the test into the first commit.",
+    "danielabrozzoni's concern about m_last_block_time not updating for already-known blocks, potentially shortening grace period, was judged a fringe one-off scenario by the author and not pushed back on.",
+    "danielabrozzoni's concern about a user-triggered ping RPC resetting ping_start and masking a due disconnect was accepted as an existing, unlikely edge case not worth fixing.",
+    "danielabrozzoni's test robustness suggestion (checking no disconnect within grace period while blocks are still in flight) was implemented by the author on 2026-09-16."
+   ],
+   "author_status": "active, most recently addressed review feedback on 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Author has been actively responsive, addressing all reviewer feedback with pushes, most recently on 2026-09-16. No known open material request is unaddressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Two concept ACKs (l0rinc, danielabrozzoni) and no unresolved objections; edge cases raised by danielabrozzoni were investigated and accepted as non-blocking fringe issues.",
+   "reason": "Both reviewers explicitly stated Concept ACK, and detailed AI-assisted review comments led to substantive back-and-forth that the author resolved either by code fix or by reasoned dismissal that the reviewer did not contest.",
+   "evidence": [
+    "l0rinc: 'Concept ACK'",
+    "danielabrozzoni: 'Concept ACK! I am slowly going through it and learning more about block relay'",
+    "danielabrozzoni raised a m_last_block_time edge case; author replied it's a rare one-off, not pushed back on",
+    "danielabrozzoni raised a ping-RPC race edge case; author called it a fringe finding not worth fixing, not pushed back on",
+    "danielabrozzoni's test-robustness suggestion was implemented by author on 2026-09-16"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Resolves issue #35761 (unnecessary disconnections due to PONG delays during IBD)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes net_processing.cpp ping-timeout and disconnect logic, and carries the P2P label.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real reliability bug where honest, well-behaved peers get wrongly disconnected during IBD due to prioritized block serving delaying pong responses, as described in linked issue #35761: 'we would disconnect them, although they have done nothing wrong.' Other timeout mechanisms (block download timeout, stalling logic, socket inactivity) remain as backstops, so this is a targeted correctness fix to peer-management logic rather than a broad feature, keeping it at P2 rather than P1."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new test file p2p_ping_ibd.py pins specific p2p ping/block-download behavior, which the tests category explicitly assigns to the area it tests rather than to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per category rules: a test pinning one area's behavior belongs to that area, not test infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the fringe edge cases raised by danielabrozzoni (m_last_block_time not updating for known blocks, ping RPC race) could matter more than the author estimates was not independently verified."
+  ],
+  "card": "This PR suspends the p2p ping-timeout disconnect check while a peer is actively serving requested blocks during IBD, adding a short grace period afterward before the timeout resumes. It fixes a real bug (linked issue #35761) where honest peers get wrongly disconnected because block-serving is prioritized over answering pings when bandwidth is split across many peers during IBD. Strongest evidence of importance: the PR description and linked issue show this happens to well-behaved peers 'although they have done nothing wrong,' and other timeout mechanisms (block download timeout, stalling, socket inactivity) remain in place as backstops. Review state is Ready and active: two concept ACKs (l0rinc, danielabrozzoni) with no unresolved objections, and the author has iteratively addressed detailed AI-assisted review feedback including a test-robustness improvement on 2026-09-16. No dependencies block this PR; it directly resolves #35761."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

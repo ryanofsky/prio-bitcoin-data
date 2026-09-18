@@ -1,0 +1,131 @@
+{
+ "number": 34565,
+ "input_hash": "1ca4b70f94c221fd",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6568,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4160
+ },
+ "cost_usd": 0.0287743,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Splits block-download state and logic out of PeerManagerImpl/CNodeState into a standalone BlockDownloadManager class, following the TxDownloadManager pattern.",
+    "Aims to make net_processing.cpp smaller and block-download scheduling unit- and fuzz-testable in isolation."
+   ],
+   "reviewability": [
+    "Needs rebase, marked dirty, and conflicts with a dozen other open PRs touching net_processing.cpp.",
+    "Large move-only diff (~2500 lines) that is reviewable in principle but competes for attention with many overlapping refactors."
+   ],
+   "agreement": [
+    "Two early concept ACKs (sedited, 0xbrito) with no stated rationale.",
+    "A maintainer (Crypt-iQ) raises an unresolved, nonblocking concern that this decomposition approach conflicts in spirit with a competing PR (#35561) taking a different path, and that the added indirection is itself a cost.",
+    "Another maintainer (maflcko) questions whether the new fuzz target has caught any real bug and whether lock-requirement clarity is the actual benefit.",
+    "Author (w0xlt) engaged substantively, showing a draft branch reconciling both approaches, but no consensus reached on direction."
+   ],
+   "categories": []
+  },
+  "summary": "This PR extracts all block-download state and logic (mapBlocksInFlight, per-peer sync/stalling fields, FindNextBlocksToDownload, etc.) out of PeerManagerImpl and CNodeState into a new pimpl-patterned BlockDownloadManager class, mirroring the earlier TxDownloadManager extraction (#30110). It is a large, mostly move-only change across 4 commits (skeleton, unit tests, call-site migration, fuzz target) that shrinks net_processing.cpp by ~440 lines and adds 8 unit tests plus a fuzz harness targeting the new module directly. No mutex or locking model changes: cs_main remains the synchronizing lock throughout.",
+  "problem": "net_processing.cpp is ~6200 lines and PeerManagerImpl mixes several independent subsystems, making it hard to review, test in isolation, and reason about lock ordering; block-download logic in particular could not previously be unit- or fuzz-tested without standing up the full net_processing stack.",
+  "discussion": {
+   "open_concerns": [
+    "Crypt-iQ: unclear whether this class-extraction approach is preferable to the competing #35561, which instead trims CNodeState by moving fields directly to Peer; 'I don't really know which way to go on this' and asks for outside input.",
+    "Crypt-iQ: the extraction adds indirection that some reviewers find more confusing even if locking requirements become more explicit.",
+    "maflcko: questions the practical value of the new fuzz target absent evidence it would have caught a past bug, and whether the coupling to cs_main is genuinely reduced."
+   ],
+   "resolved_concerns": [
+    "Crypt-iQ's initial question about whether this helps fuzz individual components was answered concretely by the author with a code example showing BlockDownloadManager can be constructed standalone."
+   ],
+   "author_status": "active, most recently responding 2026-09-14 with a demonstration branch reconciling this PR with the competing #35561 approach"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked needs_rebase and mergeable_state is dirty; it also conflicts with roughly a dozen other open PRs touching net_processing.cpp, so a review done now risks being invalidated by whichever of those merges first."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACKs are old and thin; a maintainer (Crypt-iQ) raised a real, unresolved but nonblocking concern about whether this decomposition approach is the right direction versus a competing PR (#35561).",
+   "reason": "Two early concept ACKs without rationale, followed months later by substantive maintainer pushback on the architectural direction and the value of the added fuzz coverage. The author responded with a demonstration branch but no agreement has been reached, and Crypt-iQ explicitly frames the concern as needing outside input rather than as a blocking objection.",
+   "evidence": [
+    "sedited and 0xbrito gave bare Concept ACKs early on.",
+    "Crypt-iQ (2026-08-27): 'The PR is mostly move-only stuff, but is large and therefore a bit intimidating... is separating components out of PeerManagerImpl really desirable?'",
+    "Crypt-iQ (2026-09-14): this PR 'conflicts with #35561 in spirit and I don't really know which way to go on this'.",
+    "maflcko (2026-09-01) questions the concrete benefit of the fuzz target absent a caught bug.",
+    "w0xlt responded with a draft branch showing both approaches could combine, without resolving which direction to take."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Further incremental decomposition of PeerManagerImpl following the TxDownloadManager precedent (#30110)",
+    "Isolated unit/fuzz testing of block-download scheduling logic without standing up the full net_processing stack"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "The PR moves core block-download state and scheduling logic (mapBlocksInFlight, FindNextBlocksToDownload, stalling detection, per-peer sync state) out of PeerManagerImpl/CNodeState, which is central p2p machinery reviewed under the P2P label's remit.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is a large internal reorganization with no stated correctness, performance, or lock-granularity benefit: the author states cs_main remains the synchronizing lock throughout and the extraction is 'for code organization and testability, not lock granularity.' A maintainer (Crypt-iQ) directly questions whether this decomposition direction is even desirable and flags a philosophical conflict with a competing PR (#35561), and another maintainer (maflcko) notes the coupling largely remains. The main claimed benefit is future testability, which is real but modest and unproven by any caught bug so far."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The PR adds unit tests and a fuzz target, but per the tests category definition a test/fuzz harness that pins the behavior of one area (here, block download, part of p2p) belongs to that area rather than the tests infrastructure category; nothing here changes shared test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the new unit tests and fuzz target exercise BlockDownloadManager specifically, which is a p2p-area component, not generic test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "No shared utility, logging, argument, or primitive code is changed; the PR is confined to net_processing/block-download code.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: nothing in the diff touches logging, arguments, threading utilities, or vendored subtrees."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project ultimately prefers this class-extraction approach or the competing #35561 field-migration approach is unresolved and could make this PR's specific code moot or require significant rework.",
+   "No evidence was given that the new fuzz target has caught a real bug, so its practical value beyond generic coverage is unclear.",
+   "Size and heavy conflict with ~12 other open PRs make actual review timing uncertain even though the reason is Stale rather than a code-quality issue."
+  ],
+  "card": "This PR extracts block-download state and scheduling logic (mapBlocksInFlight, FindNextBlocksToDownload, per-peer sync/stalling fields, etc.) out of PeerManagerImpl and CNodeState into a new BlockDownloadManager class, following the earlier TxDownloadManager pattern (#30110), and adds unit tests plus a fuzz target for the extracted module. It is a large, mostly move-only refactor (~2500 lines) with no locking-model or behavioral change: cs_main remains the synchronizing lock throughout, so the stated benefit is code organization and isolated testability rather than any correctness, performance, or DoS improvement. The PR needs a rebase and conflicts with roughly a dozen other open PRs touching net_processing.cpp. A maintainer (Crypt-iQ) has raised an unresolved, nonblocking concern that this decomposition direction may conflict philosophically with a competing PR (#35561) that trims CNodeState differently, and asked for outside input on which approach to take; the author has responded with a draft branch reconciling both but no consensus has been reached."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

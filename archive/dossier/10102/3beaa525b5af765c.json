@@ -1,0 +1,272 @@
+{
+ "number": 10102,
+ "input_hash": "3beaa525b5af765c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 61352,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 9081
+ },
+ "cost_usd": 0.1081633,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds an --enable-multiprocess build option that lets bitcoind, its wallet, and the GUI run as separate processes communicating over IPC.",
+    "Long-running foundation for the Bitcoin Core process-separation project (issue #28722)."
+   ],
+   "reviewability": [
+    "Ready to review now, nothing currently blocking it, though the PR has been rebased 107 times over 9 years and review can be invalidated by the next rebase.",
+    "The core capnp wrapper commits are the highest-value thing to look at; most other changes are mechanical follow-on."
+   ],
+   "agreement": [
+    "Strong, sustained concept support from multiple maintainers and reviewers over years (laanwj, gmaxwell, jonasschnelli, dcousens, jamesob, hebasto, promag)",
+    "Early preference disagreement over using RPC/JSON instead of capnp was resolved by agreeing the choice is swappable and out of scope (dcousens, laanwj, ryanofsky)",
+    "One old concept NACK (electorr) with no recent follow-up",
+    "29 distinct reviewers have weighed in over the PR's lifetime, few recent substantive reviews"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P1 because this is the ipc project's central deliverable: it builds the capnp wrapper layer and the spawn/connect machinery that node, wallet, and GUI IPC depends on.",
+      "It directly unblocks #19460 and #19461 and the entire process-separation project tracked in issue #28722."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P3 because it adds significant, isolated build/CI plumbing (CMake option, libmultiprocess subtree CI configs, mpgen dependency tracking fix) that only affects an opt-in feature, not the default build.",
+      "Fixes real CI reliability issues in the subtree (stale codegen, sanitizer flags) that matter to anyone building multiprocess but not to mainstream contributors."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because the documentation touched (library descriptions, multiprocess.md) is a minor incremental update alongside a much larger code change, not the PR's focus."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it changes wallet interface signatures and adds default constructors purely to satisfy IPC serialization requirements, not wallet behavior itself.",
+      "It is a necessary step toward running the wallet as a separate process, which some deployments want for isolation."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds IPC support to bitcoin-cli and touches RPC request struct only via comments for future capnp maintenance, not RPC behavior.",
+      "Matters mainly as plumbing that lets bitcoin-cli talk over IPC as an alternative to HTTP."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it extends the functional test framework and log-combining tooling to work with multiprocess binaries, and adds characterization tests for a real callback-destruction bug.",
+      "This is infrastructure other multiprocess PRs and future contributors need to test the feature at all."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because the only tools-area change is a one-line path update in the circular-dependency checker, incidental to the larger change."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it fixes a real bug where disconnected signal callbacks stayed alive indefinitely, which was hanging bitcoin-node and the interface_gui.py test, and fixes real build breakage on macOS, FreeBSD, and sanitizer builds from an atomic<shared_ptr> assumption.",
+      "These are concrete correctness and portability fixes in shared infrastructure (btcsignals, util::Result), not cosmetic."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR (open since 2017, based on #29409) adds an --enable-multiprocess build option producing bitcoin-node, bitcoin-wallet, and bitcoin-gui executables that communicate over Cap'n Proto IPC instead of running in one process. It wraps the Node, Wallet, and Chain interfaces in capnp serialization code, adds process-spawning logic (bitcoin-gui spawns bitcoin-node, which spawns bitcoin-wallet), and bundles the libmultiprocess subtree plus its CI configuration. The current diff also includes real bug fixes uncovered along the way: eager destruction of disconnected btcsignals callbacks (fixing a hang in interface_gui.py) and an atomic<shared_ptr> fallback for platforms lacking C++20 support.",
+  "problem": "Bitcoin Core historically runs node, wallet, and GUI code in one process, which couples their crash domains, complicates running components with different trust or resource requirements, and (per gmaxwell, laanwj, sipa in the discussion) has long been seen as an architectural improvement worth making. This PR is the foundational step for reviewers, maintainers, and future consumers of the process-separation project (issue #28722) who want the wallet and GUI to run independently of the node.",
+  "discussion": {
+   "open_concerns": [
+    "Whether Cap'n Proto is the right long-term IPC protocol was raised early (jonasschnelli, dcousens, gmaxwell) but scoped out of this PR by design (ryanofsky, laanwj); no active objection remains.",
+    "sipa's early question about the actual benefit of process separation was answered (it's a first step toward optional independent operation) and not revisited.",
+    "External testers (Sjors, jimhashhq) reported various rough edges (log file naming, -ipcconnect gaps, GUI not honoring config sections) which the author has been iteratively fixing across years of rebases."
+   ],
+   "resolved_concerns": [
+    "Practicalswift's typo/codespell nits were fixed.",
+    "laanwj's and reviewers' architectural questions about parameter passing, async calls, and UI integration were answered and incorporated into later revisions.",
+    "A dead-pointer bug found by practicalswift was fixed."
+   ],
+   "author_status": "active, most recently rebasing on 2026 dates to resolve conflicts with concurrently merged PRs; author_silent_days is only 9"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No known open material request is blocking review: needs_rebase is false, CI is not failing, and author_silent_days (9) is far under the staleness threshold. The main caution is that this PR has been force-pushed 107 times over nine years to keep pace with the rest of the codebase, so a review done today may be invalidated by the next rebase; reviewers should expect to review the stable capnp-wrapper commits rather than every rebase diff."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Broad, long-standing concept support from many maintainers (laanwj, gmaxwell, jonasschnelli, dcousens, jamesob, hebasto, promag) with one old, unfollowed concept NACK (electorr) and an early protocol-choice preference (dcousens wanted RPC over capnp) that was resolved by agreeing the protocol is swappable and out of scope.",
+   "reason": "Multiple reviewers stated specific, substantive reasons to want this (better GUI responsiveness, cleaner separation, unblocking future independent operation), and no reviewer treats the current design as blocking. The standing caveat is that some reviewers would have preferred a different serialization protocol, which the author explicitly declined to change, framing it as an implementation detail hidden behind two files.",
+   "evidence": [
+    "gmaxwell: 'I'm really uncomfortable with using capn proto, but fine enough for some example testing stuff! ... I'm a fan of this general approach'",
+    "laanwj: 'Concept ACK, nice ... let's not turn this into a discussion of serialization and RPC frameworks'",
+    "dcousens: 'strong concept ACK, but if is feasible, would prefer usage of the existing RPC instead of capn'proto'",
+    "ryanofsky: 'Capnp could definitely be replaced by JSON-RPC ... No code outside of these two files has to change in order to move to a different protocol'",
+    "bot ACK table shows concept_ack from dcousens, laanwj, jgarzik, practicalswift, hebasto, promag, jamesob and a stale_ack from Sjors, against one concept_nack from electorr"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    29409
+   ],
+   "enables": [
+    "#19460 (bitcoin-wallet -ipcconnect option)",
+    "#19461 (bitcoin-gui -ipcconnect option)",
+    "the broader process-separation project tracked in issue #28722"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "This PR is the core deliverable of the IPC/multiprocess project: capnp wrappers for Node/Wallet/Chain interfaces, process spawning, libmultiprocess subtree bundling, and the ipc/ build glue.",
+    "band": "P1",
+    "reason_tag": "unblocks #19460,#19461",
+    "score": 0.9,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 3,
+     "leverage": 3
+    },
+    "rationale": "This is the foundational infrastructure for running node, wallet, and GUI as separate processes, a multi-year project goal explicitly tracked in issue #28722. It directly unblocks two dependent open PRs (#19460, #19461) and every future IPC feature; the author states 'the main thing left to do is wrap up more functions and callbacks in IPC calls so the GUI can be functional.'"
+   },
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds a CMakeLists.txt --enable-multiprocess-style build path, an src/ipc/CMakeLists.txt, and extensive CI configuration changes for the bundled libmultiprocess subtree (new newdeps.bash config, mpgen dependency-tracking fix, sanitizer/CI flag updates).",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "The build-system work is real (fixes stale-codegen bugs, olddeps/newdeps CI coverage) but only serves an opt-in feature not built by default, so it matters mainly to contributors actively working on multiprocess, per the CI-focused commit history ('cmake: Fix stale codegen when mpgen binary changes')."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Touches doc/design/libraries.md and doc/multiprocess.md with small updates describing the new libbitcoin_ipc library scope.",
+    "band": "P4",
+    "reason_tag": "docs update",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Documentation changes are minor and incidental to the code change, e.g. one line updating the libraries table to mention bitcoin-wallet alongside bitcoin-gui."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Reorders WalletLoader::restoreWallet parameters, adds default constructors to WalletAddress and CreatedTransactionResult, and touches wallet/coincontrol.h purely to satisfy IPC serialization needs.",
+    "band": "P3",
+    "reason_tag": "unblocks #19460",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "No wallet behavior changes; the point is making wallet interface types capnp-serializable so the wallet can run as its own process, a prerequisite noted directly in code comments ('Default constructor needed because libmultiprocess IPC client currently requires return types to be default-constructible')."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds interfaces::Ipc use to bitcoin-cli.cpp (CallIPC), and adds comments in rpc/request.h noting future capnp serialization needs; labeled RPC/REST/ZMQ.",
+    "band": "P3",
+    "reason_tag": "unblocks ipc",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Lets bitcoin-cli communicate over IPC as an alternative transport to HTTP RPC; no change to existing RPC semantics or compatibility."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Extends test_node.py and combine_logs.py for multiprocess log suffixes, increases timeouts for feature_block.py/feature_taproot.py, and adds btcsignals characterization/regression tests for the callback-destruction bug.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Test framework work here is necessary infrastructure for exercising multiprocess builds and pins down a real callback-lifetime bug ('characterize btcsignals callback destruction timing... document the status quo so the next commit changing the destruction timing has a clear before/after diff'), but it is support work rather than new coverage of high-risk areas like consensus or mempool."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "One-line change to contrib/devtools/circular-dependencies.py switching the monitored module path from 'interfaces/' to 'ipc/'.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Purely mechanical update to a devtools linter path to track the renamed interface boundary; no independent value beyond supporting the ipc work."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies src/util/btcsignals.h to fix callback-destruction timing, src/util/result.h construction, and adds an atomic_load/atomic_store fallback for platforms without __cpp_lib_atomic_shared_ptr.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Fixes a concrete bug where a disconnected signal callback could stay alive indefinitely, which the commit message says was 'hanging interface_gui.py until timeout' via undead IPC proxy objects held by node notification callbacks, and fixes real build failures on macOS (Xcode 16.2), FreeBSD 15.1, and MSan/TSan CI caused by an incorrect C++20 feature assumption."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the constant multi-year rebasing means substantive parts of the diff meaningfully differ commit-to-commit in ways that would change category membership or priority; I assessed based on the current snapshot only.",
+   "Whether maintainers currently intend to merge this before or after sibling PRs (#31740, #31741, #19460, #19461) is unclear from the discussion; order seems flexible per ryanofsky's own comments.",
+   "The exact current state of the concept NACK from electorr (very early in the thread, likely stale) is not clear; I treated it as unresolved but inactive rather than a live blocker.",
+   "Some category memberships (rpc, tools) are thin \u2014 mostly one or two lines \u2014 and could arguably be excluded as merely mechanical follow-on; I included them per the inclusive-membership rule but flagged low scores."
+  ],
+  "card": "This nine-year-old draft PR is the foundational piece of Bitcoin Core's process-separation project: it adds an --enable-multiprocess build producing separate bitcoin-node, bitcoin-wallet, and bitcoin-gui executables that talk over a Cap'n Proto IPC layer instead of sharing one process. It directly unblocks two dependent open PRs (#19460, #19461) and the process-separation project tracked in issue #28722, and along the way fixes a real bug where disconnected signal callbacks stayed alive and hung interface_gui.py, plus portability fixes for macOS/FreeBSD/sanitizer builds. Review sentiment has been strongly positive for years from laanwj, gmaxwell, jonasschnelli, dcousens, jamesob, hebasto, and promag, with one old, unfollowed concept NACK and an early protocol-choice preference that the author deliberately left unresolved by scoping capnp usage to two isolated files. The PR is reviewable now with no known blocking request open, though it has been force-pushed 107 times and continues to be rebased against the fast-moving codebase, so reviews can be invalidated by the next rebase. It is huge (about 4000 lines added across 136 files) and spans ipc, build, wallet, rpc, tests, tools, docs, and utils, but its importance is overwhelmingly concentrated in the ipc category as the project's central unblocking change."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

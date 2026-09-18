@@ -1,0 +1,94 @@
+{
+ "number": 35837,
+ "input_hash": "5dd2e0fbf518f110",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5746,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2536
+ },
+ "cost_usd": 0.0198323,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make scanblocks report an error instead of silently skipping unindexed block ranges.",
+    "Prevents callers from getting a result marked complete that actually missed blocks."
+   ],
+   "reviewability": [
+    "Ready, the earlier design objection was fixed by matching getblockfilter's behavior.",
+    "No known blocker; author pushed the requested rework."
+   ],
+   "agreement": [
+    "Concept ACK from a maintainer, and a substantive correctness objection from another maintainer was resolved by a rework (maflcko, fjahr)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because scanblocks can silently return an incomplete result marked completed:true, a real correctness gap for any caller during index catch-up.",
+      "Fixes returned-data correctness rather than adding new surface, mirroring the existing getblockfilter error classification."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes scanblocks so that a failed LookupFilterRange call is reported to the caller instead of being silently skipped. Mirrors getblockfilter's error classification: throws a 'still indexing' error when the block filter index is behind the tip and the requested range is not yet available, and an internal error if lookup fails after the index is synced. Adds a functional test that reproduces the unindexed-range scenario by wiping and rebuilding the filter index.",
+  "problem": "scanblocks previously advanced past any unindexed chunk while still returning completed:true, hiding a gap where matches in that range were never checked. This silently gives callers, such as wallets rescanning via block filters, an incomplete relevant_blocks list they cannot distinguish from a clean 'no matches' result.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "fjahr pointed out the initial fix incorrectly failed unconditionally whenever the index was behind the tip, unlike getblockfilter which only fails if the specific range is unavailable; author reworked the PR (two force pushes) to mirror getblockfilter's actual behavior and confirmed the fix."
+   ],
+   "author_status": "active, addressed review and pushed the requested rework on 2026-08-05"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The one substantive design objection (fjahr, that the fix should only fail when the specific range is unavailable, not whenever the index lags the tip) was implemented in a follow-up push mirroring getblockfilter's logic. Nothing else is known to be pending; reviewers have not yet re-reviewed the reworked code."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from maflcko, and fjahr's correctness objection was addressed by a rework matching getblockfilter's behavior",
+   "reason": "maflcko gave a Concept ACK on the underlying issue. fjahr raised a concrete correctness objection about the classification logic differing from getblockfilter, and the author implemented the requested change; fjahr has not yet re-reviewed the new version but the specific complaint was resolved by a fix.",
+   "evidence": [
+    "maflcko: 'Concept ACK' on the regression report",
+    "fjahr: 'What this is doing here is different from what getblockfilter does... I don't see why we shouldn't be able to do it the same way here'",
+    "MicSm: 'You're right - thanks... I updated to match this' followed by a force push implementing the change"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Direct change to the scanblocks RPC's error handling and returned-data correctness in src/rpc/blockchain.cpp, with matching functional test changes; labeled RPC/REST/ZMQ.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real correctness gap: 'The old code ignored that failure... and still returned completed: true' (description), so a caller cannot tell a clean empty result from a silently skipped range. This is a data-correctness bug in an RPC that wallets and tooling rely on for rescanning, though it only manifests in the narrow window while the block filter index is catching up, which limits its severity relative to a P1 fund-safety or consensus issue."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the reworked version has been re-reviewed by fjahr since the 2026-08-05 push is not shown in the discussion.",
+   "Real-world frequency of the affected window (index lagging tip while scanblocks is called) is not quantified beyond the reproduction steps."
+  ],
+  "card": "This PR fixes bitcoind's scanblocks RPC so that a failed block-filter range lookup is reported as an error instead of being silently skipped while the call still returns completed:true, which previously let callers receive an incomplete relevant_blocks list indistinguishable from a genuinely empty scan. The fix mirrors getblockfilter's existing error classification: 'still being indexed' while the filter index lags the tip and hasn't yet covered the requested range, or an internal error if lookup fails once the index is synced. A maintainer (fjahr) initially flagged the first version as failing unconditionally whenever the index was behind the tip, unlike getblockfilter; the author reworked the PR to match getblockfilter's actual per-range logic, and maflcko gave a Concept ACK on the underlying regression. The PR is a first-time contributor's fix, found via AI-assisted review but independently confirmed as a real correctness gap by a maintainer. No open concerns remain and no dependencies are noted; it is ready for a follow-up code review of the reworked patch."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

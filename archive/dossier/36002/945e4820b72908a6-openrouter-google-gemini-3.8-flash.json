@@ -1,0 +1,151 @@
+{
+ "number": 36002,
+ "input_hash": "945e4820b72908a6",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:30+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27074,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3510
+ },
+ "cost_usd": 0.033468,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow running txindex on pruned nodes and starting the index from an already pruned state.",
+    "Surface candidate block hashes on lookup misses so callers can fetch missing blocks on demand."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Recent discussion touches API design details and RPC error structures without invalidating current code."
+   ],
+   "agreement": [
+    "Strong concept support from several reviewers (l0rinc, ajtowns, arejula27)",
+    "Design feedback on index capability flags and returning structured data for pruned hashes (arejula27)"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it eliminates the long-standing mutual exclusion between txindex and block pruning.",
+      "Pruned node operators gain transaction lookup capabilities without needing to store hundreds of gigabytes of historical blocks."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it informs callers which pruned block to fetch when a transaction is missing.",
+      "Also adds the first indexed block height to getindexinfo to distinguish partial indexes."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR lifts the mutual exclusivity between txindex and pruned mode, building on the packed block hash references introduced in #35531. TxIndex can now identify the block hash of a transaction even if the underlying block file has been deleted, returning the block hash on lookup so callers can retrieve the block via getblockfrompeer. It also introduces partial history support so a txindex can be initialized on an already pruned node without redownloading earlier history.",
+  "problem": "Previously, running txindex required retaining the entire raw block history on disk, completely barring pruned nodes from indexing transactions or locating which historical blocks contained specific transactions.",
+  "discussion": {
+   "open_concerns": [
+    "arejula27 asked whether AllowPrune() and AllowPartialHistory() in BaseIndex should be combined into a single enum to enforce that partial history implies prune support.",
+    "arejula27 questioned whether candidate pruned block hashes should be returned as structured data in RPC responses rather than embedded in error strings."
+   ],
+   "resolved_concerns": [
+    "ajtowns and mzumsande inquired about behavior on already pruned nodes; author updated the design to support starting from an already pruned height and exposed first_block_height."
+   ],
+   "author_status": "Active; addressing reviewer questions and incorporating feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is green, the branch is clean, and the author has actively iterated on feedback."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support; minor API and RPC representation discussions open.",
+   "reason": "Multiple reviewers have given Concept ACKs, and the author has already incorporated feedback regarding starting indexes on pruned nodes.",
+   "evidence": [
+    "l0rinc gave a 'Big concept ACK'",
+    "ajtowns gave Concept ACK and discussed disk usage implications for partial history",
+    "arejula27 gave Concept ACK, calling the idea and approach exciting, while suggesting enum cleanups and structured RPC error data"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Modifies BaseIndex and TxIndex to allow running under block pruning and starting sync from a non-genesis block.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 3,
+     "leverage": 1
+    },
+    "rationale": "Enabling txindex on pruned nodes has been a long-requested feature that removes a major barrier for users who cannot afford hundreds of gigabytes of block storage. Following #35531's decoupling of txindex entries from raw block file positions, this change delivers durable value to index users by making txindex usable on resource-constrained nodes."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Updates getrawtransaction, gettxoutproof, rest_tx, and getindexinfo to handle pruned lookup misses and partial index status.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Surfacing candidate pruned block hashes in getrawtransaction and gettxoutproof enables callers to retrieve missing blocks via getblockfrompeer. Adding first_block_height to getindexinfo provides necessary transparency for partial index instances."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New functional tests in feature_txindex_prune.py exercise indexing behavior rather than the test framework itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test files added specifically test txindex functionality."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touched src/init.cpp only for startup parameter validation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Init flag updates are mechanical consequences of the index change rather than general utility improvements."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR allows running txindex alongside block pruning and enables starting an index on an already pruned node. When a requested transaction resides in a pruned block, the index returns the containing block hash so users or downstream tools can fetch the block with getblockfrompeer and retry. The work resolves a long-standing limitation where txindex required full block storage. Concept support is strong across several reviewers, and the code is ready for review with ongoing discussion around whether candidate block hashes should be surfaced as structured RPC data."
+ },
+ "raw_text": null
+}

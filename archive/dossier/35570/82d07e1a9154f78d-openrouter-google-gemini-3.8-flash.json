@@ -1,0 +1,192 @@
+{
+ "number": 35570,
+ "input_hash": "82d07e1a9154f78d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:49+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30417,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3415
+ },
+ "cost_usd": 0.035619,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Return BlockValidationState by value instead of output references across validation functions",
+    "Eliminate ambiguity and subtle bugs caused by divergent bool returns and validation state"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Clean branch with active reviewer engagement and passing CI"
+   ],
+   "agreement": [
+    "Broad concept approval with one full code review ACK (arejula27, purpleKarrot, w0xlt, stringintech, yuvicc, nervana21)",
+    "Nonblocking preference to order this after or coordinate with #35646 for type-level error handling (hodlinator)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it is a clean internal refactoring that removes error-prone out-parameters and out-of-sync return flags",
+      "Hardens validation call chains against unintentional state overwrites without altering consensus or performance"
+     ]
+    }
+   ]
+  },
+  "summary": "Refactors several core validation functions in validation.cpp (such as CheckBlock, AcceptBlock, ContextualCheckBlockHeader, and ProcessNewBlockHeaders) to return BlockValidationState by value rather than accepting it as an output reference parameter alongside a boolean return flag. Introduces MakeInvalid and MakeError static constructor helpers to BlockValidationState to streamline error path instantiation.",
+  "problem": "Previously, methods returned both a boolean and mutated a BlockValidationState output reference, creating the possibility that the boolean return value and state.IsValid() could disagree, or that chained calls could unintentionally interact through shared mutable state.",
+  "discussion": {
+   "open_concerns": [
+    "hodlinator prefers enforcing valid/invalid distinctions via narrower return types or merging #35646 (which introduces util::Expected) prior to landing this refactor, rather than relying on runtime asserts/comments."
+   ],
+   "resolved_concerns": [
+    "A potential behavior divergence where FlushStateToDisk return values were ignored in AcceptBlock was isolated and merged independently in #35621.",
+    "arejula27 and w0xlt noted missing nodiscard attributes, const qualifiers, and a fuzz test bug introduced by setting state to Error before validation assertions; all addressed in updates."
+   ],
+   "author_status": "Active, promptly responding to reviews and adopting reviewer suggestions."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch merges cleanly against master, CI is passing, and the author actively addresses review comments."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Broad support and one full code ACK; hodlinator suggests coordinating with #35646 but does not block.",
+   "reason": "The refactor has wide concept approval from multiple contributors. Detailed code review has been provided by arejula27 (ACK) and hodlinator, who raised architectural thoughts regarding #35646 without blocking progress.",
+   "evidence": [
+    "Concept ACKs from w0xlt, purpleKarrot, stringintech, yuvicc, nervana21.",
+    "arejula27 provided repeated detailed reviews and ACKed the refactoring.",
+    "hodlinator offered constructive feedback and a suggestions branch, noting a preference for #35646 landing first."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches bitcoinkernel.cpp only mechanically to adapt callers to the updated ProcessNewBlockHeaders and CheckBlock signatures without changing kernel public interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site adjustments in kernel wrapper code do not constitute kernel library development."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool policy, limits, or transaction evaluation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Out of scope for the mempool category."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Only updates a call site in src/rpc/mining.cpp to consume the new ProcessNewBlockHeaders signature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site update in mining RPC does not affect block template construction."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches src/net_processing.cpp only to adapt calls to ProcessNewBlockHeaders.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical caller updates following validation method signature refactoring."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Modifies one line in submitheader in src/rpc/mining.cpp to take the return value directly.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC interface, documentation, or behavioral changes."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test and benchmark files solely to adapt to updated validation function signatures.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are downstream adaptations to signature changes, not test harness or infrastructure work."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly modifies signatures and implementation of key validation functions in src/validation.cpp and consensus/validation.h.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is an internal refactoring that improves code safety and readability without altering consensus rules or validation performance. Replacing out-parameters and dual return states with a single returned BlockValidationState eliminates subtle bugs where a boolean return and a validation state could diverge."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35570 refactors several validation functions (including CheckBlock, AcceptBlock, and ProcessNewBlockHeaders) to return BlockValidationState by value rather than through an output parameter. This eliminates potential inconsistency between boolean return flags and validation states, making validation error propagation simpler and less prone to subtle bugs. The PR is an internal cleanup with no consensus or behavioral changes. Review is progressing well with wide Concept ACKs and one full ACK, alongside a non-blocking discussion on how this integrates with broader util::Expected efforts (#35646)."
+ },
+ "raw_text": null
+}

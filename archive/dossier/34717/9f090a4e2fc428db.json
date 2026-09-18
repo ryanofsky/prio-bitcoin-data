@@ -1,0 +1,98 @@
+{
+ "number": 34717,
+ "input_hash": "9f090a4e2fc428db",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13763,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5038
+ },
+ "cost_usd": 0.0403593,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Removes a stale P2P flag that no longer tracks GETADDR responses correctly, so ADDR relay decisions rely purely on the existing size and age checks",
+    "Fixes an inconsistency introduced when self-announcements were split from GETADDR responses, so self-announcements are now relayed as intended"
+   ],
+   "reviewability": [
+    "Stale, author has not commented in 70 days after leaving two open privacy questions unresolved",
+    "Code itself was reviewed and approved earlier, but the author's last comment reopens design questions that could change the diff"
+   ],
+   "agreement": [
+    "Several ACKs including a tested ACK (danielabrozzoni) and reACKs (Crypt-iQ, stratospher), with concept ACKs (mzumsande, w0xlt)",
+    "A concept NACK (taki-abedesselam) over a described token-exhaustion scenario was contested by others (Crypt-iQ, ajtowns) and not pressed further",
+    "Author himself surfaced two unresolved privacy questions about self-announcement relay and GETADDR-response relay, still open as of his last comment",
+    "No reviewer treats these as blocking, but the discussion trails off without conclusion"
+   ],
+   "categories": []
+  },
+  "summary": "This PR removes the `m_getaddr_sent` flag from net_processing, which used to gate whether a received ADDR message should be relayed based on whether a GETADDR request was outstanding. Since PR #34146 split the initial self-announcement from the GETADDR response, the flag no longer reliably tracks the GETADDR response and produces inconsistent relay behavior. The PR relies on the existing size (<=10) and age (<10min) checks instead, causing the initial self-announcement to now be relayed and slightly changing GETADDR-response relay behavior.",
+  "problem": "Node operators and the P2P layer currently have inconsistent, broken logic for deciding whether to relay the first ADDR messages from an outbound peer, a side effect of an earlier refactor (#34146) that the flag's authors did not anticipate. This affects address propagation correctness but not consensus or fund safety.",
+  "discussion": {
+   "open_concerns": [
+    "Potential privacy implication: relaying a peer's self-announcement to others could let an observer infer which peers a node is directly connected to via timestamp correlation (raised by ajtowns, Crypt-iQ, explored at length, not resolved)",
+    "Whether relaying small (<=10 address) GETADDR responses, now unguarded by the flag, could be abused or leak more than before (taki-abedesselam's concept NACK, contested by Crypt-iQ and danielabrozzoni as low-impact and structurally limited)",
+    "Author's own final comment (2026-07-08) says both concerns 'need more discussion' and floats alternative designs (repurposing the flag, separating GETADDR/relay message types) without settling on one"
+   ],
+   "resolved_concerns": [
+    "Test comment removed inadvertently was added back after stratospher's nit",
+    "Test assertion wording clarified after confusion between danielabrozzoni and naiyoma over which ADDR message is 'first'"
+   ],
+   "author_status": "silent since 2026-07-08, after posting open questions rather than a resolution"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Stale, author silent 70d",
+   "reason": "Code has been reviewed and approved by some (tACK from danielabrozzoni, ACK from w0xlt, reACK from Crypt-iQ), but the author's last comment (2026-07-08) reopens unresolved privacy questions and floats alternative designs without picking one, and there has been no author activity since then (70 days of silence, past the 60-day stale threshold)."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Multiple ACKs including a tACK, but the author himself flags two unresolved privacy questions about self-announcement and GETADDR-response relay that remain open with no chosen resolution.",
+   "reason": "Several reviewers (danielabrozzoni tACK, w0xlt ACK, Crypt-iQ reACK, mzumsande and stratospher concept ACK) support the change as a logical cleanup, and a concept NACK from taki-abedesselam over a described attack scenario was contested and not pressed further. However the author's final substantive comment lists two standing concerns (self-announcement relay privacy, GETADDR-response relay) as still needing discussion, which is a caveat on an otherwise supported change rather than a fix.",
+   "evidence": [
+    "danielabrozzoni: 'tACK c8ee319' with detailed explanation of the resulting behavior change",
+    "w0xlt: 'ACK c8ee319... It might be worth documenting this minor behavior change'",
+    "taki-abedesselam: 'Concept NACK... gives a malicious neighbor node the ability to abuse our unsolicited message relaying'; Crypt-iQ and ajtowns pushed back on the severity",
+    "ajtowns: 'Concept ~0' on the value of relaying self-announcements, though 'code looks fine if the behaviour is desirable'",
+    "naiyoma (author, 2026-07-08): 'there are two concerns that need more discussion' listing privacy questions still open"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Clarifies addr-relay semantics that #34146 changed, useful groundwork if the project pursues aj's suggestion of separating GETADDR responses from general relay"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies net_processing.cpp ADDR relay logic and the p2p_addr_relay.py functional test, carries the P2P label, and the entire discussion concerns address relay and privacy/DoS tradeoffs in the P2P layer.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because this fixes a real but low-severity inconsistency in addr relay logic ('m_getaddr_sent logic is broken after #34146 and doesn't do what it's supposed to do anymore' - stratospher), but multiple reviewers including ajtowns explicitly say it is 'not urgent for 31.0' and the practical impact is bounded by existing size/age heuristics. The discussion also surfaced a still-open, low-probability privacy question about self-announcement relay that nobody has escalated to a hard blocker, keeping this worthwhile but deferrable rather than category-critical."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the unresolved privacy/GETADDR-relay concerns the author raised will require a materially different design, which would affect how much of the current diff survives review",
+   "Whether the project intends to bundle this with aj's suggested GETADDR-bucket redesign, which would change scope"
+  ],
+  "card": "This PR removes the `m_getaddr_sent` flag in net_processing.cpp, a P2P mechanism intended to prevent relaying stale GETADDR responses, because it stopped working correctly after PR #34146 split self-announcements from GETADDR replies. The change makes ADDR relay rely solely on existing size (<=10) and age (<10min) heuristics, causing self-announcements to now be relayed and slightly altering GETADDR-response relay behavior. Reviewers stratospher, danielabrozzoni, w0xlt, and Crypt-iQ gave ACKs/tACK, but a concept NACK from taki-abedesselam over a possible token-exhaustion abuse was contested rather than resolved, and a deeper, still-open discussion between ajtowns, Crypt-iQ, and the author about possible privacy leakage from relaying self-announcements or GETADDR responses remains unresolved as of the author's last comment (2026-07-08), which itself says 'there are two concerns that need more discussion.' The PR has been silent for 70 days since, past the project's staleness threshold. No dependency on other PRs; it revisits ground from a previously closed attempt (#19794) and follows directly from #34146."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

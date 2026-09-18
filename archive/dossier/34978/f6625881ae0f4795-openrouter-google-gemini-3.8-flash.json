@@ -1,0 +1,148 @@
+{
+ "number": 34978,
+ "input_hash": "f6625881ae0f4795",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:39+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19616,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4360
+ },
+ "cost_usd": 0.031062,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reserve file descriptors during node initialization for IPC listening sockets and incoming connections.",
+    "Prevent unpredictable file descriptor exhaustion when using -ipcbind."
+   ],
+   "reviewability": [
+    "Stale: needs rebase, author has been silent for 84 days, and the PR was converted to draft in favor of #35037."
+   ],
+   "agreement": [
+    "Disputed: ryanofsky opposes adding a global -ipcmaxconnections option, preferring per-address limits on -ipcbind in #35037 (ryanofsky).",
+    "Concept supported earlier for addressing the FD reservation gap (Sjors, kevkevinpal, w0xlt, sedited)."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it prevents unexpected file descriptor exhaustion when running the node with -ipcbind.",
+      "The fix is worthwhile for IPC stability but reasonably deferrable, especially while the configuration approach remains contested against #35037."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request updates startup parameter handling in `src/init.cpp` to reserve file descriptors for IPC listening sockets and incoming connections when `-ipcbind` is enabled. It introduces a `-ipcmaxconnections` option (defaulting to 16) and adds a dedicated functional test `interface_ipc_init.py` verifying the reservation logging.",
+  "problem": "When `-ipcbind` is used, the listening socket and accepted connections are not accounted for in `min_required_fds`. High-volume IPC connections can exhaust the node's available file descriptors, leading to unpredictable runtime failures.",
+  "discussion": {
+   "open_concerns": [
+    "Architectural dispute over configuration: ryanofsky prefers per-address connection limits specified directly on `-ipcbind` (pursued in #35037) rather than introducing a global `-ipcmaxconnections` option.",
+    "This PR only reserves file descriptors at startup without enforcing connection caps in the accept loop (which requires libmultiprocess changes)."
+   ],
+   "resolved_concerns": [
+    "Renamed option from `-unixmaxconnections` back to `-ipcmaxconnections` to remain consistent with `-ipcbind` and `-ipcconnect`.",
+    "Fixed handling of `-noipcbind` negation when checking bound sockets.",
+    "Moved startup logging tests out of `interface_ipc_cli.py` into a dedicated `interface_ipc_init.py` test."
+   ],
+   "author_status": "silent since 2026-06-25, converted PR to draft in favor of #35037"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts, needs a rebase, has had no author activity for 84 days, and was explicitly marked draft by the author in favor of #35037."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: ryanofsky prefers per-address limits on -ipcbind (#35037) over a global -ipcmaxconnections option; author marked draft in favor of #35037",
+   "reason": "While reviewers agree that IPC file descriptors should be accounted for, ryanofsky advised against adding a global command-line option in favor of per-address limits. The author moved the PR to draft to pursue that alternative in #35037, though sedited noted per-bind limits might be overkill.",
+   "evidence": [
+    "Concept ACK from Sjors, kevkevinpal, w0xlt, and sedited",
+    "ryanofsky: 'I don't think it would be good to add a new -ipcmaxconnections option that's global and independent from actual IPC interfaces and endpoints... Would suggest changing this PR from ready to draft state'",
+    "enirox001: 'Marking this PR to draft in favor of #35037'",
+    "sedited: 'The per-bind accounting seems fine too, but isn't that a bit overkill?'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "bitcoin-core/libmultiprocess#269"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Modifies init configuration and startup FD accounting specifically for -ipcbind sockets, adding tests in test/functional/interface_ipc_init.py.",
+    "band": "P3",
+    "reason_tag": "stability",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Prevents potential node crashes or socket errors resulting from file descriptor exhaustion when IPC is enabled. As Sjors noted, 'the error for running out file descriptors is presumably confusing, and it will happen at unpredictable moments depending on how many RPC, P2P and IPC connections are active.' However, IPC remains experimental and the PR only reserves descriptors rather than strictly enforcing limits."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Does not alter block template creation, getblocktemplate, or mining IPC interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mining is not affected by generic IPC startup file descriptor accounting."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added test interface_ipc_init.py tests IPC initialization and logging behavior specifically, rather than general test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test framework machinery is not changed."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The changes in src/init.cpp serve IPC socket management rather than shared utility or logging infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the category rules, settings changes whose point is one area's behavior belong to that area rather than utils."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR reserves file descriptors at startup for IPC listening sockets and incoming connections by introducing a `-ipcmaxconnections` option. Currently, `-ipcbind` does not account for these descriptors in `min_required_fds`, risking unpredictable socket errors under heavy IPC workloads. While reviewers support fixing the FD reservation, ryanofsky objected to adding a global command-line option in favor of per-address limits on `-ipcbind`. Consequently, the author marked this PR as draft in favor of #35037, and the PR now needs a rebase."
+ },
+ "raw_text": null
+}

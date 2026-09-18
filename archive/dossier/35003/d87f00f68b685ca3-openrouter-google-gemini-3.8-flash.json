@@ -1,0 +1,137 @@
+{
+ "number": 35003,
+ "input_hash": "d87f00f68b685ca3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:45+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 58431,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5119
+ },
+ "cost_usd": 0.0630195,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent silent stuck node states and hard crashes when block storage files are inaccessible.",
+    "Ensure disk I/O errors during P2P message handling and block connection trigger graceful shutdowns or peer disconnections."
+   ],
+   "reviewability": [
+    "Author has been silent for 70 days following an Approach NACK.",
+    "Reviewing now is premature until the project decides whether to handle I/O failures via return values or exceptions."
+   ],
+   "agreement": [
+    "Approach NACK from josibake opposing folding filesystem exceptions into nullable returns at the lowest layer (josibake).",
+    "Multiple reviewers supported the bug fixes and extensive test suite before the approach dispute (maflcko, l0rinc, sedited, rkrux).",
+    "Author engaged to defend the consistency of the minimal fix, but discussion stalled with no reply to the latest review (furszy)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it fixes an edge-case bug where detached block storage during ActivateBestChain leaves the node running but unable to advance the chain.",
+      "The failure requires external filesystem or permission failures, but turning a silent hang into a clean fatal shutdown protects node reliability."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it replaces an assert crash with a graceful shutdown on GETBLOCKTXN read failures and disconnects peers on GETDATA disk errors.",
+      "It improves P2P server stability under faulty hardware without changing normal protocol operation."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request prevents block I/O failures from being silently swallowed or causing hard aborts during P2P processing and chain activation. It modifies FlatFileSeq::Open to return nullptr instead of throwing when creating parent directories fails, replaces an assert in GETBLOCKTXN message processing with a fatal error shutdown, and adds comprehensive unit and functional tests simulating filesystem permission failures.",
+  "problem": "When the block storage directory becomes inaccessible (e.g., volume detach or permissions issue), FlatFileSeq::Open throws an exception that bypasses FatalError in ActivateBestChain and gets swallowed by the P2P catch-all, leaving the node alive but silently stuck. Additionally, GETDATA silently drops requests without disconnecting peers, and GETBLOCKTXN can trigger an ungraceful assertion crash.",
+  "discussion": {
+   "open_concerns": [
+    "josibake approach-NACKed folding filesystem_error into a nullptr return in FlatFileSeq::Open, arguing exceptions should be preserved and translated at the BlockManager boundary instead of expanding ambiguous nullable contracts.",
+    "maflcko noted the pull has outstanding architectural issues and asked whether the project wants to provide fallbacks for rare filesystem exceptions across all paths or use a unified strategy."
+   ],
+   "resolved_concerns": [
+    "Locking order issues with cs_main in blockmanager unit tests were resolved.",
+    "SimulateFileSystemError test utility was refined to handle root user and Windows limitations cleanly."
+   ],
+   "author_status": "silent since 2026-07-09 (70 days)"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 70d",
+   "reason": "The author has been inactive for 70 days following an Approach NACK and a maintainer question on the overall error-handling direction."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: josibake approach-NACKs returning nullptr instead of translating exceptions at BlockManager; author silent",
+   "reason": "Josibake registered an Approach NACK against returning nullptr from FlatFileSeq::Open to swallow filesystem exceptions. The author defended the change as a minimal consistency fix for existing callers, but discussion concluded with maintainers noting the PR cannot be merged as-is without broader consensus.",
+   "evidence": [
+    "josibake: 'Approach NACK ... I am convinced removing exceptions from the low level file primitive and folding it into a nullptr is the wrong direction.'",
+    "furszy: 'Today, every filesystem error in FlatFileSeq::Open is handled through the same path except for this one case. Your proposal keeps that one case special ... That is just error-prone.'",
+    "maflcko: 'I don't think the pull will be merged as-is. Even if it was merged, there'd be a bunch of follow-ups, so it would be good to decide how to address them before merge.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Alters FlatFileSeq error handling on block directory access and prevents ActivateBestChain from becoming stuck during block connection when disk access fails.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it fixes an edge-case reliability bug where an inaccessible disk causes ActivateBestChain to get stuck rather than fatally shutting down. In the description, furszy notes that 'an error can leave the node alive but stuck, unable to process new blocks and advance the chain'. While the trigger condition (filesystem inaccessibility mid-run) is uncommon, preventing silent node degradation is worthwhile."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies net_processing message handling for GETBLOCKTXN to trigger graceful shutdown instead of aborting, and ensures GETDATA disconnects failing peers.",
+    "band": "P3",
+    "reason_tag": "stability",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it replaces an assert abort with a controlled graceful shutdown on GETBLOCKTXN read failure and ensures GETDATA peers are disconnected when I/O fails. As commit 768014068b states, 'Replace assert with a fatal error so the node shuts down through the normal shutdown path instead', allowing cleaner teardown during disk faults."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "While the PR introduces a SimulateFileSystemError utility, it serves area-specific tests for validation and P2P rather than test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The extensive test additions are functional and unit tests covering block manager, chainstate, and P2P error handling rather than general test harness architecture."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35003 ensures that block I/O errors occurring during P2P message handling or chain activation result in clean fatal shutdowns or peer disconnections instead of silent failures or assertion aborts. It specifically prevents FlatFileSeq::Open from throwing when parent directory creation fails, which previously bypassed validation fatal error handling and left nodes silently unable to advance the chain. Multiple reviewers supported the fix and its comprehensive test coverage, but josibake logged an Approach NACK against collapsing exceptions into nullable returns rather than translating them at the BlockManager boundary. The PR is currently stale, with the author silent for 70 days following maintainer calls for an architectural decision on exception handling."
+ },
+ "raw_text": null
+}

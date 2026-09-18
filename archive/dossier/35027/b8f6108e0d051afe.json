@@ -1,0 +1,166 @@
+{
+ "number": 35027,
+ "input_hash": "b8f6108e0d051afe",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24429,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4159
+ },
+ "cost_usd": 0.0466303,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a new -outboundbind option so multi-homed nodes can pick which local address outgoing clearnet connections use, without changing existing -bind listening behavior."
+   ],
+   "reviewability": [
+    "Ready to review now. The latest comment is an approach ACK with only a naming musing, not a pending material request."
+   ],
+   "agreement": [
+    "Strong support with approach ACKs from vasild and winterrdog and a concept ACK from frankomosh (vasild, winterrdog, frankomosh).",
+    "Earlier objections from gmaxwell and luke-jr about breaking LAN/bridge outbound traffic were resolved by redesigning from a -bind extension into a separate option (gmaxwell, luke-jr)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it solves a long-standing, real pain point for multi-homed and VPS operators (issue #6476, open since 2013) but is a narrow convenience feature rather than a correctness or security fix.",
+      "Enables predictable outbound source selection without touching OS routing or existing -bind semantics."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a member because the release-notes addition is incidental to a p2p feature change, not the primary subject of the PR."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the new functional and unit tests pin the behavior of one feature (outbound bind selection in p2p) rather than test infrastructure itself."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member because the change is entirely about network connection setup, with no shared logging, argument, or primitive infrastructure touched."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new -outboundbind=<addr> option that binds outgoing clearnet (IPv4/IPv6) connections to a specified local source address, one per address family, separate from the existing -bind option which only affects listening. It validates the address at startup via LookupHost and a trial bind() (mirroring how -bind validates via BindListenPort), rejects ports, the wildcard, and Tor/I2P/CJDNS values, warns when a proxy makes the option inert for a family, and aborts (without fallback) a connection whose source bind fails at connect time. It includes unit tests for per-family selection and the bind-before-connect path, and a functional test exercising both families end to end.",
+  "problem": "Bitcoin Core has no way to control the local source address of outgoing connections; multi-homed hosts and hosts behind specific network interfaces are stuck with whatever the OS routing table picks, and issue #6476 (open since 2013) asks for this to be configurable.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "luke-jr worried this could break load-balanced outbound setups; author argued outbound connection count is capped and small, and the concern did not recur.",
+    "gmaxwell objected that extending -bind semantics would surprise LAN/bridge users by breaking local connectivity; author redesigned the feature as a separate -outboundbind option rather than changing -bind, which vasild then concept-ACKed.",
+    "frankomosh and vasild raised numerous review comments (CNetAddr storage, LookupHost port rejection, trial-bind validation, wildcard handling, precedence, comment clarity, test coverage); author implemented fixes across several force-pushes through 2026-08-19 and vasild gave an approach ACK on the resulting commit.",
+    "winterrdog gave an approach ACK, only noting a personal naming preference (-exitbind) as a non-blocking aside."
+   ],
+   "author_status": "active, last force-pushed and replied 2026-08-19 addressing outstanding review comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No open material request is pending: the most recent comment (winterrdog, 2026-09-12) is an approach ACK with a purely cosmetic naming aside, and all prior substantive review comments from frankomosh and vasild were addressed in the 2026-08-17/08-19 pushes."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Positive with approach ACKs from vasild and winterrdog and a concept ACK from frankomosh, after gmaxwell's and luke-jr's design objections were resolved by switching from extending -bind to a standalone -outboundbind option.",
+   "reason": "Multiple reviewers with stated technical rationale support the current approach and no unresolved objection remains; the only outstanding comment is a nonblocking naming preference.",
+   "evidence": [
+    "gmaxwell: extending -bind would surprise LAN/bridge users; resolved by author's redesign into a separate option.",
+    "luke-jr: worried about load-balancing outbound connections; author's rationale (small connection cap) went unchallenged.",
+    "vasild: Concept ACK on the redesign, later Approach ACK on a specific commit after detailed review.",
+    "frankomosh: Concept ACK with inline review comments, all later addressed.",
+    "winterrdog: Approach ACK, only a nonblocking naming musing (-exitbind vs -outboundbind)."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes long-open issue #6476 requesting outbound source-address control."
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a 7-line release-notes file is added as part of a larger p2p feature change; documentation is not the primary subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a docs-category PR; the release note is incidental to the p2p feature."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Labeled P2P; adds a new connection-option affecting outbound socket creation in net.cpp/netbase.cpp, directly touching connection management.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Addresses a long-standing user request (issue #6476, open since 2013) for multi-homed hosts to control outbound source address, corroborated by reviewer interest (vasild, frankomosh) and real-world concern about interface selection (gmaxwell). It is a narrow, opt-in convenience feature with no correctness, security, or performance dimension, so it is worthwhile but reasonably deferrable relative to consensus- or DoS-relevant p2p work."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The functional and unit tests added (feature_bind_outgoing.py, net_tests.cpp additions) pin the behavior of the new p2p outbound-bind feature specifically, not general test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per category rules, area-specific tests belong to that area (p2p), not the test-infrastructure category."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "No changes to logging, argument-parsing machinery, serialization, or other shared utility infrastructure beyond a routine AddArg() call.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a utils-category PR; the option registration is standard and not the subject of the change."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the maintainers will ultimately prefer a different option name (-outboundbind vs -bindoutgoing vs -exitbind) is unresolved but classified here as a style/naming disagreement per the rules, not a blocking concern.",
+   "No maintainer (non-contributor, committer-level) has weighed in yet; all ACKs are from contributors, which may affect eventual mergeability though not the Agreement assessment per the stated rules."
+  ],
+  "card": "This PR adds -outboundbind=<addr>, letting operators pin the local source address used for outgoing clearnet (IPv4/IPv6) connections, one address per family, without altering existing -bind listening semantics. It solves a real, long-requested problem for multi-homed and VPS hosts (issue #6476, open since 2013) where the OS routing table otherwise picks the outbound interface. The PR went through a substantive redesign after gmaxwell warned that extending -bind itself would break LAN/bridge connectivity, and now carries concept/approach ACKs from vasild, frankomosh, and winterrdog with no outstanding objections. It includes functional and unit test coverage for both families, startup validation via trial bind(), and fail-closed behavior on a failed source bind. Reviewability is Ready; no dependency blocks it and it directly closes #6476."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

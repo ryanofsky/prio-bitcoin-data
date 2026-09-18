@@ -1,0 +1,140 @@
+{
+ "number": 36154,
+ "input_hash": "83c1890073e0aa09",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22411,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4252
+ },
+ "cost_usd": 0.0450773,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes wallet-produced PSBTs include the BIP174 global xpub field for multisig descriptors with multiple keys.",
+    "Lets hardware signers like the BitBox02 rebuild the multisig policy from the PSBT alone instead of refusing to sign."
+   ],
+   "reviewability": [
+    "Paused: a maintainer raised multiple design objections (API shape, generality assumption, incorrect musig handling) with no author reply yet.",
+    "The PR also needs a rebase given several conflicting open PRs touching the same descriptor code."
+   ],
+   "agreement": [
+    "Blocked: achow101 says the change makes unjustified assumptions restricted to multisig, uses the wrong API shape, and mishandles musig participants (achow101).",
+    "Earlier concerns about description clarity and device evidence were resolved (Sjors).",
+    "No author response yet to the newest, more substantive design objections."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a real interoperability gap: the BitBox02 refuses to sign wallet-produced multisig PSBTs without this field, and Specter already works around it by adding the field itself.",
+      "Benefit is felt by hardware-wallet multisig users specifically, not the general wallet user base, and does not touch fund safety directly."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an accessor to Descriptor for its extended public keys with origins, and has DescriptorScriptPubKeyMan::FillPSBT write PSBT_GLOBAL_XPUB entries for descriptors with two or more keys, covering all wallet RPCs and the GUI send path that build PSBTs. It skips single-key descriptors (nothing to disambiguate) and musig() (derivation applies to the aggregate key, not participants). Tests cover the descriptor accessor and a functional scenario where the change descriptor publishes independently of the external descriptor.",
+  "problem": "Hardware signers with no registered policy, such as HWI's BitBox02 driver, cannot reconstruct a multisig script from a wallet-produced PSBT because the wallet never fills PSBT_GLOBAL_XPUB, so some signers refuse to sign and others send incomplete key data (Trezor sends zeroed chain codes and empty paths without the field).",
+  "discussion": {
+   "open_concerns": [
+    "achow101: GetExtPubKeysWithOrigins should return the map rather than use an output parameter.",
+    "achow101: the function should not take a SigningProvider since the last hardened key should already be cached or not exist.",
+    "achow101: the implementation makes an unjustified assumption limiting the feature to multisig; PSBTs and descriptors are generic and shouldn't be special-cased.",
+    "achow101: the musig handling in the implementation is described as simply incorrect, not just a deliberate omission as the author intended.",
+    "achow101 also asked the description be shortened; this was a style note, not a blocking concern."
+   ],
+   "resolved_concerns": [
+    "Sjors asked for concrete before/after evidence (Specter source link, HWI/Trezor/BitBox02 comparison); author supplied both and corrected an earlier inaccurate claim about the Trezor needing the field.",
+    "Author removed a GitHub @-mention from the description per Sjors's note about merge-commit notifications."
+   ],
+   "author_status": "silent since 2026-09-03, before achow101's 2026-09-07 design objections"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "achow101 raised several substantive design objections on 2026-09-07 (API shape, unnecessary SigningProvider dependency, an unjustified multisig-only assumption, and an outright incorrect musig code path) that would materially change the implementation, and the author has not responded; waiting_on_author_days is 9, past the 7-day threshold. The PR also needs a rebase given multiple conflicting open descriptor/wallet PRs."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Blocked: achow101 says the implementation is architecturally wrong and factually incorrect on musig handling, with no author reply yet.",
+   "reason": "A maintainer (achow101) raised multiple concrete correctness and design objections after earlier reviewer concerns (Sjors) were resolved with evidence. The newer objections are unaddressed and read as blocking rather than stylistic.",
+   "evidence": [
+    "Sjors asked for evidence the field is still needed; author supplied Specter source reference and BitBox02/Trezor before-after comparison, resolving the concern.",
+    "achow101: 'This should return the map rather than taking it as an output parameter.'",
+    "achow101: 'Do not provide SigningProvider ... otherwise the wallet wouldn't function.'",
+    "achow101: restricting to multisig is 'not necessary' and PSBTs/descriptors are generic objects.",
+    "achow101: 'This is incorrect. It should traverse the participants and get their xpubs' regarding musig handling."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #27583 (psbt: set global_xpubs for multisig descriptors)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Primary change is in DescriptorScriptPubKeyMan::FillPSBT and Descriptor's key accessor, directly affecting wallet PSBT construction; carries the Wallet label.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a concrete interoperability gap for hardware-wallet multisig users: the BitBox02 outright refuses to sign wallet PSBTs without this field, and Specter already patches around the gap on the client side, per the PR description. It is not fund-safety critical and the maintainer has raised correctness concerns (incorrect musig handling) that need resolution before the design is settled, but the underlying user pain point is real and specific."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a short release note is added alongside a code change; per the category rules a code change that also updates its docs belongs to its own area, not docs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a documentation-primary PR; the release note is incidental to the wallet feature change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Added unit, fuzz, and functional tests all pin the behavior of this specific wallet feature rather than improving general test framework/machinery, so per the category definition they belong to wallet.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test additions are area-specific (wallet multisig PSBT behavior), not test-infrastructure changes."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether achow101's design objections will require a substantial rewrite (e.g., dropping the multisig-only restriction, changing the return type) that would effectively make the current diff obsolete for review purposes.",
+   "Whether the incorrect musig handling achow101 flagged is a genuine bug in the current code or a disagreement about intended scope.",
+   "How the pending rebase against several conflicting open PRs (e.g. #36133 multipath descriptor, #35445 descriptor ID revert) will change the diff."
+  ],
+  "card": "This PR makes the wallet write BIP174's PSBT_GLOBAL_XPUB field for descriptors with more than one extended key, so hardware signers without a registered policy (e.g. HWI's BitBox02 driver) can reconstruct a multisig from the PSBT alone instead of refusing to sign, per the linked issue #27583 and the author's before/after BitBox02/Trezor comparison. It touches Descriptor's key accessors and DescriptorScriptPubKeyMan::FillPSBT, with new unit, fuzz, and functional test coverage. Maintainer achow101 raised unaddressed design objections on 2026-09-07: the API should return rather than use an output parameter, it shouldn't take a SigningProvider, the multisig-only restriction is an unjustified assumption, and the musig handling is flagged as outright incorrect. The author has been silent since 2026-09-03, before these comments, and the PR needs a rebase against several conflicting open descriptor/wallet PRs. Priority within wallet is moderate: it solves a real, evidenced hardware-signer interoperability gap but is not a fund-safety issue."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,181 @@
+{
+ "number": 36098,
+ "input_hash": "a7ca7883e8cb6dee",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:49:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30576,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6812
+ },
+ "cost_usd": 0.048477,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Track whether critical execution paths are reached across fuzz corpus inputs.",
+    "Allow corpus CI runs to fail when coverage of high-value paths regresses."
+   ],
+   "reviewability": [
+    "Ready. The core reachability framework and target instrumentation are clean and ready for review."
+   ],
+   "agreement": [
+    "Broad support for adding corpus reachability assertions in fuzzing (dergoegge, brunoerg, nervana21).",
+    "Author co-authored the tracking framework with a maintainer who approved the concept (maflcko).",
+    "Nonblocking feedback to make mempool loading checks cover specific features is pending author update (maflcko).",
+    "Nonblocking inquiry regarding process termination behavior via std::_Exit remains open (Crypt-iQ)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it provides a mechanism to prevent coverage regressions in static fuzz corpora.",
+      "It adds explicit reachability goals across 11 key fuzz targets including P2P, package evaluation, and mempool acceptance."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces a reachability tracking utility (`ReachabilityGoal`) for fuzz targets. Targets explicitly register named goals during initialization and observe whether those conditions are satisfied across processed inputs. When `FUZZ_ENFORCE_REACHABILITY=1` is set, the fuzz binary fails on exit if any registered goal was never reached, enabling automated corpus CI to detect lost coverage in high-value paths.",
+  "problem": "Static fuzz corpora can silently lose coverage of deep execution paths after refactors or test harness changes without triggering errors. Developers and CI runners have no automated way to ensure that a corpus replay exercises critical functionality such as mempool acceptance or P2P handshakes.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko suggested that checking successful mempool load in validation_load_mempool is too coarse and should check specific features like unbroadcast sets and fee deltas; author agreed to update.",
+    "Crypt-iQ questioned the use of `std::_Exit` instead of `std::exit` or letting destruction complete normally."
+   ],
+   "resolved_concerns": [
+    "dergoegge suggested adding messages to reachability checks for verbose failures; author added descriptions and source locations.",
+    "Author switched from lazy registration to a two-phase register and observe protocol so early returns in fuzz targets do not conceal unreached goals."
+   ],
+   "author_status": "Active, recently stated intention to address the mempool load check granularity."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is clean, compiles, and passes CI. Open comments are minor refinements to specific targets and termination mechanics that do not invalidate review of the framework."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "Co-authored the framework and approved, but suggested validation_load_mempool should check specific features rather than just load success."
+    },
+    {
+     "login": "dergoegge",
+     "stance": "support",
+     "note": "Expressed support, suggested future extensions for guiding fuzz engines."
+    },
+    {
+     "login": "Crypt-iQ",
+     "stance": "objection",
+     "note": "Asked why std::_Exit is used instead of std::exit and investigated runs in libfuzzer vs AFL++."
+    },
+    {
+     "login": "brunoerg",
+     "stance": "support",
+     "note": "Concept ACK and experimented with adding reachability goals to coin selection fuzz targets."
+    },
+    {
+     "login": "nervana21",
+     "stance": "support",
+     "note": "Concept ACK."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "The validation_load_mempool check could pass trivially on empty files without verifying that mempool features like unbroadcast sets and fee deltas were loaded.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-31: \"Instead of a plain 'success' (which probably happens on an empty file), it may be better to ensure all features are covered: txs, unbroadcast set, fee deltas... etc?\"",
+     "resolution_evidence": ""
+    },
+    {
+     "reviewer": "Crypt-iQ",
+     "kind": "maintenance",
+     "harm": "Using std::_Exit circumvents normal destruction and resource cleanup on exit.",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-03: \"Why std::_Exit which according to https://en.cppreference.com/cpp/utility/program/_Exit does not clean up resources compared to std::exit?\"",
+     "resolution_evidence": ""
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "maflcko",
+     "reason": "Co-authored and approved the reachability tracking mechanism to catch lost path coverage in corpora.",
+     "substantive": true
+    },
+    {
+     "reviewer": "dergoegge",
+     "reason": "Affirmed that the reachability assertions provide clear value for fuzz testing.",
+     "substantive": true
+    },
+    {
+     "reviewer": "brunoerg",
+     "reason": "Concept ACK.",
+     "substantive": false
+    },
+    {
+     "reviewer": "nervana21",
+     "reason": "Concept ACK.",
+     "substantive": false
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: maflcko noted validation_load_mempool checks could pass on empty files and author agreed to refine them; Crypt-iQ asked about std::_Exit.",
+   "reason": "Multiple contributors and maintainers support the feature. Two nonblocking implementation questions remain open, one of which the author agreed to update in an upcoming push.",
+   "evidence": [
+    "maflcko approved on 2026-08-27: 'lgtm. I wonder if reachability goals can be formulated at a higher level.'",
+    "dergoegge commented on 2026-08-27: 'I think what\\'s in this PR already provides value.'",
+    "brunoerg gave Concept ACK on 2026-08-27.",
+    "HowHsu stated on 2026-09-17: 'I\\'ll update this soon' regarding validation_load_mempool coverage."
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (maflcko, Crypt-iQ)",
+   "corrections": [],
+   "thread_read": {
+    "error": "HTTP 402: {\"error\":{\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"code\":402,\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retr"
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Automated corpus verification in qa-assets nightly CI runs"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies fuzzing test infrastructure in src/test/fuzz/util/reachability.{h,cpp} and adds coverage reachability assertions to multiple fuzz targets.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it adds a valuable check to prevent regressions in fuzz corpus coverage, helping ensure that fuzzers exercise deep logic such as P2P handshakes and package acceptance. In the tests rubric, capabilities that safeguard coverage of high-risk code paths rank well, though it is reasonably deferrable as an internal test framework enhancement."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds a reachability tracking framework to Bitcoin Core's fuzz tests, allowing targets to register conditions that must be hit across corpus inputs. Setting FUZZ_ENFORCE_REACHABILITY=1 causes fuzz binaries to exit with failure if any goal is missed, preventing silent coverage regressions in corpus CI. It instruments 11 critical fuzz targets including package evaluation, mempool acceptance, and P2P message processing. The PR has strong concept support from fuzzing maintainers with minor open feedback on check granularity and exit handling."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5"
+}

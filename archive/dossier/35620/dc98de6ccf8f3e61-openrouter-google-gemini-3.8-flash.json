@@ -1,0 +1,113 @@
+{
+ "number": 35620,
+ "input_hash": "dc98de6ccf8f3e61",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:53+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21349,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3189
+ },
+ "cost_usd": 0.0279705,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reallocate unused LevelDB block-cache memory to write buffers on 64-bit systems.",
+    "Avoid reserving cache memory for block caching when uncompressed mmap reads make it redundant."
+   ],
+   "reviewability": [
+    "Needs rebase and author is inactive after indicating they would rework the approach.",
+    "Reviewing now is likely wasted effort until the rebase and architecture changes land."
+   ],
+   "agreement": [
+    "Reviewers questioned maintaining 32-bit-specific cache logic (sedited, fanquake).",
+    "Author agreed to consider removing the block cache entirely, but has not updated the PR (l0rinc).",
+    "Benchmark results on HDD showed mixed to slightly regressive results (l0rinc)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the change delivers no measurable performance improvement.",
+      "Benchmarks on SSD showed no runtime change and HDD tests showed minor regressions.",
+      "Tuning LevelDB cache splits without demonstrable gains remains marginal internal cleanup."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adjusts LevelDB cache options in CDBWrapper so that 64-bit platforms allocate a zero-capacity block cache and direct the remaining DB cache budget to write buffers. Because LevelDB uses mmap for uncompressed table files on 64-bit systems, table blocks are not inserted into the block cache. On 32-bit platforms, where mmap is disabled, the existing block-cache allocation is preserved.",
+  "problem": "On 64-bit platforms, CDBWrapper reserves half of each database cache budget for LevelDB's block cache, which sits largely empty because mmap-backed uncompressed table blocks bypass it.",
+  "discussion": {
+   "open_concerns": [
+    "Reviewers questioned keeping special-cased logic and complexity for 32-bit platforms given the project's direction.",
+    "sedited questioned whether giving indexes more write buffer than the 8 MiB default provides any benefit.",
+    "HDD benchmark runs showed a slight slowdown (1.02x - 1.03x), prompting the author to mark the PR draft for further investigation."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-02 after indicating they would draft the PR to investigate HDD performance and test a cleaner removal"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and the author has been silent for 76 days after putting the PR into draft to investigate regressions."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Mild: reviewers questioned 32-bit branching and index buffer increases; author planned a broader cleanup but has not pushed.",
+   "reason": "sedited and fanquake questioned the architecture-specific branching for 32-bit systems and questioned the payoff of larger write buffers for indexes. The author agreed a simpler, broader removal would be cleaner, but has not followed up.",
+   "evidence": [
+    "sedited asked: 'Is the extra case for 32bit systems really worthwhile? Seems like a lot of infrastructure for something that only pays off on a single architecture.'",
+    "fanquake pointed to #32375 and questioned adding new 32-bit code.",
+    "l0rinc agreed with reviewers and noted they would draft the change and run further tests."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes CDBWrapper options in src/dbwrapper.cpp, which manages LevelDB configuration for chainstate and block index databases.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because benchmarks showed no meaningful speedup during reindex-chainstate on SSDs and showed a slight slowdown on HDD. Tuning internal cache ratios that show no measurable performance win is marginal."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/dbwrapper.cpp, which is part of the validation database layer rather than shared general utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of utils; CDBWrapper is explicitly part of the validation database subsystem."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35620 adjusts CDBWrapper to set a zero-capacity LevelDB block cache on 64-bit platforms and reallocates the freed budget to write buffers, avoiding wasted cache allocation for mmap-backed uncompressed tables. Extensive reindex benchmarks on SSDs showed no performance change, and HDD tests showed minor regressions. Reviewers questioned the need for 32-bit branching and suggested simplifying cache allocation entirely, which the author agreed to investigate before going silent. The PR is currently in draft, has merge conflicts, and is stale."
+ },
+ "raw_text": null
+}

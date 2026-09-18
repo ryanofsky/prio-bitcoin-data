@@ -1,0 +1,214 @@
+{
+ "number": 36244,
+ "input_hash": "1baf905440535b42",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:24:57+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29249,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5155
+ },
+ "cost_usd": 0.041268,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Process received blocks on a dedicated worker queue rather than blocking the P2P message handler.",
+    "Reduce cs_main lock contention so the node can continue serving peers and processing messages during validation."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "The PR is marked draft for approach feedback, but the implementation is complete with extensive test coverage."
+   ],
+   "agreement": [
+    "Early positive discussion around motivation and architecture.",
+    "Clarification that the primary value is steady-state peer responsiveness rather than IBD speedup (andrewtoth)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it refactors block processing into an asynchronous worker pipeline within ChainstateManager.",
+      "It significantly reduces validation-induced contention on cs_main and establishes the architectural foundation for future validation concurrency."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it prevents long-running block validation from blocking the main P2P message thread.",
+      "It provides a measured 98% reduction in PING response latency and 30-45% reduction in block-serving latency under heavy validation load."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request decouples P2P message processing from block validation by offloading admitted blocks to a dedicated FIFO worker thread owned by ChainstateManager. It updates ProcessNewBlock to return a future and narrows cs_main lock scopes across net_processing, including block download tracking and compact-block reconstruction.",
+  "problem": "The shared P2P message processing thread blocks synchronously while validating incoming blocks, causing node unresponsiveness to other peers, delayed compact block responses, and latency spikes across network connections during heavy validation.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Clarification that steady-state peer responsiveness and compact-block serving during validation are the primary motivations rather than pure IBD throughput gains (andrewtoth, w0xlt)."
+   ],
+   "author_status": "Active; responded promptly to early architectural discussion."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch passes CI and includes extensive unit and regression test coverage. Draft status was set to invite feedback on the concurrency model."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive concept inquiry on steady-state responsiveness and future concurrency (andrewtoth)",
+   "reason": "The initial review discussion focused on clarifying the performance value and future possibilities for concurrency without objections.",
+   "evidence": [
+    "andrewtoth noted the primary benefit is unblocking message processing and compact block responses at steady-state, as well as enabling eventual parallel processing of sibling blocks.",
+    "w0xlt agreed and confirmed the architectural intent to decouple networking from block processing."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Parallel validation of competing sibling blocks",
+    "Further cs_main reduction in net_processing"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Kernel modifications are mechanical call-site adjustments in bitcoinkernel.cpp to adapt to the new ProcessNewBlock return type while keeping execution synchronous.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter the public kernel API or boundary logic."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes to mempool data structures, fee estimation, or acceptance policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mempool rules are not modified."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Changes in src/node/miner.cpp and src/rpc/mining.cpp are call-site adaptations to consume the std::future from ProcessNewBlock and wait for validation queue signals.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change mining or template generation logic."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies net_processing.cpp and net.cpp to decouple message handling from block processing and remove cs_main requirements from block download tracking.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Decoupling block execution from ThreadMessageHandler resolves a major DoS and responsiveness bottleneck where peers time out while a node validates blocks. Benchmark measurements demonstrate a 98 percent drop in ping latency and a 30 to 45 percent reduction in block-serving response times under load."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes in rpc/mining.cpp adapt submitblock to synchronously await the block processing future without altering RPC interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC methods, outputs, or error formats are changed."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Extensive tests are added specifically to validate the new queue and peer manager changes rather than changing core test harnesses or frameworks.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests belong to the validation and p2p domains they exercise."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches init.cpp only to start, interrupt, and stop the validation block processing worker during node lifecycle.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "General utilities and libraries are not touched."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Restructures ProcessNewBlock into initial check and deferred worker stages, introduces ValidationQueue in ChainstateManager, and makes block-checked caches atomic.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.72,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "Moving block validation to a dedicated asynchronous worker is a longstanding architectural objective that mitigates validation-related lock contention on cs_main. The change improves node performance and unblocks future work on parallel sibling block validation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request moves block processing to a dedicated asynchronous worker queue owned by ChainstateManager and reduces cs_main contention across P2P message processing. It solves a longstanding bottleneck where lengthy block validation blocks the P2P thread, causing high message latency and delayed compact-block responses for other peers. Benchmarks show a 98 percent drop in ping latency and a 30 to 45 percent reduction in block-serving response times under load. The change is open for architectural feedback as a draft, with initial positive engagement discussing its steady-state benefits."
+ },
+ "raw_text": null
+}

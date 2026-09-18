@@ -1,0 +1,246 @@
+{
+ "number": 25722,
+ "input_hash": "0c07e2a4d1c78196",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43397,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 11531
+ },
+ "cost_usd": 0.1024583,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make wallet loading functions (create, load, restore, database open) uniformly return util::Result instead of a grab bag of error and warning output parameters, without changing behavior.",
+    "Benefits future contributors and reviewers of wallet loading code, who get one consistent error-handling pattern instead of scattered bilingual_str& and vector<bilingual_str>& parameters."
+   ],
+   "reviewability": [
+    "Not ready to review productively right now: the PR is unrebased with a dirty merge state and is stacked on two other still-open base PRs (#25665, #26022).",
+    "Any review would likely be invalidated by the next rebase; the author has force-pushed over 40 times across more than three years chasing conflicts with nearly every merged wallet PR."
+   ],
+   "agreement": [
+    "martinus gave a Changes Requested review focused mostly on API design nits in util::Result, which the author addressed in follow-up pushes (martinus, ryanofsky).",
+    "An unresolved nonblocking concern remains: sedited flagged that Result types convertible to bool, like bool or optional, are error-prone and easy to misuse; the author agreed but never implemented a fix (sedited, ryanofsky).",
+    "No reviewer has commented since August 2023 even as the author kept rebasing."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it replaces ad hoc error and warning parameters across wallet loading (CreateWallet, LoadWallet, RestoreWallet, MakeDatabase) with a consistent Result-returning interface, reducing a recurring maintenance burden for anyone touching wallet loading code.",
+      "No stated behavior change and no fund-safety or bug fix claimed, so value is durable but not urgent."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it extends util::Result with failure values, multiple warnings/errors, and an Update() method, and shrinks its size on 64-bit platforms from 72 bytes to as little as 8-16 bytes, a pattern meant to be reused across many call sites in the codebase.",
+      "This is exactly the kind of shared error-handling infrastructure the utils category weighs heavily, per the commit message's own stated size and capability improvements."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it changes error propagation at the kernel/node boundary in bitcoinkernel.cpp (LoadChainstate/VerifyLoadedChainstate results), which is precisely the boundary correctness concern the kernel category cares about.",
+      "Improves consistency of error handling for the library API's stated goal, though no external kernel consumer is cited as blocked on it."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it refactors LoadChainstate and VerifyLoadedChainstate to return util::Result instead of a status/error tuple, touching chainstate load and verify code paths reviewers would need to understand.",
+      "It is described as a pure error-handling refactor with no behavior change, so it unblocks cleaner error handling rather than fixing a correctness issue."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P4 because it changes the interfaces::WalletLoader method signatures (createWallet, loadWallet, restoreWallet) to use ResultPtr instead of output warning vectors, which is an IPC-crossing interface.",
+      "The change is a byproduct of the wallet refactor rather than a targeted IPC improvement, and no external IPC consumer is cited as waiting on it."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P4 because it tweaks CI config to suppress a false-positive -Werror=maybe-uninitialized failure and increases git fetch depth so test-each-commit works against the many stacked commits.",
+      "The fix is narrow, scoped to keeping this PR's own CI green rather than a general build or release-integrity concern."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the test and bench file changes (setup_common.cpp, wallet_create.cpp, wallet_loading.cpp) are mechanical call-site updates to the new Result API rather than new coverage or framework capability.",
+      "The one exception, expanded result_tests.cpp coverage for util::Result, is more naturally utils territory since it tests a specific shared utility class rather than test infrastructure itself."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR converts wallet loading functions across the wallet, RPC, GUI, and interfaces layers (CreateWallet, LoadWallet, RestoreWallet, MakeDatabase, MakeSQLiteDatabase, and related helpers) to uniformly return util::Result instead of a mix of bilingual_str& error and vector<bilingual_str>& warnings output parameters. The author states it changes no behavior. It is built on top of two other still-open PRs, #25665 (adds Result failure types) and #26022 (adds ResultPtr), and touches 44 files across wallet, kernel boundary code, node/chainstate, and util/result.h itself.",
+  "problem": "Wallet loading code up and down the stack returns error and warning information in inconsistent ways (status enums plus output reference parameters), making the interfaces awkward to use and extend. This creates friction for anyone maintaining or adding to wallet loading, database creation, or the kernel/node error-reporting boundary.",
+  "discussion": {
+   "open_concerns": [
+    "sedited (2023-06-19) asked how the design handles Result types whose value type itself has an operator bool(), e.g. Result<optional<int>>, arguing the non-presence of a value is not always an error; ryanofsky agreed disallowing bool-convertible T by default was the right direction (2023-07-20) but that fix has not been implemented in the current code.",
+    "martinus's design nits about Construct() clarity, noexcept move constructors, and forbidding bool as T were mostly addressed, but the noexcept move-constructor point was explicitly deferred as a future optimization rather than fixed."
+   ],
+   "resolved_concerns": [
+    "martinus's naming and clarity suggestions on util::Result (rename Fn to Failure, delete move-assignment operator, add static_assert on sizeof) were implemented by the author in the 2023-05-02 push.",
+    "maflcko's August 2023 suggestion to mark the PR draft while CI is red and it is based on unmerged work was accepted; the PR remains draft."
+   ],
+   "author_status": "active but silent 9 days; author continues periodic rebases (last 2026-01-22) with no reviewer engagement since 2023-08-01"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, unmerged base",
+   "reason": "The PR has needs_rebase=true and a dirty mergeable state, and it is stacked on two other still-open foundation PRs (#25665, #26022) whose own APIs have shifted repeatedly, forcing over 40 force-pushes across more than three years. Reviewing the current head is likely to be invalidated by the next required rebase."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive overall from martinus's detailed review, whose nits were fixed, but sedited's concern about ambiguous bool-convertible Result types is unresolved and nonblocking.",
+   "reason": "martinus reviewed the core util::Result mechanism with Changes Requested, calling it 'quite a bit more powerful, and still simple to use' while raising mostly naming/clarity nits that the author addressed. Separately, sedited raised a substantive design concern about Result<T> where T itself converts to bool (bool, optional<T>) being error-prone; the author agreed this was worth fixing but never implemented a change, and no reviewer has followed up since 2023.",
+   "evidence": [
+    "martinus (2023-04-22): 'Code review... apart from the compile error when rebasing I found mostly nits... The code itself of util::Result is a bit hard to understand though, but I don't have a better way either.'",
+    "sedited (2023-06-19): questioned handling of Result<optional<int>> and similar types where non-presence is not really an error.",
+    "ryanofsky (2023-07-20): agreed bool-convertible T should probably be disallowed by default but described it as future work, not yet implemented.",
+    "maflcko (2023-08-01): suggested marking as draft while based on unmerged work; PR remains draft."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    25665,
+    26022
+   ],
+   "enables": [
+    "Cleaner, consistent error/warning propagation for future wallet loading and migration work once merged",
+    "Sets a template for kernel-boundary error propagation (LoadChainstate/VerifyLoadedChainstate) that could inform other kernel API refactors"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Touches .github/workflows/ci.yml (fetch depth) and ci/test/00_setup_env_native_previous_releases.sh (-Wno-error=maybe-uninitialized) to keep CI green for this PR's own commits.",
+    "band": "P4",
+    "reason_tag": "CI fix",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The CI changes fix a specific false-positive -Werror failure ('Fix was suggested by maflcko... Avoid false positive maybe-uninitialized errors') and bump fetch depth to support this PR's many stacked commits; narrow scope, not a general build/release concern."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes interfaces::WalletLoader method signatures (createWallet, loadWallet, restoreWallet) to use util::ResultPtr instead of output warning vectors, an interfaces:: boundary the ipc category tracks.",
+    "band": "P4",
+    "reason_tag": "interface cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Per category rules, an interfaces::Wallet-adjacent change like this is wallet-first and ipc only if interface mechanics are the point; here it's a byproduct of the wider Result refactor with no cited external IPC consumer waiting on it."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Modifies src/kernel/bitcoinkernel.cpp error handling for chainstate load/verify results, directly touching the kernel/node error-propagation boundary.",
+    "band": "P3",
+    "reason_tag": "boundary cleanup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "The kernel category prioritizes 'correctness at the boundary (error propagation...)'; this PR moves btck_chainstate_manager_create's error handling to util::Result-based checks, improving consistency, though it's a mechanical follow-on to the validation-side refactor rather than a targeted kernel API improvement."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test and bench file edits (setup_common.cpp, wallet_create.cpp, wallet_loading.cpp, db_tests.cpp) are mechanical adaptations to the new Result-returning APIs, not new framework capability or coverage.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the rule that call-site updates required by a signature change elsewhere do not confer membership, these test edits are downstream of the wallet/utils refactor rather than a testing-infrastructure change in their own right."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The commit series (attributed within this PR's history) adds util::Result failure values, Update(), multiple error/warning message support, and new util/messages.cpp/.h, shrinking Result<int> from 72 to 16 bytes.",
+    "band": "P2",
+    "reason_tag": "leverage",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 3
+    },
+    "rationale": "Commit message states the change gives 'smaller type size... util::Result<int> is 16 bytes... previously 72 bytes' and adds the ability to return failure values, a capability meant to simplify error handling broadly across the codebase, matching the utils category's emphasis on reducing a burden every area carries."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Rewrites LoadChainstate and VerifyLoadedChainstate in src/node/chainstate.cpp/.h to return util::Result instead of a status/error pair, and updates their only caller in setup_common.cpp and bitcoinkernel.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Described as a behavior-preserving refactor; validation category values refactors only when they 'retire a hazard or unblock' something, here unblocking cleaner kernel-boundary error handling but not fixing a correctness or performance issue itself."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Primary subject: converts CWallet::CreateNew/LoadExisting, MakeDatabase, MakeSQLiteDatabase, MakeBerkeleyRODatabase, DumpWallet, CreateFromDump, and wallet RPCs to return util::Result, per the description 'makes them uniformly return util::Result, without changing behavior.'",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "No fund-safety, bug fix, or performance claim; value is a durable maintainability improvement replacing scattered error/warning output parameters with one consistent pattern across wallet loading, matching the wallet category's lower-priority tier for reliability/consistency work absent a stated bug or user request."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the util::Result/messages.h changes shown in this PR's diff should be attributed here versus entirely to the still-open base PRs #25665/#26022, since the PR is stacked and the diff spans all of them.",
+   "Whether the util/result.h test additions (result_tests.cpp) belong under tests or utils; treated as utils since they test a specific shared utility class.",
+   "Current exact review/CI state beyond what signals show, since the PR has been rebased 40+ times with no visible reviewer response since August 2023."
+  ],
+  "card": "This PR converts wallet loading functions (CreateWallet, LoadWallet, RestoreWallet, MakeDatabase, MakeSQLiteDatabase, DumpWallet, and related RPC/interfaces code) to uniformly return util::Result instead of scattered error/warning output parameters, with the author stating no behavior change. It is stacked on two other still-open PRs (#25665, #26022) that add the underlying Result failure-value and ResultPtr features, and has been force-pushed over 40 times across more than three years chasing conflicts with nearly every merged wallet PR. martinus gave a substantive Changes Requested review of the core Result mechanism that the author addressed, but sedited's concern about Result types convertible to bool (e.g. optional<T>) being error-prone remains unimplemented, and no reviewer has commented since August 2023. The PR is currently unrebased with a dirty merge state, so review right now risks being invalidated by the next required rebase. Its value is primarily consistency and maintainability across wallet loading and the kernel error-propagation boundary, not a stated bug fix, security fix, or user-facing feature."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

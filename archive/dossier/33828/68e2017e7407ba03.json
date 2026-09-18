@@ -1,0 +1,111 @@
+{
+ "number": 33828,
+ "input_hash": "68e2017e7407ba03",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8137,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4485
+ },
+ "cost_usd": 0.0319683,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Guards contrib/devtools/gen-manpages.py so it refuses to generate manpages when the build lacks HAVE_SYSTEM, ENABLE_WALLET, or ZMQ support, preventing contributors from committing incomplete manpages."
+   ],
+   "reviewability": [
+    "Reviewable but stalled: no author or maintainer activity resolving an open naming-convention question since 2026-04/05, well past the 60-day silence threshold."
+   ],
+   "agreement": [
+    "Mixed support: sedited gave a concept ACK and maflcko gave a stale ACK on an earlier commit (maflcko, sedited).",
+    "An unresolved naming question about reusing WITH_ZMQ vs introducing HAVE_ZMQ has sat unanswered by maintainers since April, and a related PR #35072 may touch the same area (maflcko).",
+    "No blocking objection to the change's purpose, but repeated implementation bugs (author admitted HAVE_SYSTEM check never worked in earlier pushes) drew sharp maintainer criticism (maflcko, fanquake)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a guard to contrib/devtools/gen-manpages.py that reads the generated bitcoin-build-config.h and refuses to generate manpages if HAVE_SYSTEM, ENABLE_WALLET, or WITH_ZMQ are disabled, printing a hint to rebuild with the right options. It also adds a new WITH_ZMQ cmakedefine to the build config header template so the ZMQ option can be checked the same way as the other two. An environment variable, SKIP_BUILD_OPTIONS_CHECK, allows bypassing the guard.",
+  "problem": "Contributors who build without wallet, ZMQ, or system() support can unknowingly generate and commit incomplete manpages, as tracked in issue #17506. This duplicates an earlier attempt (#33085) that stalled and was closed.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko is unsure whether reusing the CMake option name WITH_ZMQ directly as a #cmakedefine is good practice or 'triply confusing', and wants build-system-expert input.",
+    "A related PR #35072 may address the same naming/config-header topic, potentially superseding or informing this one.",
+    "Author has repeatedly pinged fanquake/hebasto for a naming opinion since March 2026 without a response."
+   ],
+   "resolved_concerns": [
+    "Earlier version's HAVE_SYSTEM check never worked because CMakeCache.txt doesn't contain HAVE_SYSTEM; author switched to reading the build config header directly, which maflcko found plausible (lgtm ACK).",
+    "Argparse vs env-var inconsistency (--skip-build-options-check vs SKIP_BUILD_OPTIONS_CHECK) was resolved by dropping the argparse option and standardizing on the env var."
+   ],
+   "author_status": "active but no reply from maintainers since 2026-05-30; last own comment was requesting maintainer input on naming"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Awaiting maintainer input",
+   "reason": "Author has been silent for 109 days (exceeding the 60-day stale threshold), and before that was repeatedly asking fanquake/hebasto to weigh in on a naming question left unanswered since April 2026; a related PR #35072 may also affect this area."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "sedited gave a concept ACK and maflcko gave a stale lgtm ACK on an earlier commit, but a naming-convention concern about the WITH_ZMQ define remains unresolved with no maintainer follow-up.",
+   "reason": "No one objects to the underlying goal of preventing incomplete manpages, but maflcko flagged the chosen naming as confusing and neither he nor other maintainers have resolved it, leaving the PR without a clear path to merge.",
+   "evidence": [
+    "maflcko: 'This makes it triply confusing' about reusing WITH_ZMQ as a #cmakedefine name",
+    "maflcko gave 'lgtm ACK' on an earlier commit but later found it didn't compile and raised naming concerns",
+    "sedited (2026-08-10): 'There is a stale ACK here, can you take another look @maflcko?'",
+    "151henry151 repeatedly pinged fanquake/hebasto for naming input without response"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Fixes issue #17506 (gen-manpages output depends on build options)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds a new #cmakedefine WITH_ZMQ to cmake/bitcoin-build-config.h.in and changes how a devtools script checks build configuration; touches the CMake build config header.",
+    "band": "P4",
+    "reason_tag": "contributor friction",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because this only prevents contributors from accidentally generating incomplete manpages when certain build options are disabled, a narrow contributor-friction issue rather than a release-integrity or platform-breakage concern. The unresolved naming question ('triply confusing' per maflcko) suggests the build-system approach itself is still unsettled, and a competing/related PR #35072 may address the same header design more thoroughly."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "The core change is to contrib/devtools/gen-manpages.py, a developer/release tool explicitly covered by this category.",
+    "band": "P4",
+    "reason_tag": "tooling fix",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because gen-manpages.py is a narrow, low-frequency tool used mainly by release managers, and the fix addresses an edge case (incomplete manpages from a misconfigured build) rather than a correctness issue affecting keys, transactions, or many contributors. Issue #17506 has been open a long time without urgency signals from other users."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the naming disagreement (WITH_ZMQ vs HAVE_ZMQ) is purely stylistic (in which case it should not affect Agreement per the naming-disagreement rule) or reflects a substantive design concern about the build header, given maflcko explicitly called it confusing.",
+   "Whether PR #35072 supersedes or conflicts with this PR's approach to the build config header; the discussion suggests overlap but no explicit dependency was stated.",
+   "Whether the maintainers still want this fix at all, given the long silence and the earlier competing PR #33085's closure for the same reason."
+  ],
+  "card": "This PR adds a safeguard to contrib/devtools/gen-manpages.py that checks bitcoin-build-config.h and refuses to generate manpages unless HAVE_SYSTEM, ENABLE_WALLET, and WITH_ZMQ are all enabled, so contributors don't accidentally commit incomplete manpages, fixing issue #17506. It replaces an earlier stalled attempt (#33085) that was closed for inactivity. The author went through several failed implementations, including one where a maintainer noted 'HAVE_SYSTEM is never present in CMakeCache.txt, so I don't see how this could work' and questioned whether the code was AI-generated, before landing on reading the build config header directly, which drew a stale lgtm ACK from maflcko. The PR is now stalled on an unresolved naming question (reusing the CMake option name WITH_ZMQ as a #cmakedefine, which maflcko called 'triply confusing') that maintainers have not answered since April 2026, and a related PR #35072 may touch the same design. Impact is narrow: this affects only the correctness of a release-time documentation tool, not core node behavior."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

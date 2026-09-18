@@ -1,0 +1,140 @@
+{
+ "number": 35026,
+ "input_hash": "d097f0821fae5c11",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12768,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4841
+ },
+ "cost_usd": 0.038379300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a mempool bug where valid BIP68 transactions with unconfirmed parents get incorrectly evicted (along with descendants) after invalidateblock lowers the chain tip."
+   ],
+   "reviewability": [
+    "Ready to review, all raised concerns were fixed and re-ACKed, no open threads."
+   ],
+   "agreement": [
+    "Strong support: ismaelsadeeq found a real gap in the original fix and the author adopted his proposed general recalculation (ismaelsadeeq, Bicaru20)",
+    "Tested and re-ACKed after final commit-message-only changes (Bortlesboat, Bicaru20)."
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P2 because it fixes a real correctness bug: valid transactions and their descendants are wrongly evicted from the mempool during reorgs, which can force unnecessary rebroadcasts and disrupt applications relying on mempool acceptance.",
+      "Same bug class as the already-merged TRUC reorg fix (#33504), suggesting a recurring pattern worth closing off."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": []
+    },
+    {
+     "name": "tests",
+     "why": []
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug in CTxMemPool::removeForReorg where transactions with BIP68 relative-locktime sequences and mempool (unconfirmed) parent inputs cache stale LockPoints that are not correctly invalidated after invalidateblock lowers the chain tip, causing valid transactions and their descendants to be wrongly evicted. The final fix recalculates lockpoints via CalculateLockPointsAtTip whenever either the cached validity check or the sequence-lock check fails, evicting only if the fresh check also fails, replacing an earlier genesis-sentinel-detection approach that missed mixed confirmed/unconfirmed input cases. A new functional test covers BIP68-disabled, height-based, mixed-input, and time-based (MTP-drop) scenarios.",
+  "problem": "Wallets, exchanges, and second-layer protocols that rely on transactions remaining in the mempool after a reorg can lose valid unconfirmed transactions (and their descendants) unexpectedly, forcing rebroadcast and potentially breaking dependent protocol assumptions. This mirrors a previously fixed issue for TRUC transactions (#33504).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Bicaru20 suggested moving the genesis-sentinel check into TestLockPointValidity; author found it breaks an internal assert and kept the check at the caller, Bicaru20 agreed after reproducing the failure.",
+    "ismaelsadeeq identified that the original fix missed transactions with mixed confirmed/unconfirmed inputs; author adopted ismaelsadeeq's suggested general-recalculation approach and extended the test.",
+    "instagibbs raised the missing time-based (MTP-drop) variant; Bicaru20 and author collaborated to design a deterministic test for it and added it.",
+    "Bicaru20 nits on assert_equal usage and an unnecessary extra block in the test were both addressed in later pushes."
+   ],
+   "author_status": "active, addressed all review feedback through 2026-08-23; last force-push added a co-author trailer with no code changes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All raised concerns (genesis-check placement, mixed-input case, time-based test) were addressed through iterative pushes, culminating in a re-ACK by Bicaru20 on the final commit with only a commit-message change since the prior ACK. No open material questions remain."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: ismaelsadeeq (member) found a real gap and proposed the fix the author adopted; Bicaru20 and Bortlesboat independently reviewed/tested and re-ACKed with no unresolved objections.",
+   "reason": "A member reviewer identified a concrete correctness gap in the initial approach, the author adopted the reviewer's suggested fix, and multiple contributors verified and ACKed the result with no standing objections.",
+   "evidence": [
+    "ismaelsadeeq (member): 'this only handles the case where all of the transaction's inputs are unconfirmed... A simpler fix is to never evict on the cached values alone' - adopted by author.",
+    "instagibbs (member) noted the time-based variant gap, later addressed with a new test case.",
+    "Bortlesboat: tested the fix against master and confirmed it catches the regression.",
+    "Bicaru20: 're-ACK ea2d638bb94542290578bd65c7c16f2849c56071' after final trailer-only change.",
+    "ismaelsadeeq: 'ACK 3813fc8c9d6a70ce2e22fa2295e2ff95837ba67b'."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #35007 describing the incorrect eviction bug"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Directly changes MaybeUpdateMempoolForReorg's lockpoint recalculation logic in the mempool-reorg eviction path and is labeled Mempool; the bug and fix are about which transactions remain in the mempool after a reorg.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a confirmed correctness bug where valid BIP68 transactions with unconfirmed parents (and their descendants) are wrongly evicted from the mempool after a reorg, verified by Bortlesboat against master where the regression test fails. Reorgs are a routine occurrence, so unnecessary mempool eviction is user-visible and can disrupt applications and wallets that assume mempool persistence across shallow reorgs, similar in kind to the already-merged TRUC reorg fix (#33504)."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "The change touches Chainstate::MaybeUpdateMempoolForReorg in validation.cpp, but it only affects which mempool transactions survive a reorg, not block/transaction validity, chainstate integrity, or consensus behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the code lives in validation.cpp but the behavior changed is purely mempool policy (which transactions the node keeps after a reorg), not consensus validity or chainstate correctness, per the category's exclusion of mempool policy."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new functional test (mempool_reorg_bip68_stale_lockpoints.py) pins the behavior of the mempool area specifically, not general test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, a test that pins the behavior of one area (here, mempool BIP68 reorg handling) belongs to that area rather than to test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the residual risk of extra CalculateLockPointsAtTip recalculations under this more general check has any measurable performance cost during large reorgs was not discussed or measured.",
+   "The moderation comment from sedited about AI-generated posts is unrelated to the PR's technical merit and was excluded from the assessment."
+  ],
+  "card": "This PR fixes a mempool bug where BIP68 transactions with unconfirmed (mempool) parent inputs cache stale LockPoints that are not properly invalidated when invalidateblock lowers the chain tip, causing valid transactions and their descendants to be wrongly evicted from the mempool. The fix, refined through review, recalculates lockpoints whenever either the cached validity or sequence-lock check fails and evicts only if the fresh check also fails, correctly handling all-unconfirmed, mixed confirmed/unconfirmed, and time-based (MTP) cases. Bortlesboat independently confirmed the regression exists on master and is fixed here; ismaelsadeeq (member) identified a gap in the author's original genesis-sentinel approach and proposed the adopted general fix, followed by re-ACKs from Bicaru20. Discussion is fully resolved with no open objections, and the PR closes issue #35007. This mirrors a previously fixed issue class for TRUC transactions (#33504), suggesting a recurring category of stale-lockpoint bugs worth eliminating."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

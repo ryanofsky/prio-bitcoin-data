@@ -1,0 +1,224 @@
+{
+ "number": 35054,
+ "input_hash": "e94a13f2a2954c19",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:51+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 37918,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5085
+ },
+ "cost_usd": 0.04750725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Distribute assumeutxo snapshots directly across the P2P network",
+    "Allow new nodes to bootstrap without relying on third-party snapshot downloads"
+   ],
+   "reviewability": [
+    "Needs rebase and CI fixes before review can resume",
+    "Draft status and author inactive for over three months"
+   ],
+   "agreement": [
+    "Heavily disputed with multiple Concept NACKs over assumeutxo complexity and trust assumptions (l0rinc, stickies-v, evoskuil, eynhaender, narula, nkaretnikov)",
+    "Initial concept support for solving out-of-band snapshot distribution (andrewtoth, svanstaa)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it tackles in-band distribution for assumeutxo to make rapid node onboarding accessible without external file hosting",
+      "Adds a new P2P protocol extension and service bit to transfer large verified state chunks across peers"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it introduces downloadutxoset to initiate background P2P snapshot synchronization and activation",
+      "The RPC interface serves purely as the entry point for the underlying P2P transfer feature"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because utxo_snapshot_merkle.py is a developer utility used only to compute snapshot chunk Merkle roots for chainparams"
+     ]
+    }
+   ]
+  },
+  "summary": "Implements a draft BIP protocol for sharing UTXO set snapshots across the P2P network using chunks verified against a Merkle root. Adds the NODE_UTXO_SET service bit, P2P messages to query and fetch chunks, and a downloadutxoset RPC to trigger asynchronous fetching and snapshot activation.",
+  "problem": "Using assumeutxo currently requires acquiring a snapshot file out-of-band through third-party web downloads or torrents, introducing friction and centralized distribution points for users who want fast node onboarding.",
+  "discussion": {
+   "open_concerns": [
+    "Fundamental objections against expanding assumeutxo into the P2P protocol, citing validation complexity, dual chainstate maintenance burden, and the trust model of hardcoding snapshot Merkle roots",
+    "Potential memory exhaustion DoS where a peer advertises an extreme data_length in utxosetinfo causing large memory allocations",
+    "Draft implementation is out of sync with updates to the BIP draft specification"
+   ],
+   "resolved_concerns": [
+    "Initial live-net testing confirmed snapshot download, activation, and transition to historical background validation worked as intended"
+   ],
+   "author_status": "silent since 2026-05-24 after placing the PR in draft to update it against the revised BIP specification"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, CI failing",
+   "reason": "The PR has merge conflicts, failing CI, and the author has been silent for 115 days while marked as a draft."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Heavily disputed: six contributors Concept NACK expanding assumeutxo into P2P, against two Concept ACKs.",
+   "reason": "There is deep disagreement on whether Bitcoin Core should distribute UTXO snapshots over P2P. Multiple contributors argue that assumeutxo imposes severe complexity on validation and kernel development and that P2P snapshot distribution cements an undesirable trust model. Others support it as a necessary step to make assumeutxo usable without external channels.",
+   "evidence": [
+    "andrewtoth and svanstaa gave Concept ACKs citing the benefit of in-band snapshot acquisition",
+    "stickies-v and l0rinc gave Concept NACKs citing validation complexity, dual chainstate hazards, and minimal demonstrated demand",
+    "evoskuil and eynhaender Concept NACKed on the basis of trust assumptions and degrading the trustless nature of the P2P protocol",
+    "narula and nkaretnikov Concept NACKed pointing to adoption uncertainty and maintenance complexity",
+    "sipa suggested considering P2P sync without background re-validation, which author fjahr rejected"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Adds NODE_UTXO_SET service bit, four new net message types (getutxostinf, utxosetinfo, getutxoset, utxoset), and chunk downloading logic in net_processing.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Addresses the principal barrier preventing assumeutxo from providing seamless fast bootstrapping to regular node operators. Author notes BTCPayServer and prepackaged node projects want assumeutxo but find out-of-band sourcing too difficult. Providing verified P2P snapshot relay significantly enhances user-facing sync capabilities."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds the downloadutxoset RPC method in src/rpc/blockchain.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Exposes an interface to start asynchronous P2P snapshot fetching and verify against chainparams. It is secondary to the underlying P2P network feature."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Adds contrib/utxo-tools/utxo_snapshot_merkle.py to compute chunk Merkle roots of snapshot files.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The standalone Python script in contrib is an internal maintenance tool to generate Merkle roots for chainparams."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Does not alter consensus rules, UTXO storage, or validation invariants; only logs an informational message during existing snapshot activation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Consensus and validation code are not substantively modified."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Adds a field to AssumeutxoData inside chainparams but does not touch kernel APIs or boundaries.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a kernel API change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool or policy changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not touch mempool logic."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to test framework message definitions directly serve the P2P test rather than improving testing infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test changes only cover the new feature."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches logging to add a single category flag for the new feature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental logging category addition."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements a draft BIP protocol for sharing assumeutxo snapshots over the P2P network using Merkle-proven chunks, aiming to eliminate third-party snapshot hosting as a prerequisite for fast bootstrapping. It adds P2P messages, service flag NODE_UTXO_SET, chunk download management, and a downloadutxoset RPC. The problem is strategically important for node onboarding, but the PR faces severe concept opposition from multiple contributors who view assumeutxo and P2P snapshot sharing as architectural mistakes. The PR is currently a stale draft with failing CI and merge conflicts, with no author activity for nearly four months."
+ },
+ "raw_text": null
+}

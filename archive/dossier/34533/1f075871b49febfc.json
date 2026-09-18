@@ -1,0 +1,115 @@
+{
+ "number": 34533,
+ "input_hash": "1f075871b49febfc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4480,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4278
+ },
+ "cost_usd": 0.0272763,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes wallet transaction rebroadcasts use the private broadcast method when -privatebroadcast is enabled, instead of always broadcasting to all peers.",
+    "Closes a privacy gap where automatic rebroadcasts of wallet transactions leak sender IP information even when private broadcast is turned on."
+   ],
+   "reviewability": [
+    "Paused. A substantive correctness concern about dependent (CPFP) transactions getting stuck under private broadcast rebroadcast is unresolved and the author has been silent since April.",
+    "Also needs rebase; conflicts with several open PRs touching the same wallet/logging code."
+   ],
+   "agreement": [
+    "Concept ACKed by multiple reviewers (pablomartin4btc, w0xlt, andrewtoth) and two ACKs on a specific commit.",
+    "achow101 raised a concrete unresolved harm: private broadcast can strand CPFP-dependent child transactions for up to 24 hours or indefinitely, and the author only sketched possible fixes without implementing one.",
+    "instagibbs later confirmed the fix is only possible up to current 1P1C package relay limits, leaving the concern open."
+   ],
+   "categories": []
+  },
+  "summary": "This PR changes the wallet's periodic transaction rebroadcast logic so that, when -privatebroadcast is enabled, rebroadcasts of wallet-related transactions use the private broadcast method rather than the default send-to-all broadcast. It also tweaks a wallet log message to print both txid and wtxid plus the submission outcome. It is a follow-up to the private broadcast feature introduced in #29415.",
+  "problem": "Users who enable private broadcast to avoid leaking their IP when submitting transactions still had their wallet's automatic rebroadcasts sent via the ordinary send-to-all method, undermining the privacy benefit they opted into. This affects privacy-conscious wallet users and is discussed against the broader IP-leak issue #3828.",
+  "discussion": {
+   "open_concerns": [
+    "achow101: private broadcast rebroadcasting can strand dependent (CPFP) transactions because each transaction is privately sent to a different random peer, so a child transaction's parent may not be in the peer's mempool, delaying or indefinitely blocking rebroadcast; no implemented fix yet, only proposed approaches.",
+    "w0xlt: switching -privatebroadcast off/on across restarts could unexpectedly change how a given transaction was originally broadcast, since there is no per-tx tracking of broadcast method; author disagrees this is a problem.",
+    "mzumsande: the underlying IP-leak threat model concern (#3828) isn't fully addressed for IsMine() transactions on clearnet-only nodes.",
+    "sedited asked whether the PR should stay in draft while related work (#34707, package broadcast) is ongoing; unanswered."
+   ],
+   "resolved_concerns": [
+    "w0xlt's initial characterization of this as merely a short-term pragmatic fix was pushed back on by the author, who considers it integral wallet support work, without further objection from w0xlt."
+   ],
+   "author_status": "silent since 2026-04-28 (141 days), last force-push/rebase on that date; reviewer comments as recent as 2026-05-11 unanswered"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "achow101's concrete correctness concern about dependent transactions being stranded under private-broadcast rebroadcasting remains open and unimplemented, and the author has not responded since 2026-04-28 (well past the 7-day threshold); the PR also needs rebase due to conflicts with several open PRs."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Multiple concept/commit ACKs (pablomartin4btc, w0xlt, andrewtoth), but achow101 raised an unresolved, concrete harm around CPFP transaction stalling that the author has not fixed.",
+   "reason": "Support exists from several reviewers, but a real correctness harm was identified by achow101 and echoed by instagibbs, and the author has not implemented a fix or replied since raising possible approaches.",
+   "evidence": [
+    "pablomartin4btc: Concept ACK, calls it necessary for #29415",
+    "w0xlt and andrewtoth: ACK on commit 16cd713",
+    "achow101: describes scenario where CPFP child transactions may never get rebroadcast under private broadcast, calls current approach not ready without package support",
+    "vasild: acknowledges the issue, proposes package private broadcast or delayed child broadcast as fixes, none implemented",
+    "instagibbs (2026-05-11): notes fix is limited by current 1P1C package relay support"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "completes wallet-side support for private broadcast begun in #29415",
+    "related to package private broadcast work in #34707 which may address the CPFP stranding issue raised here"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly changes wallet rebroadcast logic (CWallet resubmission) to use private broadcast; Wallet label present.",
+    "band": "P2",
+    "reason_tag": "privacy improvement",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it closes a real privacy gap for private-broadcast users' automatic rebroadcasts, extending the intent of #29415, but is not urgent fund-safety or security work and its correctness under CPFP scenarios (achow101) is unresolved, so it is durable but deferrable value rather than category-critical."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Carries the Private Broadcast label and its correctness depends on how private broadcast connections and package relay work at the p2p layer; achow101 and instagibbs's concerns are about interaction with p2p-level package/relay behavior (1P1C limits).",
+    "band": "P3",
+    "reason_tag": "privacy improvement",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because the PR itself only changes wallet-side selection of an existing p2p broadcast mechanism rather than the mechanism's implementation, but the discussion (achow101, instagibbs) surfaces a real interaction with package relay limits worth p2p reviewer awareness, without being p2p's primary subject."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether achow101's CPFP-stranding concern should be treated as blocking (Disputed) rather than nonblocking (Mild); achow101 did not use explicit NACK language.",
+   "Whether the project intends this PR to stay draft indefinitely pending #34707/package private broadcast, which would affect its practical priority.",
+   "Exact scope of what 'private broadcast' p2p mechanics vs wallet usage means for category membership was judged rather than stated explicitly."
+  ],
+  "card": "This PR makes the wallet's periodic rebroadcast of unconfirmed wallet transactions use the private broadcast method (instead of send-to-all) when -privatebroadcast is enabled, closing a privacy gap left by #29415 where automatic rebroadcasts still leaked sender info. Several reviewers gave concept/commit ACKs (pablomartin4btc, w0xlt, andrewtoth), but achow101 raised a substantive unresolved concern that private broadcast rebroadcasting can strand CPFP-dependent child transactions for up to 24 hours or longer, since parent and child may be sent to different random peers; instagibbs later confirmed the fix is limited by current 1P1C package relay support. The author proposed possible fixes but has not implemented one, and has been silent since 2026-04-28, leaving the PR paused on a material open question and also needing a rebase due to conflicts with several other open PRs. Priority is moderate: a real but non-urgent privacy improvement for wallet users, tangential to core p2p broadcast mechanics themselves."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

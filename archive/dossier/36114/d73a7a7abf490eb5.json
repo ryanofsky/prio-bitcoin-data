@@ -1,0 +1,92 @@
+{
+ "number": 36114,
+ "input_hash": "d73a7a7abf490eb5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11966,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3363
+ },
+ "cost_usd": 0.0301873,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Hardens external signer PSBT handling so a malicious or buggy signer can't alter transactions or use unsafe sighash types, and rebuilds the test mock to support these scenarios."
+   ],
+   "reviewability": [
+    "Paused: a reviewer found a real gap where a finalized PSBT response can slip past the new sighash-type check, and the author has not replied in over a week."
+   ],
+   "agreement": [
+    "Concept ACK from one reviewer, who then found the hardening doesn't catch finalized PSBTs carrying an unsafe sighash type (jeanpablojp)",
+    "Same reviewer also flagged that Merge silently accepts a PSBT of a different version, defeating the different-transaction check (jeanpablojp)",
+    "No pushback or replies from the author yet"
+   ],
+   "categories": []
+  },
+  "summary": "This PR hardens how the wallet processes PSBTs returned by an external signer: it merges the signer's response into the original PSBT instead of trusting it wholesale, and rejects responses carrying an unsafe sighash type (NONE or SINGLE). It also rewrites the functional test mock signer to run its own offline node and wallet so it can simulate misbehaving or unusual signers, including MuSig2-style multisig in the future. A separate included commit fixes a bug where combinepsbt drops the sighash type when merging inputs, which could make a valid PSBT unfinalizable depending on argument order.",
+  "problem": "External signer users (hardware wallet owners) currently trust the signer's PSBT response verbatim; a compromised or buggy signer could alter outputs or sign with a sighash type that lets a third party alter the transaction after signing, silently costing the user funds. The old test mock could only replay a canned PSBT, so these attack scenarios were never exercised in CI.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp: a finalized signer response bypasses FindUnsafeSighashType because it reads fields the finalizer clears, so a SIGHASH_NONE signature can slip through as complete and broadcastable.",
+    "jeanpablojp: PSBTInput::Merge/PSBTOutput::Merge have no failure path other than GetUniqueID and version mismatch, so a signer returning a differently-versioned but otherwise unmodified PSBT is rejected for the wrong reason; worth a clearer error or a version constraint.",
+    "jeanpablojp: FindUnsafeSighashType collects signatures from all inputs before checking, so with mixed ECDSA/taproot inputs a bug in either collection branch is masked by the other; suggests single-input test cases per type."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-09-08, no reply to reviewer's findings"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "A reviewer (jeanpablojp) identified a concrete gap where a finalized PSBT response can bypass the new unsafe-sighash-type rejection, plus a related version-handling question, on 2026-09-08. Eight days have passed (exceeding the 7-day threshold) without an author response, so review of the current hardening logic risks being invalidated by a fix."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACK from jeanpablojp, who then found the sighash hardening can be bypassed via a finalized PSBT; framed as a question, not yet answered.",
+   "reason": "jeanpablojp gave Concept ACK but immediately surfaced a real security gap (finalized responses evade FindUnsafeSighashType) and a related Merge/version quirk, both unresolved since the author has not replied.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK' then 'I made the new mock return a finalized response and FindUnsafeSighashType doesn't catch it... Is skipping the finalized case deliberate, or worth covering?'",
+    "jeanpablojp inline: notes Merge only fails via GetUniqueID/version mismatch, questioning whether a version-mismatch response deserves a clearer message",
+    "No author reply as of the signal snapshot (author_silent_days=8)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36076
+   ],
+   "enables": [
+    "absorbs and supersedes the scenarios in #35358 (external signer PSBT reliability verification) per the author's own description"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies external_signer.cpp (wallet-adjacent signer handling) and the wallet_signer.py functional test; Wallet label applied.",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it closes a real fund-safety gap for external-signer (hardware wallet) users: a signer using SIGHASH_NONE/SINGLE could let a third party alter outputs after signing, and merging instead of replacing the PSBT rejects a signer that silently changes the transaction. The included sighash-merge fix ('combinepsbt silently drops the sighash type... making the result depend on the argument order') independently fixes a real finalization bug. Impact is bounded because it only affects external-signer users, and review found the hardening is currently incomplete (finalized responses bypass it), which is a review-state concern rather than a reason to discount the underlying problem's importance."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the finalized-PSBT bypass jeanpablojp found is a fundamental design gap or an easy fix affects how close this PR is to being mergeable, but not its priority.",
+   "Draft status plus the reviewer's outstanding bug reports suggest the author may substantially rework the hardening logic before this is final."
+  ],
+  "card": "This PR hardens external signer PSBT handling in the wallet: it merges (rather than blindly accepts) the signer's PSBT response and rejects responses using unsafe sighash types (NONE/SINGLE) that would let a third party alter a transaction after signing. It also rebuilds the functional test mock to run its own wallet, enabling tests of misbehaving signers, and folds in a fix for combinepsbt silently dropping sighash types depending on argument order. The strongest evidence of importance is fund safety for hardware-wallet users: an unsafe sighash type or a tampered signer response could otherwise let funds be redirected after signing. Review is currently Paused: reviewer jeanpablojp found that a finalized PSBT response evades the new sighash check entirely, and the author has been silent for over a week since that was raised. The PR is based on #36076 (merged) and states it absorbs and supersedes #35358's test scenarios."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

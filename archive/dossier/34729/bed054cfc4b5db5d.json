@@ -1,0 +1,281 @@
+{
+ "number": 34729,
+ "input_hash": "bed054cfc4b5db5d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20165,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 9464
+ },
+ "cost_usd": 0.0688913,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reduce excessive '[error]'/'[warning]' log noise introduced by an earlier PR (#29236) that over-promoted many routine failures to error level.",
+    "Adds a LogWarnThenDebug() helper that warns once then demotes to debug, for problems likely caused by system misconfiguration but triggerable repeatedly by remote peers.",
+    "Also tightens a couple of silent failure paths (AddCScript, LoadCScript) by marking them [[nodiscard]] so callers can't ignore errors."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "Author pushed again in August addressing feedback and reviewers say it may be ready for merge once remaining comments are answered."
+   ],
+   "agreement": [
+    "Multiple approvals but with a standing objection: ryanofsky repeatedly notes losing clear [error]/[warning] tags makes problems harder to diagnose, filing Concept/Approach -0 both times while still approving (ryanofsky).",
+    "l0rinc gave concept ACK and lightly-tested ACK, noting several unresolved style nits but no blocking issue (l0rinc).",
+    "sedited and kevkevinpal also approved after clarifying discussion (sedited, kevkevinpal)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it introduces a reusable logging pattern (LogWarnThenDebug) that reduces alarm fatigue from noisy remote-triggered warnings, judged on its own terms as internal infrastructure.",
+      "Benefit is operator experience and log signal quality, not correctness; ryanofsky notes it trades off clarity of error severity for less noise."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it substantially rewrites netbase.cpp SOCKS5/connection log levels, affecting how operators diagnose proxy and connection failures.",
+      "Reviewer flagged a real risk: demoting some proxy errors to debug or one-time warning could hide recurring, diagnosable problems (ryanofsky)."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because it only changes the log level of two existing validation messages (missing input, block validation error) without altering validation logic.",
+      "Marginal value: slightly more visible logging of block rejection causes, no behavioral or consensus change."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because it downgrades a single ComputeUTXOStats log line from LogError to LogDebug, a narrow diagnostic tweak with no effect on kernel API or correctness."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P4 because it adds the index name to a few txindex failure logs and lowers their level, a small diagnostic quality-of-life change with no effect on sync correctness or performance."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because forcing callers to check AddCScript/LoadCScript return values could in principle catch a silently-dropped oversized redeemscript, but l0rinc points out the accompanying wallet test still passes without exercising the real code path, so the safety benefit is unproven and the case itself is rare."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because bitcoin-tx now throws instead of silently ignoring a failed AddCScript, preventing a tool that builds and signs transactions from silently proceeding with missing script data.",
+      "ryanofsky flagged the error message could be clearer, but the underlying correctness improvement for a key/transaction-handling tool stands."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because it adds a short developer-notes entry describing the new LogWarnThenDebug macro, useful for consistency but narrow in scope and audience."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR walks back some of the log-level escalation from an earlier PR (#29236) that turned many routine internal failures into LogError/LogWarning noise, downgrading several of them back to Info/Debug across netbase, txindex, coinstats, and validation. It introduces a new LogWarnThenDebug() helper that emits a warning the first time a code path is hit and demotes subsequent occurrences to a debug-level, categorized message, intended for failures likely caused by system misconfiguration but triggerable repeatedly by remote peers (e.g. PCP/NAT-PMP, SOCKS5 proxy errors). It also makes AddCScript/LoadCScript [[nodiscard]] and has bitcoin-tx and a wallet test check their return values instead of silently ignoring failures. The change touches many small call sites (13 files) but each individual hunk is a log-level or messaging tweak rather than a logic change.",
+  "problem": "Node operators and developers experience excessive or misclassified log messages: routine, often-benign or remote-triggerable conditions were logged at LogError/LogWarning severity after #29236 turned the old error() helper into LogError, making genuinely serious warnings harder to spot amid noise. The author states this \"reduces some of the exaggerated logging that was introduced in #29236.\"",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky: downgrading LogError/LogWarning to Debug in several netbase paths (especially SOCKS5 handshake errors) loses the '[error]'/'[warning]' tags that make it easy to spot real problems, and could hide recurring failures if warn-once-then-debug is applied to intermittent (not just misconfiguration) issues; raised as Concept -0 / Approach -0 across two review rounds, not addressed by a code change, agreed to disagree.",
+    "l0rinc: several message-wording nits (redeemScript vs redeemScripts, adding sizes/details to txindex and coinstats messages, GetBindAddress error logging) left unaddressed; author has not replied to all of them.",
+    "l0rinc: questioned whether the wallet_tests.cpp fix for AddCScript's nodiscard actually exercises the intended code path, suggesting the test passes even with a stub implementation; not resolved in the thread."
+   ],
+   "resolved_concerns": [
+    "sedited's confusion about when Debug vs LogWarnThenDebug is used in netbase was clarified by the author (Proxy::Connect vs ConnectDirectly severity reasoning) and sedited accepted the explanation.",
+    "l0rinc's suggestion to fix the double-negation in the LogWarnThenDebug macro implementation was taken by the author.",
+    "l0rinc's request for a unit test of LogWarnThenDebug was implemented by the author in a later push.",
+    "kevkevinpal's suggestion to add a filter category to LogWarning/LogWarning-based calls was clarified as inapplicable since those macros aren't filterable."
+   ],
+   "author_status": "active, most recently force-pushed 2026-08-15 addressing the wallet_tests.cpp nodiscard interaction; ryanofsky suggested the PR may be ready for merge once remaining comments are replied to"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No material request has been open without a response for more than the threshold; the author pushed again as recently as 2026-08-15 responding to feedback, and reviewers (l0rinc, ryanofsky) both suggest the PR is close to ready modulo minor unaddressed nits that would not invalidate a review of the current code."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive overall with a standing, acknowledged drawback: ryanofsky twice approved but flagged Concept/Approach -0 because losing [error]/[warning] tags makes problems harder to diagnose; author disagrees and points to a possible future fix (#34730) rather than reworking this PR.",
+   "reason": "Multiple substantive approvals (kevkevinpal, sedited, l0rinc, ryanofsky) with real rationale and no blocking objection; the one standing critique from ryanofsky is treated as nonblocking by its own author (\"Concept -0\", \"Approach -0\") and the author has explained why he does not want to change course, so it counts as agree-to-disagree rather than an open dispute.",
+   "evidence": [
+    "ryanofsky: 'Concept -0... it makes it harder to see if messages are errors or warnings or normal notifications' but still gave Code review ACK.",
+    "ryanofsky (second review): 'Approach -0 because this drops [error] and [warning] tags... I think the PR may be RFM if review comments are replied to and there aren't other objections.'",
+    "l0rinc: 'The changes make sense to me, Concept ACK... I would also be fine merging as-is.'",
+    "ajtowns (author) responded to the tag-loss concern by pointing to a separate follow-up PR (#34730) rather than changing this one."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Establishes the LogWarnThenDebug() pattern that could be reused elsewhere to reduce log noise, and is a conceptual companion to #34730 (combining warning/error levels)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds a developer-notes.md entry documenting the new LogWarnThenDebug macro and when to use it.",
+    "band": "P4",
+    "reason_tag": "doc addition",
+    "score": 0.18,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Small addition (+5 lines) explaining a new logging convention for contributors; useful for consistency but narrow in scope, per l0rinc's only comment being a naming nit."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Modifies src/index/txindex.cpp to downgrade LogError to LogWarning and prefix messages with the index name.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Only 3 lines changed, purely cosmetic logging improvement for diagnosing txindex read failures; l0rinc suggested adding more detail (tx hash, offset) which was not taken up, indicating this is not treated as high value even by reviewers."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Downgrades a single ComputeUTXOStats log line in src/kernel/coinstats.cpp from LogError to LogDebug.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "One-line change; l0rinc noted 'every single caller checks the result... so demoting this makes sense' but this is a minor diagnostic tweak, not an API or correctness change to the kernel boundary."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes to mempool policy, acceptance, or fee estimation code; validation.cpp edits here are about block validation logging, not mempool.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Rewrites large portions of src/netbase.cpp logging levels for SOCKS5 proxy handshakes, socket creation, and connection attempts (28 lines changed).",
+    "band": "P3",
+    "reason_tag": "logging clarity",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Affects how operators diagnose proxy/connection failures at scale; ryanofsky flagged a concrete risk that demoting some SOCKS5 errors to debug-only or warn-once could 'hide recurring failures' from resource-limit-driven, not just misconfiguration, causes, which was not resolved by a code change."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Changes src/bitcoin-tx.cpp to throw a runtime_error when AddCScript fails instead of silently ignoring the return value.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Previously bitcoin-tx would silently continue building/signing a transaction even if a redeemScript failed to load, a correctness hazard for a tool that touches transactions and keys; ryanofsky agreed 'it seems good to throw an error here' though the message wording needs work."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds the LogWarnThenDebug() macro and its test to src/util/log.h and src/test/logging_tests.cpp, the PR's core new piece of shared infrastructure.",
+    "band": "P3",
+    "reason_tag": "logging clarity",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Judged on its own terms as internal infra: reduces alarm fatigue from repeated warnings triggerable by remote peers, described by ryanofsky as 'cool and potentially useful more places', but the same reviewer notes the tradeoff of losing clear error/warning severity tags, a real but non-blocking cost."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes the log level of two existing messages in validation.cpp (missing input in CalculatePrevHeights, block validation error) from LogInfo to LogWarning, a user-visible logging change per the category's own carve-out.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "No change to validation logic or consensus behavior, only visibility of two messages; kevkevinpal's suggestion to add a filter category was rejected as inapplicable since LogWarning is not filterable."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Marks FillableSigningProvider::AddCScript and ScriptPubKeyMan::LoadCScript [[nodiscard]], and updates wallet_tests.cpp to check the return value.",
+    "band": "P4",
+    "reason_tag": "correctness",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Intends to stop silent failures when loading an oversized redeemScript, but l0rinc showed the accompanying test still passes even with a stub AddCScript that always returns false, calling into question whether the change actually exercises or fixes a real fund-safety path; the underlying scenario (an invalid, oversized redeemScript) is also rare."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the netbase log-level changes materially reduce operators' ability to diagnose recurring proxy/connection problems, as ryanofsky warned, is unresolved by evidence in the thread either way.",
+   "Whether the wallet_tests.cpp change actually validates the intended AddCScript behavior is disputed by l0rinc and not addressed by the author in the visible discussion.",
+   "No explicit project-level signal (issue, roadmap) establishes how much this log-noise problem bothers users beyond the participating reviewers' opinions."
+  ],
+  "card": "This PR walks back over-eager log-level escalation from an earlier PR (#29236), downgrading many LogError/LogWarning messages in netbase, txindex, coinstats, and validation back to Info/Debug, and adds a LogWarnThenDebug() helper that warns once then demotes to debug for recurring, remote-triggerable, likely-misconfiguration failures (used for PCP/NAT-PMP and several netbase cases). It also makes AddCScript/LoadCScript [[nodiscard]] and has bitcoin-tx throw instead of silently ignoring a failed redeemScript load, closing a small correctness gap in a transaction-building tool. The strongest evidence of value is the author's own framing that #29236 was overzealous, echoed by five reviewers approving, but ryanofsky maintains a standing, unresolved Concept/Approach -0 that removing '[error]'/'[warning]' tags makes real problems harder to spot, and l0rinc separately questions whether the wallet test change actually exercises the intended safety fix. The PR is Ready for review, having been rebased and updated as recently as 2026-08-15 with no material blocking question outstanding. It has no hard dependency but is conceptually linked to the open PR #34730, which proposes combining the warning/error log levels."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

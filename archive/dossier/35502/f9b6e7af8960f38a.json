@@ -1,0 +1,104 @@
+{
+ "number": 35502,
+ "input_hash": "f9b6e7af8960f38a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5311,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3271
+ },
+ "cost_usd": 0.0230723,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Split the giant ProcessMessage() function in net_processing.cpp into per-message helper functions.",
+    "Move-only refactor intended to make lock contracts more local and message-diff review easier, no behavior change."
+   ],
+   "reviewability": [
+    "Ready to review now, each commit is a pure code move with matching thread-safety annotations.",
+    "Author rebased and says all suggestions have been addressed as of the latest push."
+   ],
+   "agreement": [
+    "Several concept ACKs and one full code-review ACK support the split (stickies-v, theStack, pablomartin4btc, pseudoramdom, thomasbuilds).",
+    "davidgumberg raised a real but nonblocking concern that extracted helpers force readers to jump between locations to see setup and callers.",
+    "Author and maflcko countered with concrete benefits (per-handler lock annotations, cleaner git diff --function-context), and davidgumberg conceded it is a stylistic preference others share (davidgumberg)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because this is a pure move-only refactor of net_processing.cpp with no behavior change, bug fix, or new capability.",
+      "The stated benefit is developer ergonomics (finer-grained lock annotations, easier function-scoped diffs), not anything users or protocol correctness depend on.",
+      "It does not unblock any other named project; it is one step in an incremental cleanup pattern others may follow."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR continues splitting Bitcoin Core's large PeerManagerImpl::ProcessMessage() function by extracting seven more per-message handlers (getaddr, getdata, getblocks, getheaders, inv, sendtxrcncl, tx) plus compact-block and version handling into their own private, single-caller functions. Each of the nine commits is a pure code move: only declarations, call sites, and thread-safety annotations are added, with no behavior change. It follows the same pattern as recently merged ProcessPong() and ProcessAddrs() extractions and a similar attempt from 2017 (#9608).",
+  "problem": "ProcessMessage() in net_processing.cpp is roughly 1000-1500 lines handling every P2P message type inline, making it hard to navigate, review incrementally, and reason about per-handler lock requirements. This mainly affects reviewers and maintainers of net_processing.cpp, not end users or node behavior.",
+  "discussion": {
+   "open_concerns": [
+    "davidgumberg's stylistic concern about losing locality when reading extracted handlers (setup, callers, thread context) was aired but not treated as blocking; he ultimately conceded it is a preference question others share."
+   ],
+   "resolved_concerns": [
+    "Author addressed davidgumberg's concern by pointing out these are private single-caller helpers with unchanged control flow, and explained the lock-annotation and diff-ergonomics benefits; maflcko backed the change, and davidgumberg agreed the outcome should follow contributor preference rather than his own workflow."
+   ],
+   "author_status": "active, rebased 2026-09-16 and stated all suggestions were addressed"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All nine commits are pure move-only changes reviewable with --color-moved, no open material requests remain, and the author rebased and confirmed all suggestions were addressed on 2026-09-16."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Several concept and code-review ACKs support the split; davidgumberg's readability concern was resolved by agreeing to disagree rather than by changing the code.",
+   "reason": "Multiple members (stickies-v, theStack, pablomartin4btc) gave Concept ACKs and two contributors (pseudoramdom, thomasbuilds) gave code-review ACKs verifying the moves are pure. davidgumberg raised a substantive but self-described nonblocking (-0) concern about locality of reasoning when handlers are extracted; the author and maflcko rebutted with concrete lock-annotation and diff-tooling benefits, and davidgumberg conceded the point is a stylistic preference that should defer to what other contributors want.",
+   "evidence": [
+    "stickies-v: 'Concept ACK... better encapsulates logic'",
+    "pseudoramdom and thomasbuilds: code review ACKs verifying pure move and thread-safety annotations",
+    "davidgumberg: 'Concept -0... I think ProcessMessage() is too long' is not a feeling he shares, standing but nonblocking concern",
+    "maflcko: 'I am Concept +1... benefit in being able to review code changes with git diff --function-context easier'",
+    "davidgumberg (final): 'the thing that people prefer is definitely the thing that should happen'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Sets a precedent that could motivate a follow-up extracting the remaining large CMPCTBLOCK/VERSION-adjacent blocks per pablomartin4btc's suggestion",
+    "Related to companion PR #35522 which extracts helpers from SendMessages() in the same file (conflicts, same author/pattern)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies src/net_processing.cpp, the core P2P message-processing file, restructuring how inbound P2P messages are handled internally.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "This is a stated pure move-only refactor with 'no behavior change,' explicitly aimed at readability and per-handler lock-contract locality rather than any user-facing or protocol-level improvement. Author's own justification is that extraction makes 'per-message lock contract more local and compiler-checked' and improves git diff --function-context ergonomics (w0xlt), which is a maintainer convenience, not a fix, feature, or performance win. It has some mild leverage as a template for further net_processing.cpp cleanup (pablomartin4btc suggested extracting CMPCTBLOCK and VERSION handling similarly) but no dependency chain gates other listed important work on it."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the conflicting open PRs (#35522, #35315, #34824, #34628, #34565, #33854) will force significant rebasing that could change review state later, though currently marked mergeable and not needing rebase.",
+   "Whether the project ultimately prefers this incremental extraction style broadly enough to keep merging the pattern, given the mixed but net-positive discussion."
+  ],
+  "card": "This PR is a pure move-only refactor extracting seven more per-message handlers (getaddr, getdata, getblocks, getheaders, inv, sendtxrcncl, tx, plus compact-block and version) out of the large ProcessMessage() switch in net_processing.cpp, following an established pattern from recently merged ProcessPong()/ProcessAddrs() extractions. It solves a maintainer readability and lock-locality problem, not a user-facing bug, feature, or performance issue; author w0xlt argues it makes per-handler thread-safety annotations more precise and improves git diff --function-context ergonomics. Several members gave Concept and code-review ACKs (stickies-v, theStack, pablomartin4btc, pseudoramdom, thomasbuilds), while davidgumberg raised a nonblocking stylistic concern about losing locality, which was resolved by agreeing to disagree after maflcko and the author countered with concrete benefits. The PR is Ready for review, rebased and reportedly addressing all feedback as of 2026-09-16, but conflicts with several other open PRs touching the same file (#35522, #34824, #34565, others). Priority in p2p is low since this is internal cleanup with no stated correctness, security, or performance payoff."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

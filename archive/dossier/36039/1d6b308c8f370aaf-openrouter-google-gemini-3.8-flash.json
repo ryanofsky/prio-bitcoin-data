@@ -1,0 +1,114 @@
+{
+ "number": 36039,
+ "input_hash": "1d6b308c8f370aaf",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:39+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13185,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5192
+ },
+ "cost_usd": 0.02935875,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix PSBT role analysis for Taproot script-path inputs so they are classified as needing a signature rather than missing input data.",
+    "Prevent the wallet GUI from falsely reporting that a Taproot multisig PSBT is missing information about inputs."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "The author addressed reviewer feedback on MuSig2 script paths in the latest push."
+   ],
+   "agreement": [
+    "Neutral sentiment with no ACKs yet.",
+    "An issue with MuSig transactions was raised and addressed in a follow-up push (achow101)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it fixes a confusing UI and analysis bug for Taproot script-path multisig PSBTs.",
+      "The transaction can be signed, but the wallet misleadingly reports that inputs are incomplete."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Unranked because this changes core PSBT signing logic that the analyzepsbt RPC merely exposes."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates `CreateTaprootScriptSig()` in `src/script/sign.cpp` to record missing signatures in `sigdata.missing_sigs` when a Taproot script-path Schnorr signature is absent and not part of a MuSig2 aggregate. It also adds regression tests in `test/functional/rpc_psbt.py` and `test/functional/wallet_musig.py`.",
+  "problem": "When inspecting a PSBT spending via a Taproot script path (such as a 2-of-3 Taproot multisig), `AnalyzePSBT()` failed to detect missing signatures and classified the input's next role as `updater` instead of `signer`. In the wallet GUI, this surfaced as an inaccurate warning that the transaction was 'missing some information about inputs' even though the PSBT was complete and ready to sign.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "achow101 noted that the initial patch incorrectly analyzed transactions involving MuSig; the author updated `SignMuSig2()` handling to avoid adding missing signatures for MuSig aggregate keys and added a test case."
+   ],
+   "author_status": "active; addressed reviewer feedback in the current push."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, CI passes, and the author resolved the single review comment in a force-push."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "Neutral: achow101 flagged an issue with MuSig handling, which the author resolved in the latest push.",
+   "reason": "achow101 pointed out a bug in the first iteration. The author reproduced it, pushed a fix, and no further comments or ACKs have been posted since.",
+   "evidence": [
+    "achow101 noted inline: 'This results in the analysis still being incorrect for transactions involving a musig.'",
+    "btcpavao force-pushed and confirmed: 'I updated the patch to distinguish when SignMuSig2() actually matched a MuSig2 aggregate, and only add missing_sigs for the non-MuSig case.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes PSBT signing data handling in src/script/sign.cpp, directly resolving an issue where the wallet GUI displays incorrect input warnings for Taproot multisig PSBTs.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.38,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "This fixes a clear bug in PSBT analysis for Taproot script paths that causes confusing status messages in the wallet GUI ('Transaction is missing some information about inputs'). The issue does not cause fund loss or transaction failure, but resolving it improves the usability of Taproot multisig workflows."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "While analyzepsbt output is corrected, the bug resides in underlying PSBT state extraction in src/script/sign.cpp rather than RPC parsing or interface logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change affects what analyzepsbt returns, but RPC rules exclude changes where the RPC merely exposes underlying signing/script behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a bug in Taproot script-path PSBT analysis where inputs missing Schnorr signatures were classified as needing an updater instead of a signer. This addresses issue #36035, where the wallet GUI reported that a Taproot multisig PSBT was missing information about inputs despite being ready to sign. The patch updates CreateTaprootScriptSig in src/script/sign.cpp to track missing signatures and adds regression coverage. achow101 caught a bug in the initial MuSig2 handling, which the author resolved in the current push; it now awaits review."
+ },
+ "raw_text": null
+}

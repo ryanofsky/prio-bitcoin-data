@@ -1,0 +1,170 @@
+{
+ "number": 34978,
+ "input_hash": "f6625881ae0f4795",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12565,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4184
+ },
+ "cost_usd": 0.0348913,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reserve file descriptors at startup for IPC socket connections, preventing IPC-heavy workloads from silently running out of FDs."
+   ],
+   "reviewability": [
+    "Paused: author put this into draft in favor of the alternative per-address approach in #35037, and the choice between the two designs is unresolved.",
+    "Code and tests were approved before the pause, but a review now risks being invalidated once the direction is decided."
+   ],
+   "agreement": [
+    "Positive code review, but reviewer ryanofsky prefers a per-address max-connections design instead of this PR's global option and recommended draft status (ryanofsky).",
+    "Author agreed and moved the PR to draft in favor of #35037, though that alternative is itself still a draft and the direction remains unsettled (enirox001, Sjors)."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because unaccounted IPC listener and connection FDs could exhaust descriptors unpredictably during IPC-heavy use, a real reliability gap that both reviewers acknowledge.",
+      "The PR is currently paused on an unresolved design choice (global vs per-address limits) that blocks either approach from landing."
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "Not a member: this PR only touches IPC startup FD accounting in init.cpp, with no change to mining interfaces or template logic."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the new functional test pins IPC-specific startup behavior and belongs with the IPC area rather than general test infrastructure."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member: although init.cpp is touched, the change is specific to IPC's FD budgeting, not general logging, argument, or startup infrastructure used elsewhere."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds accounting in init.cpp for file descriptors consumed by IPC: one per -ipcbind listening socket plus a configurable -ipcmaxconnections (default 16) reservation for accepted connections, since neither was previously counted in min_required_fds. It adds a functional test (interface_ipc_init.py) asserting the new startup log line reporting the FD reservation, and a warning when -ipcmaxconnections is set without -ipcbind. The author has since drafted an alternative PR (#35037) that instead adds per-address max-connections options to -ipcbind, and marked this PR as draft in favor of that approach.",
+  "problem": "Before this change, IPC listening sockets and accepted connections were not counted when the node reserves file descriptors at startup, so IPC-heavy workloads could exhaust available FDs at unpredictable moments, producing confusing failures for operators using -ipcbind.",
+  "discussion": {
+   "open_concerns": [
+    "Whether to reserve FDs via a new global -ipcmaxconnections option (this PR) or via per-address max-connections on -ipcbind (#35037), pending a related libmultiprocess API (bitcoin-core/libmultiprocess#269) that would let per-listener limits actually be enforced.",
+    "sedited questioned whether per-bind FD accounting granularity is overkill; author responded but no fix implemented.",
+    "ryanofsky noted an unrelated behavior change (no longer reserving a P2P listener FD when -listen=0) got folded in without being called out in the commit message."
+   ],
+   "resolved_concerns": [
+    "Naming of the new option was iterated (-unixmaxconnections -> -ipcmaxconnections) and settled with ryanofsky's agreement.",
+    "IsArgSet/-noipcbind negation bug flagged by ryanofsky was fixed by restructuring the logic around ipc_bind > 0.",
+    "Test placement was moved from interface_ipc_cli.py to a new interface_ipc_init.py per ryanofsky's request, and consolidated into fewer node restarts."
+   ],
+   "author_status": "Author moved the PR to draft on 2026-05-18 in favor of #35037; last activity 2026-06-25 clarifying the situation to Sjors, who found the state confusing since #35037 is also draft."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author prefers #35037",
+   "reason": "Author explicitly marked this PR draft in favor of the alternative per-address design in #35037, and ryanofsky recommended draft status pending a decision between global and per-address IPC connection limits. Reviewing the current code risks being moot once that direction is chosen."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Code approved by ryanofsky, but ryanofsky prefers a per-address design over this PR's global -ipcmaxconnections option and the author deferred by drafting it.",
+   "reason": "ryanofsky gave Code Review ACKs on the mechanics but stated a preference for per-address limits via -ipcbind options, tied to an upstream libmultiprocess API (#269), and suggested the PR become draft until a direction is chosen. The author agreed and marked it draft in favor of #35037, but that PR is itself still draft, leaving the decision unresolved as of the latest comment from Sjors.",
+   "evidence": [
+    "ryanofsky: 'I'd still prefer local limits...over introducing a new command line option and global limit, but that's not a strong preference.'",
+    "ryanofsky: 'Would suggest changing this PR from ready to draft state, because...I don't think it would be good to add a new -ipcmaxconnections option that's global.'",
+    "enirox001: 'Marking this PR to draft in favor of #35037.'",
+    "Sjors: 'I'm confused, that PR is also draft.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Establishes FD-reservation accounting that a follow-up enforcing an actual IPC connection limit (via bitcoin-core/libmultiprocess#269) could build on.",
+    "Serves as one of two competing concrete proposals being compared against #35037 before a design decision is made."
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Directly changes IPC startup behavior: FD accounting for -ipcbind listeners and a new -ipcmaxconnections option, plus IPC-specific functional tests.",
+    "band": "P2",
+    "reason_tag": "decision needed",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it closes a real reliability gap where IPC FDs were entirely unaccounted for, which could cause unpredictable descriptor exhaustion, as described by the author and acknowledged by ryanofsky ('Strictly speaking I think this PR is an improvement over the status quo'). It is held back by an unresolved design decision between a global limit here and per-address limits in #35037, which both reviewers agree needs to be settled before either lands."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "No changes to mining interfaces, block templates, or mining RPCs; only init.cpp FD accounting for IPC and its tests.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; the PR does not touch mining code despite the path hint matching shared test-file naming conventions."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new interface_ipc_init.py test pins IPC-specific startup logging behavior, which per category rules belongs to the area it tests (ipc), not test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; no changes to the test framework, runner mechanics, or fuzzing/benchmark infrastructure beyond registering a new area-specific test in test_runner.py."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches init.cpp's FD-limit logic, but the change's subject is IPC-specific accounting, not general logging, argument handling, or startup infrastructure used broadly.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; per category rules a change whose point is one area's behavior (IPC) belongs to that area rather than utils."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will settle on the global -ipcmaxconnections approach or the per-address approach in #35037, which determines whether this PR's code survives at all.",
+   "Severity of the FD-exhaustion problem in practice is asserted by the author and echoed generally by reviewers but not quantified with a concrete incident."
+  ],
+  "card": "This draft PR adds file-descriptor accounting for IPC: one FD per -ipcbind listening socket and a configurable -ipcmaxconnections (default 16) for accepted connections, closing a gap where IPC FDs were previously unaccounted for and could exhaust descriptors unpredictably. It includes a focused functional test verifying the new startup log line. Reviewer ryanofsky approved the code but prefers an alternative per-address max-connections design (tracked in the author's companion draft #35037 and upstream libmultiprocess#269), and recommended this PR move to draft until that direction is decided; the author agreed and did so, though the companion PR is also still draft, leaving the two approaches unresolved. The core problem, unreserved IPC FDs, is real and acknowledged by multiple reviewers, but review effort here is paused pending a project decision between the two designs."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,186 @@
+{
+ "number": 29278,
+ "input_hash": "ab5db1e9858f8119",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:35+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 54876,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3633
+ },
+ "cost_usd": 0.05478075,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a -maxfeerate startup option to the wallet to cap transaction feerates independently of total fees",
+    "Prevent accidental fee overpayment on small transactions and distinguish fee vs feerate limits in error messages"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Recent push addressed a bug in sendall bump fee handling and has a fresh ACK"
+   ],
+   "agreement": [
+    "Strong consensus across multiple wallet contributors (murchandamus, josibake, achow101, furszy, polespinasa)",
+    "Recent edge cases regarding sendall and bump fee calculations were resolved with test coverage (polespinasa)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes fund-safety ambiguity where absolute fees and feerates were conflated (#29220)",
+      "Provides a distinct failsafe against fat-finger feerates on small transactions without capping total transaction size"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it differentiates fee-limit and feerate-limit broadcast failures into distinct error types",
+      "Clarifies error diagnostics for sendrawtransaction without breaking existing parameter semantics"
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a `-maxfeerate` wallet startup option (defaulting to 0.10 BTC/kvB) to cap the maximum fee rate the wallet will pay on transactions. It decouples the existing `-maxtxfee` absolute fee cap from feerate validation, updates `BroadcastTransaction` to check both fee and feerate limits independently, and adds a `MAX_FEE_RATE_EXCEEDED` error type to distinguish errors across wallet and RPC interfaces.",
+  "problem": "Previously, `-maxtxfee` was ambiguously used both as an absolute transaction fee cap and as a sanity check for fee rates (#29220). Users who configured high total fees to allow multi-input transactions had no protection against accidental high fee rates on small transactions, while users setting low total fees could not broadcast larger low-feerate transactions.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Differentiating error messages between absolute fee and feerate limits (josibake, murchandamus)",
+    "Startup checks when -maxtxfee or -maxfeerate conflict with -minrelaytxfee (josibake, murchandamus, achow101)",
+    "Virtual size estimation discrepancies causing broadcast failures after wallet creation (maflcko, mzumsande)",
+    "sendall and feebumper omitting bump fees of unconfirmed inputs when evaluating the feerate cap (polespinasa)"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Code is clean, CI passes, and all reviewer feedback including recent test additions for sendall bump fee handling has been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: broad consensus on decoupling maxtxfee from maxfeerate; latest push ACKed by polespinasa, earlier commits ACKed by murchandamus, josibake, achow101, and furszy.",
+   "reason": "Multiple maintainers and reviewers supported the concept and implementation over several rounds of iteration. All major feedback around startup checks, fee calculations, and coin selection edge cases has been addressed and tested.",
+   "evidence": [
+    "Concept ACK from murchandamus: notes value of independently constraining inputs via maxtxfee and feerate via maxfeerate",
+    "Concept ACK and review ACK from josibake",
+    "ACK from achow101 and furszy on earlier revisions",
+    "ACK from polespinasa on latest head after fixing sendall bump-fee edge case"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Follow-up GUI configuration for broadcast feerate limits"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds a new wallet configuration option `-maxfeerate` and enforces feerate caps in `CreateTransactionInternal`, `feebumper`, and `sendall`.",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes an existing defect (#29220) where `-maxtxfee` conflated total fee amounts with fee rates. Decoupling the two gives users protection against fat-finger feerates on small transactions while still permitting large transactions within the absolute fee budget."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Updates `BroadcastTransaction` signatures and error reporting across RPC calls including `sendrawtransaction` and `submitpackage`.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it introduces a dedicated `MAX_FEE_RATE_EXCEEDED` error code and replaces ambiguous error messages in `sendrawtransaction` and related calls, clarifying failure causes for RPC callers."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes release notes as part of a code feature; documentation is not the primary subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Method signatures in `interfaces::Node` and `interfaces::Chain` are updated mechanically to pass feerate parameters without altering IPC mechanics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test modifications strictly validate wallet and broadcast feerate behavior rather than testing framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Adding a transaction error enum string to `src/common/messages.cpp` directly supports wallet/RPC transaction handling and is not general utility work.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #29278 introduces a `-maxfeerate` startup option for the wallet (defaulting to 0.10 BTC/kvB) and enforces it across transaction creation, fee bumping, and transaction broadcast. It resolves #29220 by decoupling feerate limits from absolute transaction fee limits (`-maxtxfee`), protecting users against fee rate overpayment on small transactions without impeding large transactions. The change also adds a `MAX_FEE_RATE_EXCEEDED` error to distinguish feerate caps from absolute fee caps in RPC responses. Review is in a strong state: multiple contributors previously ACKed the approach, and the latest iteration resolving unconfirmed bump fee accounting has been ACKed."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,314 @@
+{
+ "number": 34132,
+ "input_hash": "cba73ce7796d1a35",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:24:57+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 47988,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7444
+ },
+ "cost_usd": 0.06390599999999999,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Abort predictably on LevelDB point-read and deserialization corruptions across chainstate and indexes",
+    "Remove CCoinsViewErrorCatcher indirection and streamline coin view lookup interfaces"
+   ],
+   "reviewability": [
+    "Ready",
+    "Rebased cleanly on recent master with active discussion"
+   ],
+   "agreement": [
+    "Supported by multiple reviewers for eliminating CCoinsViewErrorCatcher (andrewtoth, sedited, optout21)",
+    "Unresolved design concern over whether optional index read failures should abort the node (ajtowns)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it centralizes database read corruption handling in CDBWrapper",
+      "Prevents silent fallback to missing-key behavior on deserialization failure across all CDBWrapper callers"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it ensures corrupted coins database reads fail fast instead of appearing as missing inputs",
+      "Eliminates the legacy CCoinsViewErrorCatcher layer and marks coins view lookups noexcept"
+     ]
+    }
+   ]
+  },
+  "summary": "Centralizes LevelDB point-read and deserialization error handling in `CDBWrapper`, routing failures to a fatal notification callback and `std::abort()`. Removes the redundant `CCoinsViewErrorCatcher` layer, restricts `HaveCoin()` to `CCoinsViewCache`, and annotates coin view lookups as `noexcept`.",
+  "problem": "Previously, deserialization errors during `CDBWrapper::Read()` returned `false` while LevelDB read errors threw exceptions. In chainstate and indexes, this could mask database corruption as non-existent entries (e.g., falsely failing valid transactions as missing inputs) or cause unhandled exceptions, requiring the specialized `CCoinsViewErrorCatcher` wrapper solely to catch errors and abort.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns questioned whether optional index read failures (e.g., txindex) should abort the whole node rather than disabling the index, and noted the callback chain to GUI message box before abort is complex."
+   ],
+   "resolved_concerns": [
+    "Functional test failures on 32-bit systems (due to LevelDB mmap vs block cache behavior differences) were resolved by l0rinc after analysis with maflcko.",
+    "Handling of `HaveCoin` was resolved by retaining it only on `CCoinsViewCache` as suggested by optout21."
+   ],
+   "author_status": "Active; rebased on master after #34931 on 2026-09-12 and invited ajtowns to discuss index error handling on IRC."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is clean, passing CI, and author recently rebased and addressed dependencies."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "andrewtoth",
+     "stance": "support",
+     "note": "Concept ACK and approved earlier revision; favored removing view indirection."
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Concept ACK."
+    },
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "objected to deserialization failures being caught or swallowed without aborting across non-CCoinsViewDB code paths"
+    },
+    {
+     "login": "ajtowns",
+     "stance": "objection",
+     "note": "Questioned aborting the entire node on optional index corruption and critique of callback chain complexity."
+    },
+    {
+     "login": "optout21",
+     "stance": "support",
+     "note": "ACK and reACK after testing."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ajtowns",
+     "kind": "approach",
+     "harm": "Aborting the entire node on optional index corruption takes down operating nodes (e.g. lightning node) for non-essential failures, and GUI fatal error callback before abort is convoluted.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-24: 'doing that on a corrupt index seems a bit more questionable -- if the txindex or blockfilter or coinstats indexes fail, I could see it being better to just disable the index, but leave the node operating otherwise'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "swallowing deserialization exceptions or catching them without aborting leaves program continuing despite storage corruption or severe logic bugs",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-02-02: 'When running valgrind ... and calling gettxoutsetinfo I get: DataStream::read(): end of data (code -1) Which still seems wrong for several reasons: Because the exception message is mostly meaningless in this context. The program continues, even though there is a clear storage corruption or severe logic bug'",
+     "resolution_evidence": "2026-02-11: l0rinc restructured the PR to thread fatal read handling into CDBWrapper: 'Instead of catching exceptions at individual call sites just to run a shutdown callback, it threads a fatal read_error_cb down into CDBWrapper via DBParams, so all Read() users share the same behavior on corruption.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "andrewtoth",
+     "reason": "Reduces view stack indirection and complexity.",
+     "substantive": true
+    },
+    {
+     "reviewer": "sedited",
+     "reason": "Concept ACK.",
+     "substantive": false
+    },
+    {
+     "reviewer": "optout21",
+     "reason": "Code review and local unit tests OK.",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: ajtowns raised concerns over aborting on optional index corruption; author suggested discussing on IRC.",
+   "reason": "Several contributors support the simplification and crash-on-corruption semantics, but ajtowns has an open architectural critique regarding whether optional indexes should crash the entire node.",
+   "evidence": [
+    "andrewtoth: 'I think getting rid of this indirection is great. It reduces a lot of complexity when thinking about the stack of views.'",
+    "ajtowns: 'The UTXO database isn't optional for running a node, all the indexes are... crashing on corruption in that would probably make sense too'",
+    "l0rinc: 'Optional-index point-read failures still abort the node, as in the previous version... @ajtowns, should we discuss this at the next IRC?'",
+    "optout21: 'reACK 6c07101f28ade1a3023d4fe15042ce6b8c97ffa8'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (ajtowns)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "maflcko",
+      "kind": "correctness",
+      "harm": "swallowing deserialization exceptions or catching them without aborting leaves program continuing despite storage corruption or severe logic bugs",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-02-02: 'When running valgrind ... and calling gettxoutsetinfo I get: DataStream::read(): end of data (code -1) Which still seems wrong for several reasons: Because the exception message is mostly meaningless in this context. The program continues, even though there is a clear storage corruption or severe logic bug'",
+      "resolution_evidence": "2026-02-11: l0rinc restructured the PR to thread fatal read handling into CDBWrapper: 'Instead of catching exceptions at individual call sites just to run a shutdown callback, it threads a fatal read_error_cb down into CDBWrapper via DBParams, so all Read() users share the same behavior on corruption.'"
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "corruption in optional indexes like txindex or blockfilterindex crashes the entire node and disrupts services like Lightning, whereas optional indexes could be disabled or shut down cleanly",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-24: 'Having a hard abort on a corrupt utxo set seems plausible ... but doing that on a corrupt index seems a bit more questionable -- if the txindex or blockfilter or coinstats indexes fail, I could see it being better to just disable the index, but leave the node operating otherwise (ie, turn the index turned off, and perhaps mark it as permanently failed on disk in some way so it doesn't appear to work for a little while on the next node restart).'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "andrewtoth",
+      "reason": "I think getting rid of this indirection is great. It reduces a lot of complexity when thinking about the stack of views.",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "optout21",
+      "reason": "Code review, local unit tests OK!",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "andrewtoth",
+      "stance": "support",
+      "note": "Concept ACK and ACKed earlier commits, noting that removing the view stack indirection reduces complexity"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "objected to deserialization failures being caught or swallowed without aborting across non-CCoinsViewDB code paths"
+     },
+     {
+      "login": "ajtowns",
+      "stance": "objection",
+      "note": "questioned aborting the entire node on optional index corruption rather than disabling the index or handling it cleanly at call sites"
+     },
+     {
+      "login": "optout21",
+      "stance": "support",
+      "note": "ACK and reACK after testing and code review"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: ajtowns questions aborting the entire node on optional index corruption; author maintained the behavior pending IRC discussion.",
+    "usage": {
+     "input_tokens": 18347,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 4431
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "Aborting the entire node on optional index corruption takes down operating nodes (e.g. lightning node) for non-essential failures, and GUI fatal error callback before abort is convoluted.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-24: 'doing that on a corrupt index seems a bit more questionable -- if the txindex or blockfilter or coinstats indexes fail, I could see it being better to just disable the index, but leave the node operating otherwise'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "andrewtoth",
+      "reason": "Reduces view stack indirection and complexity.",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Concept ACK.",
+      "substantive": false
+     },
+     {
+      "reviewer": "optout21",
+      "reason": "Code review and local unit tests OK.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies CDBWrapper in src/dbwrapper.cpp and src/dbwrapper.h to unify LevelDB read and deserialization error handling.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "CDBWrapper previously treated deserialization failures as missing entries, potentially masking disk or memory corruption across any subsystem using CDBWrapper. Standardizing failure-to-abort handling at the database wrapper level prevents silent data corruption bugs."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies chainstate coin access views, removes CCoinsViewErrorCatcher, and touches src/txdb.cpp and src/coins.cpp.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Directly impacts how UTXO read errors are handled during validation. Removing CCoinsViewErrorCatcher simplifies the coins view hierarchy, avoids mistaking unreadable UTXOs for missing coins during block or tx validation, and marks coin lookups noexcept."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies CDBWrapper to handle LevelDB point-read and typed deserialization failures by logging, firing a fatal notification callback, and aborting. It removes the CCoinsViewErrorCatcher wrapper layer, marks coin view lookups noexcept, and confines HaveCoin to CCoinsViewCache. It resolves a long-standing risk where corrupt database entries could masquerade as non-existent keys. While multiple reviewers ACK the cleanup, ajtowns raised an open non-blocking concern that aborting on optional index corruption is overly drastic."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0303765
+}

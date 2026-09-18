@@ -1,0 +1,185 @@
+{
+ "number": 36097,
+ "input_hash": "76191f9896c36413",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:47:48+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 35675,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3615
+ },
+ "cost_usd": 0.0403125,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow blocking mining IPC calls to be canceled natively via Cap'n Proto",
+    "Deprecate separate interrupt methods on the mining interface"
+   ],
+   "reviewability": [
+    "CI is failing and the PR includes a temporary subtree commit awaiting upstream libmultiprocess#342"
+   ],
+   "agreement": [
+    "Strong support for adopting native Cap'n Proto cancellation over ad-hoc interrupt methods (ryanofsky)"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it establishes standard request-cancellation mechanics across the IPC boundary",
+      "It eliminates the need for clients to make separate out-of-band IPC calls just to cancel waiting requests"
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it improves how external mining template consumers cancel blocking template generation calls",
+      "It allows individual blocking mining requests to be canceled without affecting other concurrent calls"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds cancellation arguments (`CancelArg`) to blocking mining methods (`waitTipChanged`, `createNewBlock`, and `BlockTemplate::waitNext`), replacing and deprecating the existing `interrupt()` and `interruptWait()` methods. It leverages Cap'n Proto request cancellation support from libmultiprocess so clients can cancel in-flight blocking calls natively rather than issuing separate IPC interrupt calls.",
+  "problem": "Blocking mining interface calls over IPC currently require dedicated, out-of-band interrupt methods to abort in-flight requests, which adds API complexity and cannot easily cancel individual calls without canceling all concurrent calls.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, force-pushed updates on 2026-09-11 tracking upstream changes in libmultiprocess"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is failing on the current commit, and the first commit contains a temporary libmultiprocess subtree update pending upstream PR libmultiprocess#342."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "ryanofsky",
+     "stance": "support",
+     "note": "strongly supported native Cap'n Proto cancellation over separate interrupt IPC calls"
+    }
+   ],
+   "objections": [],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "clients can cancel blocking requests more simply and efficiently using native cancellation instead of issuing new IPC calls",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong concept and approach support from ryanofsky; no objections raised",
+   "reason": "ryanofsky welcomed the change as an end-to-end demonstration of native cancellation that simplifies client and server interactions.",
+   "evidence": [
+    "ryanofsky (2026-08-27): 'With that change rust, python, and c++ clients can now cancel blocking requests more simply and efficiently using cap'n protos native cancellation mechanism, instead of needing to make new IPC calls to cancel previous ones.'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (ryanofsky)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "it simplifies and optimizes IPC request cancellation across Rust, Python, and C++ clients using native Cap'n Proto mechanisms instead of extra IPC calls, and allows individual blocking calls to be cancellable",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "ryanofsky",
+      "stance": "support",
+      "note": "praised the design and explained the benefits of native Cap'n Proto request cancellation over interrupt methods"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: ryanofsky supports the approach as a simpler, more efficient cancellation mechanism",
+    "usage": {
+     "input_tokens": 4374,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 592
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "clients can cancel blocking requests more simply and efficiently using native cancellation instead of issuing new IPC calls",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Implements native Cap'n Proto request cancellation over IPC using Proxy annotations and extra parameters.",
+    "band": "P3",
+    "reason_tag": "interface",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P3 because it standardizes request cancellation across the IPC interface. Ryanofsky noted that using native Cap'n Proto cancellation allows clients across languages to abort blocking calls cleanly without having to issue separate IPC calls."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Modifies `interfaces::Mining` blocking methods to accept `CancelArg` and deprecates mining interrupt methods.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it modernizes the mining block template assembly and notification interface for external consumers like Stratum v2 providers, replacing ad-hoc interrupt methods with call-scoped cancellation."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test changes in ipc_util.py and test suites merely exercise the new cancellation functionality.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a primary test infrastructure PR; test helper adjustments strictly follow from the IPC and mining changes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR updates the mining IPC interface to accept cancellation arguments on blocking calls (such as waitNext and createNewBlock) and deprecates the dedicated interrupt methods. It leverages Cap'n Proto native request cancellation, simplifying client implementations such as Stratum v2 services by avoiding extra round-trip interrupt calls. Ryanofsky strongly endorsed the approach as a cleaner, more robust IPC pattern. Review of the Core code is possible now, though the PR includes a temporary subtree commit dependent on upstream libmultiprocess#342 and CI is currently failing."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0055005
+}

@@ -1,0 +1,139 @@
+{
+ "number": 35998,
+ "input_hash": "c40a5e3ea7ff88da",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22740,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5280
+ },
+ "cost_usd": 0.0505463,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make wallet database write failures explicit and either handled or deliberately ignored, instead of silently ignored as before.",
+    "Fixes several real bugs where a failed disk write left the wallet reporting success while its in-memory and on-disk state diverged (encryption, passphrase change, transaction records)."
+   ],
+   "reviewability": [
+    "Not ready to review as final: marked needs-rebase and still draft with active force-pushes as of the last update.",
+    "The underlying design (treat DB write failures as catastrophic corruption) is settled by the author against reviewer pushback, so the remaining work is code-level review once rebased."
+   ],
+   "agreement": [
+    "Three concept ACKs (l0rinc, rkrux, jeanpablojp) with no concept objections.",
+    "jeanpablojp raised several concrete scenarios where the new failure handling could regress behavior (skipped backups, orphaned wallet-tx entries, descriptor cache/disk mismatch); achow101 rejected each with a stated rationale that write failures should be treated as catastrophic, and jeanpablojp has not pushed back since."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P1 because it closes concrete fund-safety and consistency gaps: encryption and passphrase-change previously reported success while the master key write failed, leaving old and new passphrases inconsistent on disk versus memory.",
+      "Also fixes silent data loss paths in transaction and descriptor-key writes that the commit messages describe as retry-breaking or state-publishing-before-commit bugs."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR marks all WalletBatch read/write/erase/transaction methods [[nodiscard]] and updates every call site to either handle the failure or explicitly document why it is being ignored. Along the way it fixes several bugs where a failed database write left the wallet's in-memory state diverged from disk: encryption and passphrase-change previously reported success despite a failed master-key write, and several key/descriptor writes could be silently dropped. It also changes Unlock/ChangeWalletPassphrase to return util::Expected<void, WalletError> so callers (RPC, GUI) get specific error codes instead of a bare bool, and adds a reusable fault-injecting SQLite wallet database for tests.",
+  "problem": "Many wallet database write failures were previously ignored, so a disk write failure could leave the wallet reporting success while its live state and the on-disk state diverged, risking corruption, lost passphrase changes, or unretryable failures. This affects any wallet user whose disk fills up or whose database write otherwise fails during a sensitive operation like encryption or passphrase change.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp: BackupWallet now skips the actual file copy when WriteBestBlock fails, removing the backup you'd most want right when the database starts failing; author disagreed, treating any write failure as a signal that a backup should not be trusted.",
+    "jeanpablojp: IncOrderPosNext failure path can leave a mapWallet entry with no order position, suggesting a specific fix; author says this is an intentional crash-on-corruption path, not something to repair gracefully.",
+    "jeanpablojp: TopUpWithDB can throw after updating in-memory descriptor cache range but before persisting it, producing a wallet that fails to reopen for xpub-cache-per-index descriptors; author replied 'what retry?' and reiterated write failures are catastrophic.",
+    "jeanpablojp: returning DBErrors::CORRUPT for a version-write failure during load may mislabel a full-disk condition as corruption; author says any write failure is treated as corruption regardless of cause."
+   ],
+   "resolved_concerns": [
+    "jeanpablojp's request to remove explanatory comments in test/wallet/test/util.h; author said such comments are unnecessary, no further pushback."
+   ],
+   "author_status": "active, last force-pushed 2026-09-14, addressing review with rationale rather than code changes on the disputed points"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is flagged needs_rebase and mergeable_state is dirty; it is also draft with 4 force-pushes so far, indicating the author is still actively reshaping it. Review of the current diff risks being invalidated by the pending rebase."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Three concept ACKs with no objectors to the concept; a reviewer's several concrete behavioral concerns were each rejected by the author with a stated design rationale and have not been re-raised.",
+   "reason": "l0rinc, rkrux, and jeanpablojp gave concept ACKs. jeanpablojp's detailed line-level concerns about specific failure-handling choices were answered by achow101 with a consistent rationale (write failures are catastrophic corruption, not something to retry or work around), and jeanpablojp has not followed up since achow101's 2026-09-08 replies, so these read as resolved by rejection-with-rationale rather than left open.",
+   "evidence": [
+    "l0rinc: 'Concept ACK, thanks for taking over.'",
+    "rkrux: 'Concept ACK ... because it enforces the handling of database errors, thereby ensuring consistency between in-memory behaviour and databases behaviour.'",
+    "jeanpablojp: 'Concept ACK. Left some comments.' followed by four substantive inline concerns.",
+    "achow101 on backup concern: 'If a write fails, it is possible that the database is already corrupted, and we do not want to be making a backup that may not be usable.'",
+    "achow101 on descriptor cache concern: 'What retry? Write failures are supposed to be catastrophic and an indicator that corruption has likely happened.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35752
+   ],
+   "enables": [
+    "Cleaner, exception/[[nodiscard]]-enforced pattern for future wallet DB error handling work that other wallet PRs would otherwise need to redo ad hoc"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly rewrites WalletBatch's write/erase/transaction API and every wallet call site that uses it (wallet.cpp, walletdb.cpp/h, scriptpubkeyman.cpp/h, export.cpp, rpc/encrypt.cpp, qt wallet model/dialog), labeled Wallet.",
+    "band": "P1",
+    "reason_tag": "fund safety",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 3,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P1 because it fixes concrete cases where a failed database write previously left the wallet reporting success with inconsistent live/on-disk state, e.g. the commit message 'Wallet encryption publishes master and descriptor key state before the database transaction commits ... aborts the process after a failed commit' and 'Wallet passphrase changes currently report success after the master-key write fails ... the old passphrase remains on disk.' These are exactly the fund-safety and corruption-handling concerns the wallet category weighs most heavily, and reviewer jeanpablojp's follow-up scenarios (orphaned tx records, descriptor cache/disk divergence) show the surface area is real even where the author disputes the specific handling."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "interfaces/wallet.h's unlock/changeWalletPassphrase signatures change return type from bool to util::Expected, but this follows mechanically from the underlying CWallet method signature change; the interface mechanics themselves (capnp, serialization, connection handling) are untouched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the interfaces::Wallet edit is a call-site-style follow-on to the wallet.cpp change, not a change to IPC mechanics, per the category's exclusion for such mechanical edits."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds a FaultInjectingDatabase and associated helpers in src/wallet/test/util.h plus new cases in wallet_tests.cpp, but these pin wallet-specific database-failure behavior rather than adding general test framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per the tests category definition, a test harness built to characterize one area's behavior (here, wallet DB write failures) belongs to that area, not to test infrastructure generally."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether jeanpablojp's silence since 2026-09-08 reflects genuine agreement with achow101's 'failures are catastrophic' philosophy or simply inactivity; this affects whether Agreement should be Positive or Positive w/ caveats.",
+   "Whether the new FaultInjectingDatabase test utility is generic enough to eventually be reused outside wallet tests, which would push it toward tests category membership.",
+   "Exact scope of remaining rebase work given 4 force-pushes and open 'Needs rebase' label; unclear how much the diff will still change before it is review-stable."
+  ],
+  "card": "This draft PR marks all WalletBatch operations [[nodiscard]] and fixes the resulting fallout: several places where a failed database write previously left the wallet reporting success while its in-memory and on-disk state diverged, notably encryption and passphrase-change publishing new key state before the write or transaction commit succeeded. Author achow101 states in commit messages that these are real fund-safety bugs, e.g. 'the old passphrase remains on disk' after a failed master-key write, and reviewer jeanpablojp independently found further edge cases (orphaned transaction records, descriptor cache diverging from disk on write failure) that achow101 addressed by asserting write failures should always be treated as unrecoverable corruption rather than retried. Three reviewers gave concept ACKs and no one has disputed the goal, though the specific failure-handling philosophy drew pushback that the author rejected with rationale and the critic has not re-raised. The PR is flagged needs-rebase and still in active force-push churn, and it explicitly depends on the still-open #35752 (encryption transaction atomicity) landing first. It is central to the wallet category's core concern of fund safety and database corruption handling."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

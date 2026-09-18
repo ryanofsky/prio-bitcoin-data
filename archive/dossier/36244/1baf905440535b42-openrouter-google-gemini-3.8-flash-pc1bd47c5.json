@@ -1,0 +1,225 @@
+{
+ "number": 36244,
+ "input_hash": "1baf905440535b42",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:49:11+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 31358,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5223
+ },
+ "cost_usd": 0.04310475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Process blocks asynchronously on a dedicated worker thread instead of stalling the P2P message handler.",
+    "Reduce cs_main contention so nodes remain responsive to peer messages and requests during block validation."
+   ],
+   "reviewability": [
+    "Ready for review despite draft status.",
+    "Clean merge state, green CI, and no open review requests blocking progress."
+   ],
+   "agreement": [
+    "No formal reviews or ACKs yet.",
+    "andrewtoth inquired about the steady-state motivation and future parallel sibling validation, which the author clarified (andrewtoth)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because moving block persistence and activation to a dedicated worker significantly reduces lock contention on cs_main and lays foundational architecture for future parallel validation."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because keeping the message processing thread unblocked during heavy validation eliminates peer stalls, reducing PING latency by up to 98% and block-serving delays by 30-45%."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves block processing off the P2P message processing thread onto a dedicated asynchronous worker thread. Initial header and validity checks continue to run synchronously, after which admitted blocks are queued for storage and chain activation. In addition, it reduces cs_main locking across P2P message handling, tracking block sources and downloads under dedicated mutexes.",
+  "problem": "The P2P message processing thread currently blocks synchronously while validating and connecting new blocks under cs_main. During initial block download or heavy validation at the tip, the node cannot respond to other peers' PINGs, compact block transaction requests, or block download requests in a timely manner.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "Active; responded to concept questions from andrewtoth."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author opened this draft to gather feedback on the overall approach, but the branch compiles cleanly, passes tests, and has no pending reviewer blocks."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "andrewtoth",
+     "stance": "question",
+     "note": "Asked whether steady-state responsiveness and parallel sibling block processing are the primary motivations rather than IBD speedup."
+    }
+   ],
+   "objections": [],
+   "support": [],
+   "state": "Crickets",
+   "summary": "Crickets; andrewtoth asked about design motivation and parallel validation, answered by author.",
+   "reason": "The PR has not yet received formal ACKs or substantive code reviews.",
+   "evidence": [
+    "2026-09-15: andrewtoth asked whether the main point is steady-state responsiveness and parallel sibling validation.",
+    "2026-09-15: w0xlt clarified that responsiveness at the tip is indeed the main motivation and benchmarked IBD as a repeatable workload."
+   ],
+   "model_state": "Crickets",
+   "derivation": "no substantive comment either way",
+   "corrections": [],
+   "thread_read": {
+    "error": "HTTP 402: {\"error\":{\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"code\":402,\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retr"
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Parallel sibling block validation and further cs_main concurrency improvements"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Refactors ProcessNewBlock, separates block storage admission from persistence, introduces ValidationQueue, and delivers BlockChecked asynchronously.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Substantially refactors the block acceptance and persistence pipeline to run asynchronously on a dedicated worker, directly tackling cs_main contention and unblocking future parallel validation work."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies net_processing.cpp to decouple P2P message processing from block validation, moves block download tracking out of cs_main, and avoids unnecessary lock waits.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Prevents the P2P message handler from stalling during block processing, directly improving node responsiveness and DoS resistance with a measured 98% reduction in PING response latency during heavy validation."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches bitcoinkernel.cpp only to adapt btck_chainstate_manager_process_block call site to the new ProcessNewBlock return type; does not modify kernel public API or architecture.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site update within the kernel wrapper."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Edits to miner.cpp and rpc/mining.cpp are call-site adaptations for ProcessNewBlock returning a future and validation state.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical updates to consume the new ProcessNewBlock API."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not alter mempool acceptance policy, eviction, or clustering logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mempool behavior is unaffected."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only updates submitblock RPC implementation to await block processing outcome.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "RPC interface and behavior remain unchanged."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test changes add coverage for the new validation queue and peer manager behavior rather than modifying general test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Area-specific unit and fuzz test adjustments."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Changes in init.cpp manage the lifecycle of the block processing queue as part of validation setup.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Lifecycle hook updates for the validation worker thread."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #36244 moves block processing off the P2P message thread onto a dedicated worker thread after initial validation checks, reducing cs_main contention and preventing network message handling from stalling. Benchmark results show up to a 98% reduction in PING response latency and a 30-45% reduction in block-serving response times during validation. It establishes foundational architecture towards parallel sibling block validation. The PR is currently marked draft for concept feedback with no formal reviews yet."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5"
+}

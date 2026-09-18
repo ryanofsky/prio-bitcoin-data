@@ -1,0 +1,95 @@
+{
+ "number": 35920,
+ "input_hash": "2b3d3f0794001097",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:21:40+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14764,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2094
+ },
+ "cost_usd": 0.0189255,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Ignore MSG_WITNESS_TX in announcements from wtxid-relay peers",
+    "Disconnect peers that send any transaction announcements on block-relay-only links"
+   ],
+   "reviewability": [
+    "Ready",
+    "Nothing is pending author action"
+   ],
+   "agreement": [
+    "Strong support for protocol compliance and cleanup (fjahr, l0rinc)",
+    "Compatibility concern regarding Neutrino was addressed by preserving legacy behavior for non-wtxid peers (darosior, 0xB10C)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it aligns INV processing with BIP 144 and enforces protocol disconnects on block-relay connections",
+      "The fix prevents unneeded tx processing and consolidates deduplication sets without breaking known non-standard clients"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates P2P message processing in `src/net_processing.cpp` to ignore `MSG_WITNESS_TX` announcements from peers with `wtxidrelay` enabled, conforming to BIP 144. It also moves the protocol violation check earlier so that sending any transaction INV type over a connection where transaction relay is disabled triggers a disconnect. Additionally, it unifies the separate `seen_txids` and `seen_wtxids` deduplication sets into one.",
+  "problem": "BIP 144 specifies that `MSG_WITNESS_TX` is only for `getdata` requests, but Bitcoin Core continued to accept them as txid announcements even after wtxid relay was introduced. Furthermore, peers attempting to announce transactions over block-relay-only connections could bypass disconnection if the announcement type was filtered out before the violation check.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "darosior cautioned against dropping support for MSG_WITNESS_TX without verifying wild implementations; 0xB10C noted that neutrino announces transactions with InvTypeWitnessTx. The author updated the PR to keep allowing it for non-wtxidrelay peers."
+   ],
+   "author_status": "active; last pushed updates accommodating compatibility feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, CI passes, and all substantive comments regarding ecosystem compatibility have been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: concept supported and the only compatibility objection regarding Neutrino was resolved in code",
+   "reason": "Reviewers supported the cleanup and protocol conformance. When real-world client quirks (Neutrino) were identified, the author modified the approach to retain backwards compatibility for non-wtxid connections, resolving all open concerns.",
+   "evidence": [
+    "l0rinc gave Concept ACK (2026-08-06)",
+    "fjahr gave Concept ACK (2026-08-11)",
+    "darosior raised caution about dropping support for existing clients (2026-08-07)",
+    "0xB10C pointed out Neutrino uses InvTypeWitnessTx (2026-08-12)",
+    "ajtowns updated the PR to allow MSG_WITNESS_TX on non-wtxid connections (2026-08-12)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies INV handling and block-relay connection disconnect logic in src/net_processing.cpp and functional p2p tests.",
+    "band": "P3",
+    "reason_tag": "protocol fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because this is a worthwhile protocol conformance fix and minor bug correction. It ensures nodes disconnect misbehaving block-relay-only peers regardless of the INV type used, adheres to BIP 144 for wtxid peers, and simplifies internal hash deduplication without disrupting production clients."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR updates P2P INV processing to ignore MSG_WITNESS_TX announcements on wtxidrelay connections per BIP 144, while retaining support for legacy non-wtxidrelay peers to maintain compatibility with Neutrino. It also ensures that sending transaction INVs over block-relay-only connections triggers an immediate protocol violation disconnect regardless of INV type, allowing the internal hash deduplication sets to be combined into one. Reviewers support the change, and previous compatibility concerns have been resolved. The PR is ready for review with no open blockers."
+ },
+ "raw_text": null
+}

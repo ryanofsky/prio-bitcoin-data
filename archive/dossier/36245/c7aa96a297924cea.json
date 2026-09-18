@@ -1,0 +1,81 @@
+{
+ "number": 36245,
+ "input_hash": "c7aa96a297924cea",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3819,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2874
+ },
+ "cost_usd": 0.0195953,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix descriptor imports with a non-zero range_start so the wallet only derives and watches that range.",
+    "Currently import expands from index 0 regardless of range_start, wasting time and briefly mis-crediting transactions outside the requested range."
+   ],
+   "reviewability": [
+    "Ready for review now, single self-contained commit with a new functional test covering the fix."
+   ],
+   "agreement": [
+    "No reviewer feedback yet, PR is 3 days old (kriss39)."
+   ],
+   "categories": []
+  },
+  "summary": "Fixes DescriptorScriptPubKeyMan::TopUpWithDB() so that topping up a descriptor with a non-zero range_start begins expanding from range_start instead of index 0, and makes it record the actual cached index consistently with Load(). This avoids deriving and watching every scriptPubKey below the requested range, which previously made an import O(M) instead of O(M-N) and temporarily treated out-of-range scriptPubKeys as IsMine until the wallet was reloaded. A functional test is added that imports a range starting at 1000 and checks that an address just below the range is never counted as owned, across a wallet reload.",
+  "problem": "Wallet operators importing a ranged descriptor with range_start > 0 pay for expanding the full [0, range_end) range instead of just [range_start, range_end), which the PR shows takes 19.5s versus 0.09s for a modest example, and can accept ranges near 2^31 that would expand billions of indexes before the RPC even returns. During that window, transactions to addresses below range_start are incorrectly credited to the wallet and then silently stop being counted after the wallet is reloaded, since Load() only expands the declared range.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, no review yet"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Single commit, CI not failing, no rebase needed, and no open review comments to invalidate a review. A related PR (#35989) touches the same descriptor-range area but does not block review of this one."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviews or comments yet, PR opened 3 days ago with zero distinct reviewers.",
+   "reason": "No one has commented on the PR as a whole.",
+   "evidence": []
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Related to #35989 (range-ending-at-2^31-1 crash fix) which touches the same descriptor range validation code; the two may need to be reconciled or reviewed together."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes DescriptorScriptPubKeyMan::TopUpWithDB() and Load() in src/wallet/scriptpubkeyman.cpp, core wallet descriptor management code, with a wallet functional test.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a real correctness bug: 'the wallet treats scriptPubKeys below N as its own' during import, and Load() disagrees with TopUp on m_max_cached_index afterward, so a transaction picked up during the import rescan is silently uncredited after reload. It also fixes a performance and resource issue: an import with a high range_start could expand up to 2^31 indexes before the RPC returns, and the author measured a real-world case going from 19.5s to 0.09s. This is not fund-loss (the balance ends up correct after reload) but it is a wrong-balance/confusing-behavior bug plus a resource-exhaustion vector limited to a scenario (importing descriptors with a non-default range_start) that is real but not the most common wallet workflow."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No maintainer or reviewer has weighed in yet, so it's unclear whether the fix approach (std::max on the loop start, m_max_cached_index = i) will be accepted as-is or reworked, e.g. in light of the overlapping #35989.",
+   "Severity of the near-2^31 DoS-like case is not independently confirmed by anyone besides the author."
+  ],
+  "card": "This PR fixes a bug in DescriptorScriptPubKeyMan::TopUpWithDB() where importing a descriptor with a non-zero range_start (e.g. \"range\": [1000, 1009]) still derives and watches every index from 0, making import cost O(M) instead of O(M-N) and causing Load() to disagree with TopUp about which indexes are owned after a wallet reload. The author demonstrates a real-world case dropping from 19.5s to 0.09s, and notes that a range near [2146483648, 2147483647] would expand roughly 2^31 indexes before the RPC call even returns. It affects wallet correctness (transactions temporarily mis-credited then silently dropped after reload) rather than fund loss, since the balance is correct post-reload. The PR is small, self-contained, and adds a functional test, but has received no reviewer or maintainer feedback yet 3 days after opening. It overlaps in area with the open PR #35989, which also touches descriptor range validation."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

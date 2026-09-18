@@ -1,0 +1,94 @@
+{
+ "number": 35444,
+ "input_hash": "fac33def9b88cb1f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:15+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20831,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1912
+ },
+ "cost_usd": 0.02279325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Eliminate recursive locking in the descriptor ScriptPubKeyMan to prevent deadlock hazards and clarify internal concurrency invariants."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "The branch is cleanly rebased and passes continuous integration."
+   ],
+   "agreement": [
+    "Strong support with two Concept ACKs and positive review (pablomartin4btc, hebasto).",
+    "Minor atomicity question regarding listdescriptors was resolved by noting outer wallet mutex protection (pablomartin4btc)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because this is an internal concurrency refactoring without an immediate user-facing bug fix.",
+      "It advances the long-standing effort to eliminate recursive mutexes and avoids deadlocks during synchronous callbacks."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR converts `DescriptorScriptPubKeyMan`'s internal mutex `cs_desc_man` from a public `RecursiveMutex` to a private `Mutex` (renamed to `m_desc_mutex`). It splits internal routines into lock-held helpers and self-locking public entry points, removes external locking from caller sites, and defers address-availability callbacks until locks are released.",
+  "problem": "Recursive and externally exposed mutexes obscure locking hierarchies, making wallet components susceptible to deadlocks and re-entrancy issues as concurrency patterns evolve.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "pablomartin4btc questioned whether reading descriptor metadata and descriptor strings under separate locks in listdescriptors could introduce race conditions; w0xlt clarified that cs_wallet is held across both calls."
+   ],
+   "author_status": "active, recently rebased the branch"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased, mergeable, and passing CI with no open blocker."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: two Concept ACKs with positive review feedback; minor questions answered and addressed",
+   "reason": "Reviewers support the approach and commit breakdown; the one atomicity concern raised was satisfactorily explained.",
+   "evidence": [
+    "pablomartin4btc: Concept ACK, praised the commit structure and internal helper separation, confirmed correctness.",
+    "hebasto: Concept ACK.",
+    "w0xlt addressed suggestions and rebased."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#19303"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches descriptor ScriptPubKeyMan locking and wallet synchronization in src/wallet/.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is an internal concurrency cleanup that reduces deadlock risks rather than fixing an active regression or user-reported bug. It contributes to the project-wide effort to eliminate RecursiveMutex instances (#19303) and ensures safe callback dispatch without locks held."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors DescriptorScriptPubKeyMan to make its mutex private and non-recursive, renaming it from cs_desc_man to m_desc_mutex. It internalizes locking inside public methods, replaces recursive call paths with lock-held helper functions, and defers address availability notifications outside critical sections to prevent re-entrancy deadlocks. The change advances the project-wide initiative to replace RecursiveMutex across the codebase (issue #19303). The PR has Concept ACKs from two reviewers, has resolved all review comments, and is cleanly rebased and ready for final review."
+ },
+ "raw_text": null
+}

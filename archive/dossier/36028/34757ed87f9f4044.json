@@ -1,0 +1,94 @@
+{
+ "number": 36028,
+ "input_hash": "34757ed87f9f4044",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3589,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3766
+ },
+ "cost_usd": 0.0238253,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Align Bitcoin Core's miniscript type-inference rules with the exact wording of BIP-379, ahead of a BIP-379 test-vector PR.",
+    "No functional change to which scripts are accepted, purely a formal alignment with the spec text."
+   ],
+   "reviewability": [
+    "Paused: the author explicitly marked this draft until the approach is agreed in the upstream BIP-379 discussion.",
+    "A newer alternative approach has since surfaced upstream, so the current diff may be superseded before review is worthwhile."
+   ],
+   "agreement": [
+    "Concept ACK with detailed technical support confirming the change is behavior-preserving (guggero).",
+    "guggero flags that the resulting 'e' property no longer matches the BIP's own prose description of uniqueness, prompting a separate BIP clarification PR (guggero).",
+    "Ongoing upstream discussion (bips#2267, rust-miniscript#1037) suggests the approach may still evolve before this PR is finalized."
+   ],
+   "categories": []
+  },
+  "summary": "This PR tweaks Bitcoin Core's miniscript type-computation rules (the d: wrapper, or_b, and thresh fragments) so that the derived type properties exactly match the literal text of BIP-379, rather than an equivalent but differently-phrased formulation Core currently uses. The change affects only 4 lines of logic in src/script/miniscript.cpp and, per review, does not alter which descriptors Core accepts (the 'm' property already gates on the relevant conditions). It is motivated by a BIP-379 test-vector PR that discriminates between the two phrasings in a small number of test vectors.",
+  "problem": "BIP-379 test vectors under development (bips#2240) distinguish between equivalent-but-differently-worded typing rules, so Core's current implementation would fail some of those vectors even though its actual descriptor-acceptance behavior is correct. This affects cross-implementation interoperability testing (Core, btcd, rust-miniscript) around the BIP-379 spec, not end users directly yet.",
+  "discussion": {
+   "open_concerns": [
+    "guggero notes that the resulting 'e' typing no longer matches the BIP's own description of unique dissatisfiability, which triggered a separate BIP clarification PR (bips#2267).",
+    "A newer alternative approach is being proposed upstream (rust-miniscript#1037) and guggero has drafted an alternative patch on top of this PR pending which direction gains agreement."
+   ],
+   "resolved_concerns": [
+    "guggero confirmed the deleted 'o'/'e' lines for the d: wrapper were no-ops given existing invariants, addressing a correctness concern about behavior preservation.",
+    "guggero confirmed the or_b/thresh change cannot alter descriptor acceptance since 'm' already requires child 'e' and 'm' together."
+   ],
+   "author_status": "said wait for upstream BIP-379 agreement (bips#2240/#2267)"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on BIP agreement",
+   "reason": "Author (sipa) explicitly marked the PR draft 'until there is some agreement on this approach' in the upstream BIP-379 discussion (bips#2240), and subsequent comments show the approach is still evolving (bips#2267, rust-miniscript#1037), so a code review now risks being invalidated by a different upstream direction."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACK from guggero with technical validation, but he flags a standing mismatch between the new 'e' semantics and the BIP's prose, addressed via a separate BIP PR rather than a code fix here.",
+   "reason": "guggero gave a substantive Concept ACK confirming the change is behavior-preserving, but also raised that the resulting typing now contradicts the BIP's own description of the 'e' property in edge cases; this is being resolved upstream (bips#2267) rather than changed in this PR, and the overall direction may still shift given a newer proposal (rust-miniscript#1037).",
+   "evidence": [
+    "guggero: 'Concept ACK 2631ece... the Go implementation and rust-miniscript PR are now updated' (positive, informed by cross-implementation alignment).",
+    "guggero: notes Core would assign 'e' to expressions 'whose dissatisfaction is provably not unique, which contradicts the BIP's own description of the property' (standing caveat, resolved via bips#2267 wording fix, not a code change).",
+    "guggero (2026-08-26): 'I took the liberty of instructing an LLM to implement the same changes on top of this PR... assuming this is the direction that finds agreement' (signals the approach may still change)."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on bitcoin/bips#2240 (BIP-379 test vectors) and cross-implementation alignment (btcsuite/btcd#2568, rust-bitcoin/rust-miniscript#1032/#1037)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Miniscript typing underlies descriptor parsing and malleability analysis used by wallet descriptor support (label: Descriptors), though the change is purely about spec-text alignment in the type-inference engine, not wallet behavior or user-facing functionality.",
+    "band": "P4",
+    "reason_tag": "spec alignment",
+    "score": 0.12,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because reviewer analysis (guggero) confirms the change 'cannot change what Core accepts' since the 'm' property already gates on the relevant child conditions, so wallets and descriptor users see no behavioral difference. The only value is aligning with BIP-379 test vectors for cross-implementation interoperability testing, which is a documentation/spec-conformance concern with no fund-safety, correctness, or user-facing benefit for wallet users today, and the approach itself is still unsettled upstream."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this PR belongs more properly under a 'descriptors' or general script/utils category not offered in the category list; forced into wallet per the label hint.",
+   "Whether the eventual direction (possibly superseding this diff, per guggero's alternative patch) will replace this PR entirely, making current review moot beyond understanding intent."
+  ],
+  "card": "This draft PR by sipa tweaks Bitcoin Core's miniscript type-inference rules (d: wrapper, or_b, thresh) to match the literal wording of BIP-379 rather than an equivalent but differently phrased formulation, motivated by a BIP-379 test-vector PR (bips#2240) that discriminates between the two. Reviewer guggero confirmed via detailed analysis that the change cannot alter which descriptors Core accepts, since the 'm' property already gates on the relevant child conditions, and gave a Concept ACK, aligning with corresponding changes in btcd and rust-miniscript. However, guggero also flagged that the resulting 'e' semantics now contradict the BIP's own prose about unique dissatisfiability, prompting a separate BIP clarification PR (bips#2267), and a newer alternative approach (rust-miniscript#1037) is under discussion that could still change the direction. The author explicitly marked this draft pending agreement on the approach upstream, so it is Paused for review purposes. Impact within the wallet/descriptors category is marginal: it is a spec-conformance change with no functional effect on wallet users or descriptor acceptance."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

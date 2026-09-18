@@ -1,0 +1,94 @@
+{
+ "number": 36187,
+ "input_hash": "f0ff638ea4108231",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8567,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2223
+ },
+ "cost_usd": 0.0210883,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a security hole where bitcoind silently falls back to IPv6-only RPC binding if the default IPv4 port is taken, letting a local attacker on another user account steal RPC credentials via a rogue listener.",
+    "Restores fail-closed behavior: default IPv4 bind must succeed, and explicit -rpcbind entries must all succeed."
+   ],
+   "reviewability": [
+    "Ready. Author actively pushing fixes for nits and the IPv6-only error-message suggestion, no open blocking issues."
+   ],
+   "agreement": [
+    "Strong support from multiple reviewers with concept ACKs and no objections (l0rinc, janb84, sedited, winterrdog).",
+    "Only nitpicks raised, most already addressed by the author in later pushes."
+   ],
+   "categories": []
+  },
+  "summary": "This PR restores fail-closed behavior for the HTTP/RPC server: by default the IPv4 bind must succeed (IPv6 becomes optional), and when -rpcbind is explicitly specified, all listed binds must succeed. It fixes a credential-exfiltration issue where a rogue process squatting on the default IPv4 RPC port could receive bitcoin-cli's plaintext cookie credentials while bitcoind silently continued on IPv6 only. It adds a functional test that captures and verifies the leaked Authorization header scenario, and improves bind failure/error logging.",
+  "problem": "When another process occupies the default IPv4 RPC port, bitcoind currently starts anyway on IPv6, and bitcoin-cli (which defaults to IPv4) sends RPC credentials to that other process in plaintext, allowing a local attacker on a different user account to hijack RPC access. This regressed prior fail-closed behavior from 2012 (referenced PR #1822) and was previously attempted to be fixed in #14968 in 2018 but abandoned due to CI issues.",
+  "discussion": {
+   "open_concerns": [
+    "winterrdog suggested making the IPv6-only host error message more actionable by pointing users to -rpcbind; author acknowledged and has been iterating on this ('Good point... should at least be to get an informative error message'), addressed in a later force-push.",
+    "janb84's style-consistency nit on push_back/emplace_back and log-level nit were open as of the last review comment, author said 'Will do if others agree, holding off for now.'"
+   ],
+   "resolved_concerns": [
+    "janb84's leftover assert nit was addressed in a later push per author's comment 'Latest push addresses all but 1 comment from...'.",
+    "Typo/grammar issue in commit message noted by janb84, considered a minor nit."
+   ],
+   "author_status": "active, addressing review, last activity 2026-09-11"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No blocking issues; author is actively responding to review with force-pushes addressing nits, most recently avoiding stringly-typed sets and improving error messaging. No material unresolved request is pending beyond minor style nits."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Multiple concept ACKs (l0rinc, janb84, sedited, winterrdog) with only nitpicks raised, none blocking.",
+   "reason": "Several members independently reviewed the security rationale and agreed with the fix; remaining comments are style nits and a suggestion for clearer error messaging that the author is incorporating.",
+   "evidence": [
+    "l0rinc: 'Concept ACK, thanks for pushing the fix'",
+    "janb84: 'Concept ACK ... Looks good, some suggestion NITS.'",
+    "sedited: 'Concept ACK'",
+    "winterrdog: 'concept ACK ... this makes sense since bitcoin-cli defaults to IPv4'",
+    "winterrdog suggested improving the IPv6-only error message, author agreed and is addressing it"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced as completing the fail-closed behavior originally attempted in #14968 (2018), now made feasible due to the in-tree socket implementation reporting each bind result."
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly modifies src/httpserver.cpp bind logic and error handling for the RPC HTTP server, and adds functional tests in test/functional/rpc_bind.py. Labeled RPC/REST/ZMQ.",
+    "band": "P1",
+    "reason_tag": "fund/credential safety",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P1 because this closes a credential-exfiltration vector: a rogue local process on a different user account can steal RPC cookie credentials sent in plaintext when bitcoind silently falls back to IPv6-only binding, per the PR description's severity analysis and the new test that captures the leaked Authorization header. This restores intentional 2012 fail-closed behavior (referenced PR #1822) that regressed over time, and revives a previously abandoned 2018 fix attempt (#14968) now made possible by better socket-level bind reporting.the attack requires local multi-user access, which is a real but narrower threat model, keeping this from being an even higher-severity remote issue, but it is still a genuine security defect within the RPC/HTTP server's default configuration."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the remaining open nits (style consistency, log level, error message wording) will require another round before merge, though none appear blocking.",
+   "Exact CI stability given 5 force-pushes and 'unstable' mergeable_state; not a priority factor but worth noting for reviewers picking this up."
+  ],
+  "card": "This PR restores fail-closed behavior for bitcoind's HTTP/RPC server so that the default IPv4 bind must succeed, closing a credential-exfiltration hole where a local attacker on another user account could squat on the default IPv4 RPC port and receive bitcoin-cli's plaintext cookie credentials while bitcoind silently continued on IPv6 alone. The PR description explains the severity clearly and includes a new functional test that actually captures the leaked Authorization header to prove the vulnerability and the fix. It revives a 2018 attempt (#14968) that was abandoned due to CI issues with IPv6 support, now made feasible because the in-tree socket implementation reports each bind result individually. Four members gave concept ACKs (l0rinc, janb84, sedited, winterrdog) with no objections, only style nits and a suggestion to make the IPv6-only host error message clearer, which the author is actively incorporating via force-pushes. The PR is in a labeled RPC/REST/ZMQ area and is ready for review now, with the author actively engaged as of 2026-09-11."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

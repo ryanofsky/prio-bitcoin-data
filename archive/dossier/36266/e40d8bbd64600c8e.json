@@ -1,0 +1,82 @@
+{
+ "number": 36266,
+ "input_hash": "e40d8bbd64600c8e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4447,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 1667
+ },
+ "cost_usd": 0.0141883,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes dumptxoutset fail fast and safely instead of doing wasted or unsafe work.",
+    "Prevents a stale rollback target from being processed after the UTXO copy, and blocks concurrent dumps that can corrupt output files or the prune lock."
+   ],
+   "reviewability": [
+    "Ready to review now, no open questions or blockers."
+   ],
+   "agreement": [
+    "No reviewer activity yet, so agreement is Crickets."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds two early-exit checks to the dumptxoutset RPC: it now validates that a rollback target block is on the active chain before doing any UTXO copying or block disconnection, and it prevents concurrent dumptxoutset calls by using an atomic flag combined with a renamed DumptxoutsetGuard class that also manages the prune lock. Previously, a stale rollback target would only fail after the full UTXO set was copied and blocks rolled back, and concurrent runs could corrupt the output file or delete each other's prune locks mid-rollback.",
+  "problem": "Users of dumptxoutset (mainly assumeutxo snapshot generation and testing) could trigger expensive wasted work with a stale target, or, if two calls ran concurrently, corrupt a completed dump file or destabilize the prune lock protecting blocks mid-rollback.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failures, no rebase needed, and no open review requests; the PR is small and self-contained with new functional test coverage for both fixed scenarios."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer comments yet; PR was opened one day ago.",
+   "reason": "No reviews or concept comments have been posted.",
+   "evidence": [
+    "distinct_reviewers: 0",
+    "no discussion recorded"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly modifies the dumptxoutset RPC handler in src/rpc/blockchain.cpp and its functional test, with the RPC/REST/ZMQ label applied.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes a real correctness issue: on master, a second concurrent dumptxoutset call can corrupt the first run's output file (both write to the same '.incomplete' path) or delete the prune lock mid-rollback, per the description's own explanation of the current failure modes. The author also notes the audience for this RPC is very small and calls the concurrent-run scenario 'a pretty unlikely scenario' for the stale-target fix, which caps its impact within the rpc category."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No reviewer has weighed in yet given the PR's age of one day, so agreement assessment may change quickly.",
+   "No corroborating evidence beyond the author's own description that concurrent dumptxoutset calls happen in practice."
+  ],
+  "card": "This PR hardens the dumptxoutset RPC against two edge cases: a stale rollback target that currently only fails after wasted UTXO-copy work, and concurrent dumptxoutset calls that can corrupt the output file or mismanage the prune lock mid-rollback. The author's description is the main evidence of impact, describing the concurrent-run bug as capable of corrupting a completed dump file, though they characterize the audience for this RPC as very small and the stale-target scenario as unlikely. The PR is small (57/-12 across two files), includes new functional test coverage for both fixes, and has no reviewer activity yet one day after opening. No dependencies or blocking discussion exist."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

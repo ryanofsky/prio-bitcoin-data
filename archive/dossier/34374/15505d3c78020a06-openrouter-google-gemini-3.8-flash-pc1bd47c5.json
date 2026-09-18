@@ -1,0 +1,407 @@
+{
+ "number": 34374,
+ "input_hash": "15505d3c78020a06",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:25:50+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 40031,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10244
+ },
+ "cost_usd": 0.06843825,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Provide structured log entries in the kernel C API and decouple kernel logging from the node logger"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Recent rework resolved review feedback and CI is passing cleanly"
+   ],
+   "agreement": [
+    "Strong support for rationalizing the kernel logging API and moving to structured entries (ryanofsky)",
+    "Technical objections on exception safety and lock ordering were resolved in code (w0xlt)",
+    "Design questions regarding dispatcher overhead and side effects were resolved by isolating kernel logger (ajtowns)",
+    "Criticism of global singleton and multi-connection model was noted as out of scope without follow-up (purpleKarrot)"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it rationalizes the C API with structured entries and removes the node logging dependency from the kernel library",
+      "External library consumers avoid brittle string parsing while the kernel build drops logging.cpp"
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces string-based log callback delivery in the bitcoinkernel C API with a structured `btck_LogEntry` and simplifies logging configuration to level filtering. Implements the `util/log.h` hooks directly in a kernel-specific `KernelLogger`, allowing `logging.cpp` to be dropped entirely from the kernel build.",
+  "problem": "External consumers of `bitcoinkernel` currently receive logs as pre-formatted strings, forcing brittle string parsing to extract timestamps, categories, or severity levels. Additionally, linking the kernel library pulls in node-specific logging machinery like file writing, rate limiting, and log buffering.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ajtowns noted indirection overhead from std::function and risk with logging argument side-effects; resolved by removing the dispatcher abstraction from util and isolating the implementation inside kernel.",
+    "purpleKarrot criticized the multi-connection logging model and singleton usage; author noted the connection model is preexisting and orthogonal to the structured logging change.",
+    "w0xlt flagged potential leaks and a deadlock risk if bad_alloc occurs during callback registration; author addressed both with RAII wrappers and releasing locks before user data destruction."
+   ],
+   "author_status": "active, addressed feedback and force-pushed on 2026-09-17"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Branch is clean, CI passes, and the author addressed recent review comments from w0xlt."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "ryanofsky",
+     "stance": "support",
+     "note": "Concept and approach ACK with detailed architectural feedback and rebase assistance."
+    },
+    {
+     "login": "ajtowns",
+     "stance": "objection",
+     "note": "Raised concerns on dispatcher std::function overhead and log evaluation semantics, now resolved."
+    },
+    {
+     "login": "purpleKarrot",
+     "stance": "objection",
+     "note": "Objected to singleton pattern and questioned need for multi-connection logging API."
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "Pointed out memory leaks and lock order deadlocks in callback registration exception paths, now resolved."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ajtowns",
+     "kind": "approach",
+     "harm": "Performance overhead from std::function indirection and unexpected evaluation differences for log arguments.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-01-23: 'Jumping through a std::function when we could just be checking an atomic bitfield doesn't seem like a good approach.'",
+     "resolution_evidence": "2026-09-09: 'util::log::Dispatcher is gone. Instead, this PR implements the Log and Should{Debug,Trace}Log interface, and removes the std::function indirection callbacks'",
+     "sources": [
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "purpleKarrot",
+     "kind": "approach",
+     "harm": "Encourages singleton pattern usage and needlessly complex multi-connection C API.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-01-27: 'I doubt that there is an actual use case for multiple logging connections... Now everybody should understand why singletons are viral and therefore should be forbidden.'",
+     "resolution_evidence": "2026-01-27: author replied that connection model changes are orthogonal and better discussed in #30342; reviewer did not follow up.",
+     "sources": [
+      "dossier",
+      "thread",
+      "thread"
+     ],
+     "status_merged_from": "thread"
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Deadlock or leaked resources if callback registration throws std::bad_alloc.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-09-16: 'If that callback destroys another logging connection, it tries to acquire the same mutex and deadlocks'",
+     "resolution_evidence": "2026-09-17: 'Good catch, fixed. You're right to point out we need to be careful with executing callbacks when under a lock.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ajtowns",
+     "kind": "correctness",
+     "harm": "LogInfo arguments were made conditionally evaluated, which breaks code relying on side-effects in logging statements",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-01-28: 'I think your latest implementation (a4e8f3c8d6763a95c1804fc40781b379e6127b66) is dangerously wrong, btw -- LogInfo() etc currently always evaluate their arguments, whereas you're making that conditional on LogAcceptCategory which calls WillLog which is conditional on Enabled().'",
+     "resolution_evidence": "2026-01-28: 'Latest force-push (dca56e0237abb485edd1cfe870069e2d75f08e42) reverts the unconditional argument evaluation for Info and higher levels, and adds a unit test to ensure behaviour before and after this PR remains the same.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Memory leak of user_data and potential connection allocation leak if RegisterCallback throws std::bad_alloc",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-09-10: 'RegisterCallback() and LogDebug() can also throw std::bad_alloc. btck_LoggingConnection can be a smart pointer. Holding the connection in a std::unique_ptr prevents its allocation from leaking if logging throws. Shouldn't user_data be destroyed if the callback registration fails ?'",
+     "resolution_evidence": "2026-09-14: 'Fixed by wrapping user data in a RAII UserData wrapper, and the callback in a RAII CallbackHandle wrapper.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "Major concept and approach ACK for rationalizing the kernel logging API into structured entries and dropping unnecessary configuration functions.",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: nonblocking objection open (purpleKarrot)",
+   "reason": "ryanofsky provided a substantive Concept and Approach ACK, praising the simplification of the kernel API. Technical objections regarding exception safety and overhead were resolved in pushes.",
+   "evidence": [
+    "ryanofsky: 'Major concept and approach ACK. This seems thoughtfully implemented to be minimally disruptive to existing code while rationalizing the kernel logging API'"
+   ],
+   "model_state": "Strong",
+   "derivation": "nonblocking objection open (purpleKarrot)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "ajtowns",
+      "kind": "correctness",
+      "harm": "LogInfo called during global initialization prior to InitLogger() would regress without independent g_dispatcher implementations",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-23: 'This seems like a regression. With this approach you can't assume LogInfo called during global initialization won't be called prior to InitLogger(), as it now only needs to pass through GetDispatcher() and g_dispatcher().'",
+      "resolution_evidence": "2026-01-26: 'address @ajtowns comment: removed SetDispatcher and GetDispatcher and instead implemented different g_dispatcher functions for logging.cpp and bitcoinkernel.cpp.'"
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "Indirection overhead checking whether to log via std::function instead of an atomic bitfield check",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-23: 'Jumping through a std::function when we could just be checking an atomic bitfield doesn't seem like a good approach.'",
+      "resolution_evidence": "2026-09-09: 'util::log::Dispatcher is gone. Instead, this PR implements the Log and Should{Debug,Trace}Log interface, and removes the std::function indirection callbacks this PR used to have.'"
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "correctness",
+      "harm": "LogInfo arguments were made conditionally evaluated, which breaks code relying on side-effects in logging statements",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-28: 'I think your latest implementation (a4e8f3c8d6763a95c1804fc40781b379e6127b66) is dangerously wrong, btw -- LogInfo() etc currently always evaluate their arguments, whereas you're making that conditional on LogAcceptCategory which calls WillLog which is conditional on Enabled().'",
+      "resolution_evidence": "2026-01-28: 'Latest force-push (dca56e0237abb485edd1cfe870069e2d75f08e42) reverts the unconditional argument evaluation for Info and higher levels, and adds a unit test to ensure behaviour before and after this PR remains the same.'"
+     },
+     {
+      "reviewer": "purpleKarrot",
+      "kind": "interface",
+      "harm": "Unnecessary interface complexity supporting multiple logging connections and min_level filtering instead of a simple global handler API",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-01-27: 'I doubt that there is an actual use case for multiple logging connections. The logger is global internally and can be handled as global by clients as well (no need for userdata). Consider modelling the logging API after set_terminate in the C++ standard library... I also think that clients are able to apply their own filtering, so the btck_logging_set_min_level function can be removed.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "purpleKarrot",
+      "kind": "approach",
+      "harm": "Use of viral singleton pattern in kernel logging state",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-01-27: 'I interpret that as \"We have to use a singleton here because of other singletons\". Now everybody should understand why singletons are viral and therefore should be forbidden. I have zero tolerance for such code.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Memory leak of user_data and potential connection allocation leak if RegisterCallback throws std::bad_alloc",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-10: 'RegisterCallback() and LogDebug() can also throw std::bad_alloc. btck_LoggingConnection can be a smart pointer. Holding the connection in a std::unique_ptr prevents its allocation from leaking if logging throws. Shouldn't user_data be destroyed if the callback registration fails ?'",
+      "resolution_evidence": "2026-09-14: 'Fixed by wrapping user data in a RAII UserData wrapper, and the callback in a RAII CallbackHandle wrapper.'"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Deadlock if push_back throws std::bad_alloc while holding logger mutex, as temporary callback destructor destroys user_data under lock",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-16: 'There is a narrow failure case here... Registration creates a temporary Callback while holding the logger mutex. That temporary owns user_data. If allocating the list node throws std::bad_alloc, the temporary is destroyed before the mutex is released, invoking user_data_destroy_callback. If that callback destroys another logging connection, it tries to acquire the same mutex and deadlocks'",
+      "resolution_evidence": "2026-09-17: 'Good catch, fixed. You're right to point out we need to be careful with executing callbacks when under a lock.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "rationalizes the kernel logging API by providing structured log entries instead of formatted strings, dropping obscure options and confusing filtering functions, and eliminating global functions not tied to logging connections",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "ryanofsky",
+      "stance": "support",
+      "note": "Major concept and approach ACK; suggested removing function-pointer overhead and splitting out preparatory refactors into separate PRs"
+     },
+     {
+      "login": "ajtowns",
+      "stance": "objection",
+      "note": "Identified early initialization regression, std::function overhead, and dangerous conditional evaluation of log arguments"
+     },
+     {
+      "login": "purpleKarrot",
+      "stance": "objection",
+      "note": "Critiqued the logging interface design (advocating a simpler set_terminate style API without min_level filtering) and strongly criticized singleton usage"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "Identified bad_alloc memory leaks on registration failure and a narrow deadlock condition when holding the logger mutex"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: ryanofsky supports the approach; ajtowns and w0xlt had technical objections that were resolved; purpleKarrot's critique of the connection interface and singleton design remains unanswered.",
+    "usage": {
+     "input_tokens": 14381,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 6358
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "Performance overhead from std::function indirection and unexpected evaluation differences for log arguments.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-23: 'Jumping through a std::function when we could just be checking an atomic bitfield doesn't seem like a good approach.'",
+      "resolution_evidence": "2026-09-09: 'util::log::Dispatcher is gone. Instead, this PR implements the Log and Should{Debug,Trace}Log interface, and removes the std::function indirection callbacks'"
+     },
+     {
+      "reviewer": "purpleKarrot",
+      "kind": "approach",
+      "harm": "Encourages singleton pattern usage and needlessly complex multi-connection C API.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-01-27: 'I doubt that there is an actual use case for multiple logging connections... Now everybody should understand why singletons are viral and therefore should be forbidden.'",
+      "resolution_evidence": "2026-01-27: author replied that connection model changes are orthogonal and better discussed in #30342; reviewer did not follow up."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Deadlock or leaked resources if callback registration throws std::bad_alloc.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-16: 'If that callback destroys another logging connection, it tries to acquire the same mutex and deadlocks'",
+      "resolution_evidence": "2026-09-17: 'Good catch, fixed. You're right to point out we need to be careful with executing callbacks when under a lock.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "Major concept and approach ACK for rationalizing the kernel logging API into structured entries and dropping unnecessary configuration functions.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#30342",
+    "#33847"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Substantively modifies the bitcoinkernel C API and removes node logging dependencies from the kernel library.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it addresses a fundamental usability limitation of the kernel API, delivering structured log records to external consumers instead of strings, and removes the node's logging.cpp dependency from the kernel library as part of #27587."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Although logging is shared infrastructure, changes here are scoped entirely to the kernel API boundary and do not alter node logging utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Category instructions state that logging changes whose purpose is one specific area belong to that area, not utils."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Carries the Validation label, but only touches kernel logging wrappers and interfaces without altering validation or consensus logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes to the kernel library API without substantive validation changes are excluded from the validation category."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR updates the bitcoinkernel C API to deliver log entries via a structured btck_LogEntry struct rather than pre-formatted strings, and simplifies the API to level-based filtering. It implements the log hooks in a dedicated KernelLogger, allowing the kernel build to drop its dependency on logging.cpp. The change directly benefits developers building on libbitcoinkernel by removing brittle log-string parsing and decoupling kernel logging from the node. ryanofsky has provided a Concept and Approach ACK, and recent review comments on callback exception handling have been resolved."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.03462825
+}

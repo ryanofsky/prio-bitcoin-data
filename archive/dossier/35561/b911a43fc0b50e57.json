@@ -1,0 +1,134 @@
+{
+ "number": 35561,
+ "input_hash": "b911a43fc0b50e57",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10653,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2601
+ },
+ "cost_usd": 0.025064299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Moves several CNodeState fields (compact-block preference flags, preferred-download flag) onto the per-peer Peer struct and makes them atomic",
+    "Reduces reliance on cs_main locking in net_processing, part of a longer-running effort to shrink that lock's scope"
+   ],
+   "reviewability": [
+    "Needs rebase before merge",
+    "Reviewers have engaged carefully with the locking reasoning and it's in good shape to review, though CI issues are tracked in a separate PR (#36088)"
+   ],
+   "agreement": [
+    "Concept ACK and code review ACK with no unresolved objections (davidgumberg, mzumsande, dergoegge, w0xlt)",
+    "dergoegge raised a nonblocking preference for the old cs_main-based reasoning approach, author explained rationale, no pushback",
+    "mzumsande's annotation request was addressed by the author in a later push"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it is an internal refactor reducing cs_main lock scope with no consensus or user-facing behavior change",
+      "Improves code maintainability and lock-scope reduction (tracked goal in issue #27502) but delivers no direct feature or bug fix to users"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves several CNodeState fields (m_requested_hb_cmpctblocks, m_provides_cmpctblocks, fPreferredDownload/m_preferred_download) to the per-peer Peer struct, converting them to atomics so they no longer require cs_main. A final scripted-diff commit renames fPreferredDownload to m_preferred_download for consistency. The change also removes cs_main usage from a handful of call sites and adds a lock annotation to NewPoWValidBlock.",
+  "problem": "CNodeState fields guarded by cs_main add unnecessary lock scope and complexity to net_processing.cpp, and the maintainers have a stated goal (issue #27502) of reducing cs_main's footprint to avoid lock contention and simplify reasoning about thread safety. This mainly affects P2P code maintainers who need to reason about locking correctness rather than end users directly.",
+  "discussion": {
+   "open_concerns": [
+    "dergoegge noted the previous cs_main-based version was 'a little easier to reason about' regarding the m_num_preferred_download_peers invariant, but treated this as a soft preference rather than a blocking issue; author explained tradeoffs and dergoegge did not push back further"
+   ],
+   "resolved_concerns": [
+    "mzumsande asked whether NewPoWValidBlock needs a !m_peer_mutex annotation since the compiler misses it due to a lambda; author agreed and added the annotation in a later commit",
+    "dergoegge's nit to scripted-diff the fPreferredDownload rename was implemented in the third commit"
+   ],
+   "author_status": "active, last activity 2026-08-26 with a force-push and rebase explanation; author engaged with all review comments and pushed fixes"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked 'Needs rebase' and mergeable_state is dirty. The code itself has been thoroughly reviewed (concept ACK, code review ACK, and a full ACK from w0xlt as of 2026-09-08), so once rebased it should be quick to finalize; CI failures are attributed to an unrelated tracked issue (#36088)."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs and a code review ACK from multiple members (davidgumberg, mzumsande, dergoegge) plus a full ACK from w0xlt, with no unresolved objections.",
+   "reason": "Multiple reviewers engaged substantively with the locking reasoning and the author addressed all raised points (annotation, scripted-diff nit); the one soft preference (dergoegge preferring the old locking style) was explained away without further pushback, so this is Strong rather than merely Positive.",
+   "evidence": [
+    "davidgumberge: 'Concept ACK...Less cs_main is good, locks are scary'",
+    "dergoegge: 'Code review ACK 765f659...changes themselves look fine/safe to me'",
+    "mzumsande: 'Concept ACK' and raised annotation issue which author fixed",
+    "w0xlt: 'ACK 3861ab49ec'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Further branches by the author that move additional CNodeState fields off cs_main, part of the broader effort tracked in issue #27502 to reduce cs_main lock scope"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies net_processing.cpp peer-state handling, locking, and compact-block/preferred-download logic; labeled P2P.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "This is an internal refactor reducing cs_main lock scope with no behavior change for users or the network protocol. The author states the motivation is to eventually remove CNodeState/cs_main dependency entirely, referencing issue #27502, and dergoegge acknowledged 'less cs_main is good, locks are scary and can hurt performance,' but no concrete bug or user-facing improvement is claimed. Leverage exists as it lays groundwork for further lock-scope reduction work the author has in private branches."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Only touches comments in test_framework.py and wallet_listsinceblock.py to update a renamed variable reference; no test logic or framework capability changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical comment-only edit following the scripted-diff rename; not a substantive test infrastructure change."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "The wallet_listsinceblock.py change is only a comment update reflecting the variable rename, not a wallet behavior or test change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a wallet-area change; purely a mechanical comment edit tied to the p2p rename."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers view this cs_main-reduction effort as strategically important enough to warrant higher priority than a typical cleanup, given the referenced long-standing issue #27502",
+   "Exact impact of the needs_rebase state on how soon this can be re-reviewed, since conflicts exist with several other open PRs touching the same file"
+  ],
+  "card": "This PR moves several CNodeState fields (compact-block negotiation flags and the preferred-download flag) into the per-peer Peer struct as atomics, removing their cs_main dependency, as part of a broader effort (issue #27502) to shrink cs_main's scope in net_processing. It is purely an internal refactor with no consensus, protocol, or user-facing behavior change, and reviewers agree the change is 'fine/safe' (dergoegge) though one preferred the old locking's easier reasoning without insisting on a change. Review has been substantive: concept ACKs from davidgumberg and mzumsande, a code-review ACK from dergoegge, and a full ACK from w0xlt after the author addressed a missed lock annotation and a rename nit. The PR currently needs a rebase (labeled 'Needs rebase', mergeable_state dirty) and conflicts with several other open P2P PRs touching the same file. Priority within p2p is modest since the benefit is maintainability and lock-scope reduction rather than a user-visible fix or feature."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

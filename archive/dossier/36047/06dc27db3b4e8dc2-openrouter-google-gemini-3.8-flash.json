@@ -1,0 +1,109 @@
+{
+ "number": 36047,
+ "input_hash": "06dc27db3b4e8dc2",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:27+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12807,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2144
+ },
+ "cost_usd": 0.01764525,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent spurious 'internal bug' errors when mining RPCs are called during node shutdown",
+    "Return a clean shutdown error to RPC clients instead of failing non-fatal assertions"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Small self-contained fix with a regression test"
+   ],
+   "agreement": [
+    "No reviews or comments yet (chriszeng1010)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it fixes an edge-case bug where getblocktemplate and generateblock report an internal bug instead of a clean shutdown error",
+      "Resolves issue #34262 for RPC callers querying templates while the daemon stops"
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it ensures mining RPCs terminate cleanly without non-fatal assertion failures on shutdown",
+      "Improves client interface reliability for miners polling block templates during node shutdown"
+     ]
+    }
+   ]
+  },
+  "summary": "Mining RPCs (getblocktemplate, generateblock, generateBlocks) previously wrapped miner.createNewBlock() in CHECK_NONFATAL. When a node initiates shutdown, createNewBlock() returns nullptr, causing the RPC to throw a misleading internal bug assertion. This PR catches nullptr to return a standard 'Shutting down' RPC error or cleanly abort block generation.",
+  "problem": "When getblocktemplate or generateblock is executed while the node is shutting down, createNewBlock() returns nullptr, triggering CHECK_NONFATAL and reporting an expected shutdown condition as an internal error (#34262).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly separated, includes a functional test reproducing the shutdown race, and has green CI with no pending reviewer questions."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviews or concept comments yet",
+   "reason": "The PR has received no reviewer engagement since being opened.",
+   "evidence": []
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Modifies mining RPC methods in src/rpc/mining.cpp and updates mining functional longpoll tests.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes a minor error-handling bug during shutdown in the mining RPC surface. It avoids spurious internal failure reports when longpolling or requesting templates while the node stops."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Carries RPC/REST/ZMQ label and directly adjusts the JSON-RPC error code and message returned by getblocktemplate and generateblock.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Replaces an unhandled CHECK_NONFATAL failure with the standard RPC_CLIENT_NOT_CONNECTED ('Shutting down') error in mining RPCs, directly resolving #34262."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a bug (#34262) where calling getblocktemplate or generateblock during node shutdown triggers a CHECK_NONFATAL failure because createNewBlock() returns nullptr. The RPCs now return a clean 'Shutting down' (RPC_CLIENT_NOT_CONNECTED) error and generateBlocks cleanly exits early. A functional test verifying shutdown interruption of longpolling getblocktemplate is included. The PR is ready for review with no open dependencies or feedback yet."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,96 @@
+{
+ "number": 35041,
+ "input_hash": "b72801d0b011e222",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:22+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 31309,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1694
+ },
+ "cost_usd": 0.02983425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up descriptor parsing for extended keys by roughly 30%",
+    "Eliminate redundant base58 decoding and O(n) checksum lookups"
+   ],
+   "reviewability": [
+    "Ready",
+    "Clean diff with benchmark results and addressed reviewer feedback"
+   ],
+   "agreement": [
+    "Strong support with benchmarks verifying ~35% speedup (hodlinator)",
+    "Concept ACK from sedited and minor suggestions addressed (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it delivers a measured ~30% parsing speedup for xpub/xpriv descriptors",
+      "Helps wallet fuzz target throughput and complex multisig parsing",
+      "Descriptor parsing is rarely the primary performance bottleneck in regular node usage"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR optimizes descriptor parsing by avoiding redundant base58 decoding for extended keys and replacing a linear charset search in checksum calculation with a lookup table. It introduces DecodeExtKeyOrPubKey to parse both xpub and xpriv keys in a single base58 decode pass and transitions DecodeBase58 routines to accept std::string_view.",
+  "problem": "ParsePubkeyInner unconditionally called both DecodeExtKey and DecodeExtPubKey, executing two separate base58 decoding and SHA256 passes per key. Additionally, DescriptorChecksum performed linear scans over its input character set, slowing down descriptor parsing and wallet fuzzing harnesses.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Whether base58 optimization approaches previously rejected applied here; hodlinator noted this operates at a cleaner higher-level abstraction and addresses fuzzing performance",
+    "Use of std::string_view to clean up call sites and avoid string copies, addressed by author",
+    "Lookup table type size and constexpr static qualifiers raised by hodlinator, mostly resolved in subsequent force push"
+   ],
+   "author_status": "Active; addressed review comments and force-pushed updates"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is in a clean state, CI passes, and all material review comments have been resolved."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: hodlinator approved with independent benchmarks confirming a 36.7% speedup; sedited concept ACKed.",
+   "reason": "Reviewers verified the benchmark results and supported the change, especially for speeding up wallet fuzz targets, with only minor unresolved nits left.",
+   "evidence": [
+    "sedited Concept ACKed",
+    "hodlinator tested, benchmarked, and approved (re-ACK after string_view updates)",
+    "maflcko provided suggestions regarding string_view which were adopted"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches descriptor parsing and key decoding logic in src/script/descriptor.cpp and src/key_io.cpp under Descriptors label.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it delivers a verified 30-36% performance improvement for parsing descriptors containing extended keys. As hodlinator noted, 'author of this PR motivates it through the concrete second-order effect of speeding up fuzz targets.' While useful for fuzzing and complex multisig descriptor setups, descriptor parsing is rarely a primary bottleneck for wallet users, making it worthwhile but deferrable."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR optimizes descriptor parsing by avoiding redundant base58 decoding and replacing a linear checksum charset search with a 256-entry lookup table. It solves performance overhead in parsing xpub/xpriv descriptors, which noticeably slows down wallet fuzz testing and large multisig setups. Benchmarks provided by both the author and a reviewer demonstrate a 30% to 36% speedup. The PR is fully reviewable and currently has strong reviewer support including an approval."
+ },
+ "raw_text": null
+}

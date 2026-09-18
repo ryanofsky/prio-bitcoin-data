@@ -1,0 +1,159 @@
+{
+ "number": 35037,
+ "input_hash": "a84a690541d6c4d8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:30+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 40278,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2745
+ },
+ "cost_usd": 0.04050225,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Limit concurrent client connections and reserve file descriptors for IPC listeners.",
+    "Support per-listener max-connections configuration via -ipcbind options."
+   ],
+   "reviewability": [
+    "Ready to merge. Reviewers have thoroughly tested and approved the latest iteration."
+   ],
+   "agreement": [
+    "Strong support across multiple reviewers with full code and tested approvals (ryanofsky, Eunovo, xyzconstant, ViniciusCestarii)."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it fixes a gap in file descriptor accounting and prevents IPC connections from starving core resources or crashing the node.",
+      "Establishes an extensible socket option parsing format on -ipcbind for future IPC capabilities."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds connection limits and file descriptor reservations for IPC listeners configured via `-ipcbind`. It introduces an inline option format (`-ipcbind=unix:<path>,max-connections=<n>`), defaulting each listener to 16 connection slots up to a maximum cap of 256, and integrates these reservations into startup file descriptor checks.",
+  "problem": "Previously, IPC listeners accepted unlimited connections without accounting for file descriptors during startup, allowing runaway connection counts to exhaust descriptors, starve P2P/RPC sockets, or trigger startup abort assertions.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Avoided Windows path ambiguity with colons by switching the option delimiter to commas and adding URL decoding (ryanofsky).",
+    "Prevented integer overflow in initialization FD calculations and capped aggregate IPC reservations at 256 (xyzconstant, ViniciusCestarii).",
+    "Retained full resolved socket path in logs and startup error messages (ViniciusCestarii).",
+    "Separated the libmultiprocess subtree update into a dedicated merged PR (#35684) prior to final integration here (Sjors, enirox001)."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All review feedback has been addressed and reviewers have re-ACKed the latest revisions without pending requests."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus with tested and code review approvals from ryanofsky, Eunovo, xyzconstant, and ViniciusCestarii.",
+   "reason": "Reviewers agreed that attaching connection limits to specific listener addresses is cleaner than a global option and confirmed that socket limiting and FD reservation function as intended.",
+   "evidence": [
+    "ryanofsky approved: 'Looks great! This fixes a gap in descriptor accounting, and adds a helpful connection limiting feature'",
+    "Eunovo approved: 'ACK 78a1251365ab0dbfa9267c30760566d3b04bcd08'",
+    "xyzconstant approved: 'Tested ACK 6f8f23866a... Tested locally using socat/nc with max-connections=1 and 2 clients'",
+    "ViniciusCestarii re-ACKed commit 39b1c5a"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes IPC interfaces (`src/interfaces/ipc.h`), IPC protocol handling, and socket listening configurations for `-ipcbind`.",
+    "band": "P2",
+    "reason_tag": "stability",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Without connection limits or file descriptor reservations, IPC listeners could exhaust node file descriptors or hit assertions during startup. As ryanofsky noted, 'This fixes a gap in descriptor accounting, and adds a helpful connection limiting feature.' Attaching options to `-ipcbind` also establishes a pattern for upcoming IPC features such as permission and interface filters."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches only release notes accompanying the code change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release notes accompanying code additions belong to that feature's area rather than the documentation category."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "No changes to mining logic, block template construction, or the Mining interface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The PR does not touch mining templates or block assemblage; keywords matched only incidental test references."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds functional and unit tests specific to IPC initialization and socket limiting.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests validating IPC listener capacity pin the behavior of the IPC subsystem and belong under the IPC category."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches `src/init.cpp` solely to integrate IPC-specific descriptor calculations into AppInitParameterInteraction.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes in init.cpp that support an area's specific option parsing and resource reservation belong to that area."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request allows `-ipcbind` listeners to limit maximum simultaneous client connections using an inline `,max-connections=<n>` socket option syntax. It reserves file descriptors for IPC listeners during node startup, capping per-socket limits at 256 to prevent resource exhaustion and arithmetic overflows. The PR has strong consensus and code/tested approvals from multiple contributors and maintainers, with no open blockers."
+ },
+ "raw_text": null
+}

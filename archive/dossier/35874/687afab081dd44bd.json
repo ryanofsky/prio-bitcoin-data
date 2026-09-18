@@ -1,0 +1,90 @@
+{
+ "number": 35874,
+ "input_hash": "687afab081dd44bd",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4443,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2900
+ },
+ "cost_usd": 0.0203493,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Closes a way for peers who set fRelay=false to send BIP35 mempool requests and dodge the inbound tx-relay capacity limit added in #28463.",
+    "Preserves bitcoinj's SPV filterload-then-mempool flow so legitimate light clients keep working."
+   ],
+   "reviewability": [
+    "Ready to review now, no rebase or CI issues.",
+    "Author reworked the approach after review feedback and nothing is known to invalidate the current code."
+   ],
+   "agreement": [
+    "Two reviewers raised substantive concerns and both were addressed by rework (darosior, gmaxwell).",
+    "No outstanding objections since the author's latest push."
+   ],
+   "categories": []
+  },
+  "summary": "This PR stops inbound peers that advertise fRelay=false from bypassing the inbound transaction-relay capacity limit via BIP35 mempool requests. It ignores non-permissioned mempool requests until the peer enables tx relay (e.g. via BIP37 filterload), while leaving targeted getdata requests unchanged. Tests are added to characterize the prior behavior and verify the fix, and to preserve bitcoinj's SPV filterload-then-mempool sequence.",
+  "problem": "A node offering NODE_BLOOM can be queried for a full mempool snapshot by a peer that has disabled tx relay, letting that peer receive inventory outside the inbound relay capacity accounting introduced in #28463. This is a resource-accounting bypass that node operators running bloom-filter-enabled nodes are exposed to.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "darosior asked whether this would flood fRelay=false peers with unfiltered invs after setting a filter; author added a test showing pre- and post-change behavior for that scenario, satisfying the concern.",
+    "gmaxwell questioned whether fRelay=false peers should be allowed to request inventory at all; author investigated bitcoinj's SPV behavior and reworked the fix to align with it, gmaxwell did not object further."
+   ],
+   "author_status": "active, reworked PR on 2026-08-15 based on review feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI passes, no rebase needed, mergeable clean. Author reworked the approach after gmaxwell's and darosior's feedback and there is no known open question that would invalidate a fresh review of the current code."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: darosior's protocol-change concern and gmaxwell's design question were both addressed by author rework, no further pushback since.",
+   "reason": "Two substantive reviewers engaged with real concerns; both were resolved through explanation and a reworked implementation rather than being brushed aside, and neither reviewer has re-raised an objection since the 2026-08-15 rework.",
+   "evidence": [
+    "darosior: 'I think that's a protocol change... we would flood them with non-filtered INVs' \u2014 resolved by author adding a characterization test.",
+    "gmaxwell: 'Should fRelay=false be able to request inventory at all?' \u2014 author investigated bitcoinj and reworked the fix accordingly, no follow-up objection."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes a residual DoS/resource-accounting gap left after #28463's inbound tx-relay capacity work"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies net_processing.cpp's handling of BIP35 mempool requests and inbound tx-relay capacity accounting, with functional tests in p2p_connection_limits.py and p2p_filter.py. Labeled P2P.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it closes a genuine resource-accounting bypass: a peer with fRelay=false could previously request full mempool snapshots outside the inbound tx-relay capacity limits added in #28463, described by the author as 'a potential DoS angle.' It is not a catastrophic or actively exploited vulnerability (gmaxwell's questions were about design intent, not an in-the-wild attack), so it sits below P1, but it is a real, narrow-but-clear DoS hardening with reviewer engagement confirming the mechanism matters."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project considers this severe enough to warrant backport or release-note flagging is not stated.",
+   "The interaction with the concurrently open #34824 (TxRelay state refactor) that conflicts with this PR is unresolved; unclear which will need to rebase on the other.",
+   "No explicit ACK/NACK vocabulary was used by reviewers, so 'Positive' is inferred from concern resolution rather than an affirmative endorsement."
+  ],
+  "card": "This PR closes a DoS-relevant gap where a peer that sets fRelay=false could still request a full BIP35 mempool inventory snapshot, bypassing the inbound transaction-relay capacity limit introduced in #28463. It now ignores non-permissioned mempool requests until the peer enables tx relay (e.g. via BIP37 filterload), preserving bitcoinj's SPV filterload-then-mempool flow, while leaving targeted getdata requests untouched. Two reviewers (darosior, gmaxwell) raised substantive design concerns about protocol-visible effects and whether fRelay=false peers should be able to request inventory at all; the author investigated bitcoinj's actual behavior and reworked the PR on 2026-08-15 to align with it, with no further objections since. The PR is clean, CI passes, and conflicts with the open #34824 TxRelay refactor which may require rebasing one against the other. Overall this is a real but narrow DoS-hardening fix in P2P policy around bloom-filter mempool requests."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

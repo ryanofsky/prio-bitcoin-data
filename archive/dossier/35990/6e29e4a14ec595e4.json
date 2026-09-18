@@ -1,0 +1,94 @@
+{
+ "number": 35990,
+ "input_hash": "6e29e4a14ec595e4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10012,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 1854
+ },
+ "cost_usd": 0.0206883,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Harden the read-only BDB parser used by migratewallet, legacy wallet loading, and bitcoin-wallet against crafted files that cause unbounded CPU or memory use.",
+    "Closes three DoS gaps left open after an earlier hardening PR (#34959): revisited btree pages, empty overflow-page loops, and oversized page records."
+   ],
+   "reviewability": [
+    "Ready to review now, code is complete with regression tests for each of the three cases.",
+    "No open review comments yet since the PR has had no reviewer engagement."
+   ],
+   "agreement": [
+    "No reviewer has commented yet, so agreement is Crickets.",
+    "Related prior attempts at similar fixes were closed as superseded, suggesting project interest in this class of fix."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it closes concrete DoS/resource-exhaustion vectors in code that parses attacker-supplied wallet files during migratewallet and bitcoin-wallet, with a demonstrated 54MB->800MB blowup example.",
+      "No fund-safety or corruption risk since fixes only add rejections, and a previously-valid file still parses, so it does not reach P1 severity."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds three hardening checks to the read-only BDB parser (BerkeleyRODatabase::Open in migrate.cpp): rejecting btree pages visited more than once via different parent paths, rejecting overflow pages revisited in an empty-data cycle, and bounding total record size per page to the page size. Each fix is a separate commit with a hand-crafted regression test in db_tests.cpp, and the new error strings are added to the fuzz allow-list.",
+  "problem": "A user who runs migratewallet, loads a legacy .dat wallet, or runs bitcoin-wallet feeds an attacker-supplied or corrupted BDB file to this parser. Three crafted-file cases bypass the level-consistency check added in #34959 and can turn a small file (as little as 8KB or 256KB) into exponential parsing work or an OOM (54MB to ~800MB observed), a CPU/memory exhaustion DoS.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, last activity 2026-08-17 (force pushes), no reviewer activity yet"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is not a draft, CI has not failed, and there is no open reviewer request pending. Each of the three fixes has its own commit and a dedicated hand-crafted regression test, giving reviewers a clear surface to check each case independently."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviews or substantive comments yet; only force pushes from the author.",
+   "reason": "distinct_reviewers is 0 and the discussion log shows only two force-pushes by the author, no comments from anyone else.",
+   "evidence": [
+    "Discussion log shows only 'shuv-amp force-pushed' twice, no reviewer comments.",
+    "signals.distinct_reviewers = 0"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Supersedes #35992, which proposed only the record-size bound fix on its own."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies src/wallet/migrate.cpp (BerkeleyRODatabase parser) and adds wallet test coverage; carries the Wallet label.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because this closes concrete resource-exhaustion vectors reachable via migratewallet, legacy wallet loading, and bitcoin-wallet, following directly on the precedent set by #34959 which the project already merged for the same threat model. The description gives concrete numbers: an ~8KB file with shared subtrees does not finish, and a 256KB file drives a node from 54MB to ~800MB RSS. It does not reach P1 because these are read-only DoS issues, not fund-safety or consensus-affecting bugs, and a valid database is unaffected (no false positives claimed)."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No reviewer has engaged yet, so it's unclear whether the maintainers will want the visited-page tracking approach versus an alternative, though the description notes similar approaches (#34946, #35150) were previously closed as superseded rather than rejected on approach.",
+   "Author association is NONE with no history visible in the provided signals, which affects confidence in evaluating how quickly this will get reviewer attention despite the technical merit."
+  ],
+  "card": "This PR adds three hardening checks to the read-only BDB parser (migrate.cpp) used by migratewallet, legacy wallet loading, and bitcoin-wallet: rejecting btree pages revisited via a different parent path, rejecting overflow pages that cycle through empty pages, and bounding a page's total record size to the page size. It closes DoS gaps left after #34959, with concrete evidence: an ~8KB crafted file with shared subtrees never finishes, and a 256KB file drives RSS from 54MB to ~800MB. Each fix has its own commit and a hand-crafted regression test in db_tests.cpp, and it supersedes #35992 which proposed only the third fix alone. No reviewer has yet commented (Crickets), but the code appears ready for review with clear per-case tests. No fund-safety risk; all fixes are additive rejections that do not change parsing of valid files."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

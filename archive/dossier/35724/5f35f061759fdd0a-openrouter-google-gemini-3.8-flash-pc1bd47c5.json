@@ -1,0 +1,325 @@
+{
+ "number": 35724,
+ "input_hash": "5f35f061759fdd0a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:39:52+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 32278,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 14659
+ },
+ "cost_usd": 0.07917975,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Provide detailed statistics on compact block reconstruction sources and redundant prefills",
+    "Log missing transaction IDs at trace level to diagnose reconstruction failures"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Author plans to address a suggestion on lock acquisition efficiency soon"
+   ],
+   "agreement": [
+    "Tested and supported for signet diagnostics and compact block analysis (0xB10C, w0xlt)",
+    "Nonblocking concern about repeated mempool locking during prefill checks (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it improves diagnostics and observability for compact block relay",
+      "Helps measure prefill redundancy and reconstruction failures without altering relay behavior"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR enhances logging for compact block (BIP 152) reconstruction. It logs counts and byte sizes of transactions supplied via prefill, mempool, extrapool, and GETBLOCKTXN requests, tracks redundant prefilled transactions, and logs missing transaction IDs at trace level.",
+  "problem": "Observing and diagnosing compact block reconstruction efficiency is difficult because existing logs do not separate sources or track redundant prefills, hindering analysis of proposed prefill improvements such as #35558.",
+  "discussion": {
+   "open_concerns": [
+    "andrewtoth noted that checking prefill existence via pool->exists acquires pool->cs repeatedly in a loop, suggesting a map-based approach under a single lock instead"
+   ],
+   "resolved_concerns": [
+    "w0xlt identified an incorrect extrapool counter decrement on collisions, resolved after #35727",
+    "w0xlt noted mismatched log levels between ShouldTraceLog and LogDebug, resolved by author in a follow-up push"
+   ],
+   "author_status": "Active; replied on 2026-09-16 acknowledging andrewtoth's feedback and indicating an update will follow soon"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code compiles, passes tests, and has been tested on signet. An upcoming author update to address lock efficiency in the prefill check does not invalidate review of the logging interface."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "caught candidate tracking bug and contradictory log levels, then ACKed"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "neutral",
+     "note": "Pointed out relationship to #35727"
+    },
+    {
+     "login": "0xB10C",
+     "stance": "support",
+     "note": "Tested on signet, praised log output, offered formatting suggestions, waiting for andrewtoth's comment resolution before ACK"
+    },
+    {
+     "login": "andrewtoth",
+     "stance": "objection",
+     "note": "Suggested avoiding repeated pool->cs acquisition by checking leftover prefills under a single lock"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "decrementing extrapool counter when candidate may have come from mempool",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-15: 'removing this decrement assumes that the existing candidate came from the extrapool'",
+     "resolution_evidence": "2026-08-04: author reworked after #35727 merged; w0xlt ACKed on 2026-09-08",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "contradictory logging level (calling LogDebug inside ShouldTraceLog block)",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-19: 'The code has contradictory logging levels'",
+     "resolution_evidence": "2026-08-28: author updated to use LogTrace in one line",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "andrewtoth",
+     "kind": "approach",
+     "harm": "takes pool lock repeatedly via pool->exists in a loop instead of checking under a single lock",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-11: 'The main thing is that we\\'re taking the lock inside each loop via pool->exists with the current approach.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "andrewtoth",
+     "kind": "maintenance",
+     "harm": "unnecessary code complexity by separating count increments from reconstruction logic",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-23: \"I'm not sure I agree with the approach of 78715aab9475b25bb10c82d2e8c1c827560b76ed. Incrementing the counts inline is very cheap. I can't see it be worth the code complexity to move these out.\"",
+     "resolution_evidence": "2026-08-25: \"I moved the count inc/dec out because I thought it made the code easier to read, not for performance... it's nice to scope all the logging code\"",
+     "sources": [
+      "thread",
+      "thread"
+     ],
+     "status_merged_from": "thread"
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "0xB10C",
+     "reason": "Ran on signet and verified log output is helpful for monitoring compact block reconstruction",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Tested and confirmed counter fixes",
+     "substantive": false
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: andrewtoth raised a nonblocking concern regarding repeated lock acquisitions in debug logging; author plans to address it",
+   "reason": "Reviewers support the diagnostic improvement and have tested it on signet, but andrewtoth's efficiency feedback regarding mempool locking remains open while the author prepares an update.",
+   "evidence": [
+    "0xB10C (2026-09-16): 'Doing another review pass over the code and also running it on signet a bit. Saw this log, which looks good to me... Before leaving an ACK, it would be good to have andrew's comment addressed/answered.'",
+    "w0xlt (2026-09-08): 'ACK a55e3bb55ad473556e3e5011bb9782a941f26f84'",
+    "davidgumberg (2026-09-16): 'I just have to think about how to integrate this with the other PR and haven't had a chance yet, will update soon.'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (andrewtoth, andrewtoth)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "removing the candidate decrement assumes it came from extrapool, potentially miscounting mempool candidates",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: \"If I understand correctly, removing this decrement assumes that the existing candidate came from the extrapool. However, it may have been inserted during the earlier mempool scan.\"",
+      "resolution_evidence": "2026-08-04: \"Reworked after https://github.com/bitcoin/bitcoin/pull/35727 merged, this is ready for review.\""
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "maintenance",
+      "harm": "unnecessary code complexity by separating count increments from reconstruction logic",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-23: \"I'm not sure I agree with the approach of 78715aab9475b25bb10c82d2e8c1c827560b76ed. Incrementing the counts inline is very cheap. I can't see it be worth the code complexity to move these out.\"",
+      "resolution_evidence": "2026-08-25: \"I moved the count inc/dec out because I thought it made the code easier to read, not for performance... it's nice to scope all the logging code\""
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "taking the mempool lock in a loop for each prefill transaction via pool->exists instead of querying under an existing lock",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-23: \"Instead of calling pool->exists for each prefill (which takes the pool lock each time), we can take call GetIter after we take the pool lock later.\"",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "ACK a55e3bb55ad473556e3e5011bb9782a941f26f84",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "caught candidate tracking bug and contradictory log levels, then ACKed"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "neutral",
+      "note": "pointed out related PR #35727"
+     },
+     {
+      "login": "0xB10C",
+      "stance": "neutral",
+      "note": "tested on signet and suggested logging improvements, withholding ACK until andrewtoth's comment is addressed"
+     },
+     {
+      "login": "andrewtoth",
+      "stance": "objection",
+      "note": "objected to taking the mempool lock in a loop for each prefill transaction"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: andrewtoth raised a performance concern about acquiring the mempool lock inside a loop; author agreed to look into it.",
+    "usage": {
+     "input_tokens": 9117,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 6742
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "decrementing extrapool counter when candidate may have come from mempool",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'removing this decrement assumes that the existing candidate came from the extrapool'",
+      "resolution_evidence": "2026-08-04: author reworked after #35727 merged; w0xlt ACKed on 2026-09-08"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "contradictory logging level (calling LogDebug inside ShouldTraceLog block)",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-19: 'The code has contradictory logging levels'",
+      "resolution_evidence": "2026-08-28: author updated to use LogTrace in one line"
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "takes pool lock repeatedly via pool->exists in a loop instead of checking under a single lock",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-11: 'The main thing is that we\\'re taking the lock inside each loop via pool->exists with the current approach.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "0xB10C",
+      "reason": "Ran on signet and verified log output is helpful for monitoring compact block reconstruction",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Tested and confirmed counter fixes",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35558 p2p: Prefill compact blocks"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies compact block reconstruction logging and missing transaction accounting in src/blockencodings.cpp and src/net_processing.cpp",
+    "band": "P3",
+    "reason_tag": "unblocks #35558",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because this provides useful diagnostic logging to monitor compact block relay performance and unblocks observability for the prefill series in #35558, without altering P2P protocol rules or network behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35724 improves debug and trace logging for BIP 152 compact block reconstruction by recording transaction counts, byte sizes, and redundancy across the mempool, extrapool, and prefill sections. It assists developers and node operators in analyzing compact block relay efficiency and unblocks performance evaluation for the prefill series in #35558. The PR is tested on signet with support from 0xB10C and an ACK from w0xlt, with a nonblocking comment from andrewtoth on locking efficiency pending an author update."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.03212025
+}

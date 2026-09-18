@@ -1,0 +1,116 @@
+{
+ "number": 34193,
+ "input_hash": "7d61f282b76b6128",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:21+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15128,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2308
+ },
+ "cost_usd": 0.014523375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent corrupted wallet states and unhandled crashes during legacy-to-descriptor wallet migration",
+    "Ensure failed migrations restore the original database automatically without requiring manual user intervention"
+   ],
+   "reviewability": [
+    "Needs rebase due to merge conflicts with open PRs"
+   ],
+   "agreement": [
+    "Strong support for improving migration failure resilience and keeping original database intact (ryanofsky)",
+    "Minor concerns over error handling and temp paths were resolved in the latest push (ryanofsky, achow101)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because migration robustness is essential for all legacy wallet users upgrading to descriptor wallets",
+      "Eliminates failure modes where an aborted migration leaves the wallet partially converted or requires manual backup recovery"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Unranked because the PR does not modify shared utility code outside the wallet"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request hardens legacy BDB to descriptor SQLite wallet migration against unexpected errors and filesystem failures. It catches exceptions during migration steps so the wallet can restore the original database from backup, gracefully handles non-writable database directories, and refactors MigrateToSQLite to build the new SQLite database in a temporary path before removing the original database files.",
+  "problem": "During legacy wallet migration, uncaught exceptions or write errors can crash the node or GUI, skip cleanup, and leave the database in a half-converted state requiring manual file restoration from backups.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Benchmark CI failure on Windows msvcrt due to temporary file collision was resolved (maflcko, hebasto)",
+    "Avoid TOCTOU risks and error masking from path writability pre-checks by handling write failures directly (ryanofsky)",
+    "Clean up temporary SQLite files properly on failure and avoid uninformative error strings (ryanofsky, achow101)"
+   ],
+   "author_status": "active, addressed review feedback on 2026-09-02"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and open wallet PRs, marked dirty."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: ryanofsky code review ACKed previous push; feedback on error handling and temp files was addressed.",
+   "reason": "ryanofsky gave a detailed code review approval noting the net improvement to safety by not deleting the BDB database before SQLite creation succeeds. Open inline suggestions were implemented in the latest push.",
+   "evidence": [
+    "ryanofsky: 'Code review ACK 406c14db5b... I think this looks good, and all the changes here seem safe...'",
+    "achow101 suggested cleaner error returns and temp directory naming, which furszy adopted",
+    "furszy addressed ryanofsky's inline comments on 2026-09-02"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches src/wallet/wallet.cpp and modifies core BDB to SQLite wallet migration logic.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Migration correctness and recovery safety are major priorities in the wallet category for users transitioning from legacy BDB wallets. By delaying the deletion of the legacy database until the new SQLite database has been constructed and catching unexpected exceptions during migration, this PR prevents corrupt or interrupted migrations from stranding users without an automated recovery path."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Filesystem operations and result types are used entirely within the wallet subsystem rather than modifying shared utility libraries.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of utils as it does not change shared utilities or general library interfaces."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR improves legacy-to-descriptor wallet migration by ensuring failures do not leave the wallet in a corrupted state or crash the application. It creates the SQLite database in a temporary path before touching the original BDB files and catches internal exceptions to enable clean automatic rollback from backup. The change directly protects users during the mandatory migration path away from BerkeleyDB. The PR has a code-review ACK from ryanofsky with recent review suggestions applied, but it is currently marked dirty and needs a rebase."
+ },
+ "raw_text": null
+}

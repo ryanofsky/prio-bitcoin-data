@@ -1,0 +1,153 @@
+{
+ "number": 36182,
+ "input_hash": "d6d4adbaa07a55fa",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 47624,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4809
+ },
+ "cost_usd": 0.07307530000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes estimatesmartfee fall back to the block-policy fee estimate whenever the mempool fee estimator isn't ready, instead of erroring or underbidding.",
+    "Fixes long waits after startup and bad low-ball estimates after a cold restart or missing mempool.dat, which real wallet/Lightning integrations have hit in production."
+   ],
+   "reviewability": [
+    "Ready to review now, actively iterated with 7 force-pushes addressing nits and design questions.",
+    "One reviewer already re-ACKed the latest commit; a couple of design questions from davidgumberg are open but not blocking."
+   ],
+   "agreement": [
+    "Multiple concept ACKs and one full ACK on the latest revision with no standing objections (polespinasa, sedited, achow101, jeanpablojp, pseudoramdom).",
+    "Design details (warmup length, whether to keep 3 old mined-block stats) were debated and the author converged on a compromise that reviewers accepted (willcl-ark, davidgumberg).",
+    "A real-world report from an LDK developer corroborates the underlying problem (instagibbs)."
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P2 because it fixes a concrete fee-estimation gap that a Lightning implementation developer confirmed hitting in production (instagibbs), and reduces the ~1 hour wait for a usable estimate after startup.",
+      "It does not touch policy/DoS rules or cluster mempool, so it sits below those, but every wallet relying on estimatesmartfee benefits."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the only rpc-facing change is updated help text for estimatesmartfee describing the new fallback behavior, not a new method or interface change.",
+      "No compatibility or security implications for RPC callers; the underlying behavior change is scored under mempool."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Unranked because the init.cpp change is a narrow one-line notification hook feeding the fee estimator, not a general startup/logging/argument change that utils reviewers would care about."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes estimatesmartfee's combined mode to fall back to the block-policy fee rate estimate whenever the mempool fee estimator cannot produce one (insufficient data, low coverage, or a startup/cold-restart warmup period), rather than returning an error or silently underbidding at the minimum relay fee. It adds a 144-block warmup after a fresh start or a failed mempool reload, notifies the fee estimator manager from init.cpp when mempool loading fails, and restructures the mempool estimator's internal failure handling into a typed MempoolEstimationFailure enum. About 60% of the diff is new unit and functional tests covering these fallback paths.",
+  "problem": "Users of estimatesmartfee (default fee_rate_estimator=none) can wait up to an hour for any fee estimate after a fresh start, and after a cold restart (persistence off or a missing/corrupt mempool.dat) the estimator can silently return the minimum relay fee even though the lost mempool may have held much higher-fee transactions, causing wallets to underpay. This affects any application relying on Bitcoin Core's fee estimates, including Lightning implementations, one of whose developers reported hitting exactly this problem.",
+  "discussion": {
+   "open_concerns": [
+    "davidgumberg asked (2026-09-16) why the warmup end-height needs to be persisted across restarts and why 144 blocks rather than MEMPOOL_HEALTH_WINDOW_BLOCKS (6) was chosen; not yet answered as of the latest activity.",
+    "willcl-ark raised whether LOW_COVERAGE should also fall back to block_policy in combined mode and a possible odd transition between INSUFFICIENT_DATA and LOW_COVERAGE outcomes; author force-pushed a fix addressing this (2026-09-15) and confirmed the fix in a follow-up comment."
+   ],
+   "resolved_concerns": [
+    "polespinasa's early API/naming nits (IsReady/IsNotReady helper, error message typo, doc wording) were all taken and fixed by the author.",
+    "davidgumberg and pseudoramdom's suggestion to use util::Expected<void,...> instead of std::optional for the health check was adopted.",
+    "jeanpablojp's concern about stale release notes/test comments describing old behavior was fixed.",
+    "Debate between keeping 3 vs clearing all mined-block stats after a failed reload (davidgumberg, willcl-ark) was resolved by the author implementing both a clear-and-warmup approach with empirical mainnet data to justify the design."
+   ],
+   "author_status": "active, addressing review, last activity 2026-09-15/16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Mergeable, CI not failing, and the author has been actively iterating (7 force-pushes) resolving prior review comments, including a re-ACK on the latest commit from polespinasa. A couple of design questions from davidgumberg posted 2026-09-16 remain open but are recent (within the waiting_on_author_days window) and not flagged as blocking."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive, with several concept ACKs and one full ACK on the latest revision (polespinasa, sedited, achow101, jeanpablojp, pseudoramdom); design disagreements about warmup length and stats retention were worked through collaboratively and resolved without a standing objector.",
+   "reason": "Multiple members gave concept ACKs early, and after extensive iteration on the warmup/health-check design, polespinasa explicitly re-ACKed the final commit. Open questions from davidgumberg (persistence rationale, 144 vs 6 blocks) are clarifying rather than objecting, and the LOW_COVERAGE/INSUFFICIENT_DATA transition concern from willcl-ark was addressed with a force-push the author confirmed fixed the issue.",
+   "evidence": [
+    "polespinasa: 'ACK a623083... Reviewed again, don't have anything to say'",
+    "achow101, sedited, jeanpablojp, pseudoramdom: Concept ACK",
+    "willcl-ark raised a design concern about LOW_COVERAGE fallback; author pushed a fix and confirmed it addressed the point",
+    "davidgumberg: open, unanswered questions about warmup persistence and constant choice as of 2026-09-16",
+    "instagibbs: real-world confirmation the underlying problem exists in production"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Improves fee-estimate reliability that downstream software (e.g. LDK/Lightning implementations) depends on, per instagibbs's report",
+    "Alternative to #36095, which this PR supersedes as the chosen approach"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Directly changes the mempool fee rate estimator (src/policy/fees/mempool_estimator.*), its manager, and fee estimation RPC help text; labeled 'TX fees and policy'.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real fee-underestimation problem confirmed in production by an LDK developer ('got a report from LDK dev this is happening... it's another roadblock to currently deployed software' - instagibbs), which could cause wallets to underpay and get stuck. It is not a consensus or DoS issue, so it ranks below policy/cluster-mempool work but above a routine cleanup."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Updates estimatesmartfee's help text in src/rpc/fees.cpp to describe the new fallback semantics.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The rpc-visible change is limited to documentation of behavior implemented elsewhere; no new method, no compatibility break, no security implication for the RPC layer itself."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "init.cpp gains a small notification call to the fee estimator when mempool load fails, but this is specific to fee-estimation state, not a general startup/logging/argument-handling change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The init.cpp hook is mechanical glue serving the mempool fee estimator feature and would not be reviewed by utils maintainers on its own merits."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the 144-block warmup constant and the decision to persist warmup state across restarts will be revisited based on davidgumberg's still-open questions.",
+   "Whether tankyleo's follow-up suggestion (excluding IBD-catchup blocks from mempool coverage observations) will be addressed in this PR or split into a separate follow-up.",
+   "Exact current state of the LOW_COVERAGE/INSUFFICIENT_DATA transition fix's test coverage was not independently verified from the diff excerpt provided."
+  ],
+  "card": "This PR makes Bitcoin Core's estimatesmartfee fall back to the block-policy fee estimate whenever the mempool fee estimator isn't ready (during initial data-gathering after startup or after a cold restart with a missing/corrupt mempool.dat), instead of returning an error or silently underbidding at the minimum relay fee. The problem is real: an LDK developer reported hitting exactly this issue in production, confirmed by a maintainer during review ('got a report from LDK dev this is happening, where block estimates are working but mempool is not' - instagibbs). The PR underwent extensive design iteration (7 force-pushes) over warmup length and whether to retain old mined-block statistics after a failed mempool reload, backed by empirical mainnet measurements from the author, and has one full ACK on the latest revision plus several concept ACKs with no standing objections. It is ready for review now; a couple of clarifying design questions from davidgumberg posted most recently remain unanswered but are not flagged as blocking. It supersedes the closed alternative PR #36095."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

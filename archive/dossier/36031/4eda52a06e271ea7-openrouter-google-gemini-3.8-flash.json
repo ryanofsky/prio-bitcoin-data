@@ -1,0 +1,116 @@
+{
+ "number": 36031,
+ "input_hash": "4eda52a06e271ea7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16692,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2159
+ },
+ "cost_usd": 0.02061525,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Simplify wallet encryption by tracking only a single master key in memory",
+    "Reject wallet databases containing multiple encryption keys as corrupt"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Small and cleanly scoped cleanup with all open discussions resolved"
+   ],
+   "agreement": [
+    "Strong support for removing unused multi-passphrase baggage (rkrux, davidgumberg)",
+    "Edge case of v0.18/v0.19 double-encrypted blank wallets noted and dismissed as negligible (jeanpablojp, achow101)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it eliminates dead architectural complexity from 2011",
+      "Simplifies wallet unlock and re-encryption paths without altering disk records"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the benchmark adjustment is a mechanical call-site update"
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the in-memory `mapMasterKeys` map and maximum ID tracker in `CWallet` with an `std::optional<CMasterKey> m_encryption_key`. During wallet loading, encountering more than one `mkey` record is now treated as database corruption. Passphrase unlock, change, and encryption loops are flattened to operate directly on the single master key.",
+  "problem": "Wallet encryption logic historically retained a map for multiple master keys dating back to pull request #352, despite Bitcoin Core only ever using a single master key. This created inconsistent loops and unnecessary complexity across wallet unlocking and database migration.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp pointed out that blank wallets encrypted twice under v0.18/0.19 could contain two mkey records, causing loading to fail as corrupt on this branch. achow101 explained this sequence was extremely improbable in real-world usage and not worth bespoke recovery logic."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is small, CI is green, and the only edge case raised has been addressed by the author."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus across reviewers to simplify master key handling, with code review and testing from davidgumberg and vicjuma.",
+   "reason": "Multiple contributors and members supported the change with Concept, Approach, and Code Review ACKs. The potential edge case raised regarding old blank wallets was discussed and accepted as a non-issue.",
+   "evidence": [
+    "jeanpablojp confirmed that old double-encrypted blank wallets fail to load on this branch, but did not object to proceeding.",
+    "achow101 noted affected user count for that legacy edge case is approximately zero.",
+    "rkrux gave a Strong Concept ACK noting cleanup is necessary for long-term maintainability.",
+    "davidgumberg provided a crACK after verifying failure modes."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes core wallet encryption data structures and wallet database loading logic.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this resolves historical technical debt in wallet encryption without affecting standard user workflows. As achow101 notes, 'current code enforces in a few places (inconsistently) that there is only one encryption key' and removing `mapMasterKeys` simplifies passphrase handling while maintaining database record backward compatibility."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches only src/bench/wallet_encrypt.cpp to adapt a benchmark assertion to the new optional member variable.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The benchmark edit is purely mechanical to follow the removal of `mapMasterKeys`."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR cleans up wallet encryption by replacing mapMasterKeys with a single optional CMasterKey in memory and failing wallet loading if multiple master keys are found. It removes vestigial 2011 code intended for multiple passphrases that was never finished, simplifying unlock and passphrase changes. Reviewers broadly support the change, and a corner case involving double-encrypted blank wallets from v0.19 was assessed and dismissed as negligible. The PR is ready for review with multiple ACKs."
+ },
+ "raw_text": null
+}

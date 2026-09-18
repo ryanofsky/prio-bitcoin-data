@@ -1,0 +1,113 @@
+{
+ "number": 35932,
+ "input_hash": "8b7c8ededcccb1ae",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:45:29+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22083,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3100
+ },
+ "cost_usd": 0.02818725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent shutdown assertion crashes and use-after-free when asynchronous IPC calls are in flight."
+   ],
+   "reviewability": [
+    "CI is failing and code depends on upstream libmultiprocess changes."
+   ],
+   "agreement": [
+    "Crickets with no reviews or comments yet."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it resolves a race condition crash where in-flight IPC calls access node state after chainman is freed on shutdown.",
+      "Ensures reliable disconnect and teardown handling for external consumers such as IPC mining."
+     ]
+    }
+   ]
+  },
+  "summary": "Separates connection teardown from destruction in libmultiprocess and introduces a server object tracker to monitor live ProxyServer instances. Updates `ipc::disconnectIncoming` to wait off the event loop until worker threads finish executing in-flight server method bodies before destroying connections and allowing node shutdown to proceed.",
+  "problem": "During node shutdown, `Ipc::disconnectIncoming` cancels KJ promises but does not wait for asynchronous method bodies running on worker threads (e.g. `Mining.checkBlock`) to complete. Those calls can dereference freed node state like `chainman`, triggering assertion failures such as `Assert(m_node.chainman)` reported in #35845 and #33387.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-08-12"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is failing, and the author notes that this draft is based on an unmerged upstream PR in bitcoin-core/libmultiprocess#335."
+  },
+  "agreement": {
+   "participants": [],
+   "objections": [],
+   "support": [],
+   "state": "Crickets",
+   "summary": "Crickets; no reviews or comments yet.",
+   "reason": "The PR was opened as a draft based on upstream libmultiprocess work and has not received reviewer engagement.",
+   "evidence": [],
+   "model_state": "Crickets",
+   "derivation": "no substantive comment either way",
+   "corrections": [],
+   "thread_read": {
+    "state": "Crickets",
+    "derived": "Crickets",
+    "objections": [],
+    "support": [],
+    "participants": [],
+    "corrections": [],
+    "summary": "Crickets: draft PR with no comments from reviewers yet",
+    "usage": {
+     "input_tokens": 3463,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 177
+    }
+   },
+   "first_read": {
+    "state": "Crickets",
+    "model_state": "Crickets",
+    "objections": [],
+    "support": []
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes IPC connection shutdown in `src/ipc/capnp/protocol.cpp` and `src/ipc/libmultiprocess/`.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it resolves a concrete crash hazard where in-flight IPC calls outlive shutdown and dereference freed node structures. The description cites bug reports #35845 and #33387 found by Antithesis testing, where asynchronous mining calls trigger `assert(m_node.chainman)` during shutdown."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies IPC connection shutdown handling so that disconnectIncoming waits for in-flight server call bodies executing on worker threads to drain before node shutdown continues. This fixes an assertion crash on shutdown reported by Antithesis in #35845 and #33387 where asynchronous mining methods dereference chainman after it has been reset. The PR is a draft with failing CI that depends on upstream changes in bitcoin-core/libmultiprocess#335, and has received no reviews yet."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.003261
+}

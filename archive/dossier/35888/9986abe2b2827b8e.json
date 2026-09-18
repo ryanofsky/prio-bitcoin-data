@@ -1,0 +1,123 @@
+{
+ "number": 35888,
+ "input_hash": "9986abe2b2827b8e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9520,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3415
+ },
+ "cost_usd": 0.0280013,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes CConnman::PushMessage() reject any outbound message whose type or payload exceeds the wire limits before it reaches the transport encoder.",
+    "Currently a caller bug could let an oversized type corrupt the V2 encoding buffer or abort V1 encoding, and this closes that hole with an explicit assumption check."
+   ],
+   "reviewability": [
+    "Ready to review, code is stable after several rounds of addressing feedback.",
+    "One open nit from naiyoma (message-type copy bound) is unaddressed by the author but is minor and does not block review."
+   ],
+   "agreement": [
+    "Concept ACK from ajtowns and naiyoma with no objections raised.",
+    "mzumsande's architectural concern, that enforcing the limit at the transport layer could stall a connection, was addressed by moving the check solely into PushMessage() (author added mzumsande as co-author)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it hardens the outbound send path against a latent memory-safety hazard in V2 encoding, but the hazard is only reachable by an internal caller bug, not by network input.",
+      "It prevents a hypothetical caller from writing past the V2 encoding buffer or corrupting the payload byte, which is a real invariant worth enforcing but currently unexercised by any known code path."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the RPC change only tightens input validation on sendmsgtopeer, a testing-only debug RPC with no external consumers depending on the old oversized-message behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an explicit invariant check in CConnman::PushMessage() that rejects outbound messages whose type exceeds the 12-byte wire field or whose payload exceeds the 4 MB protocol limit, using Assume() so debug/fuzz builds crash on violation while release builds log and drop the message. It also tightens the testing-only sendmsgtopeer RPC to reject oversized payloads before they reach PushMessage(), and adds unit and functional test coverage for both the type and payload limits.",
+  "problem": "Outbound V1 and V2 transports encode the message type in a fixed 12-byte field and expect payloads within 4 MB, but CConnman never enforced these limits on internal callers before queuing. An oversized type aborts V1 encoding and can let V2 overwrite the first payload byte or write past its encoding buffer, a latent memory-safety hazard for anyone who introduces a caller bug in the future.",
+  "discussion": {
+   "open_concerns": [
+    "naiyoma's nit suggesting the message-type copy also be bounded to MESSAGE_TYPE_SIZE is unaddressed by the author as of the last activity."
+   ],
+   "resolved_concerns": [
+    "ajtowns questioned the relationship to #35880's fuzz-target restriction; author explained the reasoning and ajtowns's concept ACK followed.",
+    "mzumsande raised that returning false at the transport level could stall a connection for minutes rather than fail fast; author moved the limit checks entirely into PushMessage() and credited mzumsande as co-author.",
+    "mzumsande also questioned the sendmsgtopeer RPC change scope; author adjusted the framing to reflect the RPC's testing-only role."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Code has stabilized after multiple rounds of addressing ajtowns's and mzumsande's substantive review, including moving all limit checks into PushMessage(). Only an unaddressed style nit from naiyoma remains, which does not materially affect review of the current code."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from ajtowns and naiyoma with no unresolved objections; mzumsande's architectural concern was incorporated into the code.",
+   "reason": "Two members gave concept ACK after the author addressed a substantive architectural question, and the one reviewer who raised a design concern (stall risk from transport-level rejection) had it fixed and was added as co-author.",
+   "evidence": [
+    "ajtowns: 'Concept ACK' after author explained the fuzz-target relationship.",
+    "naiyoma: 'Concept ACK' with a minor nit only.",
+    "mzumsande: raised that returning false could stall a connection; author moved checks to PushMessage() and added mzumsande as co-author."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced by #35880's fuzz-target rationale as clarifying the send-path invariant that fuzz target relies on"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies CConnman::PushMessage() and CSerializedNetMsg in src/net.cpp/net.h, core outbound message handling on the P2P send path, and carries the P2P label.",
+    "band": "P3",
+    "reason_tag": "hardening",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Closes a latent memory-safety hazard: 'an oversized type... V2 can overwrite the first payload byte or write past its encoding buffer' (description), but this is only reachable through an internal caller bug, not by any known current code path or external attacker, so it is defensive hardening rather than an active vulnerability fix."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies sendmsgtopeer RPC in src/rpc/net.cpp to reject oversized payloads before calling PushMessage(), and adjusts its help text.",
+    "band": "P4",
+    "reason_tag": "test-rpc-tightening",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "mzumsande noted this RPC is testing-only: 'I don't think it's a problem per se that sendmsgtopeer accepts payloads above the 4 MB protocol limit - it's a test RPC after all,' so the change has negligible impact on real RPC consumers."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the V2 buffer-overwrite hazard is purely theoretical (no known internal caller currently violates the limit) or has ever manifested; this affects how much weight to give the security_stability factor.",
+   "Whether naiyoma's outstanding nit about bounding the message-type copy in the transport itself represents a residual defense-in-depth gap the author still intends to address."
+  ],
+  "card": "This PR adds an explicit check in CConnman::PushMessage() that rejects outbound messages exceeding the 12-byte message-type field or the 4 MB payload limit, using Assume() so debug/fuzz builds crash on violation while release builds log and drop the message; it also tightens the testing-only sendmsgtopeer RPC accordingly. The problem is a latent memory-safety hazard where an oversized type could abort V1 encoding or let V2 'overwrite the first payload byte or write past its encoding buffer' if an internal caller bug ever produced one, though no such caller currently exists. Review has been substantive: ajtowns and mzumsande raised architectural questions (relation to fuzz-target restriction in #35880, and stall risk from transport-level rejection) that the author resolved by moving checks entirely into PushMessage() and crediting mzumsande as co-author; both ajtowns and naiyoma gave concept ACK. The PR is ready for review, with only a minor unaddressed nit from naiyoma about bounding the type copy. No hard dependencies, though it clarifies an invariant referenced by the earlier #35880 fuzz-target fix."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

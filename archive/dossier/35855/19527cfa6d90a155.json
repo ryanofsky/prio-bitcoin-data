@@ -1,0 +1,105 @@
+{
+ "number": 35855,
+ "input_hash": "19527cfa6d90a155",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27866,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5406
+ },
+ "cost_usd": 0.0563023,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Update the Guix build environment (time-machine commit) to pull in newer binutils, cmake, kernel headers, and python-lief, keeping the reproducible-build toolchain current.",
+    "Also fixes a RISC-V build failure and works around a psutil test failure in python-lief."
+   ],
+   "reviewability": [
+    "Draft and still being reworked: reviewers found the update fails to build on aarch64 and even hit a fresh binutils hash mismatch on 2026-09-15.",
+    "A maintainer suggests overlapping work in #36233 might supersede parts of this and should land first."
+   ],
+   "agreement": [
+    "Several members (0xB10C, willcl-ark, fanquake) reproduced matching x86_64 build hashes, a positive signal for the change.",
+    "Unresolved: aarch64 cross-gcc build fails for multiple testers (janb84, hebasto, willcl-ark), and a workaround is still being debated, not yet fixed by the author."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it keeps the release build toolchain current and includes a stated bug fix (unblocking RISC-V builds, referencing issue #36232).",
+      "Release integrity is the top concern for guix, and until the aarch64 build failures are resolved this cannot safely ship, but the direction (routine dependency bump) is uncontroversial."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates the Guix time-machine commit used for reproducible builds, bumping binutils, cmake, linux-libre-headers, and python-lief, along with related manifest and build-script adjustments (CMAKE_LINK_WARNING_AS_ERROR, disabling fixincludes on the sans-libc cross-gcc, reverting a temporary osslsigncode package). It has gone through many iterations (11 commits, 10 force-pushes) as new upstream Guix revisions were tracked over roughly seven weeks.",
+  "problem": "The Guix build environment pins specific upstream package versions; as the underlying `guix` channel and toolchains evolve, Bitcoin Core's reproducible build recipe needs periodic updates to stay buildable, secure, and compatible with newer compilers/tools, and to pick up fixes like RISC-V build support.",
+  "discussion": {
+   "open_concerns": [
+    "aarch64 cross-gcc build fails with a 'BUILD_SYSTEM_HEADER_DIR does not exist' fixincludes error (janb84, hebasto, willcl-ark); a workaround was proposed by janb84 but not adopted by the author, willcl-ark suggested disabling fixincludes upstream instead.",
+    "willcl-ark hit a binutils-2.47 tarball hash mismatch on 2026-09-15, unclear if resolved by the latest push.",
+    "maflcko suggests overlapping PR #36233 (and previously #33593) may supersede parts of this and should possibly be merged first, including a version-comment convention the author hasn't yet added.",
+    "python-elfesteem build failure due to missing setuptools dependency in codesign manifest (willcl-ark, 2026-08-12), status unclear."
+   ],
+   "resolved_concerns": [
+    "Author agreed to keep ci/lint/requirements.txt's lief version matching Guix and opened #35869 to fix an unused reference (maflcko/fanquake)."
+   ],
+   "author_status": "active, force-pushed as recently as 2026-09-16 responding to review comments"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "Multiple reviewers report the current head fails to build on aarch64 (janb84, hebasto, willcl-ark) and willcl-ark hit a binutils hash mismatch as recently as 2026-09-15; the PR is still being iterated on (10 force-pushes) to chase a moving upstream Guix target, and a maintainer suggests overlapping PR #36233 may need to land first."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive: several members reproduced matching build hashes on x86_64, but aarch64 builds fail for multiple testers and remain unresolved.",
+   "reason": "No one objects to the goal of updating time-machine, and successful reproducible builds were confirmed by three members, but a real, unresolved build failure on aarch64 (and a recent hash mismatch) stands as an acknowledged drawback of the current state.",
+   "evidence": [
+    "0xB10C, willcl-ark, fanquake posted matching SHA256SUMS for an x86_64 build (2026-08-04).",
+    "janb84 and hebasto report aarch64 build failures with the sans-libc cross-gcc fixincludes phase, unresolved as of the latest comments.",
+    "willcl-ark reported a binutils-2.47 tarball hash mismatch on 2026-09-15.",
+    "maflcko flagged overlap with #36233/#33593 without objecting to the change itself."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Keeps future guix-dependent build/CI work (e.g. #36082 'ci: add Guix builds to CI') on a current toolchain",
+    "Overlaps with and may be superseded in part by #36233 (guix: Update time-machine) per maflcko"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Directly modifies contrib/guix manifests, build scripts, and time-machine pin; labeled Build system.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Commit message states the time-machine bump 'is necessary to unblock building on RISC-V systems. Fixes #36232', a concrete supported-platform breakage fix. It also keeps the reproducible-build toolchain (binutils, cmake, kernel headers, lief) current, which matters for release integrity, but the PR itself is currently failing to build on aarch64 for multiple testers, which is a real regression risk if merged as-is."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the 2026-09-16 force-push resolved the aarch64 fixincludes failure or the binutils hash mismatch is not stated in the discussion.",
+   "Exact relationship/overlap between this PR and #36233 is unclear beyond maflcko's comment; unclear if they will be merged separately or one will subsume the other.",
+   "No explicit maintainer decision on the aarch64 fixincludes workaround (janb84's patch vs. willcl-ark's upstream suggestion)."
+  ],
+  "card": "This PR bumps the Guix time-machine commit and associated toolchain versions (binutils 2.47, cmake 4.3.3, newer kernel headers, python-lief 1.0.0) used for Bitcoin Core's reproducible Guix builds, and includes a fix needed to unblock RISC-V builds (closes #36232). Multiple members confirmed matching reproducible-build hashes on x86_64, but janb84, hebasto, and willcl-ark all report the update currently fails to build on aarch64 due to a fixincludes/sysroot issue in the cross-gcc bootstrap, and willcl-ark hit a fresh binutils hash mismatch as of 2026-09-15. The PR is draft, has been force-pushed ten times over seven weeks as the author chases a moving upstream Guix target, and a maintainer (maflcko) suggests it may overlap with #36233 which could land first. Build-system priority is moderate to high since routine Guix updates matter for release integrity and this one carries a stated platform-fix payoff, but the outstanding aarch64 failure means the current code is not yet safe to merge."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

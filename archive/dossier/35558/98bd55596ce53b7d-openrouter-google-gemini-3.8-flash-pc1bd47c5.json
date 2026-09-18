@@ -1,0 +1,490 @@
+{
+ "number": 35558,
+ "input_hash": "98bd55596ce53b7d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:35:52+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 49390,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10693
+ },
+ "cost_usd": 0.07714125,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reduce block propagation delay across the network by prefilling transactions peers are likely to miss",
+    "Limit prefilling to the connection TCP window so no additional network round-trips are incurred"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Stacked on open PR 35724 which pulls out the logging changes"
+   ],
+   "agreement": [
+    "Strong concept agreement across maintainers and contributors (0xB10C, josibake, murchandamus, ismaelsadeeq)",
+    "Tested ACKs with live node reconstruction data and rebase verification (m4ycon, s00ly)",
+    "Prior code issues regarding use-after-free and window checks resolved (andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it substantially improves block propagation speed by reducing reconstruction round-trips from 43% to 10%",
+      "Reduces network stale block risk backwards-compatibly without requiring BIP or protocol changes"
+     ]
+    }
+   ]
+  },
+  "summary": "Improves BIP152 compact block relay by predictively prefilling transactions that were missing from the local mempool during reconstruction (such as those retrieved via GETBLOCKTXN, extrapool transactions, or announcer prefills). To avoid adding network latency, prefill payload sizes are dynamically bounded by the peer's TCP congestion and receive window.",
+  "problem": "Presently, compact blocks only prefill the coinbase transaction, causing roughly 43% of block reconstructions to require an additional high-latency GETBLOCKTXN round-trip to fetch missing transactions, which slows network-wide block propagation and increases stale block risk.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Seeding prefill candidates with coinbase caused unnecessary TCP info syscalls even when no extra tx was prefilled; resolved by requiring candidate count > 1 (andrewtoth).",
+    "Use-after-free and incorrect transaction size counting in debug logging during block reconstruction; resolved in later push and isolated into PR 35724 (andrewtoth, m4ycon)."
+   ],
+   "author_status": "active, last pushed 2026-08-04 rebasing on top of PR 35724"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35724 first",
+   "reason": "The branch is clean and passing CI, but the author rebased on top of #35724 to pull out the logging changes first."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "ismaelsadeeq",
+     "stance": "support",
+     "note": "Concept ACK, asked about filtering extrapool prefills per peer"
+    },
+    {
+     "login": "josibake",
+     "stance": "support",
+     "note": "Concept ACK, highlighted backwards compatibility and simplicity"
+    },
+    {
+     "login": "edilmedeiros",
+     "stance": "support",
+     "note": "Concept ACK and supported telemetry ideas"
+    },
+    {
+     "login": "murchandamus",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "0xB10C",
+     "stance": "support",
+     "note": "Original proposal author, Concept ACK, suggested logging enhancements and noted #35724 merge order"
+    },
+    {
+     "login": "johnnyasantoss",
+     "stance": "support",
+     "note": "utACK after group review, suggested WITH_LOCK optimization"
+    },
+    {
+     "login": "andrewtoth",
+     "stance": "objection",
+     "note": "Raised multiple implementation issues on lock scoping, thread spawning, coinbase seeding, and a use-after-free"
+    },
+    {
+     "login": "m4ycon",
+     "stance": "support",
+     "note": "tACK with empirical node data, noted zero prefilled_size logging bug"
+    },
+    {
+     "login": "s00ly",
+     "stance": "support",
+     "note": "tACK, ran test suites across v1 and v2 transport, supplied clean rebase on master"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "andrewtoth",
+     "kind": "approach",
+     "harm": "Seeding prefill candidates with coinbase forced unnecessary socket queries and prefill code paths even when no non-coinbase transactions were prefilled",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-03: 'In that case, the check in net_processing for prefill_candidates.size() > 0 is always true, so we will always go through the prefill path and do all the syscalls'",
+     "resolution_evidence": "2026-07-14: 'Great catch, thank you, I took this by changing the check to be prefill_candidates.size() > 1'",
+     "sources": [
+      "dossier",
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "m4ycon",
+     "kind": "correctness",
+     "harm": "prefilled_size was never incremented, reporting 0 in reconstruction log statistics",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-27: 'the value is always zero. Which could not be true in any scenario as coinbase is always prefilled.'",
+     "resolution_evidence": "2026-08-04: 'Good catch, this got messed up while rebasing, pushed a fix... Rebased on top of #35724, where I\\'ve pulled out the logging changes'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "josibake",
+     "reason": "the simplicity and backwards compatibility of the approach make this a very strong proposal",
+     "substantive": true
+    },
+    {
+     "reviewer": "0xB10C",
+     "reason": "thanks for picking this idea up and moving it closer to the finish line",
+     "substantive": true
+    },
+    {
+     "reviewer": "s00ly",
+     "reason": "tested all compact block test suites under v1 and v2 transports and rebased cleanly onto master",
+     "substantive": true
+    },
+    {
+     "reviewer": "m4ycon",
+     "reason": "collected research telemetry confirming prefill efficacy on live node setups",
+     "substantive": true
+    },
+    {
+     "reviewer": "johnnyasantoss",
+     "reason": "utACK based on group code review of compact block relay BIP logic",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "murchandamus",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "edilmedeiros",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong concept consensus with tested ACKs; technical objections on socket checks and logging were addressed and split into #35724.",
+   "reason": "Widespread concept approval across maintainers and active contributors, multiple substantive tested ACKs, and all inline review criticisms raised by andrewtoth and m4ycon have been fixed.",
+   "evidence": [
+    "Concept ACKs from 0xB10C, josibake, murchandamus, w0xlt, ismaelsadeeq, and edilmedeiros",
+    "Tested ACKs from m4ycon and s00ly with empirical propagation observations",
+    "Andrewtoth's inline bugs were resolved by code updates"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (josibake, 0xB10C, s00ly, m4ycon, johnnyasantoss)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "andrewtoth",
+      "kind": "correctness",
+      "harm": "seeding prefill candidates with coinbase caused the node to always execute prefill syscalls even when only prefilling the coinbase",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-03: \"I don't think we should seed with the coinbase here. In that case, the check in net_processing for prefill_candidates.size() > 0 is always true, so we will always go through the prefill path and do all the syscalls even for the current behavior of always prefilling only the coinbase.\"",
+      "resolution_evidence": "2026-07-14: \"Great catch, thank you, I took this by changing the check to be prefill_candidates.size() > 1\""
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "correctness",
+      "harm": "use-after-free when resetting transaction pointer before reading its size",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-03: \"This is a use-after-free. We need to get the size before we reset it 3 lines above.\"",
+      "resolution_evidence": "2026-07-03: \"Thanks for catching, sorry this went out broken.\""
+     },
+     {
+      "reviewer": "m4ycon",
+      "kind": "correctness",
+      "harm": "inaccurate prefill size accounting where prefilled_size in debug logs remained zero",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-27: \"It seems that there's some problem with prefilled_size in this log. Using my recent logs ... the value is always zero.\"",
+      "resolution_evidence": "2026-08-04: \"Good catch, this got messed up while rebasing, pushed a fix... Rebased on top of #35724, where I've pulled out the logging changes\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "josibake",
+      "reason": "simplicity and backwards compatibility make it a strong proposal",
+      "substantive": true
+     },
+     {
+      "reviewer": "0xB10C",
+      "reason": "moves forward the compact block prefill proposal based on Delving Bitcoin research",
+      "substantive": true
+     },
+     {
+      "reviewer": "m4ycon",
+      "reason": "tACK based on running empirical benchmarks and data collection on compact block reconstruction effectiveness",
+      "substantive": true
+     },
+     {
+      "reviewer": "s00ly",
+      "reason": "tACK with unit and functional tests passing across platforms and transports",
+      "substantive": true
+     },
+     {
+      "reviewer": "johnnyasantoss",
+      "reason": "utACK based on group code review of compact block relay BIP logic",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "murchandamus",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "edilmedeiros",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "ismaelsadeeq",
+      "stance": "support",
+      "note": "Concept ACK; asked about optimizing prefill targets"
+     },
+     {
+      "login": "josibake",
+      "stance": "support",
+      "note": "Concept ACK; praised simplicity and backwards compatibility"
+     },
+     {
+      "login": "edilmedeiros",
+      "stance": "support",
+      "note": "Concept ACK; supported logging wasted bandwidth"
+     },
+     {
+      "login": "murchandamus",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "0xB10C",
+      "stance": "support",
+      "note": "Concept ACK; originated the proposal, suggested logging metrics"
+     },
+     {
+      "login": "johnnyasantoss",
+      "stance": "support",
+      "note": "utACK and code review comments"
+     },
+     {
+      "login": "andrewtoth",
+      "stance": "objection",
+      "note": "Detailed code review catching unnecessary syscalls and bugs in logging"
+     },
+     {
+      "login": "m4ycon",
+      "stance": "support",
+      "note": "tACK with empirical data collection; noted logging inaccuracies"
+     },
+     {
+      "login": "s00ly",
+      "stance": "support",
+      "note": "tACK with test suite and provided a clean rebase branch"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong; broad concept and tested support, with code review bugs and logging issues resolved.",
+    "usage": {
+     "input_tokens": 12511,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3911
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "Seeding prefill candidates with coinbase forced unnecessary socket queries and prefill code paths even when no non-coinbase transactions were prefilled",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-03: 'In that case, the check in net_processing for prefill_candidates.size() > 0 is always true, so we will always go through the prefill path and do all the syscalls'",
+      "resolution_evidence": "2026-07-14: 'Great catch, thank you, I took this by changing the check to be prefill_candidates.size() > 1'"
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "correctness",
+      "harm": "Use-after-free when computing transaction total size after reset() had already released the transaction pointer",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-03: 'This is a use-after-free. We need to get the size before we reset it 3 lines above.'",
+      "resolution_evidence": "2026-07-03: 'Thanks for catching, sorry the quality of this logging commit was low when I pushed it.' (fixed in 2026-07-03 force-push)"
+     },
+     {
+      "reviewer": "m4ycon",
+      "kind": "correctness",
+      "harm": "prefilled_size was never incremented, reporting 0 in reconstruction log statistics",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-27: 'the value is always zero. Which could not be true in any scenario as coinbase is always prefilled.'",
+      "resolution_evidence": "2026-08-04: 'Good catch, this got messed up while rebasing, pushed a fix... Rebased on top of #35724, where I\\'ve pulled out the logging changes'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "josibake",
+      "reason": "the simplicity and backwards compatibility of the approach make this a very strong proposal",
+      "substantive": true
+     },
+     {
+      "reviewer": "0xB10C",
+      "reason": "thanks for picking this idea up and moving it closer to the finish line",
+      "substantive": true
+     },
+     {
+      "reviewer": "s00ly",
+      "reason": "tested all compact block test suites under v1 and v2 transports and rebased cleanly onto master",
+      "substantive": true
+     },
+     {
+      "reviewer": "m4ycon",
+      "reason": "collected research telemetry confirming prefill efficacy on live node setups",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [
+    35724
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly alters P2P compact block creation and transmission heuristics in net_processing and blockencodings.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it yields a significant improvement to compact block relay performance, increasing instant block reconstruction rates from 56.9% to 89.7% without protocol changes, directly reducing block propagation delays and network orphan/stale risks."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "CMake change only bumps Windows NTDDI version to enable SIO_TCP_INFO socket querying, which is purely incidental to the P2P feature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system feature; build script updates follow purely from platform API requirements."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes unit, bench, and fuzz test cases to accommodate CBlockHeaderAndShortTxIDs API additions; does not modify test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are domain tests pinning compact block behavior rather than test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Adds TCPInfo wrapper to src/util/sock.*, but this exists specifically as transport glue for P2P compact block decision logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Socket helper additions are internal mechanisms for P2P transport optimization rather than general utility improvements."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Prefills compact blocks with transactions that peers are expected to lack, bounding prefill payload size to the connection's TCP window to avoid introducing additional round-trips. In node telemetry, this increased compact block reconstruction without extra requests from 56.9% to 89.7%, substantially improving block propagation times and lowering network stale rates without requiring protocol breaks. The change has strong concept agreement and tested ACKs, with earlier review objections resolved. Reviewers should note it is stacked on open PR 35724 which isolates the reconstruction logging changes."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0240495
+}

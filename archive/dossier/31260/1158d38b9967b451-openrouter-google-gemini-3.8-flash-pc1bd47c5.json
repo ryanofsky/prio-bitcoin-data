@@ -1,0 +1,493 @@
+{
+ "number": 31260,
+ "input_hash": "1158d38b9967b451",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:21:42+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 103850,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11941
+ },
+ "cost_usd": 0.12266625,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace string-based configuration argument lookups with compile-time type-safe Setting definitions",
+    "Prevent argument misspellings, mismatched defaults, and inconsistent types across all node subsystems"
+   ],
+   "reviewability": [
+    "Needs rebase against master",
+    "Author previously noted plans to split off the Setting class into a smaller preliminary PR"
+   ],
+   "agreement": [
+    "Broad concept approval for type-safe settings infrastructure (hodlinator, l0rinc, jeanpablojp)",
+    "Unaddressed nonblocking objection on silent behavior change for null elements in settings.json (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it eliminates a recurring source of bugs from misspelled options and conflicting defaults across the entire codebase",
+      "Provides compile-time safety foundations and unblocks planned runtime settings validation and structured option groups"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces a `common::Setting` template class to provide compile-time type safety for command-line arguments and configuration settings. It migrates all existing `AddArg` and `GetArg*` calls across the codebase to `Setting::Register` and `Setting::Get` using an automated scripted diff.",
+  "problem": "Command-line arguments and configuration settings currently rely on string keys and scattered default values, allowing typos in setting names, mismatched defaults between help documentation and call sites, and inconsistent type interpretations to go undetected at compile time.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp noted that in `setting_internal.h`, null elements in settings.json arrays are dropped silently rather than throwing a type error, changing behavior from master",
+    "jeanpablojp noted the scripted-diff parser regex misses templated `GetArg<T>` calls, leaving five settings unmigrated",
+    "Author noted in April 2026 an intention to split the PR so the core `Setting` template class is introduced first with a few call sites, before applying the full tree-wide scripted diff"
+   ],
+   "resolved_concerns": [
+    "Static and constexpr variable linkage cleanups in generated headers resolved with hodlinator",
+    "Extensibility and parameter handling of `HelpFn` updated based on feedback from maflcko",
+    "Circular dependency and documentation linter updates adjusted after reviewer review"
+   ],
+   "author_status": "active; frequently rebasing and keeping branch building across refactors, though yet to split the PR or reply to recent review comments"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with current master and requires a rebase. Additionally, the author previously indicated an intent to restructure and split the changes into smaller PRs."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "hodlinator",
+     "stance": "support",
+     "note": "Extensive reviews and benchmarks, strong Concept ACK, helped with script and template design"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "support",
+     "note": "Strong Concept ACK, raised early design questions and suggested splitting the PR"
+    },
+    {
+     "login": "Pitan1993",
+     "stance": "neutral",
+     "note": "Left a single comment quoting CI log output without substantive review"
+    },
+    {
+     "login": "maflcko",
+     "stance": "support",
+     "note": "Suggested improvements for DefaultFn and HelpFn extensibility, which were implemented"
+    },
+    {
+     "login": "yancyribbens",
+     "stance": "neutral",
+     "note": "Commented on a comment typo"
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "objection",
+     "note": "Concept ACK, but identified unintended behavior changes in settings.json handling and unmigrated GetArg calls"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "correctness",
+     "harm": "A null element in a settings.json array gets dropped silently instead of throwing a type error as on master",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-20: 'A null element gets dropped silently here, and numbers now get converted, where the old GetArgs() threw... Raising it because the commit says behavior doesn't change.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "hodlinator",
+     "kind": "maintenance",
+     "harm": "Non-constexpr static variables duplicated across compilation units causing redundant allocations",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2024-11-20: \"these other non-constexpr statics seem like they end up being \\\"file-local\\\" static vars in every compilation unit that includes them. Seems off?\"",
+     "resolution_evidence": "2024-11-22: \"they are switched to constexpr string literal types now\"",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "hodlinator",
+     "reason": "Installs compile-time guardrails against settings typos and default mismatches without runtime performance degradation",
+     "substantive": true
+    },
+    {
+     "reviewer": "l0rinc",
+     "reason": "Strong Concept ACK for having the compiler enforce settings safety rather than relying on runtime conventions",
+     "substantive": true
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "reason": "Concept ACK after verifying the scripted diff, building, and passing test suites",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Strong concept consensus, but an unintended behavior difference in settings.json null handling remains unaddressed",
+   "reason": "Reviewers strongly favor replacing string-based argument access with typed declarations. However, a nonblocking comment from jeanpablojp regarding an unintended behavior difference in settings.json array parsing has not yet been addressed by the author.",
+   "evidence": [
+    "hodlinator: 'Overdue Concept ACK... No (intended) changes in behavior when executing the code, just installing compile time guardrails.'",
+    "l0rinc: 'This looks really cool, strong concept ack!'",
+    "jeanpablojp: 'A null element gets dropped silently here, and numbers now get converted, where the old GetArgs() threw.'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (jeanpablojp)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Settings parser silently ignores null elements in list settings and converts numbers instead of throwing UniValue::type_error",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-20: \"A null element gets dropped silently here, and numbers now get converted, where the old GetArgs() threw. With {\\\"onlynet\\\": [null, \\\"badnet\\\"]} in settings.json, master aborts with a UniValue::type_error while here the null is ignored\"",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "interface",
+      "harm": "A sentence of help text is omitted from BlockFilterIndexSetting compared to master",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-20: \"This sentence disappears from the generated help, BlockFilterIndexSetting keeps only the strprintf format string. It still describes what the code does.\"",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "hodlinator",
+      "kind": "maintenance",
+      "harm": "Non-constexpr static variables duplicated across compilation units causing redundant allocations",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-11-20: \"these other non-constexpr statics seem like they end up being \\\"file-local\\\" static vars in every compilation unit that includes them. Seems off?\"",
+      "resolution_evidence": "2024-11-22: \"they are switched to constexpr string literal types now\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "hodlinator",
+      "reason": "Installs compile-time guardrails with no intended change in behavior and negligible impact on compile time",
+      "substantive": true
+     },
+     {
+      "reviewer": "l0rinc",
+      "reason": "Better to have the compiler do type safety checks for settings",
+      "substantive": true
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Concept ACK after running the scripted-diff script and running tests",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "hodlinator",
+      "stance": "support",
+      "note": "Concept ACK, reviewed templating and python scripts thoroughly"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "support",
+      "note": "Concept ACK, suggested splitting the PR into smaller chunks"
+     },
+     {
+      "login": "Pitan1993",
+      "stance": "neutral",
+      "note": "Pasted a CI log line as changes requested without actionable feedback"
+     },
+     {
+      "login": "maflcko",
+      "stance": "question",
+      "note": "Suggested DefaultFn and HelpFn improvements in wallet settings"
+     },
+     {
+      "login": "yancyribbens",
+      "stance": "neutral",
+      "note": "Commented on a typo nit"
+     },
+     {
+      "login": "jeanpablojp",
+      "stance": "objection",
+      "note": "Concept ACK, but identified unexpected behavior changes and omitted help text"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: jeanpablojp noted unexpected behavioral differences in settings parsing and missing help text; author has not replied.",
+    "usage": {
+     "input_tokens": 38589,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 5341
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "A null element in a settings.json array gets dropped silently instead of throwing a type error as on master",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-20: 'A null element gets dropped silently here, and numbers now get converted, where the old GetArgs() threw... Raising it because the commit says behavior doesn't change.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "hodlinator",
+      "reason": "Installs compile-time guardrails against settings typos and default mismatches without runtime performance degradation",
+      "substantive": true
+     },
+     {
+      "reviewer": "l0rinc",
+      "reason": "Strong Concept ACK for having the compiler enforce settings safety rather than relying on runtime conventions",
+      "substantive": true
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Concept ACK after verifying the scripted diff, building, and passing test suites",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#22978"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches CMakeLists.txt solely to adjust include paths for transitive headers needed by the new settings definitions.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change; CMake changes are purely mechanical build glue for the settings headers."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Mechanical replacement of GetArg and AddArg calls in bitcoin.cpp and related IPC binaries.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter IPC protocols, interfaces, or process management."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Only touches chainstatemanager_opts.h to update constant headers.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify kernel API boundaries or library interfaces."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Mechanical update of mempool argument parsing call sites.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify transaction acceptance, mempool policy, or package relay."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Mechanical update of block template argument lookups in miner.cpp and mining_args.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify mining template construction or fee accounting logic."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Mechanical replacement of argument lookups in net.cpp and torcontrol.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter peer-to-peer networking behavior or transport protocols."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Mechanical update of argument retrieval in RPC server and client files.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter RPC method signatures, outputs, or wire formats."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Includes tests for the new Setting class in setting_tests.cpp and updates existing test call sites.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test framework machinery is not changed; test updates simply cover the utility change."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Adds reg-settings.py as a temporary scripted-diff generation tool and updates tool entrypoints mechanically.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The script is a temporary artifact removed in the final commit, and edits to bitcoin-tx/bitcoin-util are mechanical."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Implements core configuration and argument management infrastructure in src/common/setting.h and src/common/args.cpp.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P2 because replacing stringly-typed configuration retrieval with static type definitions removes a persistent, recurring class of bugs across the entire node. Mismatched defaults and negation footguns have caused multiple regressions and cleanups (#30529, #31212), and establishing this infrastructure directly unblocks type and range checking for arguments (#22978)."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches validation files only to update argument retrieval and move constants out of validation headers.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Validation rules and chainstate management logic remain completely untouched."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Mechanical updates of argument lookups in wallet and wallet tool files.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not affect wallet transaction creation, coin selection, or database safety."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors Bitcoin Core's settings management to use a compile-time type-safe Setting template class, converting all AddArg and GetArg call sites via a scripted diff. It solves the recurring problem of typos in option names, conflicting default values between documentation and call sites, and inconsistent type interpretations. Reviewers strongly endorse the concept, though the PR currently needs a rebase, has an unresolved minor behavioral observation regarding settings.json parsing, and the author previously noted an intention to split the template class from the large scripted diff."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0489705
+}

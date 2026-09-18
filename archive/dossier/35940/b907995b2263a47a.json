@@ -1,0 +1,131 @@
+{
+ "number": 35940,
+ "input_hash": "b907995b2263a47a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11223,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2540
+ },
+ "cost_usd": 0.0253293,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets operators pin BIP152 high-bandwidth compact-block announcements to specific -addnode peers.",
+    "Useful for known low-latency or multi-location topologies, independent of automatic peer selection."
+   ],
+   "reviewability": [
+    "Ready. The only reviewer comment (rename release note file) was addressed in the latest push."
+   ],
+   "agreement": [
+    "Strong support: jeanpablojp gave a concept ACK with a stated rationale (opt-in, disclosed tradeoff) and raised no objection (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it's a real but narrow operator-facing feature: manual override of the 3-peer BIP152 high-bandwidth cap for specific added nodes.",
+      "Benefits only operators with known topology (multi-location nodes, dedicated peering links); no protocol change and no reported user demand beyond the author's own scenario."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because it's a routine release note documenting a new opt-in flag, not fixing wrong or missing documentation of an existing feature."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an opt-in `=bip152-hb` suffix to `-addnode` values, letting operators request persistent BIP152 high-bandwidth compact-block announcements from specific outbound added-node peers, independent of and additional to the node's automatic 3-peer high-bandwidth selection. It refactors AddedNodeParams to carry per-node settings through CConnman, matches durable outbound peers to configured endpoints without DNS lookups, reapplies the policy on reconnect, and rejects the suffix when combined with -blocksonly. Tests cover unit-level endpoint matching and functional peer behavior across reconnects.",
+  "problem": "Automatic BIP152 high-bandwidth selection cannot account for operator-known topology, such as a stable low-latency peering link or nodes run in multiple locations that should always announce compact blocks immediately, including after reconnects.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp asked whether the release note file should be renamed before merge; author renamed it in the 2026-09-16 push and acknowledged."
+   ],
+   "author_status": "active, addressed the only review comment"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The single reviewer comment (rename release-notes file) was resolved by the author's latest push; no other open questions or mechanical blockers exist, and CI/mergeable state are clean."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Positive: jeanpablojp gave a concept ACK with a stated rationale and no one has objected.",
+   "reason": "Only one reviewer has commented, giving substantive concept approval (opt-in nature, explicit operator choice, reuse of -addnode over a new option) with no counter-argument raised by anyone.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK ... opt-in override ... seems fine to me, since it's an explicit operator choice ... Reusing -addnode also made more sense to me than creating a dedicated option.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Could inform a future BIP152 specification update per the PR description: 'If accepted, BIP152 can be updated separately.'"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes net.cpp/net.h/net_processing.cpp behavior around BIP152 high-bandwidth peer selection and SENDCMPCT handling for added nodes; carries the P2P label.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Solves a real but narrow operator pain point: no way to pin high-bandwidth compact-block relay to a known-good peer outside automatic rotation. Author states 'an operator may run nodes in multiple locations ... and want that connection to announce compact blocks immediately and consistently, including after reconnects.' Opt-in, no protocol or default-behavior change, one reviewer's concept ACK is the only external validation of demand."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Includes a new release-notes-35940.md file documenting the new flag and its interaction with -blocksonly.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Standard release note for a new opt-in option; not correcting wrong documentation or unblocking a design decision, so it ranks low per docs category guidance."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "init.cpp changes only wire the new suffix parsing and blocksonly-incompatibility check through to CConnman for this specific p2p feature; they are not general-purpose settings/logging infrastructure changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The init.cpp edits exist solely to serve the p2p feature (parsing -addnode suffix, validating against -blocksonly) rather than changing shared argument/logging/settings machinery, so this does not meet the utils category's bar for membership."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "No maintainer (vs. contributor) has weighed in yet, so broader project appetite for exceeding the BIP152 3-peer cap via configuration is unconfirmed.",
+   "Whether a future BIP152 spec update referenced in the description is actually planned or just speculative is unclear."
+  ],
+  "card": "This PR adds an opt-in `-addnode=<host>=bip152-hb` suffix so operators can pin BIP152 high-bandwidth compact-block announcements to specific outbound added-node peers, persisting across reconnects and stacking additively on top of the existing automatic 3-peer selection. It solves a narrow but real operator pain point: no existing way to guarantee immediate, consistent high-bandwidth relay for a known-good link such as a stable low-latency peer or a node run across multiple locations. The only reviewer, jeanpablojp, gave a concept ACK with reasoning ('explicit operator choice ... disclosed upfront') and the one inline nit (rename the release-notes file) was fixed in the latest push, leaving the PR Ready with Strong agreement and no open concerns. It has no dependencies and does not block other work, though the author notes BIP152 itself could later be updated to reflect this pattern. Impact is confined to p2p (P3, an opt-in niche feature) and docs (P4, a standard release note)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

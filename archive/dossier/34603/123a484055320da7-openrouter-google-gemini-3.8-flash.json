@@ -1,0 +1,119 @@
+{
+ "number": 34603,
+ "input_hash": "123a484055320da7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:28+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16739,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2903
+ },
+ "cost_usd": 0.0234405,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Detect symlinks and reparse points on Windows so the wallet avoids",
+    "recursing into them or accepting them as regular wallet files."
+   ],
+   "reviewability": [
+    "Author silent for over 100 days.",
+    "The patch is otherwise clean and CI passes."
+   ],
+   "agreement": [
+    "Reviewers had minor questions about reparse point tags and stdlib overrides, all addressed (luke-jr, hebasto).",
+    "One approval with a documentation suggestion (sedited)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it fixes directory traversal and path validation bugs on Windows",
+      "where GCC libstdc++ does not detect symlinks or NTFS reparse points."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because it adds a narrow platform-specific filesystem helper that treats all",
+      "reparse points as symlinks, primarily for wallet directory scanning."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements an `IsSymlink` helper in `fs_helpers` that checks for Windows reparse points using `GetFileAttributesW`, working around GCC MinGW's lack of Windows symlink support in `std::filesystem`. It integrates this check into the wallet's `ListDatabases` to prevent recursive scanning of symlinks and into `GetWalletPath` to validate paths properly on Windows, while enabling symlink functional tests for Windows.",
+  "problem": "GCC libstdc++ does not detect symlinks on Windows, treating them as regular files or failing to report them. As a result, Windows wallet directory scanning can recurse into symlinked or reparse directories, and path validation fails to catch invalid symlink targets.",
+  "discussion": {
+   "open_concerns": [
+    "sedited suggested clarifying in the PR description why WIN32 is gated in general given MSVC/clang-cl behavior."
+   ],
+   "resolved_concerns": [
+    "hebasto inquired whether specific reparse point tags should be filtered; achow101 clarified none should be recursively scanned.",
+    "luke-jr questioned whether to override `fs::is_symlink` directly or avoid redundant calls in path validation; achow101 addressed the duplicate call in a push."
+   ],
+   "author_status": "silent since 2026-05-26"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent",
+   "reason": "The author has been inactive on the PR for 113 days, exceeding the 60-day project staleness threshold, though there are no merge conflicts or CI failures."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; questions regarding Windows reparse tags were answered and the PR has one approval (sedited).",
+   "reason": "Initial questions around whether to override std::filesystem and how reparse points behave under clang-cl were answered by the author. sedited provided an approval with a minor nonblocking suggestion.",
+   "evidence": [
+    "sedited approved: 'utACK. The changes seem fine to me, but I would suggest adding a note in the description'",
+    "hebasto noted std::filesystem behavior on Windows across compilers",
+    "luke-jr raised questions on double-calling IsSymlink, which were fixed in subsequent pushes"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies ListDatabases in src/wallet/db.cpp and GetWalletPath in src/wallet/wallet.cpp, and updates wallet_multiwallet.py.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Prevents potential infinite loops or unintended directory traversals when scanning wallets on Windows by accounting for MinGW's lack of symlink detection. While beneficial for Windows multiwallet reliability, it addresses an edge case and is reasonably deferrable."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds IsSymlink helper to src/util/fs_helpers.cpp and src/util/fs_helpers.h.",
+    "band": "P4",
+    "reason_tag": "platform fix",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Adds a platform-specific helper in common fs utilities to check for reparse points on Windows. It has a narrow use case tailored specifically to the wallet directory scanning needs."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request implements Windows symlink detection in util/fs_helpers using native Windows reparse point attributes, working around GCC libstdc++ limitations on MinGW. It applies this check in the wallet to avoid recursive scanning of symlinks and to correctly validate wallet paths on Windows. The problem affects Windows users who have reparse points or symlinks in their wallet directories. The change has an approval from sedited and resolves earlier questions, but the author has been silent for over 100 days."
+ },
+ "raw_text": null
+}

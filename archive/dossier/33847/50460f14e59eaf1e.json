@@ -1,0 +1,119 @@
+{
+ "number": 33847,
+ "input_hash": "50460f14e59eaf1e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16506,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4509
+ },
+ "cost_usd": 0.0404573,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [],
+   "reviewability": [],
+   "agreement": [],
+   "categories": []
+  },
+  "summary": "This PR reworks the libbitcoinkernel C logging API so that logging options and log streams (Logger objects) are set per-connection and associated with Context objects, rather than being global. It removes the unsafe btck_logging_disable() function and eliminates the default behavior of buffering log messages in a 1MB buffer before any logger is attached. The change is deliberately not backwards compatible but is intended to make the API easier to reason about and forward-compatible with a later change (#30342) that would let different log streams receive different messages.",
+  "problem": "The current kernel logging API is confusing and inefficient: multiple log streams can be created but all receive the same messages because options are set globally, streams are not referenced by the Context, unattached loggers silently accumulate messages in a 1MB buffer, and btck_logging_disable() can abort the program if misused. This affects every consumer of libbitcoinkernel's C API, especially language-binding authors who must map onto this interface.",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v and stringintech prefer waiting for #30342 (per-connection logger instances) before locking in an API shape, arguing the interim API's signatures imply per-connection isolation that doesn't yet exist and could confuse users.",
+    "stickies-v raised lifetime/ownership questions about Context holding a raw BCLog::Logger* pointer when the logger could be destroyed first; author proposed a use_count safeguard but this has not been implemented in the current diff.",
+    "Six other open PRs touch overlapping kernel logging surface, and the discussion shows the underlying design direction (global vs per-connection logging state) is still contested."
+   ],
+   "resolved_concerns": [
+    "Author addressed stickies-v's ownership/lifetime concern conceptually (non-owning handle pattern already used elsewhere in kernel code), and stickies-v said 'I agree then that there is no need for context to own the logging connection,' though the concrete use_count safeguard is not yet coded."
+   ],
+   "author_status": "Author was actively engaging in review through 2025-12-10 and rebased as recently as 2026-01-22, but has not posted since; no reply for over 200 days per signals despite the open approach disagreement and unresolved use_count implementation."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, silent author",
+   "reason": "The PR is marked Needs rebase and conflicts with the base, and the author has had no activity for well over the 60-day staleness threshold since the last push on 2026-01-22, despite an open, unimplemented lifetime-safety follow-up (the use_count safeguard) that the author himself proposed."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "stickies-v is concept-ACK but 'approach ~0 leaning towards nack,' preferring to wait for #30342; stringintech shares that preference; author engaged at length but the approach disagreement is unresolved.",
+   "reason": "Two reviewers (stickies-v, stringintech) want this deferred until a companion PR (#30342) lands so the API isn't rolled out with signatures that imply capabilities (per-connection settings) it doesn't yet have. The author disagrees with the sequencing and argues the API is strictly better either way, but neither side has conceded, and stickies-v explicitly suggested converting the PR to draft as a design-discussion vehicle rather than merging soon.",
+   "evidence": [
+    "sedited (Concept ACK): 'Maybe it would be preferable to push forward #30342 before this is done?'",
+    "stickies-v: 'Concept ACK ... but approach ~0 leaning towards nack ... I would prefer to convert this to draft, and have this PR serve as the WIP discussion grounds.'",
+    "stringintech: 'I also prefer we push this change after we support separate logger instances per connection.'",
+    "ryanofsky (author): 'I think this PR should have much higher priority than #30342 ... this PR is not backwards compatible and will require downstream changes.'",
+    "stickies-v (2025-12-10, inline): raised Context-holding-a-possibly-dangling-pointer concern; author proposed a use_count safeguard not yet implemented."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Sets up the API shape that #30342 (kernel: Pass Logger instances to kernel objects) would build on, per author: 'it could allow (with #30342) different log streams to be used for different purposes.'"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "The PR changes bitcoinkernel.h/.cpp/_wrapper.h logging API surface directly: signatures of btck_logging_set_options/set_level_category/enable_category/disable_category, removal of btck_logging_disable, and a new btck_context_options_set_logger tying Logger to Context. This is squarely the kernel C API boundary.",
+    "band": "P2",
+    "reason_tag": "API redesign",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Author states the current API is 'too complicated and too restrictive,' with an unsafe btck_logging_disable() that 'will abort the program' if misused, and a wasteful default 1MB message buffer; this PR removes both. Six other open kernel PRs (#30342, #34374, #34775, #35322, #36197, #36207) touch the same logging surface, showing this is a live, contested design area whose resolution has leverage over multiple follow-on PRs, but it is not a correctness or fund-safety issue and the API is still explicitly experimental, so P2 rather than P1."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-chainstate.cpp is touched only to adapt two call sites (logging_set_options, options.SetLogger) to the new signatures; this is a mechanical follow-on from the kernel API change, not a change to bitcoin-chainstate's own behavior or purpose.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a substantive tools change; excluded per the rule that mechanical call-site updates don't create category membership."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Despite the 'Validation' label, no validation logic (block/tx validity, chainstate, UTXO handling) is touched; the diff is entirely about the logging API boundary in kernel code.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The label appears to be a mis-tag or inherited default; the change does not alter what the node accepts or how chainstate is maintained, so it does not meet the validation category's 'substantively alter validation code' bar."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the 'Validation' label reflects some maintainer intent not visible in the diff (e.g., planned future coupling) that would justify validation membership.",
+   "Exact current wall-clock date used to compute author_silent_days=237 against last_author_activity 2026-01-22; taken as given from signals.",
+   "Whether the author's proposed use_count safeguard was implemented in a branch not reflected in this patch snapshot."
+  ],
+  "card": "This draft PR redesigns the libbitcoinkernel C logging API so that log options and streams attach explicitly to Logger and Context objects instead of being global, removing the unsafe btck_logging_disable() and the default 1MB message-buffering behavior. It solves a real design problem for kernel API consumers, especially language-binding authors, per the author's own detailed rationale, and is explicitly meant to pave the way for a larger follow-up (#30342) that would let different log streams receive different messages. Six other open kernel PRs touch overlapping logging surface, showing this is a contested, high-leverage design area, but reviewers stickies-v and stringintech want it deferred until #30342 lands rather than locking in intermediate API shape, and stickies-v raised an unresolved Context/logger lifetime concern that the author addressed only conceptually. The PR needs a rebase and the author has been silent for roughly 200+ days since the last push, so it is Stale for review purposes even though the underlying problem remains real and unresolved."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

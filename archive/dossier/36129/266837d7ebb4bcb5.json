@@ -1,0 +1,96 @@
+{
+ "number": 36129,
+ "input_hash": "266837d7ebb4bcb5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 2225,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2397
+ },
+ "cost_usd": 0.0156163,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a fuzz harness bug where reusing one chainman across fuzz inputs let earlier inputs affect later ones.",
+    "This made shuffled corpus coverage order-dependent and could hide real bugs in block import fuzzing."
+   ],
+   "reviewability": [
+    "Ready to review despite draft status.",
+    "Author responded to the one review comment with a rationale; no material request is outstanding."
+   ],
+   "agreement": [
+    "Positive: maflcko raised a nonblocking performance question about adding a dirty-guard (maflcko).",
+    "Author proposed doing the unconditional reset first and optimizing later; no pushback yet (HowHsu)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P2 because it fixes state leakage in the load_external_block_file fuzz target that makes coverage depend on input order, undermining the fuzzer's determinism guarantees.",
+      "Order-dependent fuzz results can hide real bugs in block-import code, a high-risk validation-adjacent path, and make bug reports hard to reproduce."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes the load_external_block_file fuzz target so that the shared TestingSetup chainman is fully recreated after each fuzz input is processed. Previously, LoadExternalBlockFile could add headers to the block index even when full validation failed, letting state from one fuzz input leak into subsequent inputs within the same corpus run. The change disables unused network setup so PeerManager cannot hold a stale chainman reference, and reseeds the deterministic RNG used during chainman initialization so re-initialization is itself deterministic.",
+  "problem": "Fuzz coverage for this target was order-dependent because the shared chainman retained state (block index entries, notified header) across inputs, so results varied depending on corpus shuffling. This makes fuzzing less effective at finding and reproducing real bugs in the block-import path, a concern for anyone relying on the fuzzer for consensus-adjacent code coverage.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko asked whether a dirty-guard could avoid the reset when not needed, for speed; author argued that checking index size alone is insufficient (m_last_notified_header and other state also depend on order) and proposed doing the unconditional reset as a first step. No reply yet from maflcko as of the latest activity."
+   ],
+   "resolved_concerns": [],
+   "author_status": "active, replied 2026-09-03 to reviewer question and force-pushed"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blockers: CI passes, no rebase needed. The one open review comment is a performance suggestion the author has already responded to with a rationale; it does not require code changes before review can proceed."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: maflcko raised a nonblocking performance idea (dirty-guard), author explained why unconditional reset is the safer first step; no objection to the change itself.",
+   "reason": "The only feedback is a suggestion for potential optimization, not a harm from merging the current approach. The author's rebuttal (order-dependent state beyond index size) has not been contested.",
+   "evidence": [
+    "maflcko: 'Will it be faster if there is a dirty-guard to only run this when needed?'",
+    "HowHsu: 'checking the index size change is not enough... How about make this unconditional reset version as our first step?'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "More reliable, order-independent fuzz coverage for the block-import fuzz target"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The PR modifies src/test/fuzz/load_external_block_file.cpp, is labeled Fuzzing, and its stated purpose is to fix a determinism/order-dependency flaw in the fuzz harness itself, which is squarely test infrastructure.",
+    "band": "P2",
+    "reason_tag": "test coverage",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Fixes a fuzz harness bug where 'LoadExternalBlockFile may add headers to the block index even when full block validation fails,' letting state leak across inputs and making 'shuffled corpus coverage order-dependent' (commit message). This falls under 'fixes for flaky or misleading tests' which the tests rubric ranks first, since order-dependent coverage of block-import code (consensus-adjacent) can mask real bugs and make fuzz findings hard to reproduce."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project maintainers will want the proposed dirty-guard optimization before merging, which could change the final diff though not the underlying problem's importance.",
+   "Draft status suggests the author may still consider this work-in-progress despite no explicit blocking request."
+  ],
+  "card": "This PR fixes the load_external_block_file fuzz harness so the shared chainman is fully recreated after each processed input, rather than persisting state across fuzz cases. The underlying problem: LoadExternalBlockFile can add headers to the block index even when full validation fails, so reusing the chainman lets earlier fuzz inputs silently influence later ones, making corpus coverage order-dependent per the author's testing (930/930 inputs verified deterministic after the fix). This matters for test signal quality on a consensus-adjacent code path (block import), since order-dependent fuzzing can hide reproducible bugs. Review state is effectively ready: the single reviewer comment (maflcko, asking about a possible performance-only dirty-guard) was answered by the author with a substantive rationale, and no blocking issue remains. It is a draft with no known dependencies or stacking."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

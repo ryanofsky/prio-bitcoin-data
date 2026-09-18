@@ -1,0 +1,158 @@
+{
+ "number": 29409,
+ "input_hash": "cae1301e2496eff1",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 71751,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5903
+ },
+ "cost_usd": 0.10267230000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets a bitcoin-node process expose its Chain interface over an IPC socket, so wallet and other client code can run in a separate process and talk to a running node.",
+    "Serves as the shared plumbing that unblocks running the wallet (and other clients like GUI or external tools) out-of-process."
+   ],
+   "reviewability": [
+    "Reviewing now is worthwhile but a new crash was reported by a reviewer (zaidmstrr) right after the latest push and has not been answered yet.",
+    "32 force pushes and years of iterative review mean most prior concerns were already addressed; the outstanding item is this fresh crash report."
+   ],
+   "agreement": [
+    "Strong concept support from several reviewers (josibake, darosior, willcl-ark) and a tested ACK with a real Rust wallet PoC (darosior).",
+    "l0rinc requested substantive fixes to the capnp schema, all of which the author addressed in later pushes.",
+    "Multiple testers (darosior, sedited, zaidmstrr) have found crashes on disconnect and on out-of-range inputs; author treats these as known, tracked issues (e.g. libmultiprocess#219) rather than blockers, but the newest one (zaidmstrr) is unanswered."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P1 because this is the core interface wrapper needed to run the wallet, and eventually the GUI, as separate processes, the stated goal of the process-separation project.",
+      "It already has real external consumers (a Rust BDK wallet PoC, an Electrs-over-IPC PoC, and a live tracing dashboard), demonstrating concrete demand beyond Bitcoin Core itself.",
+      "It is the direct base for #10102, #19460, and #19461, so its merge state has a multiplying effect on other IPC work."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a Cap'n Proto wrapper that exposes Bitcoin Core's interfaces::Chain interface over an IPC socket, letting an external process (most notably a separated wallet process) call Chain methods on a running bitcoin-node. It bundles a Handler interface wrapper, generic capnp serialization helpers for util::Result/Expected and other types, and a large squashed update of the libmultiprocess subtree (CI, build, and correctness fixes). It also exposes the Chain interface directly for experimentation and adds small annotations to non-IPC structs (FeeCalculation, JSONRPCRequest) reminding maintainers to keep the capnp mirror in sync.",
+  "problem": "External processes (a separated wallet, GUI, or third-party tools like block explorers, alternative wallets, or monitoring tools) currently cannot interact with a running bitcoin-node's Chain interface without linking into node internals; this PR gives them a defined IPC surface. It is a direct prerequisite for the long-standing goal of running the wallet in its own process (#10102).",
+  "discussion": {
+   "open_concerns": [
+    "zaidmstrr (2026-09-09) reports the node aborts with an assertion failure when getBlockHash is called with a height above the tip \u2014 unanswered as of the latest signals.",
+    "willcl-ark and ryanofsky discussed several places where malformed IPC input (null tx pointers, out-of-range enums) can crash the node; author acknowledges these as real but says they can't all be fixed in this PR and some already have tracked issues (libmultiprocess#219).",
+    "Sjors raised a broader design question in a separate issue (#34981) about whether shipping capnp files for this complete interface is the right approach, explicitly to avoid derailing this PR's code review."
+   ],
+   "resolved_concerns": [
+    "l0rinc's large batch of schema-correctness findings (missing fields, 32/64-bit mismatches, bool-vs-int mismatches, stale names) were fixed in the 2025-12-12 push.",
+    "cbergqvist's early nits on value.has_value() vs operator bool and a stray include were resolved via explanation and a fix respectively.",
+    "Several silent-conflict build breakages from parallel PRs (#32438, #32862, #33169, #34568, #34075, etc.) were fixed via repeated rebases."
+   ],
+   "author_status": "active, most recently force-pushing on 2026-09-08; a reviewer flagged a new crash the next day that has not yet been addressed"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "New crash unaddressed",
+   "reason": "zaidmstrr reported on 2026-09-09 (the day after the latest push) that calling getBlockHash with an out-of-range height crashes the node via an assertion failure; this is a material, currently open report that the author has not yet responded to, and per project thresholds a week has passed without a reply."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Broad concept and tested support (josibake, darosior tested ACK, willcl-ark concept ACK, sedited approvals) but a standing pattern of crash bugs on malformed/edge-case input that the author treats as known and non-blocking rather than fixing outright.",
+   "reason": "Multiple reviewers over two years have exercised the interface with real external clients and found real value, but repeatedly discovered crashes (disconnect handling, out-of-range calls) that the author acknowledges as legitimate but defers, tracking some upstream (libmultiprocess#219) rather than resolving here.",
+   "evidence": [
+    "willcl-ark: Concept ACK, calls exposing Chain over IPC 'very useful... long term I think IPC should become the preferred integration boundary'",
+    "darosior: tested ACK after building a Rust BDK wallet PoC against the interface, found no issues in the exercised methods",
+    "l0rinc: requested changes citing schema mismatches; author fixed all of them in a later push",
+    "zaidmstrr (2026-09-09): reports a crash calling getBlockHash out of range, unanswered so far",
+    "ryanofsky: on prior crash reports, says 'this is expected... some destructors need to be marked noexcept' and opened a tracking issue rather than fixing in this PR"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#10102 (multiprocess wallet, explicitly described as depending on this PR)",
+    "#19460 (bitcoin-wallet -ipcconnect option)",
+    "#19461 (bitcoin-gui -ipcconnect option)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Labeled IPC; adds the capnp wrapper for interfaces::Chain and interfaces::Handler, core files under src/ipc/capnp and the libmultiprocess subtree, and is explicitly described by the author as a dependency of the multiprocess wallet project (#10102).",
+    "band": "P1",
+    "reason_tag": "unblocks #10102",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 3,
+     "leverage": 3
+    },
+    "rationale": "P1 because this is the foundational interface wrapper the process-separation project needs to run the wallet (and eventually GUI) out-of-process, and it is the stated base for #10102, #19460, and #19461. It already has demonstrated external value: a Rust BDK wallet PoC, an Electrs-over-IPC PoC, and a live node dashboard use it (darosior, Sjors, willcl-ark). Reviewers have also found real crash bugs on malformed input (zaidmstrr's out-of-range getBlockHash assertion, disconnect segfaults), which matter for stability of anything built on this interface."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "The diff touches CMakeLists.txt and many libmultiprocess CI/build config files, but these come from squashing in a libmultiprocess subtree update and mechanical build wiring for the new capnp files, not a change to Bitcoin Core's own build system as a subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the build-file changes are incidental to bringing the chain wrapper and its libmultiprocess subtree update in, not a build-system change in their own right."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Only touches block_policy_estimator.h to add a one-line comment reminding maintainers to keep the capnp mirror in sync; no policy or mempool behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: mechanical comment addition with no mempool/policy behavior change."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only touches rpc/request.h to add a comment reminding maintainers to keep the capnp JSONRPCRequest struct in sync; RPC machinery itself is unchanged.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: mechanical comment addition, no RPC interface or machinery change."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the zaidmstrr crash report (2026-09-09) will be treated by the author as blocking or as another instance of the known 'edge case input' category deferred to a tracking issue; this affects whether Paused should soon revert to Ready.",
+   "Whether the open design question in #34981 (should this complete interface even be shipped as capnp) represents a live blocking objection to this specific PR or is genuinely orthogonal, as Sjors intended by filing it separately.",
+   "Exact current state of the many small capnp schema nits raised by l0rinc since it's unclear from the timeline whether all were incorporated in the final 2026 pushes versus only the 2025-12-12 push."
+  ],
+  "card": "This PR adds the Cap'n Proto wrapper that exposes Bitcoin Core's interfaces::Chain over an IPC socket, letting an out-of-process client (most notably a future separated wallet process) call into a running bitcoin-node. It is explicitly the dependency base for #10102 (multiprocess wallet), #19460, and #19461, making it foundational to the process-separation project. Real external consumers already exist: a Rust BDK wallet PoC and tested ACK from darosior, an Electrs-over-IPC PoC and a live node dashboard from Sjors and willcl-ark, both giving concept/tested support. The PR has been open since February 2024 with 32 force pushes and extensive review (l0rinc's schema-correctness pass was fully addressed in December 2025), but testers keep finding crashes on malformed or edge-case input, most recently zaidmstrr's 2026-09-09 report of a node abort on an out-of-range getBlockHash call, which is unanswered as of the latest signals. Author treats most such crashes as known and tracked separately (e.g. libmultiprocess#219) rather than blocking, but the newest one is still open."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

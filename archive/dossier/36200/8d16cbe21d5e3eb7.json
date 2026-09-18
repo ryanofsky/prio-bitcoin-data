@@ -1,0 +1,98 @@
+{
+ "number": 36200,
+ "input_hash": "8d16cbe21d5e3eb7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3855,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2741
+ },
+ "cost_usd": 0.0189663,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent a client with bad credentials from tying up every RPC/HTTP worker thread.",
+    "Removes the 250ms sleep on failed auth that currently lets one attacker starve the worker pool."
+   ],
+   "reviewability": [
+    "Paused: author moved the PR to draft mid-discussion to work out tradeoffs.",
+    "Author is weighing alternatives (fail2ban docs, dedicated slow-reply thread) before settling on an approach."
+   ],
+   "agreement": [
+    "Disputed: willcl-ark says the sleep also usefully slows online password guessing and isn't fully redundant (willcl-ark).",
+    "Author agrees the tradeoff is real and is still deciding between removing the sleep, documenting fail2ban, or a more complex mitigation (hodlinator).",
+    "No resolution yet, discussion is ongoing and civil."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it fixes a real but low-severity availability issue: an authenticated-network attacker can occupy every HTTP worker with invalid credentials for 250ms each.",
+      "Author's own severity assessment is low since it requires the attacker to already have network access to the RPC port.",
+      "Does not unblock other work; value is a modest hardening improvement for node operators exposing RPC to more than localhost."
+     ]
+    }
+   ]
+  },
+  "summary": "Removes the 250ms UninterruptibleSleep that the HTTP RPC server currently imposes after a failed Basic-auth attempt, since the sleep occupies a shared worker thread and can be used to starve the pool. Keeps authentication, logging, WWW-Authenticate challenge response, and TimingResistantEqual comparison intact. Adds a functional test with -rpcthreads=1 showing that invalid-credential requests no longer delay a subsequent valid RPC.",
+  "problem": "An attacker with network access to the RPC/HTTP listener (localhost or via -rpcallowip) can send repeated invalid-credential requests to occupy every HTTP worker thread for 250ms each, delaying or rejecting legitimate authenticated RPC/REST traffic. This affects node operators who expose the RPC port beyond a single trusted local client.",
+  "discussion": {
+   "open_concerns": [
+    "willcl-ark: the sleep also slows online password brute-forcing and isn't purely redundant given TimingResistantEqual; removing it increases guess rate (unresolved as of last comment).",
+    "Author and reviewer are jointly considering alternatives: documenting fail2ban usage, or a dedicated 'slow reply' thread to avoid blocking workers while still throttling guesses; no decision reached."
+   ],
+   "resolved_concerns": [],
+   "author_status": "active, discussing design tradeoffs, PR moved to draft pending direction"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "Author explicitly moved the PR to draft after willcl-ark's objection and is actively considering alternative approaches (fail2ban docs vs. dedicated slow-reply thread) rather than the current diff; reviewing the current code would likely be invalidated by a direction change."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: willcl-ark argues the sleep also usefully throttles password guessing and isn't fully redundant; author agrees the tradeoff is real and hasn't settled on an approach.",
+   "reason": "A substantive objection about a real harm (increased brute-force guess rate) is open, and the author is engaging with it seriously rather than dismissing it, but no fix or agreement to disagree has landed yet.",
+   "evidence": [
+    "willcl-ark: 'This sleep also slows online password guessing, so I'm not sure I agree that it was made redundant.'",
+    "hodlinator: 'It's not obvious to me that removing this DoS vector is more important than reducing the guess rate you point out... Moved to draft.'",
+    "willcl-ark suggested leaving guess-rate mitigation to external tools like fail2ban; hodlinator still weighing whether to document that or build a more complex mitigation."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly modifies src/httprpc.cpp authentication handling and has the RPC/REST/ZMQ label; the change is to RPC/HTTP server DoS resistance.",
+    "band": "P3",
+    "reason_tag": "DoS protection",
+    "score": 0.38,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Addresses a real worker-starvation DoS in the RPC HTTP server, per the commit message: 'A low-medium service-availability issue lets an admitted HTTP client hold each shared worker for 250 ms per invalid Basic credential.' The author explicitly rates severity as low since it requires an attacker to already have network access to the RPC port, and a reviewer's counter-objection (loss of brute-force throttling) means the fix trades one weakness for another rather than being a clean win, keeping it below P2."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will land the simple sleep-removal, a fail2ban-documentation approach, or a more complex dedicated-thread mitigation is unresolved and could change the shape and priority of this PR.",
+   "No linked issue or CVE tracking this as an active exploit; severity assessment relies on author's own low-severity framing."
+  ],
+  "card": "This PR removes the 250ms sleep that Bitcoin Core's HTTP RPC server currently imposes after a failed Basic-auth attempt, because that sleep lets an attacker with network access to the RPC port occupy every shared HTTP worker and delay legitimate RPC/REST traffic. The author's own severity assessment is low, since the attack requires network access to the RPC listener already. Reviewer willcl-ark objected that the sleep also usefully throttles online password guessing and isn't fully redundant given TimingResistantEqual, so removing it trades one weakness for another; the author agreed and moved the PR to draft to consider alternatives (fail2ban documentation, or a dedicated slow-reply thread). The PR is Paused pending that design decision, and Agreement is Disputed with the author actively engaging the objection. No dependencies on other PRs."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

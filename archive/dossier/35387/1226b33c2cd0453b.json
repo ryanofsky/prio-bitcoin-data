@@ -1,0 +1,141 @@
+{
+ "number": 35387,
+ "input_hash": "1226b33c2cd0453b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16690,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4563
+ },
+ "cost_usd": 0.040911300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes trace-level logging actually usable without needing -debug, and adds a loglevel RPC to change log levels at runtime.",
+    "Solves an existing pain: trace logs today are invisible unless combined with -debug, discouraging developers from adding new tracing."
+   ],
+   "reviewability": [
+    "Ready to review, no known invalidating change",
+    "Author has gone quiet since the last rebase in mid-July, but the code itself is stable and CI passes."
+   ],
+   "agreement": [
+    "One reviewer called the design elegant and intuitive (stickies-v)",
+    "Same reviewer suggested deprecating the older logging RPC to avoid parallel interfaces, a maintenance concern that remains unaddressed (stickies-v)",
+    "No objections to the core approach, and a naming nit was already resolved in a later push."
+   ],
+   "categories": []
+  },
+  "summary": "This PR lets -loglevel work standalone (without requiring -debug) so a global or per-category level like -loglevel=trace or -loglevel=net:debug actually enables logging, and adds a new loglevel RPC to read and change log levels at runtime without a restart. It keeps -debug/-debugexclude as backward-compatible synonyms and reworks LogCategoriesList to carry a level instead of a boolean. The existing logging RPC is kept but simplified to a fixed info/debug toggle, and a note is added pointing users to the new loglevel RPC for finer control.",
+  "problem": "Trace-level logging exists in the codebase but is effectively unusable today: -loglevel=trace alone does nothing until combined with -debug, and there is no way to raise or lower verbosity without restarting the node. This discourages developers from adding new trace logging and makes existing trace logs hard to discover, as the author states directly in the description.",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v: having both the old `logging` RPC and the new `loglevel` RPC active in parallel is undesirable long-term; suggested deprecating `logging` instead, not addressed in the code or explicitly rebutted."
+   ],
+   "resolved_concerns": [
+    "stickies-v's naming nit (use MaybeArg helper, rename `level`/`all` param) was implemented in a later push."
+   ],
+   "author_status": "silent since 2026-07-14 (last force-push); no reply since"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 65d",
+   "reason": "No mechanical blocker (CI passes, no rebase needed per signals) but the author has not engaged since the last force-push on 2026-07-14, exceeding the 60-day stale-silence threshold. The code itself looks reviewable; a fresh reviewer should just expect no quick author turnaround."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive from the one reviewer who engaged, but stickies-v raised an unresolved, nonblocking concern about keeping two parallel logging RPCs long-term.",
+   "reason": "stickies-v called the approach 'elegant' and 'intuitive' with no objection to the core mechanism, and a style nit was fixed in a later push. The remaining point, that maintaining both `logging` and `loglevel` RPCs indefinitely is undesirable and `logging` should probably be deprecated, is a real maintenance-burden critique that the author has not responded to, but the critic did not frame it as blocking.",
+   "evidence": [
+    "stickies-v: 'This looks like an elegant approach, I think it's an intuitive RPC and -loglevel interface.'",
+    "stickies-v: 'I don't think we should have 2 parallel active logging RPC methods, so imo this PR should mark logging deprecated.'",
+    "Nit about using MaybeArg was implemented by the author in a later force-push."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Makes it practical to add new trace-level logging elsewhere in the codebase since it becomes actually usable at runtime."
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "The release note is a side effect documenting the RPC/option change, not the primary subject of the PR; per the docs category rule this belongs to the area it documents (rpc/utils), not docs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a docs-category member: the release note accompanies a code/RPC change rather than being the change itself."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a new `loglevel` RPC and materially changes the semantics and return values of the existing `logging` RPC (src/rpc/node.cpp +95/-19, src/rpc/client.cpp).",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it adds a genuinely useful runtime capability (changing trace/debug/info levels without restart) that operators and developers can use directly, and it also fixes a real bug in the old `logging` RPC where invalid categories could leave changes half-applied, per the description: 'now it validates category names before updating log levels, instead of failing with half-applied changes.' It is backward compatible, so no compatibility risk, but no external consumer demand is documented, keeping it short of P1."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The large functional-test diff (test/functional/feature_logging.py) pins the behavior of the logging feature itself, which is a utils/rpc area concern per the category's own carve-out for tests that pin one area's behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category definition: tests specific to one area's behavior belong to that area, not to test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Core logging subsystem changes: src/logging.cpp/h reworks LogCategory to carry a Level instead of a bool, changes precedence handling for -debug/-loglevel/-debugexclude, and adds SetLoggingExcludes.",
+    "band": "P2",
+    "reason_tag": "user_value",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because the utils category explicitly judges logging usability on its own terms, and this PR directly addresses 'confusing options' the category calls out: the author states -loglevel today 'does nothing by default,' making existing trace logs undiscoverable and discouraging new tracing work. Fixing this has leverage for every future contributor who wants to add trace logging, though it carries no security or performance dimension."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project wants to keep two parallel logging RPCs (logging and loglevel) long-term is an open design question raised by stickies-v and not yet settled; this could affect whether the PR needs a rework before merge.",
+   "The PR conflicts with the author's own #35322 and with #34038 (an alternative -trace/RPC design by ajtowns); it's unclear from the discussion which approach the project intends to pursue, which affects how much review effort is warranted right now.",
+   "Only one reviewer has engaged substantively; broader maintainer sentiment on the RPC design is unknown."
+  ],
+  "card": "This PR fixes -loglevel so it works standalone without needing -debug, and adds a new loglevel RPC to read and change per-category log levels (including trace) at runtime without restarting the node. The author's stated problem is that trace logging is effectively unusable today, discouraging developers from adding new tracing and hiding existing trace logs; the change is backward compatible with -debug/-debugexclude. One reviewer (stickies-v) called the design elegant and intuitive, with only a resolved naming nit, but raised an unresolved and nonblocking concern that maintaining two parallel logging RPCs long-term is undesirable and the older one should be deprecated instead. The PR conflicts with a competing design in the still-open #34038 and with the author's own #35322, and has needed three rebases due to unrelated libevent-removal work landing around it. The author has been silent since the last force-push on 2026-07-14. Code appears reviewable now; the main open question is which of the two overlapping RPC/logging designs the project wants."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,115 @@
+{
+ "number": 35902,
+ "input_hash": "f9e4d94115e5d8bc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:50+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18798,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1970
+ },
+ "cost_usd": 0.021486,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Abort node startup with a clear error when a configured ZMQ socket fails to bind.",
+    "Prevent nodes from running silently without ZMQ notifications when misconfigured or when ports conflict."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Author addressed reviewer test requests and all CI checks pass."
+   ],
+   "agreement": [
+    "Strong support for aborting on ZMQ bind failures (pinheadmz, jeanpablojp).",
+    "Author implemented requested stdout error bubbling and cross-platform test coverage."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it fixes a silent failure mode where ZMQ notifiers fail to bind but the node continues running.",
+      "Improves configuration error visibility for downstream services relying on ZMQ events."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member because changes to init.cpp and util::Result usage specifically serve ZMQ subsystem initialization."
+     ]
+    }
+   ]
+  },
+  "summary": "Updates ZMQ initialization to return a util::Result with a descriptive error string when socket creation or address binding fails. AppInitMain now logs this failure at error level and aborts startup with InitError, and interface_zmq.py tests verify startup aborts across invalid addresses and address-in-use errors.",
+  "problem": "When a node operator configures -zmqpub* options and a socket cannot bind (for instance, if the port is already taken), bitcoind starts up silently without ZMQ notifications active, only logging a debug message that is hidden under default logging configurations (issue #33715).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Error reason was originally not surfaced to stdout; author refactored Initialize to return util::Result<void> to bubble up the OS/libzmq error string (pinheadmz).",
+    "Functional tests now assert exact error messages across multiple failure modes and account for platform differences in zmq_strerror (pinheadmz, jeanpablojp)."
+   ],
+   "author_status": "Active, waiting on reviewers after addressing all review feedback and adding requested functional tests."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Clean diff with passing CI, and all reviewer feedback regarding test coverage and error message reporting has been implemented."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK and Approach ACK with tested confirmations; all review requests addressed.",
+   "reason": "Both reviewers supported aborting startup on ZMQ bind failure and confirmed the behavior manually. Author addressed all requests to surface specific error reasons and expand functional test cases.",
+   "evidence": [
+    "pinheadmz gave Concept ACK and verified locally with invalid configurations, requesting error bubbling and functional test cases.",
+    "jeanpablojp gave Approach ACK after verifying the abort behavior with manual broken configurations."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies ZMQ notification setup and error handling in src/zmq/ and test/functional/interface_zmq.py.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Prevents silent startup when explicitly configured ZMQ endpoints fail to bind. Issue #33715 highlighted that users and dependent services expect configured ZMQ notifications to be operational if the node is running, making silent failure a real operational hazard."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touch to src/init.cpp merely hooks ZMQ startup error propagation into AppInitMain; the category rubric excludes changes whose point is another specific area's behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a utility change; the initialization logic and Result types modified are scoped entirely to ZMQ notification handling."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies ZMQ notification initialization to return a util::Result and abort bitcoind startup via InitError if any configured -zmqpub* socket fails to bind or set options. Previously, bind failures were logged only at debug level while the node continued running, misleading operators into believing ZMQ notifications were active (issue #33715). Reviewers tested the behavior across misconfigurations and port collisions, and the author added comprehensive cross-platform functional tests. The change is in a ready state with Concept and Approach ACKs and no unresolved objections."
+ },
+ "raw_text": null
+}

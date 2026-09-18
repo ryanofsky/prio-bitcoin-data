@@ -1,0 +1,461 @@
+{
+ "number": 36101,
+ "input_hash": "bb17131d7da83519",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:48:49+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 31834,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7676
+ },
+ "cost_usd": 0.0526605,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Establish a project-wide error handling strategy distinguishing results, errors, and defects.",
+    "Provide architectural guidance to resolve recurring design disputes over exceptions versus error return types."
+   ],
+   "reviewability": [
+    "Ready for review as a design document and architectural discussion."
+   ],
+   "agreement": [
+    "Disputed: multiple NACKs against mandating exceptions over explicit return types (ajtowns, l0rinc).",
+    "Substantive objections to global defect termination risking wallet corruption or P2P crashes (furszy, mzumsande).",
+    "Concept support for establishing a clear project strategy (sedited, josibake, willcl-ark)."
+   ],
+   "categories": [
+    {
+     "name": "docs",
+     "why": [
+      "P2 because resolving the project's error handling architecture addresses a recurring design dispute across validation and I/O refactors.",
+      "A clear guideline provides substantial maintainability leverage across multiple subsystems."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds `doc/error-handling.md`, proposing an architectural error-handling strategy for Bitcoin Core. It formalizes a three-tier model: return values represent successful domain outcomes, exceptions represent external runtime errors, and defects (bugs and invariant violations) trigger fail-fast termination. It explicitly forbids new code from introducing `std::expected` or similar return-value mechanisms for propagating errors.",
+  "problem": "Bitcoin Core lacks a unified error-handling strategy, leading to repeated ad-hoc debates across validation and subsystem PRs over when to use exceptions, return types like `util::Expected`, or process aborts.",
+  "discussion": {
+   "open_concerns": [
+    "Mandating C++ exceptions contradicts recent project adoption of explicit return types like `util::Expected` and `util::Result` (ajtowns, willcl-ark).",
+    "Exceptions introduce invisible, non-local control flow and increase code-review cognitive load, particularly around thread safety and shutdown (l0rinc, maflcko).",
+    "Abrupt termination on defects without graceful flushing endangers wallet consistency and funds safety (furszy).",
+    "A uniform termination policy does not fit modules like P2P and RPC, where remotely triggered assert defects should not crash the entire node (mzumsande).",
+    "The document belongs in `doc/developer-notes.md` rather than a standalone top-level doc file (maflcko)."
+   ],
+   "resolved_concerns": [],
+   "author_status": "Active; engaging in architectural debates and proposing clarifying amendments to address concerns."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The proposal is complete as a design document and actively being debated. There are no technical blockers to review."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Concept ACK; supports establishing exception-based error strategy but notes boundary details need work."
+    },
+    {
+     "login": "l0rinc",
+     "stance": "objection",
+     "note": "Approach NACK; strongly opposes exceptions and non-local side effects in favor of functional expected return types."
+    },
+    {
+     "login": "furszy",
+     "stance": "objection",
+     "note": "Objects to ungraceful termination for defects, noting it causes wallet inconsistency and risks user funds."
+    },
+    {
+     "login": "ajtowns",
+     "stance": "objection",
+     "note": "NACK; states the document contradicts existing practice like util::expected and exceptions are worse."
+    },
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "Concerned about review overhead, multithreaded shutdown deadlocks with exceptions, and wrong file location."
+    },
+    {
+     "login": "josibake",
+     "stance": "support",
+     "note": "Concept ACK; strongly agrees establishing an error handling strategy is essential to avoid piecemeal debates."
+    },
+    {
+     "login": "willcl-ark",
+     "stance": "support",
+     "note": "~Concept ACK for clear guidelines; questions why exceptions were preferred over LLVM-style Expected."
+    },
+    {
+     "login": "mzumsande",
+     "stance": "objection",
+     "note": "Objects to global defect abort directive, citing resilience patterns like Assume() in P2P."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ajtowns",
+     "kind": "approach",
+     "harm": "Contradicts established codebase patterns like util::expected.h, introducing technical debt and worse error handling semantics.",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-28: 'NACK, this isn't a problem that needs a 750 word essay to address... and the essay provided doesn't reflect existing practice (eg util/expected.h or util/result.h)'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "l0rinc",
+     "kind": "approach",
+     "harm": "Exceptions create invisible non-local control flow and unpredictable side effects contrary to recent modern C++ practices.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-27: 'Approach NACK, instead of presenting your personal opinion as the only way forward, try gathering info first on the project's needs'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "furszy",
+     "kind": "safety",
+     "harm": "Ungraceful process aborts on defects prevent graceful flushes and leave wallet databases in unrecoverable states, endangering funds.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-27: 'There are multiple examples where abrupt terminations can cause the wallet to enter an inconsistent/unrecoverable state, which puts users' funds at risk.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "mzumsande",
+     "kind": "safety",
+     "harm": "A global abort-on-defect directive breaks existing resilience patterns where non-consensus modules like P2P or RPC can handle bugs without node crashes.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-28: 'in p2p code that is triggerable remotely it is often best practice to add a debug-only Assume() and just abort the processing of the message, but not the entire program'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "maintenance",
+     "harm": "Broad exception propagation forces reviewers to audit all calling threads and destructors for deadlock hazards during shutdown.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-28: 'If exceptions were used more broadly, reviewers must always implicitly consider all calling threads for all functions and waste review cycles on that instead of focussing on the logic itself.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "approach",
+     "harm": "Broader exception usage risks multi-threaded shutdown deadlocks or memory corruption, adds review overhead, creates contradictory docs, and is in the wrong location",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-29: 'Again, as mentioned above, I am not against this change, but it can absolutely not be merged in its current form, while ignoring the review feedback above. Merging it would create internally contradictory documentation. Also, doc/error-handling.md is the wrong place to put the docs.'",
+     "resolution_evidence": "",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "josibake",
+     "reason": "Having a central error handling strategy prevents fragmented recurring arguments across different PRs.",
+     "substantive": true
+    },
+    {
+     "reviewer": "sedited",
+     "reason": "Agrees with the core distinction between domain results and errors and the use of exceptions.",
+     "substantive": true
+    },
+    {
+     "reviewer": "willcl-ark",
+     "reason": "Supports establishing a well-defined approach to error handling across the project.",
+     "substantive": true
+    }
+   ],
+   "state": "Blocked",
+   "summary": "Disputed: ajtowns and l0rinc NACK the mandate for exceptions; furszy and mzumsande object to global defect aborts.",
+   "reason": "There is clear concept support for documenting an error handling strategy, but the specific technical recommendations (banning Expected in favor of exceptions, and global abort on defect) face active NACKs and serious objections from multiple long-time contributors.",
+   "evidence": [
+    "ajtowns: 'NACK, this isn't a problem that needs a 750 word essay to address...'",
+    "l0rinc: 'Approach NACK...'",
+    "furszy: 'abrupt terminations can cause the wallet to enter an inconsistent/unrecoverable state'",
+    "mzumsande: 'I see no reason why we would regress on these pragmatic, domain-specific solutions in favor of a global policy'",
+    "josibake: 'Concept ACK: I strongly agree that an established error handling strategy is essential for a project of this size.'"
+   ],
+   "model_state": "Disputed",
+   "derivation": "blocking objection open with no author reply (ajtowns)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Disputed",
+    "derived": "Blocked",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "approach",
+      "harm": "Exceptions introduce non-local invisible control flow, unpredictable side effects, and complicate fuzzing and constructors compared to explicit return types like std::expected",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'Approach NACK, instead of presenting your personal opinion as the only way forward, try gathering info first on the project's needs and try to represent the consensus instead of trying to force the only-correct-way\u2122...'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "furszy",
+      "kind": "safety",
+      "harm": "Ungraceful/abrupt process termination on defects can leave coupled subsystems like the wallet in an unrecoverable state, endangering user funds",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'There are multiple examples where abrupt terminations can cause the wallet to enter an inconsistent/unrecoverable state, which puts users' funds at risk. At least while we keep multiple subsystems coupled into the same process, I don't think it's safe to assume abrupt terminations are harmless.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "Contradicts existing codebase practice (util::Expected, util::Result) and would introduce significant technical debt to change those structures",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-28: 'NACK, this isn't a problem that needs a 750 word essay to address (or a set of issues/PRs bikeshedding the topic), and the essay provided doesn't reflect existing practice (eg util/expected.h or util/result.h) so if merged would introduce significant technical debt to change those structures.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "mzumsande",
+      "kind": "safety",
+      "harm": "Mandating aborts on defect regresses pragmatic protections against remote crashes in p2p/rpc code where non-fatal checks (Assume, CHECK_NONFATAL) prevent DoS attacks",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-28: 'Seems very dubious to have a single strategy for the entire project, especially concerning defects, given how different its modules are... in p2p code that is triggerable remotely it is often best practice to add a debug-only Assume() and just abort the processing of the message, but not the entire program... I see no reason why we would regress on these pragmatic, domain-specific solutions in favor of a global policy from the drawing board.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "approach",
+      "harm": "Broader exception usage risks multi-threaded shutdown deadlocks or memory corruption, adds review overhead, creates contradictory docs, and is in the wrong location",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-29: 'Again, as mentioned above, I am not against this change, but it can absolutely not be merged in its current form, while ignoring the review feedback above. Merging it would create internally contradictory documentation. Also, doc/error-handling.md is the wrong place to put the docs.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "good place to start off establishing an error handling strategy, matching close to their ideal",
+      "substantive": true
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "strongly agrees an established error handling strategy is essential and having one central place to discuss guidelines is needed",
+      "substantive": true
+     },
+     {
+      "reviewer": "willcl-ark",
+      "reason": "supports having a more well-defined approach to error handling for the project in general",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "Concept ACK; agrees with the proposal as a starting point while discussing nuances of checked vs unchecked exceptions"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "objection",
+      "note": "Approach NACK; objects to exceptions bringing non-local invisible control flow and unpredictable side effects, favoring explicit return types"
+     },
+     {
+      "login": "furszy",
+      "stance": "objection",
+      "note": "objects to abrupt termination on defects, noting it puts user funds at risk if concurrent subsystems like the wallet cannot flush safely"
+     },
+     {
+      "login": "ajtowns",
+      "stance": "objection",
+      "note": "NACK; argues exceptions are worse than existing approaches and merging this would contradict current practice and add technical debt"
+     },
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "states it cannot be merged in its current form; raises concerns about exception safety across threads during shutdown, placement, and doc contradictions"
+     },
+     {
+      "login": "josibake",
+      "stance": "support",
+      "note": "Concept ACK; agrees that an established error handling strategy is essential"
+     },
+     {
+      "login": "willcl-ark",
+      "stance": "support",
+      "note": "~ Concept ACK for defining a project-wide approach, but questions moving away from LLVM-style util::Expected"
+     },
+     {
+      "login": "mzumsande",
+      "stance": "objection",
+      "note": "objects to a single global strategy requiring fatal termination on defects, which regresses pragmatic domain-specific handling against remote crash bugs"
+     }
+    ],
+    "corrections": [],
+    "summary": "Disputed: l0rinc and ajtowns NACK the preference for exceptions over explicit return types; furszy, mzumsande, and maflcko raise blocking safety and architecture objections",
+    "usage": {
+     "input_tokens": 10272,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2533
+    }
+   },
+   "first_read": {
+    "state": "Blocked",
+    "model_state": "Disputed",
+    "objections": [
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "Contradicts established codebase patterns like util::expected.h, introducing technical debt and worse error handling semantics.",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-28: 'NACK, this isn't a problem that needs a 750 word essay to address... and the essay provided doesn't reflect existing practice (eg util/expected.h or util/result.h)'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "approach",
+      "harm": "Exceptions create invisible non-local control flow and unpredictable side effects contrary to recent modern C++ practices.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'Approach NACK, instead of presenting your personal opinion as the only way forward, try gathering info first on the project's needs'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "furszy",
+      "kind": "safety",
+      "harm": "Ungraceful process aborts on defects prevent graceful flushes and leave wallet databases in unrecoverable states, endangering funds.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'There are multiple examples where abrupt terminations can cause the wallet to enter an inconsistent/unrecoverable state, which puts users' funds at risk.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "mzumsande",
+      "kind": "safety",
+      "harm": "A global abort-on-defect directive breaks existing resilience patterns where non-consensus modules like P2P or RPC can handle bugs without node crashes.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-28: 'in p2p code that is triggerable remotely it is often best practice to add a debug-only Assume() and just abort the processing of the message, but not the entire program'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "maintenance",
+      "harm": "Broad exception propagation forces reviewers to audit all calling threads and destructors for deadlock hazards during shutdown.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-28: 'If exceptions were used more broadly, reviewers must always implicitly consider all calling threads for all functions and waste review cycles on that instead of focussing on the logic itself.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "josibake",
+      "reason": "Having a central error handling strategy prevents fragmented recurring arguments across different PRs.",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Agrees with the core distinction between domain results and errors and the use of exceptions.",
+      "substantive": true
+     },
+     {
+      "reviewer": "willcl-ark",
+      "reason": "Supports establishing a well-defined approach to error handling across the project.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Architectural guidance for error handling in #34931, #35003, #34132"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds a new architectural design document under doc/error-handling.md.",
+    "band": "P2",
+    "reason_tag": "decision needed",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Establishing an architectural strategy for error handling is strategically important to resolve recurring debates across open validation and P2P refactors. The PR provides significant leverage by attempting to define project-wide standards for distinguishing consensus validation results, operational errors, and software defects."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request introduces doc/error-handling.md, proposing a formal project-wide error handling architecture that categorizes program behavior into results, errors (propagated via exceptions), and defects (handled via fail-fast termination). The problem it addresses is the lack of a consistent error-handling convention, which currently fuels recurring disagreements in validation and I/O pull requests. Multiple reviewers support establishing clear guidelines, but the specific proposal faces strong pushback and NACKs from maintainers and contributors over mandating exceptions over std::expected and requiring process aborts for defects. The PR is Ready for review as a design document but is heavily Disputed on its core approach."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01720275
+}

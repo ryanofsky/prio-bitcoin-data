@@ -1,0 +1,113 @@
+{
+ "number": 33145,
+ "input_hash": "1281e152ace75e08",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14886,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5455
+ },
+ "cost_usd": 0.0435673,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a scheduled CI job that periodically rebuilds and tests every open PR merged against current master, to catch 'silent merge conflicts' where a PR's own CI passes but the merge result fails.",
+    "Aims to relieve maintainers of manually re-testing PRs against master to find hidden breakage before merge."
+   ],
+   "reviewability": [
+    "Reviewing now is of limited value: the author has been silent for 77 days and a maintainer ping in August went unanswered.",
+    "No pending technical blocker beyond author availability; the design has settled after months of iteration."
+   ],
+   "agreement": [
+    "Positive overall, with a concept ACK (fjahr) and an approving lgtm (maflcko) after extensive design iteration.",
+    "Open but nonblocking concern from willcl-ark about the checks-write token being exposed to PR authors' code, which the author agreed was valid but has not yet fixed (willcl-ark, m3dwards)."
+   ],
+   "categories": []
+  },
+  "summary": "Adds a new scheduled GitHub Actions workflow that periodically pulls every open PR, merges it against current master, runs the CMake build and test suite, and posts a pass/fail GitHub check run against the PR so maintainers can see if the PR would silently break when merged. It runs continuously on a rotating schedule, prioritizing PRs never checked and then the least-recently checked ones. The design went through months of iteration (labels-based trigger, then a separate repo idea, then the current single-loop job) based on maintainer feedback.",
+  "problem": "Maintainers currently have no automated way to detect PRs whose own CI passes but which would fail when merged with the latest master ('silent merge conflicts'), and must manually re-run CI to find these, as maflcko notes referencing a real example (#29136).",
+  "discussion": {
+   "open_concerns": [
+    "willcl-ark flagged that giving the whole job (including a PR's own run_all.sh) the checks:write token lets PR authors' code potentially abuse that token; author agreed but has not implemented a fix yet.",
+    "maflcko suggested folding lint checks into the job; author found this dramatically slowed runs (35 min vs 5-7 min per PR) and decided to leave it out for now, which maflcko accepted as fine to defer.",
+    "CDash-style structured reporting was prototyped by willcl-ark but author chose not to include it, deferring to a possible followup."
+   ],
+   "resolved_concerns": [
+    "Early design used PR label add/remove to trigger CI, which maflcko and 0xB10C flagged as causing label spam and notification-routing problems; author abandoned that approach for the current single scheduled job.",
+    "willcl-ark pointed out the GitHub 'mergeable' field is unreliable when listing all PRs at once; author fixed by querying each PR individually.",
+    "Cron minute 0 could hit peak load; author adopted maflcko's suggested offset (minute 37)."
+   ],
+   "author_status": "silent since 2026-07-01 (77 days), unanswered ping from sedited on 2026-08-27"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 77 days",
+   "reason": "No author activity for 77 days, exceeding the 60-day staleness threshold, and a maintainer ping (sedited, 2026-08-27) asking for another look has gone unanswered. The design itself has stabilized after extensive back-and-forth and an approving review from maflcko, so a review would likely still be useful, but the PR needs the author to re-engage, particularly on the open token-permission concern."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive, with a concept ACK (fjahr) and an lgtm (maflcko), but willcl-ark's concern about token exposure to PR authors' code remains unaddressed though nonblocking.",
+   "reason": "Two maintainers/contributors expressed clear support after multi-month design iteration, and no one has raised a blocking objection to the current approach, but a legitimate security-hygiene concern about scoping the checks:write token was acknowledged by the author as valid without a fix landing.",
+   "evidence": [
+    "maflcko: 'concept ack, but I don't have the slightest idea if this is even possible (or how) with GHA', later APPROVED with 'lgtm, thx!' and again 'lgtm. Seems fine to put the code in this repo and call it inside this CI.'",
+    "fjahr: 'Concept ACK'",
+    "willcl-ark: giving the whole job this permission 'would let a PR do some annoying things on GH as they have an authenticated write token to play with in run_all.sh'; author (m3dwards): 'I'll have a think about this as you are right' \u2014 not yet implemented.",
+    "sedited pinged 2026-08-27 for renewed attention, no reply since."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Automated detection of silent merge conflicts across all open PRs, reducing manual CI re-runs maintainers currently do by hand (referenced pain point in #29136)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "The PR adds new GitHub Actions workflow files and CI scripts (.github/workflows/silent-merge-check.yml, silent-merge-test.py, silent-merge-report.py) purely concerned with CI infrastructure, matching the build category's CI configuration scope directly.",
+    "band": "P2",
+    "reason_tag": "CI reliability",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it addresses a real, recurring maintainer pain point: maflcko explicitly notes 'it is a bit tedious to manually search for all silent merge conflicts,' citing a concrete example (#29136). It doesn't fix release integrity or fix an existing broken build, but it closes a real gap in CI signal that affects every PR in the repository, and multiple maintainers pushed for the design over many months, indicating durable value. The unresolved token-scoping concern is a minor stability caveat, not a blocker to the core value."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The 'Tests' label applies and the PR's function is squarely about detecting misleading CI signal (PRs whose own CI passes but which fail once merged), which is the kind of test-signal problem the tests category is meant to weigh, even though the mechanism lives in CI glue rather than the test framework itself.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because the category's top priority is 'fixes for flaky or misleading tests, since a red CI that nobody trusts hides real failures,' and this PR targets exactly that failure mode (a PR's green CI silently going stale against master). It is secondary to build here since the actual change is CI/workflow plumbing rather than framework or coverage improvements, and it does not by itself increase coverage of any high-risk code path."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this PR should count as 'tests' or purely 'build' is a judgment call since it is CI glue detecting test-signal problems rather than a change to the test framework itself.",
+   "No maintainer has stated a hard release deadline or explicit priority ranking for this work, so the P2 band for build rests on inferred recurring pain rather than an explicit maintainer statement of urgency.",
+   "It is unclear whether the project will ultimately want this logic inside bitcoin/bitcoin versus in a separate DrahtBot-style repo, which affects long-term value but not the current review state."
+  ],
+  "card": "This PR adds a scheduled GitHub Actions job that periodically merges every open PR against current master, builds and tests the result, and posts a pass/fail check back to the PR, to catch 'silent merge conflicts' where a PR's own CI is green but the merge outcome is broken. The problem is real and recurring: maflcko cites manually finding such cases as tedious, referencing a concrete example (#29136), and pushed the author through many design iterations (label-based triggers, a separate repo, then the current single scheduled job) before landing on this approach. maflcko approved with 'lgtm, thx!' and fjahr gave a concept ACK, but willcl-ark's concern that the job's checks:write token could be abused by a PR author's own test script remains unaddressed, only acknowledged as valid. The PR is currently Stale: the author has been silent for 77 days and a maintainer ping in August went unanswered, though there is no known code issue that would invalidate a review. No formal dependency on other PRs; it stands alone as CI infrastructure."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

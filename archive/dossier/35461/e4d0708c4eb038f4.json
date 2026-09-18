@@ -1,0 +1,122 @@
+{
+ "number": 35461,
+ "input_hash": "e4d0708c4eb038f4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16056,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2802
+ },
+ "cost_usd": 0.0314723,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes internal assertion failure messages state what actually failed, not just the failed condition text.",
+    "Also makes NONFATAL_UNREACHABLE honor the same abort-on-assume setting as CHECK_NONFATAL for consistency."
+   ],
+   "reviewability": [
+    "Ready. All reviewer nits have been applied and the PR description was updated on 2026-09-07 to match the final wording."
+   ],
+   "agreement": [
+    "Strong support with two reviewers approving after iterative wording fixes.",
+    "l0rinc gave a tested ACK and later a code review reACK, maflcko approved with nits that were applied (l0rinc, maflcko).",
+    "No standing objections remain."
+   ],
+   "categories": []
+  },
+  "summary": "This PR clarifies the wording of internal assertion failure messages produced by Assert, Assume, and CHECK_NONFATAL, adding a '`condition` check failed' suffix so it's unambiguous which expectation failed versus what actually happened. It also unifies NONFATAL_UNREACHABLE's abort handling with CHECK_NONFATAL by extracting a shared check_non_fatal_fail() helper, so it too honors G_ABORT_ON_FAILED_ASSUME. A small internal helper was renamed from assertion_fail to internal_abort_helper for clarity, and tests/rpc_misc.py were updated to match the new message format.",
+  "problem": "Developers debugging internal-bug assertion failures previously saw only the raw failed condition text (e.g. 'pindex != nullptr'), which is ambiguous about whether that's the expected or actual state; this PR makes the failure message state clearly that the condition check failed, aiding anyone reading crash/error logs.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "l0rinc's request to avoid double-prefix wording and keep StrFormatFailedCheck private \u2014 applied.",
+    "l0rinc's concern about single quotes colliding with character literals in conditions \u2014 switched to backticks.",
+    "l0rinc's request that the fatal abort path use the same clarified wording \u2014 applied.",
+    "maflcko's suggestion to unify NONFATAL_UNREACHABLE with CHECK_NONFATAL's abort logic via a shared check_non_fatal_fail() helper \u2014 implemented in final commits.",
+    "Requests to keep the PR description in sync with final wording \u2014 updated by author on 2026-09-07."
+   ],
+   "author_status": "active, last touched PR 2026-09-07 to update description per l0rinc's final request"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer nits (wording, helper structure, unreachable unification) have been applied across multiple rounds, and the author updated the PR description on 2026-09-07 immediately after the last request. No open material questions remain and CI failures noted were deemed unrelated (Alpine/macOS infra issues)."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: l0rinc gave a tested ACK and later a code review reACK, maflcko approved with only nits, all applied.",
+   "reason": "Two members reviewed across several rounds; both ended in explicit approval/ACK with no unresolved objections. All raised concerns (wording, code structure, unreachable consistency) were addressed by the author.",
+   "evidence": [
+    "l0rinc: 'tested ACK 4b63136...' then later 'code review reACK 6494a7e...'",
+    "maflcko: 'lgtm, left two nits' \u2014 both nits applied by author",
+    "l0rinc's earlier Concept ACK: 'it's a tiny difference... but when we do, it better tell us a realistic story'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only touches a functional test assertion string that mechanically follows the message-format change in util/check.cpp; not a change to RPC behavior or interface itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; the rpc_misc.py edit is a mechanical test-string update following the utils change, not a change to RPC behavior."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "util_check_tests.cpp changes pin the behavior of a specific area's macros (util/check.h assertion helpers), which per the category definition belongs to that area rather than to general test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category rule: a test pinning one area's behavior (here, util/check macros) belongs to that area, not to test-infrastructure category."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly modifies src/util/check.h and check.cpp, the shared assertion/CHECK_NONFATAL machinery used across the whole codebase, carrying the Utils/log/libs label.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is a purely cosmetic improvement to developer-facing debug/crash message text with no behavior change to production logic paths. The description states the motivation is that 'it's unclear whether that's the failed expectation or the actual case' \u2014 a minor developer-experience clarity fix, not a correctness or user-facing issue. The NONFATAL_UNREACHABLE unification is a small consistency improvement with no stated bug it fixes."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the NONFATAL_UNREACHABLE behavior unification could have subtle interaction with existing call sites expecting a throw rather than abort under G_ABORT_ON_FAILED_ASSUME; discussion doesn't flag any regression but it's a broader behavior change than the pure wording fix."
+  ],
+  "card": "This PR clarifies internal assertion-failure message wording (e.g. 'Internal bug detected: `pindex != nullptr` check failed' instead of ambiguous raw condition text) across Assert, Assume, and CHECK_NONFATAL, and unifies NONFATAL_UNREACHABLE to honor the same G_ABORT_ON_FAILED_ASSUME abort setting via a new shared helper. The problem addressed is minor: ambiguous debug/crash messages for internal bugs, a developer-experience nicety rather than a functional bug. Two members, l0rinc and maflcko, reviewed across several rounds; l0rinc gave a tested ACK and later a code review reACK, and maflcko approved with only nits, all applied, leaving no open objections. The PR is Ready to merge review-wise, with the author having updated the PR description on 2026-09-07 to match final wording per the last request. No dependencies; this is a self-contained utils-category cleanup, P4 given its purely cosmetic nature."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

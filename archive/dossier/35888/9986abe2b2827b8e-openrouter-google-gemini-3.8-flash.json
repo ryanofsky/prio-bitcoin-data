@@ -1,0 +1,110 @@
+{
+ "number": 35888,
+ "input_hash": "9986abe2b2827b8e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:34+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17019,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3016
+ },
+ "cost_usd": 0.02407425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent transport crashes and buffer corruption by rejecting oversized outbound P2P messages before they enter the send queue."
+   ],
+   "reviewability": [
+    "Ready to review."
+   ],
+   "agreement": [
+    "Strong support with Concept ACKs and co-authored commits from p2p contributors (ajtowns, mzumsande).",
+    "Only a minor open nit on transport copy logic remains (naiyoma)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it acts as defense-in-depth against internal bugs and fuzzing hazards.",
+      "Normal outbound messages already respect limits, but dropping oversized messages avoids transport aborts or V2 buffer overwrites."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds an assumption and validation check in CConnman::PushMessage() to ensure outbound messages adhere to protocol limits (maximum 12 bytes for message type, maximum 4 MB for payload). In debug and fuzz builds, invalid messages trigger an assertion to expose buggy internal callers, while release builds log and drop the message before it enters the send queue. Also updates the testing-only sendmsgtopeer RPC to explicitly reject oversized payloads.",
+  "problem": "Outbound transports expect valid message headers and lengths, but CConnman previously did not validate them before queueing. An oversized message type would cause V1 transport encoding to abort and could cause V2 transport encoding to overwrite memory or buffer data.",
+  "discussion": {
+   "open_concerns": [
+    "naiyoma suggested using std::copy_n to safely clamp message type copies in the transport."
+   ],
+   "resolved_concerns": [
+    "ajtowns inquired about fuzzing context and suggested moving limits checks into CSerializedNetMsg and using string_view for tests.",
+    "mzumsande suggested moving checks up from transport level to CConnman::PushMessage() to prevent connection stalls from SetMessageToSend(false)."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has clean CI, no merge conflicts, and addresses earlier reviewer feedback. Only a non-blocking nit remains open."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on approach with Concept ACKs and co-authorship from ajtowns and mzumsande.",
+   "reason": "Reviewers agreed on enforcing invariants at the PushMessage layer rather than inside individual transports, and co-authored commits to finalize the implementation.",
+   "evidence": [
+    "Concept ACK from ajtowns, who co-authored the commits.",
+    "mzumsande provided architectural feedback on PushMessage enforcement and co-authored the commits.",
+    "Concept ACK from naiyoma with a minor inline nit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies outbound message queuing and transport invariant enforcement in src/net.cpp and src/net.h.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Prevents potential transport aborts or memory overwrites in V2 encoding if an internal caller constructs an oversized message type. Because outbound types are internal constants and payloads are bounded under normal operation, this is primarily defensive hardening and fuzzing reliability rather than an urgent consensus or P2P reliability issue."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes to src/rpc/net.cpp are mechanical follow-ups to adapt the test-only sendmsgtopeer RPC to the new CConnman precondition.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The RPC change only guards the test RPC from triggering the newly introduced Assume in CConnman. It does not represent an RPC interface change or feature that an RPC maintainer would review independently."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Enforces wire protocol limits on message types (12 bytes) and payloads (4 MB) in CConnman::PushMessage() before they are queued for transmission. This provides defense-in-depth against internal caller bugs that could cause V1 encoding to abort or V2 encoding to overwrite buffers. The test-only sendmsgtopeer RPC is also updated to reject oversized payloads. Review is positive with Concept ACKs and co-authorship from ajtowns and mzumsande, and no significant blockers remain."
+ },
+ "raw_text": null
+}

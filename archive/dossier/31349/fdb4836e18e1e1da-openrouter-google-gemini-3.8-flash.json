@@ -1,0 +1,123 @@
+{
+ "number": 31349,
+ "input_hash": "fdb4836e18e1e1da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:00+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 58393,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4024
+ },
+ "cost_usd": 0.05888475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Catch test regressions in CI that leak outbound internet traffic or DNS requests.",
+    "Protect developer privacy and ensure test suite network isolation."
+   ],
+   "reviewability": [
+    "Author inactive for over 90 days with an open review question.",
+    "Review is best deferred until the author returns to address tcpdump filtering."
+   ],
+   "agreement": [
+    "Broad concept support for CI leak detection (ryanofsky, fjahr, sipa, laanwj, 0xB10C).",
+    "Past concerns regarding local podman breakage and false positives (fanquake, maflcko).",
+    "Unaddressed review comment on invalid tcpdump flag usage when reading captures (fjahr)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it adds automated regression detection in CI for network isolation leaks.",
+      "Valuable for CI test hygiene but reasonably deferrable."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it enforces test hermeticity and prevents accidental developer IP leaks.",
+      "Improves test suite safety but does not fix broken functional test framework machinery."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request configures the CI environment to detect unexpected outbound TCP and UDP traffic (as well as DNS lookups) generated during test execution. It runs background tcpdump monitors across interfaces during unit, functional, fuzz, and tidy runs, failing the build if non-loopback network packets are generated.",
+  "problem": "Tests occasionally attempt real outbound network connections or DNS queries (such as seed lookups, NAT-PMP requests, or system debug services), which leak developer IP addresses and violate test isolation.",
+  "discussion": {
+   "open_concerns": [
+    "fjahr noted that tcpdump's --direction option is only enforced during packet capture, making its use when reading capture files a no-op that needs adjusting.",
+    "Past friction from fanquake and maflcko regarding non-deterministic failures and false positives when running CI scripts locally via podman."
+   ],
+   "resolved_concerns": [
+    "Specific unit test network leak in node_init_tests was extracted and fixed in #35193.",
+    "DNS seed lookups causing spurious alerts were mitigated by running unit tests with -dnsseed=0.",
+    "Shellcheck warnings on variable assignments in CI scripts were fixed."
+   ],
+   "author_status": "silent since 2026-06-18"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent",
+   "reason": "The author has been silent for 91 days, exceeding the 60-day threshold, and an open technical review comment from fjahr on 2026-08-28 remains unanswered."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Strong concept agreement, but open technical comment from fjahr and past concerns over local podman failures",
+   "reason": "There is broad agreement on the value of catching network traffic in CI, and ryanofsky and fjahr previously ACKed. However, fjahr has an open comment regarding improper flag usage with tcpdump, and reviewers have raised recurring concerns about local CI reproducibility.",
+   "evidence": [
+    "Concept ACKs from laanwj, jonatack, sipa, Sjors, and 1440000bytes.",
+    "Approvals on earlier revisions from ryanofsky, 0xB10C, and fjahr.",
+    "fanquake and maflcko reported failures when running the CI scripts locally under Podman.",
+    "fjahr noted on 2026-08-28 that '--direction is only enforced at capture time' and is a no-op when reading."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies CI setup and execution scripts in ci/test/ to configure packet capture and fail CI on non-loopback network traffic.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it improves CI signal and test hermeticity by preventing future PRs from inadvertently introducing network-leaking tests. While valuable for developer privacy and CI discipline, it does not fix a broken build or platform failure."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds verification harness across the test runners to enforce that test suites do not produce outbound network traffic.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it provides a mechanism to verify that tests remain hermetic and do not touch external servers. It solves an acknowledged privacy issue for developers running tests, but it does not fix functional or unit test framework blockers."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR integrates tcpdump into the CI test runners to detect and fail on outbound network traffic or DNS queries generated while running tests. It addresses privacy concerns where developers' IP addresses are exposed when tests inadvertently query external DNS seeds or peers. Concept approval is solid across multiple contributors, but the PR is currently stale following 91 days of author inactivity and an unaddressed comment from fjahr regarding tcpdump flag usage. It remains a worthwhile (P3) improvement to test isolation in CI."
+ },
+ "raw_text": null
+}

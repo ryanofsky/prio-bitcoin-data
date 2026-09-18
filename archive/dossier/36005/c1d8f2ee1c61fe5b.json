@@ -1,0 +1,141 @@
+{
+ "number": 36005,
+ "input_hash": "c1d8f2ee1c61fe5b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12351,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4352
+ },
+ "cost_usd": 0.0355173,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Warns users when a multipath descriptor accidentally reuses the same key material across branches, closing a silent key-reuse footgun in importdescriptors and getdescriptorinfo."
+   ],
+   "reviewability": [
+    "Not reviewable as-is: PR needs a rebase and has been silent from the author for a month.",
+    "One reviewer has already tested thoroughly and ACKed the pre-rebase commit."
+   ],
+   "agreement": [
+    "Strong support: jeanpablojp tACKed after manually disabling each warning-trigger line and confirming the targeted tests fail (jeanpablojp).",
+    "Only open item is a nit asking for a test covering two simultaneous warnings, not a blocking objection (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a real, previously silent privacy/key-reuse hazard when importing multipath descriptors that mix multipath and single-path key expressions, evidenced by the linked open issue #35985 and by extensive new unit and functional tests reproducing the scenario.",
+      "Affects any wallet user relying on multipath (e.g. BIP389) descriptors with mixed key expressions, a growing pattern for change/receive splitting."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds a `warnings` field to `getdescriptorinfo` and deduplicates the RPC-wide `PushWarnings` helper, a compatibility-safe additive change rather than a fix to an existing interface gap that applications had asked about.",
+      "Benefit is real but narrower: mostly improves diagnostic surfacing rather than fixing broken RPC behavior."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a docs PR: the release notes file is a side effect of the code change, not the primary subject, so it does not carry independent priority in this category."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a warning surfaced through `importdescriptors` and a new `warnings` field on `getdescriptorinfo` when multipath descriptor expansion clones a single-path key expression (or a tr() internal key/subscript) into every branch, silently reusing the same key material across branches. Also deduplicates entries in the shared `PushWarnings` RPC helper, since multipath expansion previously produced the same warning once per branch. Includes extensive new unit tests in descriptor_tests.cpp covering multi(), tr(), miniscript, and musig() cases, plus functional test coverage and release notes.",
+  "problem": "importdescriptors currently lets a multipath descriptor silently clone a single-path key expression into every expanded branch, meaning the same key material ends up reused across what look like distinct multipath branches, defeating the purpose of multipath separation. This is felt by wallet users and integrators constructing multipath descriptors (e.g. multisig or miniscript setups mixing multipath and single-path keys), and is tracked as open issue #35985.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp's nit that the current unit test helper only checks for a single warning and misses a descriptor that would trigger two warnings simultaneously, e.g. wsh(and_v(v:pk(A/<0;1>/*),and_v(v:pk(B/0/*),older(65536))))."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-08-18, no reply to the nit"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a 'Needs rebase' label and mergeable_state is dirty, and the author has been silent for roughly 30 days since the last force-push, which independently triggers staleness even though the code itself received a thorough tACK."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: jeanpablojp tACKed after manually disabling each of the four warning-trigger code paths and confirming the corresponding tests fail (jeanpablojp).",
+   "reason": "A single reviewer gave a substantive, verified tACK with a stated methodology (dropping each `multipath_cloned = true` line and the PushWarnings dedup, one at a time, and observing test failures), and raised only a non-blocking nit about additional test coverage, which the author has not yet responded to but which does not contest the change itself.",
+   "evidence": [
+    "jeanpablojp: 'tACK 13ef865f... I dropped each of the four multipath_cloned = true lines one at a time and each one fails on a different descriptor'",
+    "jeanpablojp (nit): test helper 'only allows one warning', suggests adding a descriptor that hits two warnings at once"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes open issue #35985 (importdescriptors silently reusing key material across multipath branches)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only doc/release-notes-36005.md is added, as a byproduct of the code change; the PR's subject is descriptor/RPC behavior, not documentation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category rule: a code change that also updates its docs belongs to its own area, not docs."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a `warnings` array field to `getdescriptorinfo` and changes the shared `PushWarnings` helper used across RPC methods to deduplicate warnings, touching src/rpc/util.{h,cpp} and src/rpc/output_script.cpp directly.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because the RPC-facing change is additive and compatibility-safe: a new optional `warnings` field and a dedup fix to a shared helper, evidenced by the release note 'getdescriptorinfo now returns a warnings field... The warnings field of RPC results no longer contains duplicates.' No external consumer request is cited for the new field, so it ranks as a modest, low-risk improvement rather than closing a known interface gap."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly addresses importdescriptors behavior (test/functional/wallet_importdescriptors.py, src/script/descriptor.cpp) around multipath key expansion, which is core wallet descriptor-import logic.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes a real, previously silent correctness/privacy issue: multipath descriptor expansion could clone a single-path key into every branch, reusing key material across branches unnoticed by the user, as tracked in the linked open issue #35985 ('importdescriptors: multipath expansion silently reuses key material across branches') and confirmed by the reviewer's line-by-line test verification. It only warns rather than prevents the behavior, and cloning inside musig() is deliberately excluded as non-observable, which caps it below P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project intends to eventually block (not just warn about) this key-reuse pattern, which would raise its priority further.",
+   "Whether the reviewer's outstanding nit about multi-warning test coverage will be addressed before merge; it appears non-blocking but is unresolved.",
+   "Exact impact of the 'Needs rebase' state on the underlying diff was not verified beyond the label and dirty mergeable_state."
+  ],
+  "card": "This PR makes Bitcoin Core warn, via importdescriptors and a new getdescriptorinfo warnings field, when multipath descriptor expansion silently clones a single-path key expression (or a tr() internal key/subscript) into every branch, reusing the same key material across branches that are supposed to be distinct. It closes open issue #35985, which specifically reports this silent key-reuse behavior, and is backed by extensive new unit tests covering multi(), tr(), miniscript, and musig() cases (musig() is deliberately excluded since its aggregate keys differ per branch). Reviewer jeanpablojp gave a thorough tACK, manually disabling each of the four warning-trigger code paths and the PushWarnings dedup to confirm each is load-bearing, and raised only a non-blocking nit about test coverage for simultaneous warnings. The PR needs a rebase (dirty mergeable_state, 'Needs rebase' label) and the author has been silent for about a month, making it currently Stale for review purposes despite the strong review signal. No dependency on other open PRs, though it conflicts with unrelated open PRs (#36133, #36116, #31668) touching overlapping files."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

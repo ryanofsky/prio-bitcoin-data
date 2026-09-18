@@ -1,0 +1,119 @@
+{
+ "number": 36121,
+ "input_hash": "505ed2733f6dd474",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:57:32+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15357,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2841
+ },
+ "cost_usd": 0.0221715,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up fuzz corpus execution during parallel test runs",
+    "Allow single fuzz targets and long-tail targets to parallelize across multiple CPU cores"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Author addressed initial comments and CI is passing"
+   ],
+   "agreement": [
+    "Concept ACK from jeanpablojp with caveats noted regarding OS disk overhead and loss of aggregated coverage reporting",
+    "Author responded with tmpfs additions and per-job temp directories"
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it optimizes CI container configurations with tmpfs mounts to support sharded fuzz test runs.",
+      "Cuts CI runtime by 7 to 15 minutes on MSan and Windows runners though macOS gains remain marginal."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it improves test runner throughput for fuzz suites by sharding large target corpora across available cores.",
+      "Worthwhile optimization for developers running fuzz targets locally and in CI, with some trade-off in coverage reporting."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request modifies `test/fuzz/test_runner.py` to split fuzz corpora into shards matching `--par` by default, allowing single fuzz targets or unevenly sized corpora to execute across multiple worker processes. It also updates `ci/test/02_run_container.py` to mount tmpfs and APFS ramdisks to mitigate disk I/O bottlenecks caused by shard directory creation.",
+  "problem": "When running the fuzz test runner with `--par`, single targets cannot be parallelized, and parallel multi-target runs are constrained by the runtime of the slowest single target.",
+  "discussion": {
+   "open_concerns": [
+    "Sharded runs fragment libFuzzer coverage metrics in the summary output so coverage cannot be easily compared across runs",
+    "Target setup overhead and hard link file operations can cause storage thrashing on platforms without fast tmpfs"
+   ],
+   "resolved_concerns": [
+    "Temporary directories left behind on abort or colliding across jobs were addressed by creating per-job temporary directories and adding CI tmpfs/ramdisk mounts"
+   ],
+   "author_status": "addressed review comments with a force push and CI configuration updates, awaiting further feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is ready for review and CI is passing. The author pushed revisions to address early reviewer feedback."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACK from jeanpablojp, with standing caveats around coverage loss and platform-dependent I/O overhead.",
+   "reason": "jeanpablojp Concept ACKed the change and verified significant speedups on MSan and Windows, but pointed out that macOS/slow-storage runs can bottleneck on target instantiation, and corpus sharding permanently fragments the coverage metrics emitted by libFuzzer.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK... utxo_total_supply builds a ChainTestingSetup inside the target body...'",
+    "jeanpablojp: 'Summary goes from 237 lines to 3754... cov: becomes per process... you can't compare coverage across a change any more'",
+    "maflcko: 'I don't think it is possible to recover the coverage from the shards... I guess this is fixed by having per-job tmp dirs'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Touches ci/test/02_run_container.py to configure tmpfs mounts and macOS ramdisks for test runners.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change improves CI test execution times, shaving 7 to 15 minutes off heavy sanitize/Windows CI fuzz jobs by providing ramdisks and tmpfs mounts. While reducing developer wait times on CI is valuable, this is an internal performance optimization for tests rather than a release integrity or build reliability fix."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Touches test/fuzz/test_runner.py to add corpus sharding support to the fuzz test infrastructure.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "corpus sharding speeds up individual target fuzz validation significantly when running on multi-core systems, solving the long-tail runner bottleneck where one target dominates total elapsed test time. However, it incurs storage overhead and breaks target-wide aggregated coverage figures, making it a worthwhile enhancement that can be deferred."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR updates the fuzz test runner to divide target corpora into shards so that single targets and long-tail targets can execute across multiple cores during parallel runs. It also introduces tmpfs and ramdisk mounts in the CI container runner to minimize disk link overhead. Measurements show 7 to 15 minute speedups on sanitized and Windows CI jobs, though macOS gains are limited by test setup costs and corpus sharding fragments per-target coverage totals. Review is active following a Concept ACK and revisions by the author."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,302 @@
+{
+ "number": 36000,
+ "input_hash": "ba4c578fd1f473c1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:45:31+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 45019,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6021
+ },
+ "cost_usd": 0.056343,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prefetch blocks from disk into memory while earlier blocks are being connected, speeding up initial block download and reindexing."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "A minor cleanup from w0xlt regarding memory clearing on invalid blocks is pending author response."
+   ],
+   "agreement": [
+    "Strong support with benchmarks showing 13% to 35% speedup on IBD and reindex (andrewtoth).",
+    "Log spam objection resolved by keeping the thread pool alive on Chainstate (fanquake, andrewtoth).",
+    "Recent nonblocking concern: clear prefetched queue when a block is rejected to avoid memory retention (w0xlt)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it brings substantial and measured speedups to block connection and reindexing without altering consensus rules.",
+      "Benchmarks confirm a 13% to 35% elapsed time reduction across HDD and SSD configurations."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a Chainstate-owned BlockFetcher with a 2-worker thread pool that asynchronously reads and deserializes upcoming blocks from disk up to a depth of 4 while the validation thread is busy connecting earlier blocks. It also handles prefetching the first sibling block on a competing fork during reorgs while disconnecting the existing tip.",
+  "problem": "Block reading and deserialization from disk occur synchronously just before connecting each block, leaving CPU validation cores idle during disk I/O and disk readers idle during validation.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt pointed out that if a block fails validation, prefetched descendant blocks could remain in memory indefinitely unless Clear() is invoked on failure."
+   ],
+   "resolved_concerns": [
+    "Thread pool creation spam on every ActivateBestChain call was fixed by moving BlockFetcher lifetime onto Chainstate.",
+    "Potential circular dependency between node/blockfetcher, blockstorage, and validation was resolved using functional callback injection.",
+    "Prefetch queue sizing and sliding window dynamics were tuned down to 2 threads and queue depth of 4 based on benchmarks."
+   ],
+   "author_status": "Active; addressed initial design feedback and provided comprehensive multi-hardware benchmarks, pending response to w0xlt's recent comment."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The implementation is complete, well tested, and stable; w0xlt's recent comment is a straightforward 2-line fix that does not invalidate review."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "fanquake",
+     "stance": "objection",
+     "note": "Reported severe log spam and rate-limiting from worker thread start/exit"
+    },
+    {
+     "login": "andrewtoth",
+     "stance": "support",
+     "note": "Extensively tested, benchmarked, co-authored improvements, and ACKed"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "Noted prefetched blocks remain in memory if a block is rejected"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "fanquake",
+     "kind": "maintenance",
+     "harm": "Log spamming from thread start/exit logs causing rate-limiting warnings",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-18: 'Note that this spams blockread.* thread start/exit debug logs to the point that rate-limiting kicks'",
+     "resolution_evidence": "2026-08-18: 'I\u2019ve pushed a fix that keeps it alive on Chainstate'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Prefetched blocks on an invalid branch remain in memory indefinitely",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-16: 'When a block was rejected, blocks read ahead for its branch could remain in memory indefinitely.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "andrewtoth",
+     "reason": "Measured significant speedup on IBD (3.8% to 13.4%) and reindex-chainstate (12.7% to 35.8%) across machines",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Strong approval and benchmarks from andrewtoth; one open nonblocking memory retention edge case noted by w0xlt.",
+   "reason": "andrewtoth provided a full ACK backed by extensive benchmarks. An open nonblocking observation from w0xlt regarding clearing the queue on an invalid block remains unanswered.",
+   "evidence": [
+    "andrewtoth: 'ACK 3547915bfb... Managed to see speedup in IBD benchmarks... Nice speedups, especially for reindex-chainstate.'",
+    "w0xlt: 'When a block was rejected, blocks read ahead for its branch could remain in memory indefinitely.'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (w0xlt)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "fanquake",
+      "kind": "correctness",
+      "harm": "Excessive thread start and exit debug log spam causing log rate-limiting to engage due to per-activation thread pool recreation",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-18: \"Note that this spams ` blockread.* thread start/exit` debug logs to the point that rate-limiting kicks\"",
+      "resolution_evidence": "2026-08-18: \"I\u2019ve pushed a fix that keeps it alive on `Chainstate`, and will remeasure IBD performance.\""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Blocks prefetched for an invalid branch remain in memory indefinitely when block validation fails",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-16: \"When a block was rejected, blocks read ahead for its branch could remain in memory indefinitely.\"",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "andrewtoth",
+      "reason": "Demonstrated solid performance improvements during IBD and reindex-chainstate across multiple machines, and noted usefulness for steady-state reorgs and index synchronization",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "fanquake",
+      "stance": "objection",
+      "note": "reported excessive thread start/exit logging triggering rate-limiting"
+     },
+     {
+      "login": "andrewtoth",
+      "stance": "support",
+      "note": "reviewed, suggested improvements and sliding window design, ran benchmarks, and ACKed"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "pointed out blocks read ahead for a rejected branch stay in memory indefinitely"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild, but w0xlt noted prefetched blocks for rejected branches remain in memory indefinitely; author has not replied.",
+    "usage": {
+     "input_tokens": 13472,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2164
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "fanquake",
+      "kind": "maintenance",
+      "harm": "Log spamming from thread start/exit logs causing rate-limiting warnings",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-18: 'Note that this spams blockread.* thread start/exit debug logs to the point that rate-limiting kicks'",
+      "resolution_evidence": "2026-08-18: 'I\u2019ve pushed a fix that keeps it alive on Chainstate'"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Prefetched blocks on an invalid branch remain in memory indefinitely",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-16: 'When a block was rejected, blocks read ahead for its branch could remain in memory indefinitely.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "andrewtoth",
+      "reason": "Measured significant speedup on IBD (3.8% to 13.4%) and reindex-chainstate (12.7% to 35.8%) across machines",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Parallel block reading in BaseIndex synchronization"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Updates developer notes and release notes as documentation following the validation change, not documentation as primary change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not meet membership criteria for docs as the text edits merely accompany code changes."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Modifies src/kernel/CMakeLists.txt only to link blockfetcher into bitcoinkernel because Chainstate uses it, with no kernel boundary or API changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes inside validation that compile into kernel without touching the API or boundaries are excluded from the kernel category."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not alter mempool policy, data structures, or package validation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not affect mempool."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly modifies Chainstate::ActivateBestChainStep and block connection pipelines in src/validation.cpp.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Delivers a substantial and empirically proven speedup for IBD and chain reindexing (e.g. 13% to 35% time reduction in benchmarks). Users directly feel faster synchronization times, and the abstraction also paves the way for index sync parallelization."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Adds a background BlockFetcher that prefetches and deserializes disk blocks ahead of block connection during chain activation and reorgs. This resolves the bottleneck where CPU validation and disk I/O do not overlap during reindexing and IBD. Extensive benchmarks demonstrate substantial elapsed time speedups between 13% and 35%. The PR has an ACK from andrewtoth, with one minor nonblocking comment from w0xlt regarding memory clearing on invalid blocks pending author attention."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.018219
+}

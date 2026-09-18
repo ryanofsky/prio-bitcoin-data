@@ -1,0 +1,97 @@
+{
+ "number": 31349,
+ "input_hash": "fdb4836e18e1e1da",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 49893,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5962
+ },
+ "cost_usd": 0.08110930000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add automated detection of any network traffic generated during CI test runs, using tcpdump inside the containers.",
+    "Catches accidental internet traffic or DNS lookups from tests, which leak developer IPs and hide real bugs."
+   ],
+   "reviewability": [
+    "Paused: fjahr flagged a possible bug in the --direction tcpdump usage that has gone unanswered since 2026-08-28, and the author has been silent since 2026-06-18.",
+    "Long history of non-deterministic false failures reported by fanquake and maflcko on podman setups, unresolved for now."
+   ],
+   "agreement": [
+    "Broad concept support with multiple concept ACKs and repeated code-review ACKs from ryanofsky, plus a tACK from fjahr (0xB10C, sipa, laanwj, jonatack, BrandonOdiwuor, Sjors, 1440000bytes, ryanofsky, fjahr).",
+    "Nonblocking concern from fjahr about apparent misuse of --direction filter, unaddressed since the last push (fjahr).",
+    "Earlier serious reliability objections from maflcko and fanquake about non-deterministic local failures on podman were mitigated by a later dnsseed fix, with maflcko re-issuing Concept ACK (maflcko, fanquake)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a CI mechanism that runs tcpdump during unit, functional, fuzz, tidy, and IWYU test jobs and fails the build if any outbound (non-loopback) TCP/UDP traffic, including DNS queries routed through a local resolver, is detected. It required adding NET_RAW capability to the docker containers and tcpdump/net-tools packages to the CI images, plus per-platform opt-outs (macOS can't capture with its permissions). Over its long lifetime the PR uncovered and helped fix several real regressions (a NAT-PMP call in a unit test, stray dnsseed lookups, and unrelated debuginfod calls), and its original test fixes were split out and merged separately (#31646, #35193).",
+  "problem": "Bitcoin Core's test suite is supposed to run entirely on loopback, but individual tests or code paths occasionally make real network calls (DNS lookups, NAT-PMP, etc.), leaking the tester's IP to third parties (e.g. seed domains, ISP-visible DNS resolvers) and silently masking bugs. There was previously no way to catch such regressions in CI, so they went unnoticed until manually investigated (as happened multiple times during this PR's own review).",
+  "discussion": {
+   "open_concerns": [
+    "fjahr (2026-08-28): the --direction=out filter appears to be a no-op when applied at read time rather than capture time in traffic_monitor_end, meaning the check may not filter as intended; unanswered by author as of last activity.",
+    "Earlier: maflcko and fanquake reported the check produces non-deterministic false failures on podman-based local runs (unrelated dnsseed/debuginfod calls), which they considered a blocker to merging as originally written."
+   ],
+   "resolved_concerns": [
+    "Multiple rounds of reliability issues (NET_RAW capability, kill vs standalone tcpdump processes, ASAN task enforcement, pipefail) were fixed via review iteration with maflcko, 0xB10C, and ryanofsky.",
+    "The natpmp/node_init_tests network call was fixed per ryanofsky's suggestion (gArgs.ForceSetArg('-natpmp','0')) and later split into #35193.",
+    "Non-deterministic local failures traced to missing '-dnsseed=0' in unit test setup were fixed in a later push, addressing much of maflcko's and fanquake's reliability objection; maflcko then re-issued 'Concept ACK' to clarify remaining scope."
+   ],
+   "author_status": "active as of 2026-06-18 (last force-push), silent since; a maintainer (sedited) pinged reviewers on 2026-08-27 asking for another look, and fjahr replied with an unresolved technical question the next day."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "fjahr raised a specific, still-open correctness question on 2026-08-28 (apparent no-op --direction filter) that the author has not addressed; author has been silent since the 2026-06-18 push, well past the 7-day threshold for a material open question."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Broad concept support and several code-review ACKs (ryanofsky, fjahr), but fjahr's latest comment about a possible misuse of the --direction filter is unresolved and nonblocking.",
+   "reason": "The PR has strong concept support (7+ concept ACKs) and repeated code-review approvals from ryanofsky and a tACK from fjahr after extensive iteration. A significant reliability objection from maflcko/fanquake about non-deterministic local false failures appears to have been substantially addressed by a later dnsseed fix, with maflcko re-affirming Concept ACK. The most recent comment (fjahr, 2026-08-28) flags a likely no-op filter usage that would weaken the check's precision; it is raised as a nit-level, nonblocking observation and remains unaddressed.",
+   "evidence": [
+    "ryanofsky: 'Code review ACK ... just rebased since last review' (multiple times)",
+    "fjahr: 're-ACK c652deb3c1...' then later 'Looks good to me aside from the seeming misuse of --direction'",
+    "maflcko: 'The current failures are non-deterministic, which is a blocker to merging this' (2026-02-04), later 're-Concept ACK, to clarify' (2026-05-05) after the dnsseed fix",
+    "fanquake: 'Still fails for me running the CI ... on my Fedora box' (2025-12-18), no confirmation this was retested after dnsseed fix"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "General CI reliability: catches future regressions where tests unintentionally make network calls (already used to catch real bugs in node_init_tests, dnsseed, debuginfod)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "The diff is entirely within ci/test/*.sh and ci/test/02_run_container.py, modifying CI container capabilities and test-runner scripts; the Tests label is present but the actual change is CI configuration and tooling, matching the build category's explicit inclusion of 'CI configuration and scripts'.",
+    "band": "P2",
+    "reason_tag": "CI reliability",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it strengthens CI's ability to catch a real, recurring class of problem: unintended network traffic during tests, which both leaks developer/CI-runner IPs (jonatack quoting IRC: '...the owners of 1.2.3.4, 11.22.33.44 and 8.8.8.8 ... would know the IP address of every dev who runs the functional tests') and has already caught concrete bugs (a NAT-PMP call in node_init_tests, unwanted dnsseed lookups, stray debuginfod calls). It is not release-blocking or consensus-critical, and its own reliability (non-deterministic false positives reported by maflcko and fanquake on podman) is a code-quality/reviewability issue rather than a reduction in the underlying problem's importance."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the fjahr's --direction concern (2026-08-28) is a minor nit or indicates the check has been silently less effective than intended throughout the PR's history.",
+   "Whether the non-determinism reported by maflcko/fanquake on podman-docker setups is fully resolved by the dnsseed fix or still an open reliability hazard for local CI runs.",
+   "Whether this PR should be scored under 'tests' as well given its deep interaction with the test runner invocation, even though the current diff touches no test-framework files directly."
+  ],
+  "card": "This PR adds a CI mechanism (tcpdump inside the test containers) that fails CI if any test job generates outbound network traffic on a non-loopback interface, including DNS lookups, addressing bitcoin/bitcoin#31339. The underlying problem is real: test runs have leaked developer/CI-runner IPs to third-party DNS resolvers and seed domains, and the check has already caught concrete bugs (a NAT-PMP call in a unit test, spurious dnsseed and debuginfod network calls) during its own long review. It has broad concept support and several ryanofsky/fjahr code-review approvals, but is currently Paused: fjahr raised an unresolved, nonblocking question on 2026-08-28 about a possibly no-op --direction filter, and the author has been silent since June 2026. A prior, more serious objection from maflcko and fanquake about non-deterministic false failures on podman-based local CI runs appears to have been substantially mitigated by a later '-dnsseed=0' fix. No hard dependency; earlier test fixes originally bundled in this PR were split out and merged separately (#31646, #35193)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

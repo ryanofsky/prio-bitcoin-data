@@ -1,0 +1,146 @@
+{
+ "number": 35440,
+ "input_hash": "9c813a872f8c5815",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20139,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4489
+ },
+ "cost_usd": 0.0439903,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a wallet-loader bug where a malformed descriptor-cache record can cause an out-of-bounds read.",
+    "Also replaces the pointer-based CExtKey/CExtPubKey (de)serialization with stream-based Serialize/Unserialize used elsewhere in the codebase."
+   ],
+   "reviewability": [
+    "CI is currently failing and needs a maintainer to approve the workflow before it can even run.",
+    "The design direction (stream-based serialization) is settled and implemented, with molnard's outstanding review comments already addressed in the latest push."
+   ],
+   "agreement": [
+    "Strong support: achow101 asked for the pointer-API refactor and ACKed the result, molnard ACKed twice after independently verifying the fix and requesting extra negative tests, which were added (achow101, molnard).",
+    "No unresolved objections remain; earlier scope concerns from achow101 were resolved by the second commit."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a real out-of-bounds read (confirmed under ASan) in the wallet descriptor-cache loader that a malformed on-disk record can trigger, which is a reliability/corruption-handling hazard rather than a routine crash.",
+      "It also removes the only pointer-buffer (de)serialization pattern in the codebase, reducing future risk of the same class of bug in key/pubkey code paths used by the wallet."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Not a member: the rawtransaction.cpp change is a mechanical call-site update following the CExtPubKey serialization refactor, not a change to RPC behavior or output."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the added tests (bip32_tests, walletload_tests, fuzz harness tweak) pin behavior of specific areas (key serialization, wallet loading) rather than improving general test infrastructure."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug where the wallet descriptor-cache loader (WALLETDESCRIPTORCACHE/WALLETDESCRIPTORLHCACHE) deserializes a length-prefixed vector but then calls CExtPubKey::Decode with a fixed BIP32_EXTKEY_SIZE, causing an out-of-bounds read on short records (confirmed as an ASan container-overflow). The first commit adds a length check that rejects malformed records with DBErrors::CORRUPT, matching how other corrupt records are handled, plus a unit test. The second commit, added after maintainer feedback, replaces CExtKey/CExtPubKey's pointer-based Encode/Decode/EncodeWithVersion/DecodeWithVersion with stream-based Serialize/Unserialize and routes base58, PSBT, and wallet cache code through them, so the expected length is enforced by the stream at every call site rather than by ad hoc checks. The on-disk cache format, base58 encodings, and PSBT xpub encodings are unchanged.",
+  "problem": "A crafted or corrupted wallet database can contain a descriptor-cache record with a short serialized xpub; loading it currently reads 74 bytes from a shorter buffer, an out-of-bounds read caught by ASan. This affects anyone whose wallet file is loaded by bitcoind, since the loader currently has no size check before decoding.",
+  "discussion": {
+   "open_concerns": [
+    "molnard's suggestion to add a scope guard / secure buffer for the temporary key bytes in CExtKey::Unserialize was implemented (switched to a secure_allocator-backed buffer).",
+    "winterrdog's suggestion to also simplify wallet_load_descriptors with ASSERT_DEBUG_LOG was deferred by the author as out of scope, not disputed."
+   ],
+   "resolved_concerns": [
+    "achow101 initially pushed for a broader Serialize/Unserialize refactor rather than a local fix; author implemented it in a second commit and achow101 ACKed the result.",
+    "32-bit ARM CI array-bounds false positive from chained stream operators, fixed by splitting the statements per winterrdog's suggestion.",
+    "molnard requested negative-path tests for CExtKey/CExtPubKey deserialization (short streams, over-long streams, invalid content); author added bip32_deserialize_invalid covering all cases and molnard ACKed."
+   ],
+   "author_status": "active, pushed 2026-09-09 addressing all open review comments"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "The PR carries a 'CI failed' label and the most recent comment (2026-09-09) notes a maintainer must approve the workflow before CI can run again; the code itself has had all named review comments addressed in the latest push."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: achow101 requested the stream-based refactor and ACKed the final commit, molnard independently verified the fix, requested more tests, and ACKed after they were added.",
+   "reason": "Two maintainers/reviewers with substantive review (achow101, molnard) both ACKed the latest commit after their concerns were addressed; no standing objections remain.",
+   "evidence": [
+    "achow101: 'It would probably be better to change CExtKey and CExtPubKey de/serialization to match the pattern that we do in the rest of the codebase' then 'ACK de971e1aac5fbddee07b41b1557e33a959ff905f'.",
+    "molnard: 'I reviewed the update. The secure_allocator-backed buffer and the additional deserialization tests address my comments... ACK 3d39505067bc7d7c74ae9d1554d4f100ea74147c'."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Establishes a stream-based Serialize/Unserialize pattern for CExtKey/CExtPubKey that other call sites (base58, PSBT) could build on"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly fixes a bug in wallet/walletdb.cpp's descriptor-cache loader, with accompanying wallet unit tests (walletload_tests.cpp).",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real out-of-bounds read in the wallet loader, confirmed under ASan and demonstrated by the author's before/after test output ('ASan reports a container-overflow READ inside Decode'). The attack/trigger surface is a malformed or corrupted wallet database record, so impact is real but not the most common path; the fix also generalizes the underlying pattern (pointer-based Encode/Decode) that could hide similar bugs elsewhere, per achow101's push for the broader refactor."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rawtransaction.cpp change is a one-line call-site update (VectorWriter instead of EncodeWithVersion) following the key.h/pubkey.h refactor; no RPC behavior, output, or interface changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical follow-on from the serialization refactor; not a substantive RPC change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New tests (bip32_tests.cpp, walletload_tests.cpp) pin behavior of specific areas (key serialization correctness, wallet loader corruption handling) rather than improving general test infrastructure; the fuzz-target edit is a mechanical call-site update.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, area-specific tests belong to their area (wallet/utils), not to test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CExtKey/CExtPubKey stream refactor should be judged partly under a 'utils' category (crypto primitive serialization) was not asked for, so it is omitted per the given category list, but a reviewer might reasonably also flag it there.",
+   "Exact severity of the underlying bug as a security issue (information leak vs. crash-only) is not fully characterized in the discussion beyond the ASan container-overflow report.",
+   "Current CI failure state may just reflect a pending workflow approval rather than an actual test failure; this could resolve quickly once a maintainer approves the run."
+  ],
+  "card": "This PR fixes a wallet-loader bug where a descriptor-cache record with a short serialized xpub causes CExtPubKey::Decode to read past the end of a vector, confirmed as an ASan container-overflow. Beyond the local size check, the author added a second commit replacing CExtKey/CExtPubKey's pointer-based Encode/Decode with stream-based Serialize/Unserialize at achow101's request, so every call site (base58, PSBT, wallet cache) now has its expected length enforced by the stream itself, with on-disk formats and encodings unchanged. Both achow101 and molnard reviewed substantively and ACKed the final commit after their requests (more negative-path tests, a secure_allocator-backed temporary buffer, fixing a 32-bit ARM CI false positive) were addressed. The PR currently shows CI failed, with the most recent comment noting a maintainer must approve the workflow to run it. No dependency on other PRs, though it conflicts with the unrelated open PR #36133 (multipath descriptor storage)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

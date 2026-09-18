@@ -1,0 +1,152 @@
+{
+ "number": 35558,
+ "input_hash": "c426dcb097edd653",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33265,
+  "cache_creation_input_tokens": 14063,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5184
+ },
+ "cost_usd": 0.07676375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets a node prefill CMPCTBLOCK announcements with the transactions it expects a peer will need",
+    "Aims to cut GETBLOCKTXN round trips and speed up block propagation without any protocol change",
+    "Benefits every node and the wider network by lowering stale-block races"
+   ],
+   "reviewability": [
+    "Ready to review, but the author has rebased this onto sibling PR #35724 and asks reviewers to look there first",
+    "No material request has gone unanswered; the author has been actively pushing fixes"
+   ],
+   "agreement": [
+    "Strong support from many members via concept ACKs and two tested ACKs after real-world data runs (w0xlt, ismaelsadeeq, josibake, edilmedeiros, murchandamus, 0xB10C, johnnyasantoss, m4ycon, s00ly)",
+    "Reviewers found real bugs (use-after-free, miscounted stats) which the author fixed promptly (andrewtoth, m4ycon)",
+    "One logging accuracy bug is being resolved by rebasing onto a split-out PR (#35724), no standing objection to the approach itself"
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds prefilling of CMPCTBLOCK announcements: instead of only prefilling the coinbase, the node also includes transactions it believes a peer will be missing, based on what it itself needed via GETBLOCKTXN or its extra pool during the last reconstruction. It limits how much it prefills based on the peer's live TCP window so it avoids forcing an extra round trip at the transport layer. To do this it adds cross-platform TCP_INFO / send-queue introspection helpers to util/sock and net, plus bookkeeping in blockencodings.cpp to track prefill candidates and their sizes.",
+  "problem": "Compact block reconstruction still frequently requires a GETBLOCKTXN round trip when a peer is missing transactions, slowing block propagation across the network and increasing stale rates, which affects miners and full nodes broadly (author measured 56.9% reconstruction-without-roundtrip today vs 89.7% with TCP-window-limited prefilling).",
+  "discussion": {
+   "open_concerns": [
+    "m4ycon noted prefilled_size logging is always zero, a real accuracy bug in the stats (not the core feature)",
+    "Whether the extrapool candidate logic could be made per-peer to reduce redundancy further (ismaelsadeeq) \u2014 author explained tradeoffs but didn't rule it out",
+    "0xB10C suggested measuring wasted/redundant prefill bytes on the receiving side before mainnet deployment, not required pre-merge"
+   ],
+   "resolved_concerns": [
+    "andrewtoth found a use-after-free and missing size increments in the logging commit; author fixed both",
+    "andrewtoth's std::launch::async concern was accepted as intentional after discussion",
+    "andrewtoth's suggestion to avoid extra syscalls when only the coinbase is prefilled was implemented",
+    "logging accuracy issues are being resolved by splitting the logging commits into #35724, which this PR now rebases onto"
+   ],
+   "author_status": "active, most recently rebasing onto #35724 on 2026-08-04 and asking reviewers to review that PR first"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35724 first",
+   "reason": "No material reviewer request is currently unanswered and the author remains active, but the PR has been rebased onto sibling PR #35724 (which splits out the logging commits) and the author explicitly asks reviewers to look at #35724 first since it now underlies this PR's logging behavior."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support from seven members plus two tested ACKs after real measurement; the only friction is a since-addressed logging accuracy bug being resolved via the #35724 split.",
+   "reason": "Multiple members gave concept ACKs with substantive reasons (josibake: 'the simplicity and backwards compatibility of the approach make this a very strong proposal'), two contributors ran it and reported tested ACKs with data, and code-level bugs found in review were fixed by the author without pushback.",
+   "evidence": [
+    "w0xlt, ismaelsadeeq, josibake, edilmedeiros, murchandamus, 0xB10C, johnnyasantoss gave concept ACKs",
+    "johnnyasantoss gave utACK after local testing with vinteumorg group",
+    "m4ycon and s00ly gave tested ACKs with build/test logs and measurement data",
+    "andrewtoth found a use-after-free and miscounted stats, both fixed by author",
+    "m4ycon flagged prefilled_size always logging zero, being resolved via rebase onto #35724"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35724
+   ],
+   "enables": [
+    "future per-peer prefilling experiments referenced by ismaelsadeeq and 0xB10C",
+    "mainnet deployment measurement work 0xB10C proposed (comparing reconstruction rates)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes compact block relay (blockencodings.cpp/h), net_processing.cpp, and net.cpp/h to implement CMPCTBLOCK prefilling and TCP-window-aware send logic; carries the P2P label.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Improves compact block reconstruction rates from a measured 56.9% to 89.7% without a protocol change, per the author's data, which reduces propagation delay network-wide; backward compatible with unmodified peers. Not P1 because it is an enhancement rather than a fix for a correctness, security, or DoS problem, and delay in merging does not break anything currently working."
+   },
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "CMakeLists.txt is touched to bump the minimum targeted Windows version so SIO_TCP_INFO is available at build time.",
+    "band": "P4",
+    "reason_tag": "platform fix",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "A one-line minimum-Windows-version bump needed only to unlock a Windows API used elsewhere in this PR; the commit message says 'this is needed for the use of the SIO_TCP_INFO API'. Narrow, mechanical, and only relevant as a dependency of the p2p feature."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The test/bench/fuzz changes (blockencodings_tests, cmpctblock fuzz target, sock_tests, bench/blockencodings) all pin the behavior of specific areas (compact block encoding, socket TCP info) rather than changing shared test framework or infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, tests that pin one area's behavior belong to that area, not to test infrastructure; these tests are all specific to the p2p compact-block and utils socket changes in this PR."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds substantial new cross-platform socket introspection code to src/util/sock.cpp/h: a TCPInfo wrapper, GetTCPWindowSize, and GetOSBytesQueued covering Linux, BSDs, macOS, and Windows.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "A new, genuinely reusable low-level primitive for reading TCP window/queue state across five platform variants; correctness matters since subtle platform-specific bugs are easy to introduce here, and reviewers already found and fixed a use-after-free in adjacent counting logic. It is driven entirely by the p2p prefill feature rather than a standing utils need, keeping it below P2."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether #35724 is a strict dependency or just a sibling refactor the author chose to rebase onto; the stack facts show no formal based_on relationship despite the description implying one",
+   "Whether the m4ycon-reported prefilled_size==0 logging bug is now fully resolved after the 2026-08-04 rebase, since the discussion ends shortly after that push without explicit confirmation",
+   "How to weigh the util/sock.cpp TCPInfo code: it is large and platform-spanning but entirely motivated by this single p2p feature, so its 'utils' importance is somewhat borrowed rather than intrinsic"
+  ],
+  "card": "This PR adds prefilling of CMPCTBLOCK announcements with transactions a peer is predicted to need, limited by the peer's live TCP window so prefilling never forces an extra round trip, aiming to reduce GETBLOCKTXN round trips and speed block propagation. The author's own measurements show reconstruction-without-roundtrip rising from 56.9% (coinbase-only prefill) to 89.7% with window-limited prefilling, a meaningful and backward-compatible improvement felt by the whole p2p network. Seven members gave concept ACKs and two contributors ran it and gave tested ACKs with data; reviewers (andrewtoth, m4ycon) found and got fixed real bugs including a use-after-free and miscounted stats, with no standing objection to the approach. It touches p2p (net_processing, net, blockencodings) as its core, adds a reusable cross-platform TCP-info primitive to util/sock, and needs a one-line Windows minimum-version bump in the build system. It has been rebased onto sibling PR #35724, which split out logging commits, and the author asks reviewers to look at #35724 first.\n"
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

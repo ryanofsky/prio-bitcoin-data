@@ -1,0 +1,516 @@
+{
+ "number": 35301,
+ "input_hash": "e250d5079b72db75",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:32:03+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 88765,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9429
+ },
+ "cost_usd": 0.1019325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Implement the core BIP352 Silent Payments protocol logic and secp256k1 wrapper",
+    "Provide common cryptographic parsing, destination handling, and transaction scanning for silent payments without tying them to wallet internals"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "Author recently scoped down the PR to core module logic, resolving previous architectural concerns"
+   ],
+   "agreement": [
+    "Strong support from multiple members and contributors (josibake, rkrux, rustaceanrob, theStack, w0xlt)",
+    "Technical edge cases around input filtering, index preservation, and address decoding were raised and resolved (w0xlt, theStack)",
+    "Scope was successfully reduced by removing premature CTxDestination additions upon reviewer recommendation (josibake, rustaceanrob)"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "Unranked because this PR does not touch kernel logic",
+      "Adding a chainparams HRP prefix is purely informational and incidental to the cryptographic module"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Unranked because the PR does not modify or add RPC endpoints",
+      "Address validation changes were moved out of this PR to keep scope focused on the BIP352 library"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it introduces the foundational BIP352 cryptographic and parsing module",
+      "Unblocks downstream wallet sending and receiving work for silent payments tracked in issue 28536"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements the BIP352 Silent Payments protocol logic in a dedicated common library module (`common/bip352.{h,cpp}`). It wraps libsecp256k1's silentpayments module, providing destination decoding, output generation, prevout summary calculation, and scanning routines for silent payment recipients. BIP352 official test vectors are added as unit tests.",
+  "problem": "Bitcoin Core lacks support for BIP352 silent payments, preventing users from receiving reusable private payments without address reuse. Integrating silent payments requires a well-isolated cryptographic foundation that can be used independently across wallet, RPC, and future indexing infrastructure.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "w0xlt identified several protocol edge cases: preserving output vout indexes when mixed with regular outputs, skipping transactions spending unknown witness versions, enforcing Bech32m checksums, and handling invalid x-only pubkeys without out-of-bounds access.",
+    "theStack pointed out missing preconditions and potential crashes when parsing consensus-invalid transaction inputs or adversarially crafted keys.",
+    "josibake and rustaceanrob recommended decoupling the PR from CTxDestination and narrowing scope strictly to the BIP352 module and test vectors, which the author implemented."
+   ],
+   "author_status": "active, recently pushed a scoped-down version addressing reviewer feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer feedback has been addressed, and CI is clean following the recent scope reduction."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "theStack",
+     "stance": "objection",
+     "note": "Extensively reviewed libsecp wrapper and BIP logic, pointing out potential crash paths and API improvements; all resolved"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "Concept ACK, found multiple correctness issues and edge cases in scanning and output generation; all fixed"
+    },
+    {
+     "login": "rkrux",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "sedited",
+     "stance": "neutral",
+     "note": "Rebase ping"
+    },
+    {
+     "login": "josibake",
+     "stance": "objection",
+     "note": "Concept ACK, raised concerns over premature CTxDestination integration and null key handling"
+    },
+    {
+     "login": "rustaceanrob",
+     "stance": "objection",
+     "note": "Suggested scope reduction removing CTxDestination and proposed API refinements which were adopted"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Output vout positions were re-indexed to 0..n-1 rather than preserving requested recipient positions",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-28: 'If SP outputs are mixed with regular outputs, callers would assign them to the wrong positions; the original map keys should be preserved.'",
+     "resolution_evidence": "2026-05-29: Eunovo pushed a fix preserving map keys.",
+     "sources": [
+      "dossier",
+      "dossier",
+      "dossier",
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "rustaceanrob",
+     "kind": "scope",
+     "harm": "Coupling the PR to CTxDestination created unnecessary churn in fuzz, unit, and functional tests before wallet decisions were settled",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-09-09: 'I am wondering if the scope here can be reduced to introducing the module and passing the BIP test vectors so we can determine choices like is this a CTxDestination? during the send PR.'",
+     "resolution_evidence": "2026-09-16: Eunovo pushed an update removing CTxDestination integration and reducing scope.",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Output destinations would be assigned to contiguous indexes rather than preserving requested tx.vout positions when mixed with regular outputs",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-27: \"If SP outputs are mixed with regular outputs, callers would assign them to the wrong positions; the original map keys should be preserved.\"",
+     "resolution_evidence": "2026-05-29: Eunovo replied \"Done.\" after pushing a fix preserving positions.",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Calling CreateOutputs with empty input key sets triggered libsecp illegal-argument abort",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-11: \"CreateOutputs can return an empty output vector when both input-key sets are empty, before calling secp... secp's illegal-argument callback can abort the process.\"",
+     "resolution_evidence": "2026-08-12: Eunovo replied \"Done.\" and pushed the guard check.",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "theStack",
+     "kind": "safety",
+     "harm": "Adversarially crafted spend keys could lead to point-at-infinity failures triggering assert crashes in recipient output pubkey creation",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-12: \"I think we should check the return value here rather than assert to avoid a potential crash... worthwhile to avoid crashes that could be provoked by e.g. 'example RPCs' or 'example wallets'\"",
+     "resolution_evidence": "2026-08-15: Eunovo replied \"Fixed.\"",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "w0xlt",
+     "reason": "Expressed Concept ACK and contributed detailed review and test cases.",
+     "substantive": true
+    },
+    {
+     "reviewer": "rkrux",
+     "reason": "Expressed Concept ACK.",
+     "substantive": false
+    },
+    {
+     "reviewer": "josibake",
+     "reason": "Concept ACK, noted the API design is clean and simpler with reduced footguns.",
+     "substantive": true
+    },
+    {
+     "reviewer": "rustaceanrob",
+     "reason": "Endorsed the revised API design and recommended the minimal scope approach.",
+     "substantive": true
+    },
+    {
+     "reviewer": "theStack",
+     "reason": "Expressed support for the API design and conducted comprehensive code reviews across all commits.",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus on introducing the BIP352 module; all technical objections resolved and scope cleanly reduced.",
+   "reason": "Multiple maintainers and contributors support integrating the BIP352 module. All initial review concerns regarding correctness and scope have been addressed.",
+   "evidence": [
+    "2026-05-19: w0xlt: 'Concept ACK'",
+    "2026-05-19: rkrux: 'Concept ACK'",
+    "2026-08-13: josibake: 'Concept ACK'",
+    "2026-09-09: rustaceanrob: 'I think the current API is very solid and the next stage should determine how it is integrated.'",
+    "2026-09-16: Eunovo: 'I have reduced the scope of this PR. It no longer adds the SilentPayments destination to CTxDestination...'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (w0xlt, josibake, rustaceanrob, theStack)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Output destinations would be assigned to contiguous indexes rather than preserving requested tx.vout positions when mixed with regular outputs",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-27: \"If SP outputs are mixed with regular outputs, callers would assign them to the wrong positions; the original map keys should be preserved.\"",
+      "resolution_evidence": "2026-05-29: Eunovo replied \"Done.\" after pushing a fix preserving positions."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Transactions spending unknown SegWit version (>1) prevouts must be skipped entirely per BIP352, but were being processed",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: \"BIP352 v0 says those transactions must be skipped entirely, so this should return no prevouts summary as soon as any spent prevout is witness v2+.\"",
+      "resolution_evidence": "2026-05-29: Eunovo replied \"Done.\" and pushed the check."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "ScanForSilentPaymentsOutputs could index out of bounds or point to incorrect objects when an invalid x-only pubkey output preceded a valid one",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: \"If an invalid output appears before a valid one, this can take &tx_output_objs[i] out of bounds or point at the wrong object during scanning.\"",
+      "resolution_evidence": "2026-05-29: Eunovo replied \"Done.\" after pushing the vector fix."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Calling CreateOutputs with empty input key sets triggered libsecp illegal-argument abort",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-11: \"CreateOutputs can return an empty output vector when both input-key sets are empty, before calling secp... secp's illegal-argument callback can abort the process.\"",
+      "resolution_evidence": "2026-08-12: Eunovo replied \"Done.\" and pushed the guard check."
+     },
+     {
+      "reviewer": "theStack",
+      "kind": "safety",
+      "harm": "Adversarially crafted spend keys could lead to point-at-infinity failures triggering assert crashes in recipient output pubkey creation",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-12: \"I think we should check the return value here rather than assert to avoid a potential crash... worthwhile to avoid crashes that could be provoked by e.g. 'example RPCs' or 'example wallets'\"",
+      "resolution_evidence": "2026-08-15: Eunovo replied \"Fixed.\""
+     },
+     {
+      "reviewer": "rustaceanrob",
+      "kind": "scope",
+      "harm": "Adding Silent Payments to CTxDestination caused unnecessary test churn and was premature before wallet sending/receiving integration was settled",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-09: \"I am wondering if the scope here can be reduced to introducing the module and passing the BIP test vectors so we can determine choices like is this a CTxDestination? during the send PR.\"",
+      "resolution_evidence": "2026-09-16: Eunovo pushed changes reducing scope: \"I have reduced the scope of this PR. It no longer adds the SilentPayments destination to CTxDestination, and the address decoding code has been moved to the bip352 module.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "rkrux",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Supported the clean module separation for BIP352 implementation",
+      "substantive": true
+     },
+     {
+      "reviewer": "theStack",
+      "reason": "Supported the PR and praised API design refinements in the BIP352 wrapper",
+      "substantive": true
+     },
+     {
+      "reviewer": "rustaceanrob",
+      "reason": "Found the revised receiver API solid for implementing BIP352 logic and passing test vectors",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "theStack",
+      "stance": "objection",
+      "note": "Extensively reviewed libsecp wrapper and BIP logic, pointing out potential crash paths and API improvements; all resolved"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "Concept ACK, found multiple correctness issues and edge cases in scanning and output generation; all fixed"
+     },
+     {
+      "login": "rkrux",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "sedited",
+      "stance": "neutral",
+      "note": "Asked for a rebase"
+     },
+     {
+      "login": "josibake",
+      "stance": "objection",
+      "note": "Concept ACK, raised concerns over premature CTxDestination integration and null key handling"
+     },
+     {
+      "login": "rustaceanrob",
+      "stance": "objection",
+      "note": "Suggested scope reduction removing CTxDestination and proposed API refinements which were adopted"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong; reviewers caught edge-case bugs and suggested scoping out CTxDestination, all of which were resolved.",
+    "usage": {
+     "input_tokens": 35987,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3524
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Output vout positions were re-indexed to 0..n-1 rather than preserving requested recipient positions",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: 'If SP outputs are mixed with regular outputs, callers would assign them to the wrong positions; the original map keys should be preserved.'",
+      "resolution_evidence": "2026-05-29: Eunovo pushed a fix preserving map keys."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Transactions spending future witness versions (>1) were not skipped as mandated by BIP352",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: 'BIP352 v0 says those transactions must be skipped entirely, so this should return no prevouts summary as soon as any spent prevout is witness v2+.'",
+      "resolution_evidence": "2026-05-29: Eunovo updated GetSilentPaymentsPrevoutsSummary."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Permissive address decoding accepted invalid HRP prefixes and non-Bech32m encodings",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: 'That can make spx... or Bech32-checksummed SP payloads decode as valid SP destinations, while BIP352 should require the exact SP HRP and Bech32m.'",
+      "resolution_evidence": "2026-05-29: Eunovo added explicit HRP and Bech32m checks."
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Invalid x-only taproot outputs could lead to out-of-bounds pointer indexing during scanning",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: 'If an invalid output appears before a valid one, this can take &tx_output_objs[i] out of bounds or point at the wrong object during scanning.'",
+      "resolution_evidence": "2026-05-29: Eunovo updated loop indexing in ScanForSilentPaymentsOutputs."
+     },
+     {
+      "reviewer": "rustaceanrob",
+      "kind": "scope",
+      "harm": "Coupling the PR to CTxDestination created unnecessary churn in fuzz, unit, and functional tests before wallet decisions were settled",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-09-09: 'I am wondering if the scope here can be reduced to introducing the module and passing the BIP test vectors so we can determine choices like is this a CTxDestination? during the send PR.'",
+      "resolution_evidence": "2026-09-16: Eunovo pushed an update removing CTxDestination integration and reducing scope."
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "Expressed Concept ACK and contributed detailed review and test cases.",
+      "substantive": true
+     },
+     {
+      "reviewer": "rkrux",
+      "reason": "Expressed Concept ACK.",
+      "substantive": false
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Concept ACK, noted the API design is clean and simpler with reduced footguns.",
+      "substantive": true
+     },
+     {
+      "reviewer": "rustaceanrob",
+      "reason": "Endorsed the revised API design and recommended the minimal scope approach.",
+      "substantive": true
+     },
+     {
+      "reviewer": "theStack",
+      "reason": "Expressed support for the API design and conducted comprehensive code reviews across all commits.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Wallet sending PR #35302",
+    "Silent Payments tracking issue #28536"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Only adds SilentPaymentsHRP prefix to CChainParams in src/kernel/chainparams.h, with no kernel API or boundary logic changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental chain parameter addition does not make this PR a kernel component."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not touch RPC implementation, tests, or interfaces in its final state.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Earlier validateaddress changes were removed when the PR was scoped down."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds common/bip352.cpp, common/bip352.h, and updates src/key.h to wrap the libsecp256k1 silent payments module.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "P2 because it implements the core cryptographic protocol layer for BIP352 Silent Payments in src/common. This is the prerequisite foundation that unblocks downstream wallet sending and receiving PRs as well as indexing tools tracked in issue #28536."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements the core BIP352 Silent Payments protocol logic and secp256k1 wrapper in src/common/bip352. It provides address decoding, output generation, prevout summary extraction, and scanning functions tested against official BIP test vectors. It resolves the problem of isolating complex cryptographic silent payments logic from wallet mechanics, unblocking the silent payments milestone tracked in issue #28536. Review consensus is strong, and previous scope concerns regarding CTxDestination integration were resolved in a recent update."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.04020525
+}

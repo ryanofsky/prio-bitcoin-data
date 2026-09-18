@@ -1,0 +1,92 @@
+{
+ "number": 36180,
+ "input_hash": "714308fc7fd86343",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8524,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2412
+ },
+ "cost_usd": 0.0219903,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops bitcoin-qt from aborting when run with -nosettings, and prevents a related legacy settings migration from silently discarding data or the options dialog reporting success on failed saves.",
+    "Second commit adds user-visible reporting when a settings write fails instead of silently losing the change."
+   ],
+   "reviewability": [
+    "Ready to review now, nothing known to invalidate it.",
+    "No reviewer activity yet, and the author notes the second commit can be dropped if reviewers prefer to scope this to just the crash fix."
+   ],
+   "agreement": [
+    "No reviewer has commented yet, so there is no agreement signal to report."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "Unranked because the change is a GUI/node-interface fix, not an IPC mechanics change.",
+      "The signature change to interfaces::Node::updateRwSetting only propagates a write-success bool for GUI/options handling and does not touch IPC serialization, connection handling, or the capnp toolchain."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a crash in bitcoin-qt when run with -nosettings: three call sites in NodeImpl called ArgsManager::WriteSettingsFile unguarded, causing an abort on -resetguisettings and during legacy GUI settings migration. The PR guards those writes, skips migration when there's nowhere to migrate settings to (so legacy keys aren't silently dropped), and changes interfaces::Node::updateRwSetting to return whether the write reached disk. A second commit uses that return value to warn the user in the options dialog when a write fails, and to avoid requesting a restart that would discard an unsaved change.",
+  "problem": "Users running bitcoin-qt with -nosettings (which the app itself suggests when the settings file can't be written) hit an abort in the options dialog and on legacy-settings migration, and the migration bug means stale legacy settings reappear on every start because the abort happens before the key removal that would otherwise fix it.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, no review activity yet (opened 10 days ago)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failures, no rebase needed, and the PR includes new Qt tests covering the guarded paths (disabled settings and unwritable settings) as evidence the change works as described. The author flags the second commit as optionally droppable if reviewers want to scope this to just the crash fix, which is a note for scope discussion, not a blocker to reviewing now."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer has commented on the PR yet.",
+   "reason": "The PR is 10 days old with zero distinct reviewers and no review activity recorded.",
+   "evidence": [
+    "signals show distinct_reviewers: 0 and last_reviewer_activity empty"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Related to #36176 (merged), which guards the wallet-path call site to WriteSettingsFile; this PR guards the remaining three call sites (options dialog and legacy settings migration) that the author found while testing #36176."
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "The PR changes interfaces::Node::updateRwSetting's return type from void to bool so callers can learn whether a settings write reached disk, but this is a mechanical propagation for GUI settings handling, not a change to IPC serialization, connection management, or the capnp/multiprocess machinery itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per the ipc category definition, an interfaces:: change that is really about another area's behavior (here, GUI options and settings persistence) is that area first and ipc only if the interface mechanics themselves are the point, which they are not here."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The GUI/qt category itself is not among the defined categories in this system, so the PR's primary area (options dialog / settings persistence) has no home in the given category list beyond the excluded ipc hint.",
+   "No discussion exists yet to confirm maintainer appetite for this fix or for the optional second commit."
+  ],
+  "card": "This PR fixes a crash in bitcoin-qt -nosettings mode: three unguarded calls to ArgsManager::WriteSettingsFile in NodeImpl abort the app on -resetguisettings and during legacy GUI settings migration, with the migration bug causing stale legacy settings to reappear on every start. It guards those writes, skips migration when there's nowhere to persist to, and changes interfaces::Node::updateRwSetting to report write success so the options dialog can warn on failure and avoid requesting a restart that would drop unsaved changes. The author found this while testing the related, already-merged #36176, which guards the fourth (wallet) call site to the same function. New Qt tests cover the disabled-settings and unwritable-settings paths, each of which fails without the corresponding fix. The PR has no reviews yet but appears ready to review, and the author notes the second (reporting) commit is optional and can be dropped if reviewers want to scope this to the crash fix alone. Not an IPC-infrastructure change despite touching interfaces/node.h; the interface signature change is incidental to a GUI/settings fix."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

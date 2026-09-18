@@ -1,0 +1,250 @@
+{
+ "number": 35646,
+ "input_hash": "8e67cf09548ecffa",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:52+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30862,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4641
+ },
+ "cost_usd": 0.04055025,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Separate runtime system errors from consensus validation outcomes",
+    "Prevent non-validating routines from carrying validation state"
+   ],
+   "reviewability": [
+    "CI is failing on the latest push"
+   ],
+   "agreement": [
+    "Concept approval for separating runtime errors with Expected (optout21, hodlinator)",
+    "Reviewers requested splitting the large commit into smaller incremental steps (optout21, hodlinator)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it cleanly separates fatal disk/system failures from consensus rejection states",
+      "Removes misuse of BlockValidationState in functions like FlushStateToDisk and ActivateBestChain",
+      "Reduces the risk of conflating internal errors with valid block rejection rules"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it clarifies the kernel validation boundary before release",
+      "Removes internal errors from the validation mode enum in favor of fatal error notifications"
+     ]
+    }
+   ]
+  },
+  "summary": "Removes the `M_ERROR` runtime error state from `ValidationState` and `BlockValidationState`, introducing a move-only `kernel::FatalError` returned via `util::Expected`. Non-validation functions such as `FlushStateToDisk`, `DisconnectTip`, and `ActivateBestChain` no longer take `BlockValidationState` out-parameters, and fatal errors are channeled explicitly through notifications and return types.",
+  "problem": "`BlockValidationState` currently combines two unrelated concepts: consensus/policy invalidity and internal runtime failures like disk write errors. This forces callers to inspect validation objects for non-validation operations and conflates system faults with peer-penalizing block invalidity.",
+  "discussion": {
+   "open_concerns": [
+    "The main commit touching validation methods is very large and reviewers requested splitting it into smaller, incremental commits by function or return type.",
+    "Ensuring callback behavior like `BlockChecked` handles fatal failures consistently without altering peer-ban or notification expectations."
+   ],
+   "resolved_concerns": [
+    "Enforcing single notification firing via `FatalError::Raise` to avoid duplicate fatal error signals.",
+    "Preserving existing RPC error mapping and diagnostics across mining and blockchain RPCs."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI has failed on the latest push, and reviewers have requested breaking up the large commit before detailed review."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACKs from hodlinator and optout21; reviewers requested splitting the large commit into smaller steps.",
+   "reason": "Reviewers agree with the concept of using Expected to decouple runtime errors from validation results, but have requested commit restructuring and smaller reviewable steps.",
+   "evidence": [
+    "optout21 concept ACKed, noting enforcement of returned errors and reduced risk of mixing up validation and runtime errors.",
+    "hodlinator concept ACKed, calling the extraction via util::Expected a promising direction and offering a suggested piecemeal branch.",
+    "maflcko asked for compile-time enforcement of fatal error notification firing, which the author incorporated via FatalError::Raise."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35570"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Only updates doc comments in interfaces/mining.h as a side effect of validation error changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter IPC mechanics, Cap'n Proto definitions, or multiprocess infrastructure."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Changes the libbitcoinkernel C API and wrapper by removing INTERNAL_ERROR from btck_ValidationMode and adds kernel/fatal_error.h.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Clarifies the kernel API boundary by ensuring validation callbacks only convey validity and delegating internal aborts to the fatal error notification."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches validation files but does not alter mempool acceptance, replacement, or policy rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not impact mempool data structures or transaction evaluation."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Only adapts SubmitBlock and miner helper call sites to handle the new Expected return types.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change template generation, fee accounting, or mining RPC behavior."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Modifies net_processing.cpp solely to consume new return signatures from ProcessNewBlock and validation interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site adjustments without altering p2p protocols, message processing, or peer management."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Adapts RPC handlers in rpc/blockchain.cpp and rpc/mining.cpp to unwrap Expected values.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Preserves existing RPC outputs and does not introduce or alter RPC interfaces."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Updates unit tests and fuzz harnesses to unpack Expected returns and adds unit tests for FatalError.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Adjustments follow directly from signature changes in validation; no changes to the test framework itself."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Touches bitcoin-chainstate.cpp to remove handling of the deleted INTERNAL_ERROR enum.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical adaptation to the updated kernel API."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly refactors BlockValidationState, ConnectBlock, AcceptBlock, and chainstate execution error pathways.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Separates system error handling from consensus rejection logic across validation routines. While it does not fix an active bug or performance bottleneck, it cleans up core invariants and unblocks further return-type modernization in validation."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only updates InvalidateBlock call sites in wallet tests to check the new return type.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A mechanical call site adjustment that does not touch wallet logic or storage."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR removes runtime errors (M_ERROR) from BlockValidationState, replacing them with util::Expected<T, kernel::FatalError> across validation routines such as ConnectBlock and ActivateBestChain. It addresses the architectural conflation of consensus invalidity with system/disk failures, stopping non-validating routines from accepting validation state objects. While reviewers support the concept (Concept ACKs from hodlinator and optout21), they have requested that the large validation commit be broken into smaller pieces. CI is currently failing on the latest push."
+ },
+ "raw_text": null
+}

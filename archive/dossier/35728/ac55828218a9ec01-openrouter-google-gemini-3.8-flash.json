@@ -1,0 +1,133 @@
+{
+ "number": 35728,
+ "input_hash": "ac55828218a9ec01",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:26+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17750,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2617
+ },
+ "cost_usd": 0.02312625,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Distinguish disk read errors from missing transactions in RPC and REST transaction lookups",
+    "Avoid falsely reporting existing transactions as missing when block files or indexes suffer I/O errors"
+   ],
+   "reviewability": [
+    "Needs rebase and author has been inactive for over 60 days",
+    "An open question remains on error messaging regressions in pruned mode"
+   ],
+   "agreement": [
+    "Concept support for distinguishing missing transactions from I/O errors (yuvicc, musaHaruna)",
+    "Unresolved question on whether pruned blocks return misleading I/O errors instead of not-available (yuvicc)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it improves error reporting accuracy for raw transaction RPCs and REST lookups during I/O failures",
+      "Prevents callers from misinterpreting a disk read error as a non-existent transaction"
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P3 because it updates TxIndex::FindTx to explicitly propagate disk read and deserialization errors",
+      "Allows index callers to tell apart a missing entry from index or block file corruption"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request refactors `TxIndex::FindTx` and `node::GetTransaction` to return `util::Expected<CTransactionRef, std::string>` instead of flattening disk and deserialization errors into a missing transaction indication (`nullptr` or `false`). Callers in RPC (`getrawtransaction`, `ProcessPSBT`, `gettxoutproof`) and REST now throw an internal server error on I/O failures rather than returning 'not found'. A new functional test is added to verify that disk read errors raise proper RPC errors.",
+  "problem": "When reading transaction data fails due to an I/O error or corruption in block files or the txindex, `GetTransaction` returns `nullptr`, making callers assume the transaction does not exist. This misleads users and downstream applications into believing a confirmed transaction is absent rather than alerting them to an internal storage issue.",
+  "discussion": {
+   "open_concerns": [
+    "yuvicc noted that `getrawtransaction <txid> <blockhash>` on a pruned block might now return 'I/O error reading block data' instead of the previous 'Block not available' error.",
+    "musaHaruna asked whether the test's block file rename should be wrapped in `try...finally` to avoid leaving the file renamed if assertions fail."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-16"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts (mergeable_state dirty), needs a rebase, and the author has been silent for 63 days."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept supported, but yuvicc noted a possible error regression on pruned blocks that remains unaddressed.",
+   "reason": "Reviewers support distinguishing missing transactions from internal read failures, but yuvicc pointed out an unhandled case where pruned blocks return a generic I/O error instead of 'Block not available', which has not received an author reply.",
+   "evidence": [
+    "yuvicc: 'Concept ACK. Distinguishing \"transaction not found\" from internal read failures in TxIndex::FindTx/GetTransaction makes sense.'",
+    "yuvicc inline: 'In pruned mode when user calls getrawtransaction <txid> <blockhash> for the block that is pruned we return \"I/O error reading block data\" instead we should return \"Block not available\" which was done previously?'",
+    "musaHaruna: 'Concept ACK on separating expected outcomes (\"transaction not found\") from unexpected failures (I/O errors).'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Changes TxIndex::FindTx interface and error handling in src/index/txindex.cpp and src/index/txindex.h.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "TxIndex::FindTx previously returned a boolean that conflated a transaction missing from the index with disk read or deserialization failures. Returning an `Expected` error string cleanly separates missing keys from corrupted records."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes error reporting in getrawtransaction, ProcessPSBT, gettxoutproof, and REST tx endpoints.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Reporting a confirmed transaction as missing when a disk read fails is misleading to RPC consumers. Throwing RPC_INTERNAL_ERROR ensures callers detect storage or index faults instead of assuming the tx does not exist."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds a functional test feature_io_errors.py and updates txindex_tests.cpp, but does not alter test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications merely cover the feature and do not modify shared test framework infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35728 updates TxIndex::FindTx and node::GetTransaction to return util::Expected rather than flattening I/O errors into a missing transaction indicator (nullptr). This prevents RPC and REST endpoints from falsely reporting confirmed transactions as not found when encountering disk read or deserialization failures. Concept ACKed by two reviewers, but review is currently stalled due to merge conflicts, a 63-day author silence, and an open question regarding error string regressions on pruned blocks."
+ },
+ "raw_text": null
+}

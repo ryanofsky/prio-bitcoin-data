@@ -1,0 +1,133 @@
+{
+ "number": 35301,
+ "input_hash": "e250d5079b72db75",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 50193,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5330
+ },
+ "cost_usd": 0.07824930000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds the core BIP352 (Silent Payments) cryptographic logic as a standalone module in src/common, wrapping the new secp256k1 silentpayments API.",
+    "Lets wallets, RPCs, and node code later build silent-payments sending and receiving without needing full transaction/wallet machinery to test the crypto.",
+    "Part of a long-tracked project (issue #28536) to bring a privacy-improving payment scheme into Bitcoin Core."
+   ],
+   "reviewability": [
+    "Ready: author just pushed a reduced-scope version addressing the API-design feedback from the last review round.",
+    "No material open request is unanswered; the scope-narrowing (dropping CTxDestination integration) was itself the outcome of consensus discussion."
+   ],
+   "agreement": [
+    "Strong: multiple concept ACKs (w0xlt, rkrux, josibake) and no NACKs across four months of deep review.",
+    "Extensive substantive design discussion converged on a cleaner API (theStack, josibake, rustaceanrob), with the author adopting the suggested direction and reducing scope accordingly.",
+    "No standing unresolved objection; remaining comments are nits and iterative refinements the author is actively addressing."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a new src/common/bip352.{h,cpp} module implementing the core BIP352 Silent Payments cryptography (output/tweak generation, scanning, labels) by wrapping the new libsecp256k1 silentpayments module, plus BIP test-vector unit tests, a new bech32 'sp' HRP and chain-param entries, and a small KeyPair helper. It is the second iteration of a previous attempt (#28122) and depends on the not-yet-merged secp256k1 silentpayments module (bitcoin-core/secp256k1#1765). After extensive review the author narrowed scope, removing an earlier attempt to plug Silent Payments into CTxDestination/key_io, deferring that integration decision to the consuming (sending) PR.",
+  "problem": "Bitcoin Core currently has no way to send or receive BIP352 Silent Payments, a privacy-improving payment protocol that avoids on-chain address reuse; users and wallet implementers who want this privacy feature have been waiting since the project was opened as issue #28536. This PR supplies the foundational, wallet-independent cryptographic building blocks so that sending/receiving PRs (e.g. #35302) and other consumers can be built and reviewed against a stable core API.",
+  "discussion": {
+   "open_concerns": [
+    "Whether the final public API shape (SilentPaymentsReceiver, label handling, error types) is fully settled; several structural revisions occurred through the review (rustaceanrob and josibake proposed alternative APIs that the author partly adopted).",
+    "Whether crypto edge cases (invalid outputs, empty key sets, unknown witness versions) are all handled without possible crashes; several such issues were raised by w0xlt and fixed."
+   ],
+   "resolved_concerns": [
+    "Multiple secp256k1 API misuse and crash-risk bugs found by theStack, w0xlt, and josibake were fixed by the author in subsequent pushes (invalid pubkey handling, index preservation bug, unknown segwit version skip, empty key set guard).",
+    "Disagreement over whether Silent Payments addresses should be a CTxDestination was resolved by removing that integration from this PR and deferring the decision to the sending PR, per consensus among josibake, rustaceanrob, and the author.",
+    "Naming, doc, and micro-style nits were addressed across many force-pushes."
+   ],
+   "author_status": "active, addressing review; force-pushed 2026-09-16 to reduce scope per latest consensus"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready, reduced scope",
+   "reason": "The author just pushed a reduced-scope version (2026-09-16) that implements the API direction the reviewers converged on in the prior round, and no material reviewer request is currently open and unanswered."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: concept ACKs from w0xlt, rkrux, and josibake, with deep constructive review from theStack, rustaceanrob, and josibake converging on the current API; no NACKs or unresolved blocking objections.",
+   "reason": "Several members (josibake, theStack, rustaceanrob) explicitly endorsed the direction after the author reworked the API following their suggestions, and earlier substantive bugs they found were fixed.",
+   "evidence": [
+    "w0xlt, rkrux, josibake gave Concept ACK",
+    "josibake: 'This is some great looking code!... Overall, looks good'",
+    "theStack: 'Nice, looks like a reasonable API improvement, happy to re-review'",
+    "rustaceanrob: 'I think the current API is very solid and the next stage should determine how it is integrated.'",
+    "Author reduced scope in direct response to josibake/rustaceanrob's suggestion to defer the CTxDestination question, with no dissent."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Silent Payments sending implementation (#35302)",
+    "The broader Silent Payments project tracked in issue #28536",
+    "Future wallet/RPC/index consumers of a stable BIP352 core API"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds a silent_payments_hrp string and accessor to CChainParams (src/kernel/chainparams.h/.cpp), which is a kernel-library header, but this is a trivial data addition unrelated to the kernel API boundary or external consumers.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the only kernel-library touch is adding a chain-specific bech32 HRP string and a getter, with no effect on the kernel API surface, ABI, or any external kernel consumer; it is incidental to the real change."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a functional test to test/functional/rpc_validateaddress.py exercising error messages for not-yet-supported Silent Payments addresses; no RPC method or behavior itself changes.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this only adds test coverage for validateaddress's existing 'not yet implemented' error path; no RPC interface, data, or behavior changes, so it carries none of the compatibility or security weight this category cares about."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The core of the PR is src/common/bip352.{h,cpp}, a new cryptographic module wrapping the libsecp256k1 silentpayments API for key/output/tweak/label handling, squarely in scope for shared cryptographic primitives.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "P2 because this is a new cryptographic primitive module whose correctness matters node-wide once consumed (theStack and w0xlt found and fixed several crash/parsing hazards during review), and it is explicitly the dependency that unblocks the sending PR (#35302) and the whole Silent Payments project (#28536) that users have long awaited for improved privacy."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the just-reduced-scope version (pushed 2026-09-16) fully satisfies the API concerns raised, or whether another design round is likely before this can merge.",
+   "Whether kernel and rpc membership, driven purely by path hints for trivial touches, should be considered category members at all given how marginal the changes are.",
+   "The PR depends on an unmerged upstream secp256k1 PR (bitcoin-core/secp256k1#1765) for final merge, which is outside this repo's PR numbering and thus not captured in dependencies.depends_on."
+  ],
+  "card": "This PR implements the core BIP352 Silent Payments cryptography as a new src/common/bip352 module, wrapping the not-yet-merged libsecp256k1 silentpayments API, together with BIP test-vector unit tests and small supporting changes (bech32 'sp' HRP, chainparams field, a KeyPair accessor). It solves the lack of any Silent Payments building blocks in Bitcoin Core, a privacy feature tracked since issue #28536, and is a direct prerequisite for the sending PR (#35302) and further wallet/RPC integration. Four months of deep, substantive review (theStack, w0xlt, josibake, rustaceanrob) found and fixed multiple crash/correctness hazards and converged on a cleaner receiver-centric API; the author just reduced the PR's scope (2026-09-16) to defer the still-open question of how Silent Payments addresses should integrate with CTxDestination to a later PR. Agreement is Strong, with concept ACKs and no unresolved objections. It depends on the companion secp256k1 module PR merging upstream before this can itself be merged.'"
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

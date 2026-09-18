@@ -1,0 +1,95 @@
+{
+ "number": 36187,
+ "input_hash": "6a9883a71cce9313",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:58:28+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16768,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2390
+ },
+ "cost_usd": 0.0215385,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent credential leaks from bitcoin-cli to rogue local processes",
+    "Require default IPv4 or explicitly configured RPC socket binds to succeed at startup"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "All initial review comments and test adjustments have been addressed"
+   ],
+   "agreement": [
+    "Strong support for enforcing fail-closed HTTP server initialization (winterrdog, janb84, l0rinc, sedited)",
+    "Reviewers agreed that bitcoin-cli defaulting to IPv4 requires an active IPv4 listener (winterrdog)",
+    "Minor suggestions for error reporting and style were addressed in recent pushes (janb84, winterrdog)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it prevents RPC auth cookie exfiltration to other local processes",
+      "Hardens the default RPC interface against silent partial-bind failures",
+      "Removes an old fail-open edge case when IPv4 is already occupied"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies HTTP server initialization in `src/httpserver.cpp` so that the default IPv4 loopback bind (127.0.0.1) is required to succeed during startup, while the default IPv6 loopback bind (::1) remains optional. It also changes explicit `-rpcbind` configurations to fail closed if any specified endpoint cannot be bound, and adds functional tests covering partial binds and credential safety.",
+  "problem": "When the default IPv4 RPC port is occupied by another local process, bitcoind currently fails open if IPv6 binds successfully, writing out an RPC cookie. When `bitcoin-cli` runs, it sends plain-text cookie credentials to the rogue IPv4 process by default, enabling local cross-user credential theft.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Logging level and style consistency for required versus optional bind failures (raised by janb84, resolved by author)",
+    "Clearer error messaging pointing IPv6-only node operators to explicit `-rpcbind` usage (raised by winterrdog, resolved by author)"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code and functional tests are complete, CI is green, and all reviewer feedback on style and error messaging has been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support; reviewers affirmed the necessity of fail-closed binds to protect cookie credentials.",
+   "reason": "Four contributors provided Concept ACKs noting that matching the CLI default target to a mandatory bitcoind listener fixes a genuine credential exposure hazard, with all review feedback already applied.",
+   "evidence": [
+    "winterrdog noted: 'this makes sense since bitcoin-cli defaults to IPv4, so bitcoind should have a corresponding IPv4 listener, already working by default as well'",
+    "Concept ACKs from l0rinc, janb84, sedited, winterrdog"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies HTTP server bind setup in src/httpserver.cpp and adds test coverage in test/functional/rpc_bind.py.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Prevents local authentication credential exfiltration caused by partial bind failures on multi-user systems. In the RPC category, interface security and credential exposure are top priorities, making this fail-closed behavior a strategically important improvement to default node safety."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR alters the HTTP server initialization to require that the default IPv4 loopback bind succeeds, avoiding partial startup when only IPv6 succeeds. Currently, an unprivileged local process occupying the IPv4 RPC port can receive plain-text auth cookie credentials when bitcoin-cli connects, while bitcoind runs on IPv6. Explicit `-rpcbind` invocations are also made fail-closed across all endpoints. Reviewers strongly support the approach and all open feedback has been resolved."
+ },
+ "raw_text": null
+}

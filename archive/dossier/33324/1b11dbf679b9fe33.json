@@ -1,0 +1,173 @@
+{
+ "number": 33324,
+ "input_hash": "1b11dbf679b9fe33",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25444,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5225
+ },
+ "cost_usd": 0.0529753,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a startup option to rewrite existing block and undo files under a new (or random) XOR key.",
+    "Lets nodes synced before v28 obfuscate already-stored blocks, rotate keys, or explicitly remove obfuscation without a full resync."
+   ],
+   "reviewability": [
+    "Blocked on rebase: PR is marked Needs rebase and mergeable_state is dirty.",
+    "Substance was reviewed extensively (28 force-pushes over a year addressing chunking, timestamps, crash-safety); a rebase is the only known blocker."
+   ],
+   "agreement": [
+    "Positive with a standing caveat: stickies-v and luke-jr argued this belongs in a separate C++ tool rather than a startup flag, and sedited agreed with the concern but chose not to block on it (stickies-v, luke-jr, sedited).",
+    "sedited gave a full ACK on the final revision after extensive back-and-forth on I/O safety and error handling (sedited).",
+    "ajtowns raised several implementation concerns (chunking, timestamp preservation, uneven progress) that the author addressed with pushes and coauthor credit (ajtowns)."
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it closes a real gap: nodes that synced before v28 have no way to obfuscate, rotate, or zero their block-file XOR key without a full resync.",
+      "The implementation is engineered for crash safety (staged files, resumable via xor.dat.reobfuscated, preserved timestamps), which matters for a migration touching hundreds of GB of block data.",
+      "Benefits are opt-in and privacy/hygiene related rather than fixing an active vulnerability, so it falls short of category-critical."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it adds general-purpose Obfuscation helpers (Delta, KeyFromHex) and hardens DirectoryCommit to propagate errors instead of silently ignoring fsync failures.",
+      "These are reusable primitives but were built specifically to serve the block-reobfuscation feature, not a broader recurring pain point."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the new functional test (feature_reobfuscation.py) pins behavior of block storage specifically, which the tests category explicitly assigns to its owning area rather than to test infrastructure."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Not a member: the changes are to block/undo file storage and XOR obfuscation, which the indexes category explicitly covers, not to consensus validity or chainstate management."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a `-reobfuscate-blocks[=<value>]` startup option that rewrites existing blk*.dat and rev*.dat files under a new random or user-supplied XOR key, or removes obfuscation entirely, running before chainstate loading. The migration stages replacement files with a `.reobfuscated` suffix and a staged key file so an interrupted run can resume safely, preserves file modification times, and reports progress via logs and kernel notifications. It also extracts shared block/undo file discovery and XOR key file helpers, and adds `Obfuscation::Delta`/`KeyFromHex` utility helpers plus a functional test.",
+  "problem": "Nodes that synced before Bitcoin Core v28 store block and undo files with a zero (effectively inactive) XOR key, and there was previously no built-in way to obfuscate those files, rotate the key, or explicitly zero it out without a full resync. This affects operators who care about not storing raw, easily identifiable block data on disk.",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v and luke-jr suggested this should be a separate C++ utility (like bitcoin-util or a new binary) rather than a one-shot startup option, to avoid overlap between -blocksxor, -reobfuscate-blocks, and xor.dat; sedited agreed with the sentiment in principle but did not treat it as blocking for this PR, and the author did not implement it here.",
+    "PR is currently marked Needs rebase with a dirty mergeable_state."
+   ],
+   "resolved_concerns": [
+    "ajtowns's concerns about doing blk/rev files in shuffled order for smoother progress, preserving file timestamps, and chunked reads instead of loading whole files into memory were all addressed in later pushes (with ajtowns credited as coauthor).",
+    "sedited's concerns about function organization (moving the reobfuscation call out of InitAndLoadChainstate), overly-lenient parsing of the -reobfuscate-blocks value, and using assertions instead of propagating filesystem errors were all addressed by the author with subsequent pushes.",
+    "sedited gave a full ACK on the reworked version (181753328a8e27c7fac5300a44885843c3b6855f)."
+   ],
+   "author_status": "active, most recently rebasing and hardening I/O error handling on 2026-09-05"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is labeled Needs rebase and mergeable_state is dirty. The underlying code has already absorbed multiple rounds of substantive review (chunking, crash-safety, error propagation) and one full ACK, so a rebase is the main known obstacle to further review."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "sedited gave a full ACK after extensive iteration; stickies-v and luke-jr's preference for a separate C++ utility instead of a startup flag remains an acknowledged but non-blocking drawback.",
+   "reason": "Multiple reviewers engaged substantively across a year, all concrete implementation objections (chunking, timestamps, error handling, function placement) were fixed by the author, and the PR has a full ACK. The one standing disagreement is architectural (startup flag vs. dedicated binary), which sedited explicitly declined to treat as a blocker for this PR while agreeing with the underlying preference.",
+   "evidence": [
+    "sedited: 'ACK 181753328a8e27c7fac5300a44885843c3b6855f'",
+    "stickies-v: 'I don't like using startup options for one-time operations... maybe we can bundle this e.g. as part of bitcoin-util or a separate bitcoin-xor-blocks utility'",
+    "luke-jr: 'I agree a separate utility for this seems better'",
+    "sedited: 'I'm not sure if this particular pull request is the practice case for ironing out how to launch such binaries... If somebody wants to take a stab at pioneering such a utility, that could easily be done later.'",
+    "ajtowns: 'Having it be a startup option like -reindex seems fine to me.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Supersedes/relates to the closed #32451 (contrib xor-blocks tool) by building the capability directly into bitcoind."
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "The PR's core change is to node/blockstorage.cpp/h: block and undo (blk*.dat/rev*.dat) file discovery, rewriting, and the XOR key file lifecycle, which the indexes category explicitly covers under 'block and undo file storage on disk, and pruning'.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Addresses a real, previously-unmet need: 'Nodes that synced before v28 may store block and undo files effectively unobfuscated... There is no built-in way to obfuscate those existing files' (description), corroborated by a prior independent PR (#32451) and an external tool (andrewtoth/blocks-xor) attempting the same thing. The implementation is deliberately crash-safe and resumable (staged files, staged key, directory fsync before renames), which matters given migrations can take hours on hundreds of GB. It is opt-in and non-consensus-critical, so it does not rise to P1.'"
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds Obfuscation::Delta and Obfuscation::KeyFromHex to util/obfuscation.h and changes DirectoryCommit's signature/behavior in util/fs_helpers.cpp to propagate fsync/close failures instead of silently ignoring them, both shared utility surfaces.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "DirectoryCommit now 'Returns false if opening, syncing, or closing the directory fails' instead of ignoring errors, a small but genuine correctness improvement to a widely-used fsync helper. The Obfuscation key helpers are useful primitives but were purpose-built for this feature rather than addressing an existing pain point elsewhere in the codebase."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new test.functional/feature_reobfuscation.py exercises the block-reobfuscation feature specifically; per the tests category definition, a test pinning one area's behavior belongs to that area (indexes), not to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No changes to the test framework, fuzz harness, or CI tooling itself; the functional test only covers this PR's own feature."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "All substantive logic changes are to block/undo file storage and XOR key handling in node/blockstorage.cpp, which the indexes category explicitly claims ('block and undo file storage on disk'); no chainstate, UTXO, or block-validity logic is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a validation change; it does not alter what the node accepts or how chainstate is maintained."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will ultimately prefer a separate binary/tool architecture (per stickies-v/luke-jr) over the startup-option approach, which could mean this PR's direction changes even though the current code is reviewable.",
+   "Exact reason for the 'Needs rebase' label and how large the conflict surface is, given eight listed conflicting open PRs touching overlapping files."
+  ],
+  "card": "This PR adds a `-reobfuscate-blocks` startup option that rewrites existing blk*.dat/rev*.dat files under a new or random XOR key, letting nodes synced before v28 (which stored blocks with a zero, effectively inactive, key) obfuscate, rotate, or explicitly zero their block-file encryption without a full resync. The migration is staged and resumable (temp files, a staged key file, directory fsyncs before renames) so a crash mid-migration does not corrupt block data, and reports progress via logs and kernel GUI notifications. It belongs to the indexes category as a block-storage feature and secondarily touches utils via small Obfuscation and DirectoryCommit helper changes. Review has been extensive over a year: ajtowns's implementation concerns (chunking, timestamps, ordering) and sedited's concerns (error propagation, code placement, parsing strictness) were all addressed, and sedited gave a full ACK on the latest revision; stickies-v and luke-jr's preference for a separate binary tool remains an acknowledged but non-blocking architectural disagreement. The PR currently needs a rebase (mergeable_state dirty) which is the main obstacle to further review, not the code's substance."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,132 @@
+{
+ "number": 35751,
+ "input_hash": "a7a387bbb7a45e1e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:26+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16415,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7520
+ },
+ "cost_usd": 0.04051125,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up block template validity checking by reusing the parallel prevout fetching overlay view.",
+    "Avoid inserting dummy cache misses into the main UTXO cache during template validation."
+   ],
+   "reviewability": [
+    "Waiting on author to push the agreed reentrancy assertion."
+   ],
+   "agreement": [
+    "Concept supported for speeding up block template checks (Sjors, optout21).",
+    "Changes requested over potential reentrancy, resolved in discussion with an agreed assert pending push (l0rinc)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it provides a modest speedup to block template validation rather than core consensus or initial sync.",
+      "Improves mining template creation and Stratum v2 checking latency without affecting block relay or IBD throughput."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates TestBlockValidity to use the reusable CoinsViewOverlay via ConnectBlockView rather than allocating a temporary CCoinsViewCache. This enables parallel input prevout fetching during block template validation and prevents cache misses from populating the main coins cache. It also updates the AssembleBlock benchmark to fill blocks to maximum weight to accurately evaluate the performance impact.",
+  "problem": "TestBlockValidity previously constructed an ephemeral CCoinsViewCache on top of CoinsTip, missing out on the parallel input fetching implemented in #35295 and polluting the main cache with lookups from dummy checks. Miners and Stratum v2 services creating or checking block templates experience slower validation latency as a result.",
+  "discussion": {
+   "open_concerns": [
+    "Author needs to push the agreed Assert(overlay_view.GetCacheSize() == 0) to guard against reentrant calls from synchronous callbacks (l0rinc)."
+   ],
+   "resolved_concerns": [
+    "CoreCheck performance regression resolved by updating the benchmark to fill blocks to max weight (sedited, andrewtoth).",
+    "Variable naming and commit description clarifications addressed (optout21)."
+   ],
+   "author_status": "Addressing review; proposed an assert to resolve reentrancy feedback on 2026-08-23, agreed to by reviewer on 2026-08-26, pending push."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "Review is paused waiting on the author to push the agreed reentrancy assert requested by l0rinc."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc requested changes regarding reentrancy; author proposed an assert that l0rinc agreed with, awaiting push.",
+   "reason": "A blocking Changes Requested review from l0rinc remains open because the proposed fix has not yet been pushed to the PR branch.",
+   "evidence": [
+    "Sjors Concept ACKed for improving checkBlock IPC performance for Stratum v2.",
+    "optout21 approved the performance improvement as a follow-up to earlier parallel fetching work.",
+    "l0rinc requested changes citing potential reentrancy issues if TestBlockValidity is called during an active fetch.",
+    "andrewtoth proposed adding an assert on cache size, which l0rinc confirmed is the ideal solution."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Stratum v2 template validation efficiency (#35671)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies TestBlockValidity and Chainstate in src/validation.cpp and src/validation.h to reuse the CoinsViewOverlay.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it improves block template checking speed by around 10% on full blocks by reusing CoinsViewOverlay from #35295. While useful for block assembly and Stratum v2 template checking, it does not affect consensus rules, block connection during initial block download, or steady-state tip advancement."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool policy, validation rules, eviction, or mempool data structures.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Modifications to src/bench/block_assemble.cpp improve a specific benchmark's workload rather than testing machinery or frameworks.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the agreement state should be considered Mild rather than Disputed given that both reviewer and author agreed on the resolution."
+  ],
+  "needs": [],
+  "card": "This PR updates TestBlockValidity to reuse the CoinsViewOverlay introduced in PR 35295, enabling parallel prevout fetching and preventing cache-miss pollution in the main UTXO cache during template checks. It speeds up block template validation in AssembleBlock benchmarks by approximately 10 percent, which primarily benefits mining pool operators and Stratum v2 template checking workflows. The problem is a minor performance optimization rather than a critical consensus bottleneck. Review is currently paused while waiting on the author to push an agreed-upon reentrancy assertion requested by l0rinc. There are no blocking dependencies."
+ },
+ "raw_text": null
+}

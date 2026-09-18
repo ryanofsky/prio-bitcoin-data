@@ -1,0 +1,97 @@
+{
+ "number": 34400,
+ "input_hash": "896ca10bba6d73b9",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:30+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25506,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1760
+ },
+ "cost_usd": 0.011983125,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Parallelize wallet fast-rescan block filter checking across multiple threads.",
+    "Cut wallet rescan times by 4x to 8x for nodes with block filters enabled."
+   ],
+   "reviewability": [
+    "Needs rebase onto master following the recent merge of prerequisite #34681.",
+    "Code is in draft and merge conflicts are present."
+   ],
+   "agreement": [
+    "Strong support with multiple independent benchmark reproductions and Concept ACKs (w0xlt, ismaelsadeeq, rkrux).",
+    "Benchmark verifications on both SSD and HDD show substantial speedups without regressions (ismaelsadeeq, l0rinc)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it brings a measured 4x to 8x speedup to wallet fast-rescan on multi-core systems.",
+      "Significantly cuts waiting time for users restoring descriptors or rescanning large block ranges."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements multi-threaded block filter checking during wallet fast-rescan via a new `-walletpar` configuration option. Instead of sequentially evaluating compact block filters, tasks are batched and scheduled across a thread pool, updating filters dynamically when transactions are detected and topping up the keypool.",
+  "problem": "Wallet rescanning over long chain intervals with BIP 157 block filters is CPU-bound on cryptographic hashing. Because checking was single-threaded, nodes with many cores experienced prolonged rescans that did not utilize available compute resources.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Whether parallelization helps on non-SSD storage: l0rinc and Eunovo verified that fast rescan is CPU-bound on filter hashing, showing clear speedups on HDDs as well.",
+    "ThreadPool resource contention: rkrux questioned sharing a global threadpool across wallets; Eunovo restructured the implementation to spin up a scan-specific pool.",
+    "Prerequisite refactoring: furszy requested separating scanning refactors from parallelization, which led to the creation and merge of #34681."
+   ],
+   "author_status": "silent since 2026-07-22 while waiting for prerequisite #34681 to merge"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts and needs a rebase now that prerequisite #34681 has merged."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Broad support and independent benchmark reproductions (ismaelsadeeq, rkrux, l0rinc, w0xlt).",
+   "reason": "Multiple reviewers provided Concept ACKs and confirmed 4x to 8x speedups across multiple hardware platforms and drive types without objection.",
+   "evidence": [
+    "ismaelsadeeq confirmed a 6x speedup on an AMD Ryzen 7 7700 setup.",
+    "l0rinc confirmed a 3x speedup on an HDD setup.",
+    "rkrux gave a Strong Concept ACK after prerequisite refactors were addressed."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34681
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes CWallet and ChainScanner rescan logic in src/wallet/scan.cpp.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because wallet rescan is a frequent pain point during wallet recovery and descriptor imports, and this PR delivers a major, empirically validated 4x-8x speedup on multi-core systems. Both Eunovo and ismaelsadeeq demonstrated substantial reductions in execution time (e.g., from ~280s down to ~42s across 400,000 blocks)."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #34400 introduces multi-threaded block filter checking for wallet fast-rescan, delivering an 8x speedup on 8 threads. It addresses CPU bottlenecks during filter evaluation when importing or recovering wallets on nodes with blockfilterindex enabled. The change has strong backing with independent benchmark validations from multiple contributors confirming massive performance gains on both SSDs and HDDs. The PR is currently in draft and needs a rebase following the merge of prerequisite #34681."
+ },
+ "raw_text": null
+}

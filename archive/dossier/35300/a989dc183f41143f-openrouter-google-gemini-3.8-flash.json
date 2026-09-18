@@ -1,0 +1,206 @@
+{
+ "number": 35300,
+ "input_hash": "a989dc183f41143f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:53+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23062,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6709
+ },
+ "cost_usd": 0.04245525,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow IPC mining clients to submit and prioritize a same-work block in a single call.",
+    "Eliminate the need for mining clients to fall back on a separate preciousblock RPC."
+   ],
+   "reviewability": [
+    "Needs rebase against current master due to merge conflicts.",
+    "Unaddressed reviewer comments on return value semantics and test sizing are awaiting author update."
+   ],
+   "agreement": [
+    "Concept support from two contributors for atomic IPC block submission (Sjors, pablomartin4btc).",
+    "Nonblocking interface design question regarding whether duplicate blocks should still return duplicate even when precious is requested (Sjors).",
+    "Minor test organization and code nits raised without blocking approval (pablomartin4btc, Sjors)."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it provides a useful convenience and atomicity improvement for external mining clients using IPC.",
+      "It eliminates a multi-step workaround across disparate protocols but is reasonably deferrable."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it expands the IPC Mining interface to achieve feature parity with existing node control flows.",
+      "It improves client interface completeness without altering underlying IPC transport architecture."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the validation changes are limited to a minor lock-holding refactor and tip-connection check in PreciousBlock.",
+      "It provides minor caller utility with no standalone impact on consensus or chainstate validation."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds an optional `precious` parameter to the `submitBlock` and `submitSolution` methods on the Mining IPC interface. When set, a submitted block with identical work to the current tip is marked as precious and activated atomically. It also refactors `Chainstate::ActivateBestChain` into an internal helper so `PreciousBlock` can perform the reorg and report tip status without releasing `m_chainstate_mutex`.",
+  "problem": "External mining software using the IPC interface has no direct mechanism to indicate preference for a locally mined block over an existing same-work tip. Operators must resort to issuing a separate `preciousblock` RPC call, which is non-atomic and risks racing concurrent chainstate updates.",
+  "discussion": {
+   "open_concerns": [
+    "Sjors suggested that submitBlock should return 'duplicate' if the block was already known, even if precious is requested and the tip is reorged.",
+    "Sjors recommended splitting and reorganizing the unit test in miner_tests.cpp due to its size."
+   ],
+   "resolved_concerns": [
+    "Waiting for base PR #34672 to land before progressing (merged upstream in July 2026)."
+   ],
+   "author_status": "silent since 2026-07-24"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with current master and has been silent since July 2026."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: Concept ACKs from Sjors and pablomartin4btc, with open feedback on duplicate return semantics",
+   "reason": "Both reviewers support the concept of exposing precious block handling directly over IPC mining interfaces. Open questions relate to exact return status conventions for duplicate blocks and test file organization.",
+   "evidence": [
+    "Sjors gave Concept ACK while noting game-theoretic considerations and questioning return values for duplicate blocks.",
+    "pablomartin4btc gave Concept ACK and noted that the ActivateBestChain_ refactoring is a clean prerequisite."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Touches src/node/miner.cpp, src/node/miner.h, and src/interfaces/mining.h, directly affecting block submission and template handling.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "It improves user value for external miners by enabling atomic block submission and preference selection over IPC. In the description, the author notes that IPC mining clients can submit and prefer a block in one call instead of coordinating via the preciousblock RPC. It does not fix a bug or affect mining template generation performance, making it worthwhile but deferrable."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Updates src/ipc/capnp/mining.capnp, interfaces::Mining, and adds functional tests for IPC mining methods.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The PR completes the IPC mining interface so downstream consumers do not need to maintain parallel RPC sessions for preciousblock handling. As pablomartin4btc stated, adding precious=true allows IPC mining clients to atomically submit and prefer a same-work block in one go. Because this is an incremental interface addition without broad infrastructural consequences, it fits P3."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches src/validation.cpp and src/validation.h to extract ActivateBestChain_ and adjust PreciousBlock lock-holding semantics.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The change extracts ActivateBestChain_ to allow PreciousBlock to report connection status while holding m_chainstate_mutex continuously. The commit message explains this allows callers that already hold m_chainstate_mutex to run activation without releasing and reacquiring it. Within validation, this is an internal refactoring to assist an external caller rather than a consensus or chainstate integrity improvement."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only includes a release note for the IPC mining interface addition; documentation is not the primary subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not alter mempool acceptance, replacement, cluster rules, or transaction eviction.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/blockchain.cpp only to update an existing PreciousBlock callsite for a new out-parameter.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test adjustments and GrindBlock deduplication support the mining feature rather than changing test infrastructure frameworks.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request adds an optional precious parameter to the Mining IPC submitBlock and submitSolution methods, enabling mining clients to submit and prioritize a same-work block in a single IPC call. It also refactors Chainstate::PreciousBlock and ActivateBestChain to verify tip connection status atomically while holding the chainstate mutex. Reviewers agree with the concept, though questions remain about duplicate return semantics and test structure. The branch currently has merge conflicts and needs a rebase before code review can conclude."
+ },
+ "raw_text": null
+}

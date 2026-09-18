@@ -1,0 +1,147 @@
+{
+ "number": 35370,
+ "input_hash": "3ec8c3b8b15b0ce4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13573,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5817
+ },
+ "cost_usd": 0.0440643,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds explicit add/preserve/strip modes to the bip32derivs argument in walletprocesspsbt and descriptorprocesspsbt",
+    "Lets users strip existing key-origin metadata (xpubs, BIP32 paths) from a PSBT before sharing it in collaborative workflows"
+   ],
+   "reviewability": [
+    "Stale: author has not responded in 68 days to nits and a squash request from maflcko",
+    "Design direction is settled (enum-style bip32derivs) after achow101's and rkrux's input, but recent style and commit-hygiene requests are unanswered"
+   ],
+   "agreement": [
+    "Approach ACK from willcl-ark and concept ACK from rkrux after author reworked the design per achow101's suggestion (achow101, rkrux, willcl-ark)",
+    "No standing objection to the change itself, only unresolved style nits and a squash request from maflcko"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it closes a filed usability gap (#30294) where bip32derivs=false silently failed to remove existing key-origin fields, with a concrete collaborative-PSBT use case",
+      "Backward compatible (booleans remain valid) so it does not risk breaking existing callers, limiting downside but also limiting urgency"
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because stripping key-origin metadata before sharing a PSBT is a genuine privacy improvement for collaborative signing workflows (coordinators, multisig)",
+      "Narrow audience: only users who explicitly share PSBTs across parties feel this, so it is worthwhile but not urgent"
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a member: the only doc change is the release note accompanying the RPC behavior change, not a standalone documentation contribution"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR extends the bip32derivs argument of walletprocesspsbt and descriptorprocesspsbt to accept string modes 'add', 'preserve', and 'strip' in addition to the existing booleans. 'strip' removes global xpubs and legacy/Taproot BIP32 derivation fields from a PSBT after normal processing, which the previous boolean-only interface could not do (setting bip32derivs=false only prevented adding new fields, it did not remove existing ones). The change adds a helper StripPSBTKeyOriginFields, updates argument parsing and RPC help text, and adds extensive functional test coverage.",
+  "problem": "Users building collaborative PSBT workflows (e.g. sharing a PSBT between signers or with a coordinator) need to remove key-origin metadata like xpubs and BIP32 derivation paths before sharing, but bip32derivs=false only suppressed adding new fields and left pre-existing ones intact, as reported in issue #30294.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko: avoid ALL_CAPS naming in new code per project convention (style nit, unresolved)",
+    "maflcko: a duplicate test section is redundant given --usecli support (unresolved)",
+    "maflcko: requested commits be squashed per CONTRIBUTING.md (unresolved)",
+    "maflcko: flagged that recent changes appear LLM-generated and asked for compliance with AI_POLICY.md; author acknowledged and said they reviewed the changes personally"
+   ],
+   "resolved_concerns": [
+    "achow101 and rkrux argued a separate stripbip32derivs bool was the wrong approach and that bip32derivs itself should become an enum/choices argument; author reworked the PR to fold the modes into bip32derivs directly, which rkrux said addressed the concern"
+   ],
+   "author_status": "silent since 2026-07-10, 68 days as of assessment; last activity was a force-push responding to some but not all of maflcko's requests"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 68 days",
+   "reason": "Author has not responded in 68 days to maflcko's requests to squash commits, drop a redundant test section, and fix an ALL_CAPS naming nit. Design-level concerns from achow101 and rkrux were already resolved via a rework, so the code direction is settled, but the outstanding hygiene items and long silence make a fresh review of unclear value until the author returns."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: willcl-ark gave an approach ACK and rkrux a concept ACK after the author reworked bip32derivs into an enum per achow101's suggestion; remaining comments from maflcko are style/process nits, not objections to the change.",
+   "reason": "No reviewer disputes the value or design of adding strip/preserve/add modes once the author converged on extending bip32derivs itself rather than adding a separate flag. The only open items are commit hygiene and a style nit, not concerns about merging the feature.",
+   "evidence": [
+    "willcl-ark: 'Approach ACK... This looks like the correct approach'",
+    "achow101: suggested converting bip32derivs into an enum rather than adding a new bool; author implemented this",
+    "rkrux: 'Concept ACK... I think it'd be good to avoid having a new similar looking argument'; satisfied by the rework",
+    "maflcko: nits on ALL_CAPS naming, duplicate test code, and squashing commits, unaddressed as of last activity"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes the bip32derivs argument type and behavior for walletprocesspsbt and descriptorprocesspsbt, labeled RPC/REST/ZMQ, with the core diff in rawtransaction.cpp, rawtransaction_util.cpp/h.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Closes a filed usability gap (issue #30294): 'Setting bip32derivs to false ... includes bip32_derivs for outputs.' The fix is backward compatible (existing booleans remain valid), which limits both risk and urgency. Real but narrow demand: one open issue and a small prior PR (#30341) attempting a related but rejected approach."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "walletprocesspsbt is a wallet RPC and the change affects what metadata the wallet includes in signed PSBTs, directly touching wallet-side privacy behavior in src/wallet/rpc/spend.cpp.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Improves privacy of PSBT sharing by letting the wallet strip xpubs and derivation paths before handing a PSBT to another party, addressing 'collaborative PSBT workflows need to remove that metadata before sharing.' Audience is limited to users doing multi-party PSBT workflows rather than typical single-wallet users, so it is worthwhile but not urgent."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "The only documentation content is a release note describing the new RPC behavior, added alongside the code change rather than as the PR's subject; per category rules this belongs to the code change's area, not docs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: release notes accompanying an RPC change are not a standalone documentation contribution per the docs category definition."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The discussion mentions a rework commit e5adbdfbe9 addressing achow101/rkrux's design concern, but the metadata's head_sha (af752153f7) matches an earlier commit hash listed before that rework, so it's unclear whether the visible diff reflects the final reworked state or an earlier version.",
+   "Unclear whether maflcko's squash and duplicate-test-code requests were addressed in the force-push that followed, since no comment confirms resolution.",
+   "Whether the privacy benefit of stripping key-origin fields is in high demand beyond the single linked issue and prior related PR is not strongly evidenced in the discussion."
+  ],
+  "card": "This PR extends the bip32derivs argument on walletprocesspsbt and descriptorprocesspsbt to accept 'add', 'preserve', and 'strip' modes (backward compatible with the existing boolean), letting users strip existing key-origin metadata like xpubs and BIP32 derivation paths before sharing a PSBT. It closes issue #30294, where setting bip32derivs=false failed to remove already-present derivation fields, a real gap for collaborative PSBT workflows needing privacy. Reviewers achow101 and rkrux pushed the author to fold the new behavior into the existing argument as an enum rather than add a separate flag, and the author reworked accordingly, earning an approach ACK from willcl-ark and a concept ACK from rkrux. The PR is currently Stale: the author has been silent for 68 days on maflcko's follow-up requests to squash commits, fix an ALL_CAPS nit, and remove a redundant test section, and maflcko also flagged apparent LLM-generated content requiring compliance with the project's AI policy. No open objection to the feature's design exists, only process and hygiene items awaiting the author's return."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

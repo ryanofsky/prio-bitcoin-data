@@ -1,0 +1,173 @@
+{
+ "number": 35355,
+ "input_hash": "3d881436fb5735d3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:40+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24737,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2798
+ },
+ "cost_usd": 0.02354805,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make trace and debug logging checks lock-free using atomic category masks",
+    "Replace the -loglevel configuration option with -trace and update the logging RPC"
+   ],
+   "reviewability": [
+    "Merge conflicts present and the author has been silent for 118 days",
+    "Code is not ready for review until rebased against conflicting logging PRs"
+   ],
+   "agreement": [
+    "No community or maintainer comments on this PR yet"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it eliminates mutex acquisition on disabled logging code paths",
+      "Cleans up logging configuration state and consolidates duplicate category functions"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it updates the logging RPC to toggle and report trace-level categories",
+      "Includes deprecation protection for callers expecting the old boolean dictionary format"
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the global and category-level map in the logging system with atomic bitmasks for debug and trace categories, making checks like ShouldDebugLog and ShouldTraceLog lock-free. In addition, replaces the -loglevel argument with -trace, updates the logging RPC interface to support trace categories with a deprecated output fallback, and makes Logger configuration access thread-safe.",
+  "problem": "Checking whether trace or debug logging is active for a category previously acquired a mutex or inspected complex log-level maps, adding overhead on high-frequency log paths when logging is disabled, while -loglevel was clunky to use alongside -debug.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-05-22"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with multiple open logging PRs (#35322, #35387) and has had no author activity for 118 days."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviews or concept comments received yet",
+   "reason": "The author opened the PR as a draft and force-pushed once; no other contributors have commented.",
+   "evidence": []
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Doc and release notes changes document the logging and RPC updates rather than being the primary focus of the PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation updates are secondary to the code changes."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/bitcoinkernel.cpp only mechanically to update internal logging call sites for SetCategoryLogLevel.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify the kernel API, boundary, or external exports."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly alters the `logging` RPC method signature, behavior, and output structure, adding a trace parameter and -deprecatedrpc fallback.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it expands the logging RPC to manage trace logging dynamically, though changes to RPC output structures require careful deprecation handling."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test adjustments in feature_logging.py, rpc_misc.py, and bench/logging.cpp only keep tests passing after the interface changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are ancillary to the logging updates."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies core logging utilities in src/logging.{h,cpp} and src/util/log.h, altering concurrency and atomic state management.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because eliminating mutex locks when checking disabled log statements is a worthwhile performance hygiene improvement for multi-threaded operation, paired with internal Logger API cleanups."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only updates a comment and a single ShouldTraceLog call site in src/wallet/sqlite.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental call-site modification."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR optimizes the disabled-logging path by replacing the Logger category log level map and global level with atomic bitmasks, making ShouldDebugLog and ShouldTraceLog lock-free. It also deprecates -loglevel in favor of a simpler -trace startup flag and updates the logging RPC with trace controls and deprecation fallbacks. The change addresses multi-threaded lock overhead on disabled trace statements and simplifies the developer logging interface. It is currently in draft with merge conflicts and has received no external reviews."
+ },
+ "raw_text": null
+}

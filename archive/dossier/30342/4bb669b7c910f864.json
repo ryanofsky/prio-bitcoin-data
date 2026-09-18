@@ -1,0 +1,301 @@
+{
+ "number": 30342,
+ "input_hash": "4bb669b7c910f864",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 44510,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 10103
+ },
+ "cost_usd": 0.0964313,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Let libbitcoinkernel applications and tests direct log output to their own Logger instances instead of a single global logger.",
+    "Removes the always-allocated global logger so kernel apps can fully control logging."
+   ],
+   "reviewability": [
+    "Not reviewable as-is: marked Needs rebase and open 800+ days with 50 force-pushes chasing conflicts.",
+    "No material open review question is unaddressed; blocking factor is purely mechanical (rebase against a huge and shifting conflict set)."
+   ],
+   "agreement": [
+    "Concept ACK from one reviewer, Approach NACK from another over added interface complexity (stickies-v).",
+    "Author rebutted with a per-file enforcement mechanism; critic accepted the elegance but still doubts real-world need and opened a simpler alternative (#34775) instead of blocking further (stickies-v, ryanofsky)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it improves API completeness at the logging/notification boundary that external kernel consumers rely on, but no concrete consumer has asked for it yet.",
+      "A reviewer noted lack of demonstrated demand and pursued a simpler alternative in parallel (#34775)."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it removes the always-leaked global Logger and reworks how logging context flows through the codebase, a real architectural shift to the shared logging API.",
+      "Benefit is mostly to kernel-embedding use cases rather than typical bitcoind operators."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it substantially expands logging macro test coverage and adds fuzz-harness cleanup hooks needed once the global logger is no longer guaranteed to outlive worker threads.",
+      "Improves confidence in the new logging plumbing but has no bearing outside this refactor."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because it only changes what gets logged inside validation.cpp, not validation behavior or correctness.",
+      "Purely a mechanical propagation of the new logger parameter through validation code."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P4 because it threads a logger reference through BlockManager, CDBWrapper, and CCoinsViewDB constructors without changing storage semantics.",
+      "No correctness, sync-time, or reorg-safety benefit is claimed or evident."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because bitcoin-tx, bitcoin-util, bitcoin-wallet, and bitcoin-chainstate only gain a local Logger instantiation to keep compiling after the global logger is dropped.",
+      "No operator-facing capability changes."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR threads BCLog::Logger/util::log::Logger instances through kernel-adjacent classes (BlockManager, CDBWrapper, CCoinsViewDB, Chainstate, ChainstateManager, CoinsViews, CTxMemPool) so libbitcoinkernel applications can control where kernel log output goes instead of it always flowing to one global logger. It also drops the always-allocated global Logger instance, adds a LOG_REQUIRE_CONTEXT compile-time option, and migrates many legacy LogPrint/LogPrintf calls in validation.cpp and elsewhere to the newer log macros. It is presented as a narrower alternative to the closed #30338 RFC and sits on top of three other open logging PRs (#34778, #29256, #33847).",
+  "problem": "Kernel embedders currently cannot separate or scope log output per ChainstateManager/mempool instance; everything goes through one implicit global logger, which limits multi-instance or library use cases and forces a fixed 1MB pre-buffering scheme. This mainly affects prospective libbitcoinkernel consumers, not typical bitcoind users.",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v (member): Approach NACK \u2014 the contextualized-logging interface is easy to misuse (forgetting to pass a context silently falls back to the global logger) and adds nontrivial review/merge-conflict cost for a benefit nobody has concretely demonstrated needing yet."
+   ],
+   "resolved_concerns": [
+    "Author proposed a LOG_REQUIRE_CONTEXT enforcement mechanism to prevent silent fallback to the global logger; stickies-v accepted it as 'elegant' and did not continue pressing the objection, instead opening a smaller alternative PR (#34775) addressing the same underlying interface-weirdness concern more pragmatically."
+   ],
+   "author_status": "active, still rebasing (last activity 2026-08-20, 50 force-pushes, last reviewer engagement 2026-03-08)"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Labeled Needs rebase with mergeable_state dirty; the PR conflicts with roughly 25+ other open PRs across the codebase and has needed 50 force-pushes to keep up, so a review today risks being invalidated by the next rebase. No unresolved material reviewer question is blocking it beyond the mechanical rebase churn."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACK from sedited; Approach NACK from stickies-v over interface complexity, who after discussion pursued a simpler parallel PR (#34775) rather than continuing to block.",
+   "reason": "stickies-v raised a real, stated drawback (cumbersome/misusable logging interface, high review cost) and the author countered with a compile-time enforcement mechanism; stickies-v acknowledged the elegance but still doubts the feature is currently justified, effectively agreeing to disagree and stepping back rather than blocking further.",
+   "evidence": [
+    "sedited: 'Concept ACK.'",
+    "stickies-v: 'Concept ACK, Approach NACK... I just pragmatically think it's not worth the current cost.'",
+    "ryanofsky: proposed a LOG_REQUIRE_CONTEXT static_assert mechanism to prevent silent misuse.",
+    "stickies-v: 'Nice, I hadn't thought of a per-file approach, that seems elegant... I just don't think it's currently important... opened #34775' instead of continuing to object."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34778,
+    29256,
+    33847
+   ],
+   "enables": [
+    "Potentially informs or is superseded by the simpler kernel-logging approach in #34775",
+    "Related follow-up work in #30343 (wallet logging) references similar context-argument machinery from the shared base PR #29256"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Only a one-line CI fetch-depth tweak needed to keep 'test-each-commit' working across many rebases; not a build-system change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical CI adjustment only, not a build/CI subject change."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "developer-notes.md is updated only to describe the new ratelimit option replacing NO_RATE_LIMIT, accompanying a code change rather than being the subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Docs update is incidental to the logging refactor, not the PR's primary subject."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Adds logger parameters/fields to BlockManager, CDBWrapper, CCoinsViewDB, and CoinsViews constructors, files central to the indexes/storage category.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Purely plumbing to let storage classes log to a caller-supplied Logger; no change to sync correctness, reorg handling, or performance is claimed or evident in the diff."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Directly changes the kernel API/boundary: logging callbacks, Context options (SetLogger), and drops the global Logger instance that kernel apps previously relied on implicitly.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Improves kernel API completeness for logging control, described by the author as letting 'kernel applications ... control which log output is sent to them,' but stickies-v notes no concrete consumer has asked for this yet, and a simpler competing PR (#34775) addresses the same gap with less complexity."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "txmempool.h/mempool_options.h gain a logger field only as a mechanical consequence of the constructor-signature change; no policy or acceptance behavior changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Call-site/field addition following from the logging refactor, not a mempool-policy change."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net_processing.cpp changes one call to pass a logger pointer into IsBlockMutated; purely a mechanical signature update.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No p2p protocol or DoS-resistance behavior is altered."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/blockchain.cpp only passes LogInstance() into a new CCoinsViewDB constructor argument; mechanical call-site update.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC interface or data behavior changes."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Substantially expands logging_tests.cpp (+207/-21) with new macro/context coverage, adds cleanup hooks to fuzz targets, and adds an m_logger member to BasicTestingSetup used across many test files.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "The rewritten logging_tests.cpp adds real coverage of log macro argument evaluation and category behavior ('verify log argument evaluation semantics'), and the fuzz-harness cleanup callbacks fix real crashes found in CI ('Stop worker threads before logger is destroyed because they log when exiting'), which is genuine framework value even though the surrounding churn is large."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "bitcoin-tx.cpp, bitcoin-util.cpp, bitcoin-wallet.cpp, and bitcoin-chainstate.cpp each gain a local BCLog::Logger instance to keep working once the global logger allocation is removed.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical addition of a local logger object to each tool's main(); no functional change to any tool's behavior."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "logging.h/logging.cpp are substantially reworked: Logger now derives from util::log::Logger, LOG_REQUIRE_CONTEXT is introduced, and the previously always-leaked global Logger allocation is dropped ('kernel: Drop global Logger instance').",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "A genuine architectural change to the shared logging subsystem judged on its own terms: it removes an always-leaked global object and gives call sites explicit control over logging destinations, though stickies-v argues the added complexity is not yet justified by real usage."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "validation.cpp has a large diff (+173/-150) migrating LogPrint/LogPrintf calls to context-aware macros, which changes what gets logged and how during block validation, matching the stated exception for logging changes that alter validation's visible behavior.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change to validation.cpp is a mechanical migration of existing log statements to the new macro/context API; it does not alter acceptance rules, chainstate integrity, or performance, so it ranks low despite the large diff."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether libbitcoinkernel actually has consumers today who need per-instance logging, versus the simpler global-logging alternative in #34775 that a reviewer opened in response.",
+   "Whether this PR will be split or superseded given its size, age, and the competing simpler approach, which affects whether continued rebasing is worthwhile.",
+   "Exact current relationship/priority between this PR and its stacked dependencies (#34778, #29256, #33847), which were still open as of the data given."
+  ],
+  "card": "This PR threads Logger instances through libbitcoinkernel classes (BlockManager, CDBWrapper, CCoinsViewDB, ChainstateManager, CTxMemPool) so kernel-embedding applications can direct log output away from a single global logger, and it removes the previously always-leaked global Logger allocation. It solves a real but so-far undemonstrated need for multi-instance/library logging control, mainly benefiting prospective libbitcoinkernel consumers rather than bitcoind users. A reviewer (stickies-v) gave Concept ACK but Approach NACK, arguing the added interface complexity and 25+-PR conflict surface outweigh the benefit absent a concrete use case, then opened a simpler competing PR (#34775) rather than continuing to block; the author's counter-proposal (a compile-time context-enforcement mechanism) was well received but didn't fully resolve the skepticism. The PR is draft, labeled Needs rebase, has required 50 force-pushes over more than two years, and depends on three other open logging PRs (#34778, #29256, #33847), making it Stale for review purposes despite the author remaining active. Priority is moderate (P3) in kernel and utils where the architectural change is real, and low (P4) in validation, indexes, and tools where the diff is mechanical plumbing that follows from the interface change elsewhere."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

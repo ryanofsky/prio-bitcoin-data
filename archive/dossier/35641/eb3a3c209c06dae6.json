@@ -1,0 +1,116 @@
+{
+ "number": 35641,
+ "input_hash": "eb3a3c209c06dae6",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27787,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4863
+ },
+ "cost_usd": 0.0535083,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds an opt-in tracing hook to the kernel library so external tools can observe script evaluation step by step.",
+    "Aimed at building script debuggers, fuzzers, and test tooling for consensus scripts."
+   ],
+   "reviewability": [
+    "Not ready right now: a contributor found a crash-triggering bug (assert fires when serror is null) and a case where BEGIN/END frames are skipped for oversized scripts.",
+    "Author has not responded to these findings yet; fixes were proposed but not merged."
+   ],
+   "agreement": [
+    "Broad concept support with no objections to the idea itself (furszy, w0xlt, theStack, haanhvu).",
+    "Extensive line-by-line review over months from alexanderwiederin, haanhvu, stringintech, mostly addressed by the author.",
+    "Two concrete bugs surfaced late by w0xlt (crash on null serror, missing frames for oversized scripts) remain unaddressed by the author."
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a new opt-in kernel API for tracing script evaluation step by step, gated behind an ENABLE_SCRIPT_TRACE CMake flag that stubs the hooks out when disabled. It adds trace frame types, stack/altstack views, a global callback registration mechanism, and a C++ wrapper, plus kernel unit tests. The hook is inserted into EvalScript via a small RAII scope and per-instruction callback in src/script/interpreter.cpp.",
+  "problem": "External tools that build on libbitcoinkernel currently have no visibility into script execution internals, making it hard to build script debuggers, visualizers, or fuzzers that understand what the interpreter is doing at each step. The author demonstrates a prototype rust-bitcoinkernel debugger and an outside contributor built a working Python visualizer, showing real demand for this kind of introspection.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt (2026-09-01): assert(!m_callback || error) can crash when a caller passes a null ScriptError pointer (e.g. CheckSignetBlockSolution), with a suggested fix.",
+    "w0xlt (2026-09-01): oversized-script early return happens before the trace scope is constructed, so registered callbacks never see BEGIN/END for that case, with a suggested fix.",
+    "w0xlt (2026-09-01): question about why SCRIPT_TRACE_SCOPE/STEP need to be macros rather than inline #ifdef blocks.",
+    "alexanderwiederin: whether a CI job with ENABLE_SCRIPT_TRACE=ON is needed, left open by author as not clearly worthwhile yet."
+   ],
+   "resolved_concerns": [
+    "Thread-safety and doc wording around callback registration/unregistration, reworded per alexanderwiederin's suggestion.",
+    "stringintech's suggestions to make ScriptTraceFrame opaque with getters, use exhaustive enum switches, drop the fExec lambda, and assert error is non-null when a callback is set: all implemented in the 2026-08-28 push.",
+    "haanhvu's suggestion to make the frame-count check a hard requirement (BOOST_REQUIRE) and to verify unregister/re-register behavior: implemented.",
+    "alexanderwiederin's doxygen closing tag and missing ScriptTraceUnsetCallback in tests: fixed in 2026-08-31 push."
+   ],
+   "author_status": "silent since 2026-08-31, 16 days without response to w0xlt's two concrete bug reports posted 2026-09-01"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "w0xlt identified a concrete crash bug (assert firing when serror is null, hit by real callers like CheckSignetBlockSolution) and a frame-skipping bug for oversized scripts, both with proposed fixes, on 2026-09-01. The author has not responded, and waiting_on_author_days (15) exceeds the 7-day threshold, so review of the current code risks being invalidated by the pending fix."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Concept is well liked (furszy, w0xlt, theStack, haanhvu) but w0xlt found a crash-triggering bug in the assert and a frame-emission gap for oversized scripts, unaddressed by the author.",
+   "reason": "Multiple members gave Concept/Approach ACKs and extensive review over months was mostly incorporated by the author, but the latest substantive comments identify concrete correctness bugs (a reachable assertion failure and silently dropped BEGIN/END frames) that would ship if merged as-is, and the author has not yet replied.",
+   "evidence": [
+    "furszy, w0xlt, theStack gave Concept ACK; haanhvu gave Approach ACK; alexanderwiederin gave a specific-commit ACK before the rebase",
+    "w0xlt (2026-09-01): 'This triggers the assertion assert(!m_callback || error)' with real call sites like CheckSignetBlockSolution passing null serror",
+    "w0xlt (2026-09-01): oversized scripts return before the trace scope exists, so callbacks 'receives neither BEGIN nor END'",
+    "author has not replied to either report as of the signals snapshot"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "external script debuggers and visualizers built on libbitcoinkernel (author's rust-bitcoinkernel prototype, elmeriniemela's pybitcoinkernel visualizer)",
+    "potential future fuzzing/testing of the interpreter using trace frames, mentioned by the author as a possible follow-up"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds new opaque types, C API functions, and a C++ wrapper class to src/kernel/bitcoinkernel.h/.cpp and bitcoinkernel_wrapper.h; this is squarely kernel API surface, gated by a new build option in src/kernel/CMakeLists.txt.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Adds a genuinely new capability to the kernel API for a stated external use case (script debugging tools), with an outside contributor already building a working visualizer on top of it ('Made a visualizer using the traces', elmeriniemela). It is off by default (ENABLE_SCRIPT_TRACE=OFF) so it carries no risk to existing consumers, but review found a real bug in the feature itself (assert firing on null serror per w0xlt) that needs fixing before the API is safe to rely on."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "The interpreter.cpp change only inserts a macro-guarded RAII scope and a per-step callback call into EvalScript; when ENABLE_SCRIPT_TRACE is off (the default) the macros expand to static_assert(true) and validation behavior is completely unchanged. Per the validation category's own exclusion, a PR whose primary subject is kernel API surface is kernel, not validation, even when it touches files a validation reviewer might otherwise care about.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No substantive change to validation logic, acceptance rules, or chainstate; the interpreter.cpp edit is purely to install optional trace hooks and is compiled out entirely in default builds."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the two unaddressed bugs from w0xlt (assert on null serror, missing frames for oversized scripts) count as 'blocking' under the Agreement rubric versus 'nonblocking harm', since the feature is opt-in and off by default; I treated them as blocking because they are concrete crash/correctness bugs in the shipped code path once the flag is enabled.",
+   "Whether maintainers consider a new debugging-only kernel API worth the ongoing API-surface maintenance burden, which was not explicitly discussed."
+  ],
+  "card": "This PR adds an opt-in script-evaluation tracing hook to libbitcoinkernel, gated behind a new ENABLE_SCRIPT_TRACE build flag that compiles the hooks out entirely when disabled, letting external tools observe stack, altstack, opcode, and error state at each step of EvalScript. The problem it solves is the lack of introspection into script execution for anyone building a debugger, visualizer, or fuzzer on the kernel; an outside contributor already built a working Python visualizer on top of it and reported no correctness issues in normal use. Review has been substantial over two months with several rounds of API redesign (opaque frame types, exhaustive enum handling) mostly incorporated by the author, and concept support is broad with no objections to the idea. However, on 2026-09-01 w0xlt found a reachable assertion failure (when a null ScriptError pointer is passed, as CheckSignetBlockSolution does) and a case where oversized scripts skip BEGIN/END trace frames entirely, both with proposed fixes, and the author has not yet responded. No other PR is known to depend on this one."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

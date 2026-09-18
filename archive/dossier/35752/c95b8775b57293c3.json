@@ -1,0 +1,115 @@
+{
+ "number": 35752,
+ "input_hash": "c95b8775b57293c3",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26004,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4519
+ },
+ "cost_usd": 0.0500053,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes wallet encryption and passphrase-change operations atomic so a local database write failure can't leave the wallet's live key state out of sync with disk.",
+    "Fixes cases where encryption or passphrase changes reported success despite a failed write, or left a previously-locked wallet unlocked."
+   ],
+   "reviewability": [
+    "Needs rebase after a force push, otherwise substantially reviewed across several rounds.",
+    "No open material objection is currently blocking review of the rebased code."
+   ],
+   "agreement": [
+    "Strong support from achow101, jeanpablojp (tACK) and w0xlt on a prior commit, but those ACKs are now stale after rebase (achow101, jeanpablojp, w0xlt).",
+    "A correctness concern about ambiguous read-vs-missing-record handling in Exists() was raised late and deferred to maintainers rather than fixed (jeanpablojp, w0xlt).",
+    "An earlier concept objection about the complexity/benefit tradeoff of full atomicity was addressed through rework and then ACKed (achow101)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR makes wallet encryption, re-encryption, and passphrase-change operations atomic with respect to their underlying database writes, so that a failed write, erase, or transaction commit no longer leaves the wallet's in-memory key/lock state diverged from what is persisted on disk. It changes CWallet::Unlock and ChangeWalletPassphrase to return util::Expected<void, WalletError> instead of bool, propagates structured errors through RPC, GUI, and migration callers, and adds a fault-injection test database plus extensive unit tests exercising these failure paths.",
+  "problem": "Local database failures during wallet encryption or passphrase changes can report success while state is only partially applied: a re-encryption failure can leave a locked wallet unlocked, a passphrase change can update memory but not disk, and descriptor key write/erase failures can publish unpersisted keys or duplicate plaintext and encrypted records. This affects any wallet user who hits a local storage failure during these rare but security-sensitive operations, and previously left them unable to safely retry.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt/jeanpablojp: WriteCryptedDescriptorKey()'s existence check before erasing the plaintext key can mistake a read error for 'record not found' and skip a needed erase; author deferred the decision to maintainers rather than resolving it in-PR.",
+    "No re-verification (fresh ACKs) since the September 15 rebase; prior ACKs are marked stale by the bot."
+   ],
+   "resolved_concerns": [
+    "achow101's broader concept objection that full atomicity/recovery for encryption is not worth the added complexity was addressed through significant rework across many force-pushes, after which achow101 ACKed the revised version.",
+    "jeanpablojp's missing test coverage for the lock-state restoration path and achow101's requests to check DB records directly were both implemented.",
+    "achow101's concern about error-message reuse and the timing of lock-state restoration in ChangeWalletPassphrase were fixed in dedicated follow-up commits."
+   ],
+   "author_status": "active, rebased most recently on 2026-09-15 in response to a maintainer ping"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries the 'Needs rebase' label and mergeable_state is dirty; the most recent activity (2026-09-15) was the author's rebase itself, so a fresh look is warranted but the underlying code has already been through several substantive review rounds with no known invalidating change pending."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive: achow101, jeanpablojp (tACK), and w0xlt ACKed a prior commit, but a correctness question about erase-vs-read-error ambiguity was deferred to maintainers rather than fixed, and the ACKs are now stale post-rebase.",
+   "reason": "Multiple substantive reviewers engaged deeply over a month, one initial concept objection was resolved by rework and re-ACKed, but a narrow standing correctness concern about WriteCryptedDescriptorKey's existence check remains open and unresolved, with the author explicitly punting the decision to maintainers.",
+   "evidence": [
+    "achow101: 'ACK 50f07b23282336629352772e72847364e61d0c94'",
+    "jeanpablojp: 'tACK 50f07b23...' after building and testing",
+    "w0xlt: 'ACK 50f07b23...'",
+    "w0xlt/jeanpablojp: raised that a read error in Exists() could be mistaken for a missing record, silently skipping a needed erase",
+    "l0rinc: 'will let the maintainers decide if we should do them here or in a follow-up'",
+    "achow101 initially: 'I don't like the last commit...not sure that having all of this code...is meaningfully useful' \u2014 later resolved via rework and ACK"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cited by w0xlt's suggested diff and referenced by achow101's own suggested commit as a base for further encryption-robustness follow-ups (e.g. PR #35998 wallet: Handle or explicitly ignore WalletBatch write failures, which conflicts with this PR and covers related ground)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies CWallet::Unlock, ChangeWalletPassphrase, EncryptWallet, DescriptorScriptPubKeyMan::Encrypt/AddDescriptorKeyWithDB, and WalletBatch::WriteCryptedDescriptorKey \u2014 the core fund-safety and key-management paths of the wallet, carries the Wallet label.",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The PR fixes real fund-safety and consistency hazards: 'A re-encryption failure can also leave a previously locked wallet unlocked' and 'Descriptor key write failures can publish keys that were not persisted, and erase failures can commit both plaintext and encrypted records' (PR description). vicjuma's manual testing confirmed the before/after behavior difference for a simulated WriteMasterKey failure. However the description itself notes 'The database failures cannot be triggered remotely,' limiting severity to local storage faults, and achow101 questioned whether the recovery-oriented complexity is worth it before being satisfied by a reworked version \u2014 placing this as important but not release-blocking (P2) rather than critical (P1)."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "src/interfaces/wallet.h changes the unlock/changeWalletPassphrase method signatures from bool to util::Expected, but this is a mechanical follow-on to the wallet-side error-type change, not a change to IPC mechanics, serialization, or process boundary behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the ipc category definition, an interfaces::Wallet signature change is 'wallet first; it is ipc only if the interface mechanics are the point,' and here the point is richer error reporting for wallet callers, not IPC infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the remaining open correctness question about Exists()/erase ambiguity is material enough to be a blocking concern versus a narrow edge case the author and reviewers are comfortable deferring.",
+   "Whether maintainers will want this merged as-is or prefer the narrower approach in the conflicting PR #35998, given the overlapping scope and explicit conflicts_with_open_prs list.",
+   "Exact current freshness of the ACKs relative to the September 15 rebase; no reviewer has re-confirmed after that push."
+  ],
+  "card": "This PR makes wallet encryption and passphrase-change operations atomic against local database failures, fixing cases where a failed write could leave a wallet's live key state out of sync with disk, including one path where a previously locked wallet could end up unlocked after a failed re-encryption. It is a wallet fund-safety and correctness fix, evidenced by manual reproduction from reviewer vicjuma showing silent failure before the fix versus a reported error after, though the description notes the underlying database failures 'cannot be triggered remotely,' bounding the severity to local storage faults. Three reviewers (achow101, jeanpablojp, w0xlt) ACKed a prior revision after an early concept objection from achow101 about complexity versus benefit was resolved through rework, but those ACKs are now stale after a September 2026 rebase and the PR is labeled Needs rebase. One correctness nuance about distinguishing a database read error from a missing record during plaintext-key erasure remains open and was explicitly deferred to maintainers rather than fixed. The PR conflicts with several other open wallet PRs including #35998, which covers related WalletBatch failure-handling ground."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,115 @@
+{
+ "number": 34565,
+ "input_hash": "1d6846c427844fed",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:28+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25297,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3505
+ },
+ "cost_usd": 0.0321165,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Decompose net_processing by extracting block download scheduling and tracking into a standalone BlockDownloadManager.",
+    "Enable isolated unit testing and fuzz testing for the block download state machine."
+   ],
+   "reviewability": [
+    "Merge conflict with master requires a rebase before review can continue."
+   ],
+   "agreement": [
+    "Concept ACKs without detailed rationales (sedited, 0xbrito).",
+    "Architectural skepticism about whether adding indirection and class separation is preferable to slimming CNodeState directly (Crypt-iQ).",
+    "Question raised on whether remaining cs_main coupling limits the benefit of the refactor (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it breaks up the monolithic net_processing file without changing consensus or network behavior.",
+      "Adds isolated fuzzing and unit test coverage for block download logic, though cs_main lock coupling remains."
+     ]
+    }
+   ]
+  },
+  "summary": "Extracts block download scheduling and tracking state from PeerManagerImpl and CNodeState into a new BlockDownloadManager module using the pimpl pattern. Rewires approximately 150 call sites across net_processing.cpp to the new class without altering existing cs_main synchronization semantics. Adds comprehensive unit tests and a dedicated fuzz harness exercising the new module boundary.",
+  "problem": "net_processing.cpp and PeerManagerImpl combine transaction relay, block download, headers sync, and compact block management into a single ~6200 line monolith, making block download logic difficult to test or fuzz in isolation without standing up the full node networking stack.",
+  "discussion": {
+   "open_concerns": [
+    "Crypt-iQ questioned whether decomposing PeerManagerImpl into separate classes adds unnecessary indirection compared to trimming CNodeState directly as in #35561.",
+    "maflcko pointed out that block download remains coupled to cs_main, questioning whether the extraction genuinely simplifies lock reasoning."
+   ],
+   "resolved_concerns": [
+    "w0xlt provided an exploratory branch demonstrating that the BlockDownloadManager extraction can cleanly coexist with the peer state refactoring in #35561."
+   ],
+   "author_status": "Active, engaging with review feedback and demonstrating integration with conflicting proposals."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with the master branch across net_processing and build files that must be resolved before review."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Mild skepticism from Crypt-iQ regarding added indirection and tension with PR 35561; concept ACKs from sedited and 0xbrito.",
+   "reason": "Concept ACKs were received early, but maintainers and reviewers have raised nonblocking architectural questions about whether splitting out another manager adds indirection without removing lock coupling.",
+   "evidence": [
+    "sedited and 0xbrito gave Concept ACKs.",
+    "Crypt-iQ expressed personal preference against indirection and noted tension with the approach taken in #35561.",
+    "maflcko questioned the benefit of moving code when cs_main requirements remain unchanged.",
+    "w0xlt replied with a proof of concept showing how both approaches could be combined."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Isolated fuzzing and testing of block download scheduling and stalling logic."
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Refactors block download tracking and scheduling logic out of net_processing.cpp and CNodeState into a dedicated P2P manager.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is a clean architectural refactor that decomposes net_processing without fixing bugs or altering wire protocol behavior. As noted by Crypt-iQ and maflcko, the extraction preserves existing cs_main synchronization, so it improves modularity and testability rather than removing concurrency bottlenecks."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The included unit tests and fuzz target test only the new P2P block download manager and do not alter general test or fuzzing infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify test harnesses or testing frameworks; new tests are specific to the P2P subsystem."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request extracts block download scheduling and tracking state from PeerManagerImpl and CNodeState into a new BlockDownloadManager module, rewiring approximately 150 call sites in net_processing.cpp and adding isolated unit and fuzz tests. It addresses the ongoing maintenance burden of net_processing.cpp by following the decomposition pattern previously used for TxDownloadManager in #30110. While sedited and 0xbrito provided Concept ACKs, reviewers Crypt-iQ and maflcko expressed mild architectural skepticism regarding added indirection while cs_main locking remains unchanged. The PR is currently dirty and requires a rebase against master before review can continue."
+ },
+ "raw_text": null
+}

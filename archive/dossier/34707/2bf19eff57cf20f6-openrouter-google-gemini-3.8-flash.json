@@ -1,0 +1,147 @@
+{
+ "number": 34707,
+ "input_hash": "2bf19eff57cf20f6",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:49+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 47056,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4044
+ },
+ "cost_usd": 0.050457,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Retain privately broadcast transactions in memory after they are received back from peers.",
+    "Allow callers to inspect confirmation of receipt, peer source, and timing via RPC."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "The branch is clean, passes CI, and has no blocking prerequisite work."
+   ],
+   "agreement": [
+    "Concept NACK over increasing state and scope for a niche use case (instagibbs).",
+    "Strong support for diagnostic data and RPC usability for downstream tools (vasild).",
+    "Support with acknowledgment of added queue complexity (optout21)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it improves telemetry and RPC status tracking for the private broadcast queue.",
+      "It helps operators verify that private transaction relay succeeded without checking logs."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR retains privately broadcast transactions in memory after they have been received back from network peers instead of removing them immediately. It records the receiving peer address and timestamp, exposes this data through getprivatebroadcastinfo RPC, marks transactions non-pending so they are not rebroadcast, and evicts the oldest finished entries when the queue reaches the 10,000 transaction cap.",
+  "problem": "Previously, privately broadcast transactions were removed from memory as soon as they were received back from the network. Downstream callers and node operators querying getprivatebroadcastinfo could not distinguish between a successful broadcast, an unqueued transaction, or an interrupted broadcast.",
+  "discussion": {
+   "open_concerns": [
+    "instagibbs concept NACKed, arguing the change adds complexity and memory retention for a narrow set of users, and that private broadcast should not expand into an omni-broadcast or rebroadcast queue.",
+    "optout21 noted a minor edge case where the queue cap eviction logic uses an if rather than a while loop."
+   ],
+   "resolved_concerns": [
+    "Queue memory growth risk was addressed by evicting the oldest non-pending transactions when the queue is full at 10,000 transactions.",
+    "Fixed an issue where attempts_remaining was not set to 0 once a transaction was received back.",
+    "Addressed test coverage and fuzz harness updates to reflect the new non-pending eviction mechanics."
+   ],
+   "author_status": "Active; responded to reviews and solicited re-reviews in mid-September 2026."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI, clean merge status, and is ready for reviewer feedback."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept NACK from instagibbs over scope and memory retention; ACKs from vasild and optout21.",
+   "reason": "instagibbs logged a concept NACK questioning whether holding transactions in memory for diagnostics is worth the complexity and expanded role of private broadcast. vasild strongly supports retaining roundtrip stats for RPC callers and operators, and optout21 supports the change.",
+   "evidence": [
+    "instagibbs: 'concept NACK for now. I'm not persuaded this change is net positive. An average user simply will not need this feature... I do not think private broadcast should become some omni broadcast logic'",
+    "vasild: 'ACK 9217011129... IMO it \"falls flat\" because the stats disappear once the transaction comes back and the best way to improve that is to not remove them from the RPC output like this PR does'",
+    "optout21: 'ACK 9217011129... The received info can be useful for some clients... Overall, I'm for it.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches only release notes accompanying the code change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation changes in this PR consist solely of release notes documenting the P2P and RPC modifications."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies private transaction broadcast queue management and peer relay tracking in src/private_broadcast.cpp and src/net_processing.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it adds useful telemetry and status reporting to the private broadcast subsystem, allowing node operators and wallet software to confirm roundtrip relay without relying on debug logs. It does not address network reliability or DoS resistance directly, and its scope remains limited to the optional private broadcast feature."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes getprivatebroadcastinfo output schema solely to expose internal private broadcast state.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change to src/rpc/mempool.cpp merely exposes underlying private broadcast queue state and belongs to P2P rather than the RPC infrastructure category."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches unit tests, fuzz harnesses, and functional tests specific to private broadcast functionality.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test updates in this PR specifically test private broadcast behavior rather than general testing infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR retains privately broadcast transactions in memory after they are received back from peers instead of removing them, recording the receiving peer address and reception time for inspection via getprivatebroadcastinfo. This gives node operators and external wallets visibility into whether private broadcast succeeded and what roundtrip latency looked like. The change is disputed, with a concept NACK from instagibbs over memory state and expanding private broadcast scope, balanced by ACKs from vasild and optout21. The branch is clean, has active reviewer interest, and is ready for review."
+ },
+ "raw_text": null
+}

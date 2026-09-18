@@ -1,0 +1,121 @@
+{
+ "number": 35422,
+ "input_hash": "5641aa5a99e1e29c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5369,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4020
+ },
+ "cost_usd": 0.026875299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a crash bug in MuSig2 signing where a partial signature could be created using an uninitialized secret nonce.",
+    "Defers secure nonce allocation until nonce generation actually succeeds, closing a crash path found via fuzzing."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "No open review requests and the design concerns raised earlier were resolved by a rework."
+   ],
+   "agreement": [
+    "Positive: achow101 suggested a cleaner allocation approach which the author implemented (achow101, nervana21).",
+    "real-or-random clarified a conceptual misunderstanding in the original motivation, which the author accepted and revised (real-or-random, nervana21).",
+    "No standing objections remain."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it closes a reachable crash (fuzz-found) in the MuSig2 partial-signing path, a fund-safety-adjacent correctness issue in an emerging signing feature.",
+      "Prevents a caller from ever using an uninitialized secnonce, removing a real hazard rather than a cosmetic one."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a utils change: it modifies MuSig2 signing lifecycle logic in musig.cpp/sign.cpp, not shared logging, argument, serialization, or crypto-primitive infrastructure."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes a bug in Bitcoin Core's MuSig2 secret-nonce lifecycle: previously MuSig2SecNonce pre-allocated memory in its constructor so IsValid() returned true before secp256k1_musig_nonce_gen actually ran, allowing secp256k1_musig_partial_sign to be reached with an uninitialized secnonce and crash. The patch defers secure allocation until nonce generation succeeds, guards CreateMuSig2PartialSig against a missing secnonce, and adds a regression test (secnonce_lifecycle) pinning the fixed lifecycle.",
+  "problem": "Callers of the MuSig2 signing path could reach secp256k1_musig_partial_sign with an uninitialized secp256k1_musig_secnonce, causing libsecp256k1 to crash; the author found this via fuzz testing. This affects anyone exercising MuSig2 partial signing, a fund-safety-adjacent path in Bitcoin Core's still-new MuSig2 support.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "achow101 suggested avoiding a tracked bool state and instead allocating the unique_ptr only after successful nonce generation; author implemented this approach.",
+    "real-or-random clarified that the original PR motivation (framing this as a byte-level secnonce validity issue per BIP327) was a category error; author agreed and rewrote the motivation to focus purely on ensuring nonce generation succeeded before partial signing."
+   ],
+   "author_status": "active, last force-pushed 2026-08-24 (rebase), no outstanding requests"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failure, no rebase needed, and the design concerns raised by achow101 and real-or-random were addressed in a rework; nothing known would invalidate a fresh review of the current code."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: achow101's suggested approach was implemented and real-or-random's conceptual clarification was accepted, with no standing objections (achow101, real-or-random, nervana21).",
+   "reason": "A member reviewer (achow101) gave a concrete implementation suggestion which the author adopted, and a domain expert (real-or-random) corrected the framing, which the author accepted without pushback. No reviewer has objected to the current approach, though no explicit ACK has been given yet.",
+   "evidence": [
+    "achow101: 'the unique ptr can be created in CreateMuSig2Nonce and set after the successful nonce generation' \u2014 implemented by author",
+    "real-or-random: clarified the crash is a caller-contract issue, not a byte-representation issue \u2014 author agreed and revised PR description",
+    "No reviews since 2026-06-01; no objections outstanding"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Safer MuSig2 signing lifecycle for future PSBT/wallet MuSig2 work"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes are in musig.cpp/musig.h and script/sign.cpp, which implement MuSig2 signature creation used by wallet/PSBT signing flows; the bug is a crash reachable during partial signature creation.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a crash (found via fuzzing) reachable through the MuSig2 partial-signing API when a secnonce was never generated, a real stability hazard in a fund-signing path. It is not P1 because MuSig2 signing is a newer, narrower feature and the flaw requires a caller misuse path rather than being triggerable by an attacker over the network."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The change is confined to MuSig2 signing lifecycle logic (musig.cpp/musig.h, script/sign.cpp), not to shared logging, argument handling, serialization, or vendored crypto subtree code; it merely calls secp256k1 as any signing code would.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a utils change: no shared infrastructure, subtree, or general primitive is modified, only MuSig2-specific signing state."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the underlying MuSig2 signing code should be classified primarily as wallet vs. a dedicated musig/signing category not offered here.",
+   "No explicit ACK/NACK has been posted since the rework; agreement is inferred from resolved discussion rather than a final review verdict."
+  ],
+  "card": "This PR fixes a crash bug in Bitcoin Core's MuSig2 signing lifecycle: previously MuSig2SecNonce.IsValid() could report true before secp256k1_musig_nonce_gen actually ran, letting secp256k1_musig_partial_sign be called with an uninitialized secnonce and crash libsecp256k1, a flaw the author found via fuzzing. The fix defers secure allocation until nonce generation succeeds and adds a regression test pinning the corrected lifecycle. Reviewer achow101 suggested a cleaner allocation approach which the author implemented, and real-or-random corrected the PR's framing of the issue, which the author accepted; no objections remain open. The PR is Ready for review with no CI or rebase issues, though it has not yet received an explicit ACK. It touches wallet-adjacent signing code (musig.cpp, script/sign.cpp) rather than general utils infrastructure."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

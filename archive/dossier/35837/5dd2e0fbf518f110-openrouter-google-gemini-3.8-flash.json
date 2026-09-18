@@ -1,0 +1,115 @@
+{
+ "number": 35837,
+ "input_hash": "5dd2e0fbf518f110",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:55:30+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14433,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3445
+ },
+ "cost_usd": 0.0237435,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent scanblocks from silently omitting blocks and falsely reporting completion when block filters are not yet indexed or unreadable."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Author addressed previous feedback from fjahr and CI is passing."
+   ],
+   "agreement": [
+    "Concept approval with AI-disclosure discussion (maflcko).",
+    "Approach criticism on matching getblockfilter behavior was addressed by the author, awaiting re-review (fjahr)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it fixes a silent data omission bug in an active RPC.",
+      "Callers relying on scanblocks to detect relevant blocks will receive an explicit error instead of incomplete results marked completed."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it resolves a correctness defect in querying the block filter index.",
+      "Ensures consumers of filter data cannot silently miss matching blocks during initial sync or reindexing."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes `scanblocks` to raise an RPC error when `LookupFilterRange` fails instead of silently skipping unindexed or unreadable chunks and returning `completed: true`. Following the pattern in `getblockfilter`, it returns `RPC_MISC_ERROR` if the index is still catching up to the tip, or `RPC_INTERNAL_ERROR` if the index was already synced. It also adds functional test coverage verifying both the error on unindexed ranges and success over indexed ranges while syncing.",
+  "problem": "When the block filter index is lagging behind the active chain tip, `LookupFilterRange` fails for the unindexed range. `scanblocks` previously ignored this failure, skipped the blocks, and returned `completed: true`, giving callers false confidence that no matching scripts existed in the unindexed range.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "fjahr noted that `getblockfilter` does not fail scans unconditionally when the index is behind the tip, but only when the requested range itself is unavailable. The author restructured the PR to allow scans of already-indexed ranges while syncing and fail only on unavailable ranges."
+   ],
+   "author_status": "active; addressed review comments and pushed updates on 2026-08-05"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, passes CI, and incorporates reviewer feedback."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from maflcko; fjahr's approach critique on range handling was implemented by the author.",
+   "reason": "Reviewers agreed with the need to avoid silent scan failures. The single substantive objection regarding range behavior was resolved in the latest push.",
+   "evidence": [
+    "maflcko gave a Concept ACK and discussed AI disclosure policy.",
+    "fjahr pointed out that scans should succeed if the requested range is already indexed even if the index is behind the tip.",
+    "MicSm updated the implementation to mirror getblockfilter and confirmed the fix in tests."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies RPC method scanblocks in src/rpc/blockchain.cpp and updates rpc_scanblocks.py.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a correctness bug where scanblocks silently dropped unread blocks and falsely returned completed=true. This prevents client applications and wallets from receiving incomplete match lists without warning."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Touches the primary RPC dedicated to querying block filter index ranges and depends directly on BaseIndex sync state.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Silent failure during index lookups directly compromises the integrity of block filter queries. Raising an error while syncing preserves data integrity for index consumers."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35837 fixes a correctness bug in the `scanblocks` RPC where failures in `LookupFilterRange` were silently swallowed, returning `completed: true` with omitted matches. It aligns error handling with `getblockfilter`, throwing an error indicating indexing is in progress when the range is unavailable, while allowing scans over already-indexed prefixes. The bug was confirmed and the change has Concept ACK from maflcko, with author adjustments addressing initial feedback from fjahr. The code is clean, tested, and ready for review."
+ },
+ "raw_text": null
+}

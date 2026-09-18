@@ -1,0 +1,128 @@
+{
+ "number": 36106,
+ "input_hash": "f0d9df949247405e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13032,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4804
+ },
+ "cost_usd": 0.0384583,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make the installed `bitcoin` wrapper look for helper binaries in the actual configured install directories instead of hardcoded bin/libexec.",
+    "Fixes a real failure on Arch Linux where `bitcoin -m node` and similar commands fail outright because Arch installs binaries into a different libexec-equivalent directory."
+   ],
+   "reviewability": [
+    "Ready. All raised concerns (bindir assumption, configure-time checks, test layout, valgrind resolution) were fixed in subsequent pushes and CI is green."
+   ],
+   "agreement": [
+    "Strong support: hebasto gave Approach ACK after testing with a custom install prefix (hebasto).",
+    "cyb3ralbert independently built and verified the fix resolves the Arch scenario, and found test gaps the author fixed (cyb3ralbert).",
+    "A passing mention of AI co-authorship (purpleKarrot) did not turn into a blocking objection."
+   ],
+   "categories": []
+  },
+  "summary": "This PR makes the installed `bitcoin` wrapper honor CMAKE_INSTALL_BINDIR and CMAKE_INSTALL_LIBEXECDIR instead of hardcoded 'bin'/'libexec' strings when locating sibling executables like bitcoind. It threads the configured directories through bitcoin-build-config.h, adds configure-time and compile-time guards against empty values, and adds a functional test that fakes an installed layout to exercise the lookup path that normal build-tree tests never hit. It supersedes three earlier closed PRs (#36037, #35789, #36085) building toward the same fix.",
+  "problem": "On Arch Linux (and any distro configuring non-default install directories) the installed `bitcoin` wrapper fails with 'execvp failed to execute ... No such file or directory' for commands like `bitcoin -m node` or `bitcoin chainstate`, because the wrapper assumes binaries sit in hardcoded bin/libexec directories rather than the ones actually configured at build time (issue #35785).",
+  "discussion": {
+   "open_concerns": [
+    "cyb3ralbert suggested a CI job be added that builds with a non-default CMAKE_INSTALL_LIBEXECDIR so this regression path stays covered going forward; author agreed but deferred to a followup PR since CI config changes need different review."
+   ],
+   "resolved_concerns": [
+    "hebasto's concern about BITCOIN_BINDIR being restricted to a single path component was addressed with an expanded comment and configure-time FATAL_ERROR checks.",
+    "hebasto's redundant GNUInstallDirs include was removed.",
+    "hebasto's suggestion to use tmpdir directly instead of the node datadir for the fake install prefix was implemented.",
+    "cyb3ralbert's report that the new test silently skipped its checks under --valgrind (and later, failed outright) was fixed by resolving valgrind's path before PATH is blanked."
+   ],
+   "author_status": "active, most recently pushing a valgrind fix and test cleanups on 2026-09-10, same day as last reviewer activity"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, mergeable state is clean, and every substantive reviewer request (hebasto's bindir/configure-time checks, test layout, cyb3ralbert's valgrind resolution bug) was implemented in a follow-up push with no outstanding objection."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "hebasto gave Approach ACK after testing with a custom cmake install prefix and cyb3ralbert independently rebuilt and confirmed the fix; both sets of concerns were addressed by the author.",
+   "reason": "Two engaged reviewers tested the fix against the actual reported scenario (Arch's CMAKE_INSTALL_LIBEXECDIR=lib) and confirmed it works; all raised issues were fixed rather than left standing.",
+   "evidence": [
+    "hebasto: 'Approach ACK ... Tested also with the cmake --install command's --prefix option.'",
+    "cyb3ralbert: 'The fix works \u2014 I built the branch and ran the #35785 scenario to verify it.'",
+    "purpleKarrot noted AI co-authorship but did not object to merging.",
+    "cyb3ralbert's suggested CI-coverage followup was explicitly deferred, not disputed."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Fixes #35785 (Arch Linux `bitcoin` wrapper failure)",
+    "Supersedes and closes out the line of earlier attempts #36037, #35789, #36085"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds GNUInstallDirs include ordering, configure-time FATAL_ERROR guards for empty install dirs, and threads CMAKE_INSTALL_BINDIR/LIBEXECDIR into bitcoin-build-config.h; core files are CMakeLists.txt and cmake/module files.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes real breakage for users on distributions (Arch Linux) that configure non-default install directories, a supported-platform failure category the bands treat seriously. It is narrow in scope, affecting only wrapper lookup logic, not general build/CI reliability, so it does not reach P1."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "The `bitcoin` wrapper and its cross-executable lookup (bitcoind, bitcoin-node, bitcoin-gui) is explicitly listed as within ipc's scope, and src/bitcoin.cpp is the file changed.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because the change improves platform coverage of the wrapper that launches IPC-separated processes, but the fix is about install-directory bookkeeping rather than IPC mechanics, serialization, or process handling, which is what the category weighs most heavily."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "The `bitcoin` wrapper is explicitly named in the tools category scope, and this PR is its primary subject.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because a widely-used launcher tool is completely broken for basic subcommands on at least one real distribution, confirmed independently by cyb3ralbert reproducing the Arch scenario, which is a correctness bug users hit directly rather than a cosmetic issue."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether Arch's install layout is representative enough of 'supported platforms' to justify P1 rather than P2 in build is a judgment call; no evidence of how many users are affected beyond the single issue report.",
+   "The open followup about adding CI coverage for non-default libexecdir was explicitly deferred by the author, so it does not count against reviewability, but it means a regression here would currently go undetected by CI."
+  ],
+  "card": "This PR fixes a wrapper bug where the installed `bitcoin` command fails outright on distributions like Arch Linux that configure non-default CMAKE_INSTALL_BINDIR/LIBEXECDIR values, by making the wrapper's sibling-executable lookup use the configured directories instead of hardcoded 'bin'/'libexec' strings. It supersedes three earlier attempts (#36037, #35789, #36085) and adds a functional test exercising the installed-layout lookup path that normal build-tree tests never hit. Two reviewers, hebasto and cyb3ralbert, independently rebuilt the branch and confirmed the fix resolves the reported Arch scenario (#35785), and hebasto gave an Approach ACK; all concerns raised (bindir assumptions, configure-time checks, valgrind path resolution in the new test) were fixed in follow-up pushes. The PR is Ready for review with CI green and no open objections; a suggested CI-coverage improvement was explicitly deferred to a followup. It touches build (CMakeLists.txt/GNUInstallDirs), the `bitcoin` wrapper as a tool, and ipc's explicitly-listed wrapper scope, with the strongest impact in build and tools since the bug directly breaks basic node launching on a real distribution."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

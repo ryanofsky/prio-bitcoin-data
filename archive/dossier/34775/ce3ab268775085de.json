@@ -1,0 +1,146 @@
+{
+ "number": 34775,
+ "input_hash": "ce3ab268775085de",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9003,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4785
+ },
+ "cost_usd": 0.034334300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Simplifies the kernel library's logging API by removing the misleading per-connection handle and replacing it with a single global callback setter, since logging is already a process-wide singleton."
+   ],
+   "reviewability": [
+    "Paused: a reviewer's concrete test-leakage fix request (btck_chainman_tests leaves the callback set for later tests) is still unaddressed after months, and the underlying design preference (global vs contextual logging) is still unsettled."
+   ],
+   "agreement": [
+    "Positive with a standing objection: sedited and w0xlt support the simplification (sedited, w0xlt), but ryanofsky prefers the contextualized-logging alternative in #30342/#34374 and called the change hard to reverse, and neither side has followed up since (ryanofsky)",
+    "A concrete test-state-leakage fix requested by w0xlt in July remains unimplemented."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it removes a confusing part of the kernel logging API (the false impression of independent logger instances) but changes no behavior consumers depend on and has no external consumer waiting on it.",
+      "The author states future logging work (#34374) will build on the introduced KernelLogger class, giving it modest leverage, but that follow-on work is described as orthogonal, not blocked by this PR."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "Not a member: the only tools-path touch (bitcoin-chainstate.cpp) is a one-line mechanical call-site update following the kernel API change, not a change to tool behavior."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Not a member despite the Validation label: the change is entirely to the kernel logging API surface and its callback lifecycle, with no effect on validation rules, chainstate, or block processing."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the kernel library's per-connection logging handle (btck_LoggingConnection, with create/destroy functions) with a single global btck_logging_set_callback function, since the underlying LogInstance() and all logging configuration are already process-wide singletons. It introduces a KernelLogger singleton to own the logging connection lifetime, intentionally leaked at process exit to avoid static-destruction-order hazards. The change touches bitcoinkernel.h/.cpp, the C++ wrapper, the bitcoin-chainstate example, and kernel unit tests.",
+  "problem": "The current btck_LoggingConnection API implies that separate logger instances can have independent state, when in fact all kernel logging configuration is global; this misleads kernel library consumers about the semantics they are getting. The author states the fix is meant to make the interface self-explanatory rather than to add capability.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt (2026-07-16): btck_chainman_tests sets the global logging callback but never clears it, leaking logging state into subsequent unit tests; a concrete diff was suggested and not yet applied.",
+    "ryanofsky (2026-03-09): prefers the contextualized-logging approach in #30342/#34374 and worries this PR limits future functionality in a way that is hard to reverse; author disputed the difficulty-to-reverse claim (2026-06-05) but ryanofsky has not replied since.",
+    "sedited (2026-06-11): asked whether a raw pointer is necessary and suggested renaming to logging_reset_callback; author replied to the raw-pointer point on 2026-09-16 but the rename suggestion and the test-leak fix remain unresolved.",
+    "w0xlt (2026-07-16): suggested the C++ wrapper could retain RAII while still exposing a single global callback, not yet addressed."
+   ],
+   "resolved_concerns": [
+    "sedited and w0xlt both expressed conceptual support for the global-callback simplification over the status quo."
+   ],
+   "author_status": "Active as of 2026-09-16 (replied to one inline comment) but has not pushed a commit addressing the outstanding test-leak fix or rename suggestion since the original single commit."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Test leak unresolved",
+   "reason": "w0xlt's concrete, material fix for state leakage between unit tests (btck_chainman_tests never clears the global logging callback) was requested on 2026-07-16 and remains unimplemented, well past the waiting threshold; reviewing the current test changes risks being invalidated once that fix lands."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive, but ryanofsky prefers the alternative contextualized-logging approach in #30342/#34374 and called this one hard to reverse; the disagreement was met with a rebuttal but never followed up on.",
+   "reason": "Two reviewers (sedited, w0xlt) support the direction of removing the misleading per-connection handle, and no one has issued a blocking NACK, but a real design objection from an active maintainer working on a competing approach stands without resolution, and a concrete test-correctness fix requested by w0xlt is still outstanding.",
+   "evidence": [
+    "sedited: 'Concept ACK' (2026-03-09), and reiterated support after re-reading the rationale (2026-06-04/06-05).",
+    "w0xlt: 'Approach ACK' (2026-06-24).",
+    "ryanofsky: worried this 'limit[s] functionality... in a way that seems difficult to reverse' and prefers reviewing #34374 instead (2026-03-09); no follow-up since author's 2026-06-05 rebuttal.",
+    "w0xlt: identified that btck_chainman_tests leaks the global logging callback into later tests and supplied a fix diff (2026-07-16), not yet merged."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Author states the introduced KernelLogger class will be reused by future work in #34374, though described as an orthogonal implementation detail rather than a hard blocker."
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "The PR changes the kernel C API (bitcoinkernel.h/.cpp), its C++ wrapper, and kernel tests; it is about the boundary/API surface of libbitcoinkernel, squarely within the kernel category.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is an API clarity cleanup with no behavior change for existing single-callback usage and no external consumer blocked on it; the author's own framing is that 'there is currently too little demand' for a larger contextualized-logging change, and this is the pragmatic incremental fix. It has some leverage as a building block for future work (#34374) per the description, but that work is described as orthogonal, not gated on this landing."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "The only touch under a tools-relevant path (bitcoin-chainstate.cpp) is a single mechanical line updating a call site to the new API signature, which the category rules exclude from membership.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the bitcoin-chainstate.cpp change is a one-line mechanical follow-on to the kernel API rename, not a change to tool behavior or logic."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Despite the Validation label, no file or behavior touched is validation logic (block/tx acceptance, chainstate, reorgs); the entire change is to the kernel logging API surface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per category rules: this is a kernel API change that happens to carry the Validation label, but it does not alter what the node accepts or how chainstate is maintained, so it belongs to kernel rather than validation."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the Validation label reflects some intended future scope not evident in the current diff, or is simply a default/mistaken label on a kernel-only PR.",
+   "Whether ryanofsky's preference for #30342/#34374 amounts to a standing objection that should keep this at Positive w/ caveats indefinitely, or whether his going quiet since 2026-06-05 should be read as tacit non-objection.",
+   "Exact severity of the test-leakage issue for CI reliability versus being a minor test-hygiene nit."
+  ],
+  "card": "This PR simplifies the libbitcoinkernel logging API by replacing the per-connection btck_LoggingConnection handle with a single global btck_logging_set_callback function, since kernel logging configuration is already a process-wide singleton and the per-connection handle misleadingly implied independent logger state. It is a kernel-API clarity change with no consensus, performance, or fund-safety stakes; the strongest evidence of importance is the author's claim it will be reused by future logging work in #34374, though that work is described as orthogonal rather than blocked. Two reviewers (sedited, w0xlt) support the direction, but ryanofsky, who is actively developing the competing contextualized-logging approach in #30342/#34374, raised an unresolved design objection that the change could prematurely limit functionality; the author rebutted it once and there has been no further reply. Separately, w0xlt flagged in July that one of the modified tests leaks global logging state into later tests, with a concrete fix suggested, and this has not been implemented in the seven months since; that unresolved, material request pauses productive review of the current diff. No dependency blocks this PR, and it does not itself block other work despite touching a related design area."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

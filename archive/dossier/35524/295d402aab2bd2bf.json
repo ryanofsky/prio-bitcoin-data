@@ -1,0 +1,102 @@
+{
+ "number": 35524,
+ "input_hash": "295d402aab2bd2bf",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4427,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2033
+ },
+ "cost_usd": 0.0159983,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix -reindex data loss on BSD/OmniOS systems lacking posix_fallocate, where the fallback zero-fill was overwriting existing block data",
+    "Also hardens the Windows implementation to avoid unconditionally truncating/extending files"
+   ],
+   "reviewability": [
+    "Ready to review, small self-contained diff with only minor nits addressed so far"
+   ],
+   "agreement": [
+    "Positive, one reviewer gave a substantive style nit that was addressed (thomasbuilds)",
+    "No objections raised, author is actively engaging and asking clarifying questions about intended contract"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P1 because it fixes real data corruption during -reindex on several supported platforms, silently truncating the chain to just the genesis block",
+      "Directly addresses an open bug report (#33128) describing broken reindex behavior on *BSD and OmniOS"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes the fallback (non-posix_fallocate) implementation of AllocateFileRange, which previously unconditionally zero-filled the requested byte range even when it overlapped existing file contents, clobbering block data during -reindex on platforms lacking posix_fallocate (BSDs, OmniOS, OpenIndiana). It changes the fallback to only zero-fill bytes beyond the current end of file. It also updates the Windows path to check the current file size and only extend the file when the requested range exceeds it, rather than unconditionally truncating/extending, following work from a related closed PR (#33228).",
+  "problem": "On systems without posix_fallocate, AllocateFileRange's fallback path zero-fills the whole requested range regardless of existing content, so running -reindex overwrites blk*.dat with zeros before the reindex scan reads them, leaving only the genesis block after supposedly successful reindexing. This affects users running Bitcoin Core on *BSD, OmniOS, and OpenIndiana, per issue #33128.",
+  "discussion": {
+   "open_concerns": [
+    "Author is considering (not yet implementing) making AllocateFileRange strictly append-only, pending input from another contributor (sedited) referenced from a related PR discussion; this is exploratory and not blocking the current fix.",
+    "No maintainer/committer has weighed in yet beyond one contributor reviewer."
+   ],
+   "resolved_concerns": [
+    "thomasbuilds flagged wrong indentation; author fixed it in a force-push.",
+    "thomasbuilds suggested widening offset before adding length for consistency with other branches; author agreed and applied the change."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The diff is small, self-contained, and all reviewer nits so far have been addressed by the author with force-pushes. No known blocker or pending rework invalidates review."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: one contributor reviewer (thomasbuilds) raised only style/consistency nits, both addressed by the author; no objections raised.",
+   "reason": "A single reviewer engaged substantively on style points, which the author resolved via force-pushes. No one has objected to the approach or found the fix incorrect. The author is also proactively raising a design question about append-only semantics, showing engagement but not blocking.",
+   "evidence": [
+    "thomasbuilds: 'wrong indentation' - fixed by author",
+    "thomasbuilds: nit suggesting off_t cast consistency - author agreed and applied",
+    "author: raised an open design question about append-only contract, seeking input from another contributor before changing scope further"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Fixes issue #33128 (broken -reindex on *BSD/OmniOS)",
+    "Supersedes/picks up abandoned closed PRs #33164 and #33228"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly modifies src/util/fs_helpers.cpp, matching the Utils/log/libs label and category path hint; the change is to a low-level file-allocation utility used across the node.",
+    "band": "P1",
+    "reason_tag": "bug fix",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 3,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P1 because it fixes a data-corruption bug where -reindex silently destroys block data on affected platforms, leaving users with only the genesis block after what appears to be a successful reindex, per the linked open issue #33128 and the commit message: '-reindex was broken on platforms using the fallback implementation, including *BSDs, OmniOS, and OpenIndiana.' This is a correctness and reliability issue that directly harms users on several supported platforms, matching the category's emphasis on 'correctness and safety of primitives' and 'startup failures.'"
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No maintainer or Bitcoin Core committer has reviewed yet, only a fellow contributor, so it's unclear how quickly this will get traction despite the fix being clearly needed.",
+   "The author's tangential musing about making AllocateFileRange append-only is unresolved but does not appear to block or change the current fix's scope.",
+   "Cannot verify from the diff alone whether the fix fully resolves #33128 without running the reproduction steps described."
+  ],
+  "card": "This PR fixes a data-corruption bug in the fallback AllocateFileRange implementation used on platforms without posix_fallocate (BSDs, OmniOS, OpenIndiana), where -reindex would zero-fill and destroy existing block data, silently leaving only the genesis block after reindexing. It also hardens the Windows path to avoid unconditional file truncation/extension. The linked open issue #33128 corroborates real user impact: '-reindex was broken on platforms using the fallback implementation.' Review is currently Ready, with only minor style nits raised by one contributor reviewer (thomasbuilds), all addressed via force-pushes; no maintainer has weighed in yet. The author is also considering, but has not implemented, a further scope change toward append-only semantics pending outside input. This PR supersedes two prior closed attempts at the same fix (#33164, #33228)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

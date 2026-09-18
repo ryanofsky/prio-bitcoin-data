@@ -1,0 +1,241 @@
+{
+ "number": 24230,
+ "input_hash": "e3203f6fb264601b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 75220,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8908
+ },
+ "cost_usd": 0.1211663,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Decouples the txindex, blockfilterindex, coinstatsindex and txospenderindex from node-internal types (CBlockIndex, CChainState, cs_main) and rewrites their sync logic through a new interfaces::Chain::attachChain/SyncChain mechanism.",
+    "This removes cs_main locking during index sync, fixes race conditions that could corrupt indexes during -reindex-chainstate, and is a prerequisite for running indexes in separate processes and reusing the same sync code for wallets."
+   ],
+   "reviewability": [
+    "Marked Needs rebase and conflicts with over a dozen open PRs, so it is not mergeable as-is, but the author has kept it actively updated for years and it is close to feature-complete.",
+    "A reviewer should expect further rebases; reviewing the latest squashed diff for correctness is still worthwhile since the design is settled."
+   ],
+   "agreement": [
+    "Multiple maintainers gave Concept ACK (fjahr, mzumsande, jamesob, aureleoules, josibake) and sedited gave an Approach ACK after extended review.",
+    "No one has raised a blocking objection to the approach; the main friction is reviewer fatigue over the PR's size and long commit history, not disagreement with the goal (jamesob).",
+    "Numerous real bugs and races were found and fixed by the author during review (mzumsande, furszy, sedited), all addressed."
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it fixes real correctness races (double-processing blocks during -reindex-chainstate, spurious rewind/reconnect cycles) and removes cs_main locking during index sync that was implicated in shutdown/Ctrl-C responsiveness problems.",
+      "It also unblocks decoupling indexes from node internals so they can eventually run in separate processes, and lets wallet fast-sync reuse the same sync machinery."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because the interfaces::Chain/attachChain rework is a stated prerequisite for running indexes (and eventually wallets) as separate processes (#10102), but this PR itself does not touch IPC serialization, capnp, or process boundary mechanics.",
+      "The benefit here is speculative future leverage rather than an immediate IPC capability."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it removes the BlockInfo struct and MakeBlockInfo function from the kernel library, correcting a boundary mistake ('never really made sense', ryanofsky) where non-kernel-consumed code had been placed in kernel.",
+      "This is a small but genuine kernel-purity cleanup with no external consumer waiting on it."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because it extends the shared interfaces::Handler abstraction (connect/disconnect/connected/interrupt/sync) used across node, wallet and index code, but the change exists to serve this specific PR's mechanism rather than a broader utils need.",
+      "Impact is narrow and internal."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes indexing code's dependencies on node-internal types (CBlockIndex, CChain, CChainState) and cs_main locking, moving sync logic out of src/index/ into a new node::SyncChain()/interfaces::Chain::attachChain mechanism. Almost all commits are move-only refactors; two commits make substantive changes to chain sync logic and to initializing indexes without holding cs_main. It is a years-long, still-evolving effort (started 2022) intended to let indexes eventually run in separate processes and let wallets reuse the same sync code.",
+  "problem": "Index code (txindex, blockfilterindex, coinstatsindex, txospenderindex) currently reaches directly into node internals and cs_main, which couples it tightly to the node process, causes subtle sync races (e.g. double-processing blocks on -reindex-chainstate) and complicates any future multiprocess or wallet-reuse plans. Maintainers of the multiprocess and kernel-library projects feel this coupling as a blocker to running indexes/wallets outside the node process.",
+  "discussion": {
+   "open_concerns": [
+    "needs_rebase and conflicts with 15 other open PRs (#36188, #36150, #36091, #36002, #35837, #35713, #35646, #35229, #33324, #30342, #29700, #28690, #19461, #19460, #10102), so it must be kept in sync as those land or change.",
+    "The PR is still marked draft; author has said 'The main reason it is in draft is that it is too big and I need to work on a way to split it up' (ryanofsky, 2024-08-07).",
+    "Reviewer jamesob noted difficulty fully reviewing the middle commits for correctness despite 8 hours of effort; author suggested reviewing the final squashed code instead of verifying commit-by-commit equivalence."
+   ],
+   "resolved_concerns": [
+    "Multiple TSAN/ASAN/race bugs found during CI and by reviewers (furszy, mzumsande) were fixed by the author, including a race where stale block-connected notifications after -reindex-chainstate corrupted index data.",
+    "sedited's numerous nits and naming suggestions (e.g. renaming 'prepare_sync', clarifying comments) were implemented.",
+    "furszy's concerns about m_synced/m_ready race conditions were investigated and fixed (e.g. commit c553d9f0)."
+   ],
+   "author_status": "active, still force-pushing and rebasing as of 2026-09-08; confirmed ongoing interest as recently as 2026-01-21 in response to sedited asking if the patch set was still wanted"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is explicitly labeled Needs rebase, has mergeable_state 'dirty', and conflicts with 15 other open PRs, so a review of the current diff risks being invalidated by the next rebase. The author remains active (last push 2026-09-08) and has stated the design is largely settled, but the PR has never stabilized enough to leave the conflict-prone rebase cycle."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from fjahr, mzumsande, jamesob, aureleoules and josibake plus an Approach ACK from sedited, with no NACKs or unresolved blocking objections.",
+   "reason": "Every substantive reviewer comment (race conditions, unclear commit splits, naming) was addressed by the author across dozens of pushes; the closest thing to a standing objection is jamesob's admitted difficulty fully verifying correctness of the middle commits, which he treats as his own limitation rather than an objection to the change ('I don't want to be throwing out stop energy').",
+   "evidence": [
+    "sedited (2024-01-03): 'Approach ACK... This change looks good, albeit its daunting length.'",
+    "mzumsande (2022-03-05): 'Concept ACK, made it through all commits'",
+    "jamesob (2022-11-29): 'I'd really like to sign off on this code... I'm just having a really tough time reading through this' (review difficulty, not disagreement)",
+    "josibake (2024-01-28): 'Concept ACK'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Reusing the sync code for wallets (#15719, #11756) per PR description",
+    "Running indexes in separate processes as part of the multiprocess project (#10102)",
+    "Potential follow-ups already split off, e.g. #32694 (furszy) which cherry-picked part of this work"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Nearly all changed files are under src/index/ (base.cpp, base.h, blockfilterindex, coinstatsindex, txindex, txospenderindex) and the new src/node/chain.cpp/h that hosts the sync logic moved out of them.",
+    "band": "P2",
+    "reason_tag": "sync correctness",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "Fixes a real race where stale block-connected notifications after -reindex-chainstate caused indexes to needlessly rewind and reconnect blocks ('Avoid race, make -reindex-chainstate more efficient' commit), and reduces cs_main holding during index sync notifications, which review discussion tied to Ctrl-C/shutdown responsiveness concerns. It is also explicitly a prerequisite for decoupling indexes from the node process and for wallet code reuse, both called out in the indexes category as high-value work."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "The interfaces::Chain::attachChain mechanism and Handler interface extensions (connect/interrupt/sync) are new interface-layer additions, and the description states this work is meant to let indexes run in separate processes (#10102), but no capnp, serialization, or process-boundary code is touched.",
+    "band": "P3",
+    "reason_tag": "unblocks #10102",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "ryanofsky states the attachChain design 'is meant to be usable by the wallet too' and was 'originally written for the wallet in #15719', and the PR description says it will let 'indexes run in separate processes (#10102)'. This is real leverage for the multiprocess project but speculative and without a concrete consumer merged yet."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Commit 61484cebe9 removes the BlockInfo struct and MakeBlockInfo() function from src/kernel/chain.cpp/h entirely, moving them to interfaces/node.",
+    "band": "P3",
+    "reason_tag": "kernel boundary cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Commit message: 'The BlockInfo struct was moved from src/interfaces to src/kernel recently... which does not really make sense because [it] is meant to be used by wallets and indexes and is not referenced by kernel code.' This is a small but correct fix to the kernel API boundary with no external consumer depending on it."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net_processing.cpp changes are purely mechanical call-site updates to the new LookupFilter signature (passing a hash/height pair instead of a CBlockIndex*), following from the index API change rather than changing p2p behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No p2p protocol, relay, or DoS-relevant behavior is changed; only call sites are updated to match the new index lookup interface."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/blockchain.cpp and rpc/node.cpp changes are call-site updates to the new index lookup signatures and an added include; no RPC method, argument, or return-value semantics change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical follow-on changes only; the RPC surface itself is unaffected."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "test/util/index.h/cpp adds an IndexTester helper and existing unit tests are updated, but these all pin index-specific behavior (Sync(), commit ordering) rather than adding general test-framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, tests that pin one area's behavior belong to that area (indexes), not to test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "src/interfaces/handler.h and src/util/btcsignals.h gain connect()/connected()/interrupt()/sync() methods on the generic Handler abstraction used across node/wallet/GUI interfaces.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The Handler interface is shared infrastructure, but these additions exist specifically to support this PR's index-sync mechanism rather than addressing a broader utils need; narrow and internal in scope."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "No files under src/validation.cpp/h or chainstate management are touched; only index code and the interfaces layer between validation and indexes are changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The PR does not alter what the node accepts, chainstate management, or validation invariants; it only changes how indexes consume chain-state notifications."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the current squashed diff still contains the cs_main-locking-reduction commit as originally described, given 85 force-pushes and years of rebasing; the file list and commit messages in this snapshot are consistent with the description but the PR has changed substantially over time.",
+   "Whether the 'utils' Handler interface changes will persist in their current form or be simplified in a later push, since this PR is explicitly still being reorganized by the author.",
+   "Exact current relationship to #29770 and #32694, which appear to have absorbed or paralleled parts of this work; unclear how much remains unique to this PR versus already merged elsewhere."
+  ],
+  "card": "This long-running PR (opened 2022, still active in 2026) removes indexing code's dependency on node-internal types (CBlockIndex, CChain, CChainState) and cs_main, moving sync logic into a new node::SyncChain/interfaces::Chain::attachChain mechanism shared across indexes and eventually wallets. It fixes real races, including one where stale notifications after -reindex-chainstate caused indexes to needlessly rewind and reconnect blocks, and reduces cs_main holding during index sync, which reviewers tied to node shutdown responsiveness. The PR description states it is a prerequisite for running indexes in separate processes (#10102) and for wallets reusing the same sync code (#15719, #11756). Review has been extensive and substantive (Sjors, mzumsande, jamesob, furszy, sedited, aureleoules, josibake), with Concept/Approach ACKs and no unresolved objections, though jamesob noted the sheer size makes full commit-by-commit verification hard. It is currently marked Needs rebase and conflicts with over a dozen other open PRs, so reviewers should expect further churn, but the author has kept it alive and improving for years and reaffirmed interest as recently as January 2026."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

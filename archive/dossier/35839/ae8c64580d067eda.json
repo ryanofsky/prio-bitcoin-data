@@ -1,0 +1,99 @@
+{
+ "number": 35839,
+ "input_hash": "ae8c64580d067eda",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12060,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3927
+ },
+ "cost_usd": 0.0331013,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop IBD from stalling when an addnode or inbound peer answers headers requests with an empty (but valid) response and keeps holding the only sync slot."
+   ],
+   "reviewability": [
+    "Ready to review, no known blocker.",
+    "One open nit from danielabrozzoni questioning a mocktime bump in the test; minor, not material."
+   ],
+   "agreement": [
+    "Concept ACKed by two reviewers (jeanpablojp, hodlinator) after author narrowed scope down from a larger version.",
+    "Reviewer (danielabrozzoni) found a real residual attack: a peer can send an already-known connecting header to bypass the new backoff and re-take the slot.",
+    "Author acknowledged this as a known gap and deferred it to a follow-up rather than fixing it here (l0rinc).",
+    "hodlinator asked the PR description explicitly admit this re-enabled-attack risk; not yet done as of last activity."
+   ],
+   "categories": []
+  },
+  "summary": "This PR fixes a stall in initial headers sync during IBD: an inbound or manual peer can answer the initial getheaders request with a valid but empty headers message and retain the only sync slot indefinitely, since the headers timeout and outbound eviction logic do not apply to it. The fix releases such a peer's slot after an empty response while the best header is stale, restarts the normal response window so the same peer cannot immediately retake it, and leaves automatic outbound peers' existing timeout/eviction behavior untouched. It closes issue #34096 (IBD stalls if an addnode peer is itself in IBD) and adds functional test coverage for both the stall and the fix.",
+  "problem": "Nodes using -addnode or accepting inbound connections can have their initial headers sync permanently stuck behind one peer that returns empty (protocol-valid) headers responses while the local best header is stale, since no other mechanism releases that peer's slot. This affects real users who rely on addnode/manual peers and was observed as issue #34096; it required a reproducer script to demonstrate the 10s+ stall on unpatched nodes.",
+  "discussion": {
+   "open_concerns": [
+    "danielabrozzoni identified that a malicious peer could still repeatedly reacquire the slot by sending an already-known connecting header right after being released, effectively bypassing the new backoff; author agreed this is a real gap but chose not to fix it in this PR, deferring it as follow-up work.",
+    "hodlinator asked that the PR description explicitly note this residual re-enabled-attack risk; not yet addressed as of the author's last activity.",
+    "danielabrozzoni (2026-09-16) questioned whether a mocktime bump in the test is actually necessary, noting the test seems to pass without it; unanswered."
+   ],
+   "resolved_concerns": [
+    "mzumsande's question about motivation (deliberate stalling vs legit peers) was answered by the author with the reproducer and issue link.",
+    "Several nits from danielabrozzoni and hodlinator about comment wording and code placement were incorporated in later pushes.",
+    "jeanpablojp's finding that the backoff applied even to peers not holding the slot was fixed by moving the check inside the fSyncStarted branch.",
+    "jeanpablojp's note that IsManualConn() had no test coverage was addressed by adding a dedicated manual-peer test."
+   ],
+   "author_status": "active, last substantive push 2026-09-01, reviewer comments continued through 2026-09-16 without response yet on the newest ones"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI passes, no rebase needed, and the only open review threads are a minor test-necessity question and a documentation request about a known deferred limitation, neither of which would invalidate review of the current code."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACKed by jeanpablojp and hodlinator, but danielabrozzoni found a real residual stall/reacquisition attack that the author acknowledged and deferred rather than fixed.",
+   "reason": "Multiple reviewers engaged substantively and the scope was narrowed collaboratively; the remaining criticism is a known, admitted drawback rather than a fix-blocking dispute, matching agreeing-to-disagree with a standing caveat.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK'",
+    "hodlinator: 'Concept ACK be1f152f...'",
+    "danielabrozzoni: found (with GPT assistance) that a peer can bypass the backoff via an already-known connecting header to reacquire the slot repeatedly",
+    "l0rinc: 'I did not see a small fix for deliberate reacquisition that would not complicate low-work and continuation handling... we should fix it after this is merged'",
+    "hodlinator: asked the PR admit this re-enables the attack somewhat, not yet done"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #34096 (IBD stalls if addnode peer is in IBD)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies net_processing.cpp's headers-sync peer selection and timeout/eviction logic, and is labeled P2P; the functional test lives at the canonical p2p headers-sync test path.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real IBD-stalling condition (issue #34096) where an addnode/inbound peer can hold the only sync slot indefinitely with valid-but-empty responses, which the author reproduced locally and davidgumberg confirmed happens on mainnet with addnode. It does not fully close DoS-style reacquisition (danielabrozzoni's finding, deferred by the author), so it is a meaningful but partial fix scoped to manual/inbound peers during stale-header IBD, warranting P2 rather than P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the deferred reacquisition attack (danielabrozzoni's finding) is exploitable enough on its own to warrant blocking this PR, or is acceptably scoped as follow-up work, is a judgment call the discussion has not fully settled.",
+   "Real-world frequency/severity of the underlying stall on mainnet beyond the author's local reproduction and davidgumberg's issue report is not independently quantified in the thread."
+  ],
+  "card": "This PR fixes a real IBD stall: an inbound or manual (addnode) peer can answer the initial getheaders request with a valid empty headers message and keep the only sync slot forever, since the normal timeout and outbound eviction do not apply to it, per issue #34096. The fix releases such a peer's slot when the best header is stale, letting another eligible peer take over, while leaving automatic outbound peer timeout/eviction untouched. Six reviewers engaged; jeanpablojp and hodlinator gave Concept ACKs after the author trimmed an earlier, broader version down to this narrower fix. danielabrozzoni found a residual attack where a peer could bypass the new backoff by sending an already-known connecting header to reacquire the slot; the author acknowledged this but deferred fixing it to a follow-up PR, and hodlinator asked that this limitation be noted explicitly in the description. The PR is otherwise ready to review, with only a minor open question about whether a mocktime bump in the test is strictly necessary."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

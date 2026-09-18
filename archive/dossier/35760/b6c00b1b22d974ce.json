@@ -1,0 +1,115 @@
+{
+ "number": 35760,
+ "input_hash": "b6c00b1b22d974ce",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 11891,
+  "cache_creation_input_tokens": 14063,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5941
+ },
+ "cost_usd": 0.05917475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make wallet loading fail outright when a transaction record is corrupted instead of silently triggering an endless rescan.",
+    "Adds documentation telling users the only supported fix for a corrupted wallet is restoring a backup."
+   ],
+   "reviewability": [
+    "Paused: a fund-access design question and a swapped-value bug in the error message are open since before the author's last push.",
+    "Review of the current diff risks being invalidated if the design changes to preserve partial fund access."
+   ],
+   "agreement": [
+    "Broad approach support from several reviewers (pablomartin4btc, jonatack, rkrux, jeanpablojp) that failing fast is correct given the old rescan never actually fixed anything.",
+    "Standing, unresolved caveat from polespinasa that users without backups would lose all access to funds, which the author acknowledges as already-bad UX rather than fixing.",
+    "A concrete bug spotted by jeanpablojp, the stored and actual hash values are swapped in the new error message, reported after the last author push and not yet addressed."
+   ],
+   "categories": []
+  },
+  "summary": "This PR changes wallet loading so that a transaction record whose stored hash doesn't match its computed hash causes wallet load to fail with DBErrors::CORRUPT, rather than the previous behavior of scheduling a full rescan (DBErrors::NEED_RESCAN) and continuing to operate. It removes the now-unused NEED_RESCAN path and rescan_required plumbing, adds a regression test pinning the CORRUPT behavior, and adds documentation (a new managing-wallets.md section and a release note) stating that restoring a backup is the only supported recovery from wallet corruption.",
+  "problem": "Previously a corrupted transaction record triggered a rescan from genesis on every load without ever fixing the underlying corrupted record, and the corrupted transaction was inserted into the wallet without proper spend/conflict tracking, an unreliable and perpetually-repeating situation for anyone whose wallet database becomes corrupted (e.g. via disk or hardware failure).",
+  "discussion": {
+   "open_concerns": [
+    "polespinasa: refusing to load a corrupted wallet at all could leave users with no backup completely unable to access any funds, whereas the old behavior at least gave partial access; suggests an alternative such as exposing descriptors for recovery instead of hard-failing (raised 2026-08-21/22, revisited 2026-08-31, not implemented or explicitly rejected by author).",
+    "jeanpablojp: the new error message swaps 'stored hash' and 'actual hash', making the message misleading for anyone trying to locate the record in sqlite (raised 2026-08-30, no author response yet)."
+   ],
+   "resolved_concerns": [
+    "pablomartin4btc's request for a release note was addressed with doc/release-notes-35760.md.",
+    "pablomartin4btc's/polespinasa's request for a regression test was addressed, then a bug in that test (wrong exception path being hit) found by polespinasa was fixed by achow101.",
+    "polespinasa's request to set `err` in the LoadToWallet failure path was addressed by achow101 ('Doe[ne]').",
+    "Stale error message referencing rescanning as a fix, flagged by pablomartin4btc, was removed by achow101."
+   ],
+   "author_status": "silent since 2026-08-26 (21 days), no reply to jeanpablojp's 2026-08-30 hash-swap bug report or to polespinasa's 2026-08-31 follow-up on the fund-access concern"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "A material design question about users losing all fund access without a backup, plus a concrete bug (swapped hash values in the new error message) reported by jeanpablojp on 2026-08-30, remain open without author response; the author's last activity was 2026-08-26, and waiting_on_author_days is already 17."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Approach ACKs from pablomartin4btc, jonatack, rkrux, and jeanpablojp support failing fast, but polespinasa maintains a standing concern that users without backups lose all fund access, which the author has not changed course on.",
+   "reason": "Multiple reviewers substantively support the fail-fast approach with stated reasoning (the old rescan never fixed anything and just repeated forever), and the author engaged with polespinasa's concern by acknowledging the tradeoff rather than dismissing it, so the drawback stands acknowledged rather than fixed.",
+   "evidence": [
+    "pablomartin4btc: 'failing hard with CORRUPT makes no unverifiable assumptions... signals unambiguous failure' (Approach ACK)",
+    "polespinasa: 'users that unconsciously did not create a backup will be unable to access any of their funds at all' (standing concern, not fixed)",
+    "achow101: 'The user experience of such wallets is already pretty awful' (acknowledges but does not change approach)",
+    "rkrux: 'I do prefer the wallet to stop and fail fast' (Concept ACK)",
+    "jeanpablojp: 'Approach ACK... Built it, ran the unit tests... reproduced the corruption on regtest' but flags a message bug still open"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner corruption-handling semantics that future wallet DB changes (#33034 store transactions in a separate sqlite table) build on without inheriting the old NEED_RESCAN behavior"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly changes core wallet loading (wallet.cpp, walletdb.cpp, wallet.h, walletdb.h, wallettool.cpp) and how corrupted transaction records are handled at load time, squarely within wallet fund-safety and reliability territory.",
+    "band": "P2",
+    "reason_tag": "data integrity",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a real reliability defect: the old NEED_RESCAN path let a corrupted record persist forever while re-scanning from genesis on every load without tracking spends correctly, as achow101's description explains and jeanpablojp's review confirms. It is not P1 because the change is about recovery UX for an already-rare corruption scenario, not an active fund-safety hazard being introduced, and polespinasa's open concern about locking users out of funds without a backup shows the tradeoff is still being debated rather than settled."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds a new 'Recovering from a Corrupted Wallet' section to doc/managing-wallets.md and a release note explaining the behavior change, both primary documentation additions rather than incidental doc updates.",
+    "band": "P3",
+    "reason_tag": "missing guidance",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it fills a real gap, telling users hitting a newly-introduced hard failure that backup restoration is their only recovery path, which pablomartin4btc explicitly called out as needed ('the missing piece for users is what to do when they see that error'). It is not higher because it only matters to the subset of users who experience wallet corruption, and the doc's completeness is itself contingent on the still-unsettled design debate about whether hard failure is the right behavior."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether polespinasa's fund-access concern should be read as a blocking objection (pushing toward Disputed) or a nonblocking suggestion (Positive w/ caveats); the tone reads as an idea for improvement rather than a hard block, but it concerns real fund access.",
+   "Whether the jeanpablojp hash-swap bug report alone (only ~1-8 days old relative to signals) or the older polespinasa concern (since 2026-08-21) is the primary driver of the given waiting_on_author_days=17 signal.",
+   "Whether the project intends to pursue polespinasa's alternative idea (exposing descriptors on corruption) as a follow-up, which could reshape this PR."
+  ],
+  "card": "This PR makes Bitcoin Core's wallet loading fail outright with DBErrors::CORRUPT when a transaction record's stored hash does not match its computed hash, replacing the old NEED_RESCAN behavior that silently rescanned from genesis on every load without ever fixing the underlying corrupt record. It solves a real reliability problem for wallet operators experiencing database corruption, per achow101's description and jeanpablojp's confirmation that the old path also skipped spend and conflict tracking. Several reviewers (pablomartin4btc, jonatack, rkrux, jeanpablojp) gave concept or approach ACKs agreeing that failing fast is correct, but polespinasa raised a standing, unresolved concern that users without backups would now lose all access to funds rather than the partial access the old behavior gave, an idea achow101 acknowledged but did not change course on. A companion doc PR was folded in adding backup-restoration guidance for corrupted wallets. The PR is currently paused for review: a swapped-hash bug in the new error message (found by jeanpablojp on 2026-08-30) and the fund-access design question remain open without author response since 2026-08-26."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

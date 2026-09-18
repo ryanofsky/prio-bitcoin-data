@@ -1,0 +1,283 @@
+{
+ "number": 35511,
+ "input_hash": "d5041fea107d4f7c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:57+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 40553,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7598
+ },
+ "cost_usd": 0.05890725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the int64_t typedef for CAmount with a type-safe class across the entire codebase.",
+    "Prevent accidental assignments from booleans, uninitialized amounts, and invalid operations like multiplying amounts."
+   ],
+   "reviewability": [
+    "Ready to review as an RFC exploring the complete migration.",
+    "Reviewers suggest splitting into incremental staging PRs before final merge."
+   ],
+   "agreement": [
+    "Broad concept support for making CAmount a class (sedited, ryanofsky, optout21).",
+    "Blocking objection to landing as a single monolithic change across 180+ files (l0rinc).",
+    "Design debate on user-defined literals vs multiplication syntax resolved in favor of the sats unit (purpleKarrot, ryanofsky)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it hardens the core monetary primitive used across all subsystems against invalid arithmetic and uninitialized values.",
+      "It lays the groundwork for safer bounded amount types but remains a deferrable internal refactoring."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it strengthens type safety around consensus amount handling in consensus/amount.h without fixing an active consensus bug."
+     ]
+    }
+   ]
+  },
+  "summary": "Converts CAmount from a typedef of int64_t into a dedicated class in src/consensus/amount.h, requiring explicit construction, banning implicit conversions from booleans or floating-point numbers, forbidding operations like multiplying two amounts, and introducing a * sats unit multiplication syntax across over 180 files.",
+  "problem": "Using a raw integer typedef for monetary amounts permits hazardous code patterns such as implicit conversions from bool, uninitialized amount variables, and meaningless operations like multiplying amounts together.",
+  "discussion": {
+   "open_concerns": [
+    "Monolithic diff size touching 184 files in one PR makes review and backporting onerous; multiple reviewers advocate introducing the class first and migrating call sites incrementally.",
+    "Whether amounts should enforce value-range invariants (e.g., [0, 21M BTC]) or remain unbounded, especially within consensus code where invalid blocks must be representable without throwing."
+   ],
+   "resolved_concerns": [
+    "Dropped the proposed _sats user-defined literal in favor of standard * sats unit multiplication syntax to match C++ quantity proposals.",
+    "Fixed an IPC capnp serialization bug where CAmount fields were not written back into messages.",
+    "Ensured serialization and amount compression remain wire-compatible with existing formats."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch builds cleanly and passes CI; author recently rebased and adopted reviewer feedback regarding unit syntax and scripted diffs."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Broad concept support, but l0rinc requested changes over merging a monolithic 184-file refactor in one step.",
+   "reason": "Reviewers strongly favor the concept of strong typing for CAmount, but there is active resistance from l0rinc and reservations from ryanofsky regarding taking the entire codebase transition in a single PR rather than via incremental staging.",
+   "evidence": [
+    "sedited and ryanofsky gave Concept ACKs.",
+    "purpleKarrot argued against UDLs in favor of multiplication syntax, which the author adopted.",
+    "l0rinc filed a Changes Requested review expressing discomfort with a single massive step and requesting clarification on serialization and range invariants."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future strongly typed bounded amounts (e.g., [0, MAX_MONEY])"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Touches coinstatsindex only to adjust call sites for the new CAmount constructor.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Adds CAmount serialization helpers to capnp glue and IPC tests purely to accommodate the new type.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Mechanical updates across kernel files to satisfy CAmount type requirements.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Only updates feerate calculations and persist serialization call sites for CAmount.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Mechanical call-site updates in block assembler and miner RPC files.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Call site updates in net_processing for fee filter values.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Call site updates across RPC endpoints returning or computing amounts.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test changes follow strictly from adapting existing tests and benchmarks to use CAmount and * sats.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Mechanical call site updates in bitcoin-tx.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes the core monetary primitive and unit representation used across the entire node codebase.",
+    "band": "P3",
+    "reason_tag": "type safety",
+    "score": 0.38,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Encapsulating CAmount into a strong class prevents class-of-error bugs like assigning from booleans or multiplying amounts across all subsystems. It provides clear architectural value, though it does not resolve an active incident and is safely deferrable."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes consensus/amount.h and the fundamental representation of coin amounts used throughout validation and consensus checks.",
+    "band": "P3",
+    "reason_tag": "type safety",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Hardens consensus type definitions in src/consensus/amount.h by making constructors explicit and eliminating hazardous implicit conversions. However, it alters no consensus rules or validity semantics, and the underlying problem is not urgent for consensus correctness."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only updates wallet call sites and coin selection tests to conform to the new CAmount constructor.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR turns the CAmount type alias for int64_t into an explicit class with restricted operators and explicit constructors across more than 180 files. It eliminates bugs stemming from implicit conversions from booleans or floats, uninitialized variables, and invalid operations such as multiplying amounts together. Reviewers strongly support the concept of a strong type for money and converged on a multiplication syntax (* sats), but landing this as an all-in-one refactor faces an open blocking objection from l0rinc advocating an incremental rollout. The PR is an RFC and is fully reviewable as a prototype, though it will likely need to be split into smaller staging steps before merge."
+ },
+ "raw_text": null
+}

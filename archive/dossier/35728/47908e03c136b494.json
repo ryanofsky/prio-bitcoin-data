@@ -1,0 +1,124 @@
+{
+ "number": 35728,
+ "input_hash": "47908e03c136b494",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9958,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3500
+ },
+ "cost_usd": 0.0288643,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes RPCs and internal transaction lookup correctly report I/O errors instead of silently treating them as 'transaction not found'.",
+    "Prevents wrong or misleading error messages when txindex disk reads fail."
+   ],
+   "reviewability": [
+    "Stale: needs rebase and author has been silent for 62 days, past the staleness threshold.",
+    "A reviewer flagged a likely regression for pruned-block lookups that remains unaddressed."
+   ],
+   "agreement": [
+    "Two concept ACKs with no substantive objection to the overall direction (yuvicc, musaHaruna).",
+    "yuvicc raised an unresolved concern that a pruned-block lookup would now wrongly return an I/O error message instead of 'Block not available', with no author reply.",
+    "A style nit about wrapping the new test in try/finally was discussed but not adopted, not a blocking concern (musaHaruna)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR changes GetTransaction and TxIndex::FindTx to distinguish 'transaction not found' from internal I/O errors, returning util::Expected instead of a flat bool/nullable pointer so callers can throw a proper RPC error rather than silently reporting a missing transaction. It updates getrawtransaction, gettxoutproof, rest_tx, and ProcessPSBT to surface these errors, and adds a new functional test simulating a block file I/O failure.",
+  "problem": "Currently a disk read failure (e.g. txindex corruption or a missing block file) is indistinguishable from a transaction simply not existing, so RPC callers and PSBT processing get a misleading 'not found' result instead of a clear error, which could mask underlying storage problems for node operators and RPC consumers.",
+  "discussion": {
+   "open_concerns": [
+    "yuvicc pointed out that for pruned mode, getrawtransaction with a pruned block hash would now return 'I/O error reading block data' instead of the previous 'Block not available' message, a likely behavioral regression, with a proposed functional test; author has not responded.",
+    "musaHaruna suggested wrapping the new test's file rename/restore in try/finally for safety; author pushed back questioning the need, discussion trailed off without resolution."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-16, 62 days"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, stale",
+   "reason": "The PR needs rebase (mergeable_state dirty) and the author has had no activity for 62 days, past the project's 60-day staleness threshold, and it conflicts with several other open PRs (#35676, #35531, #34729, #24230) touching the same or adjacent files."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Two concept ACKs with no direct objection to the approach, but yuvicc's concern about a pruned-block regression is unresolved and unanswered.",
+   "reason": "The overall direction (distinguishing I/O errors from missing transactions) has two concept ACKs and no stated objection to it. However yuvicc identified a concrete behavioral regression (pruned block lookup returning the wrong error message) with a supporting test case, and the author has not replied since the comment was made 62 days ago.",
+   "evidence": [
+    "yuvicc: 'Concept ACK... Distinguishing transaction not found from internal read failures makes sense' but also flagged the pruned-block case returning 'I/O error reading block data' instead of 'Block not available'",
+    "musaHaruna: 'Concept ACK on separating expected outcomes from unexpected failures' with a minor test-safety suggestion",
+    "maflcko pushed back on the try/finally suggestion but did not address the pruned-block concern"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "More reliable follow-up work on txindex error handling and related PRs (#35676, #35531) that touch overlapping code and currently conflict with this one"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes getrawtransaction, gettxoutproof, rest_tx, and ProcessPSBT error handling; labeled RPC/REST/ZMQ.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real but rare correctness issue: I/O failures during transaction lookup were previously indistinguishable from a missing transaction, which could mislead RPC callers and PSBT processing during disk corruption events. A reviewer (yuvicc) also found a likely regression in pruned-node error messages that remains unaddressed, which narrows confidence in the fix's completeness."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Changes TxIndex::FindTx's signature and error semantics directly.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Improves correctness of the txindex error path so I/O failures are surfaced rather than masked as 'not found', which matters mainly during disk corruption or storage failure, a low-frequency but data-integrity-relevant scenario per the indexes category's 'data integrity first' priority."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new functional test (feature_io_errors.py) pins the behavior of RPC/index error handling, not the test framework itself, so it belongs with rpc/indexes rather than the tests category per the category's own exclusion rule.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a framework or infrastructure change; the added test is area-specific coverage, excluded from this category by definition."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the pruned-block regression yuvicc identified is a real bug that must be fixed before merge, or just an edge case the author considers acceptable.",
+   "Whether this PR is intended to be split further given the ProcessPSBT refactor commit is a distinct concern from the GetTransaction change.",
+   "Exact severity of leaving I/O errors silently reported as 'not found' in production, since no linked issue or incident was cited."
+  ],
+  "card": "This PR makes GetTransaction and TxIndex::FindTx return a proper error instead of silently treating disk I/O failures as 'transaction not found', fixing a real but rare correctness gap that could mislead RPC callers (getrawtransaction, gettxoutproof, ProcessPSBT) during txindex disk corruption. The strongest evidence of importance is the author's own rationale: 'a -txindex corruption may also point to a larger system corruption and it seems better to notify the user properly.' The PR is draft, needs rebase, and the author has been silent for 62 days; a reviewer (yuvicc) flagged an apparent regression in pruned-node error messages that remains unaddressed. It conflicts with several other open PRs touching the same files (#35676, #35531, #34729, #24230), and has two unelaborated concept ACKs but no resolved objections."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

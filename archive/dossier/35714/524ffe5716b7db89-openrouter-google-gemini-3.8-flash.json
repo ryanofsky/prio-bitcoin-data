@@ -1,0 +1,113 @@
+{
+ "number": 35714,
+ "input_hash": "524ffe5716b7db89",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:18+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15710,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2464
+ },
+ "cost_usd": 0.0210225,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent corrupted or desynced chainstate and block metadata",
+    "when flushing block or undo data to disk fails"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Small focused patch with dedicated unit test coverage"
+   ],
+   "agreement": [
+    "Strong support with tested ACK for preventing out-of-sync disk state (optout21)",
+    "Concept ACKs agreeing on the corruption risk with separate block storage (mzumsande, arejula27)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it fixes chainstate and block-tree state corruption during block file flush failures",
+      "Crucial when block storage fails independently, preventing false marks of durable block data"
+     ]
+    }
+   ]
+  },
+  "summary": "Stops Chainstate::FlushStateToDisk from continuing to write block-index metadata and coins data when FlushChainstateBlockFile fails. Returns the flush error immediately, ensuring m_last_flushed_block remains at the last durable block tip and avoids recording data that failed to persist.",
+  "problem": "When writing block or undo data fails during a flush, FlushStateToDisk currently logs a warning but proceeds to flush block-index and coins database records. If the failure is permanent (such as with a separate -blocksdir), the database marks blocks as stored (BLOCK_HAVE_DATA) even though block or undo files are missing or incomplete.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "optout21 asked why LogWarning was removed; l0rinc clarified that the lower-level flushError call already reports the failure, avoiding duplicated log entries.",
+    "optout21 asked whether skipping the update to m_next_write was intentional; l0rinc clarified the timer update belongs after a successful write and shutdown is already triggered.",
+    "maflcko noted a formatting preference regarding combined boolean checks in BOOST_REQUIRE; author and reviewer discussed test grouping conventions."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is clean, patch is small (+28/-3), and author has addressed all reviewer inquiries and updated tests."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on fixing flush failure handling; tested ACK from optout21 and concept ACKs from mzumsande and arejula27.",
+   "reason": "Reviewers verified that proceeding with metadata writes after block flush errors risks inconsistent chainstate and block index databases, especially with split storage volumes.",
+   "evidence": [
+    "mzumsande Concept ACKed, pointing out corruption risks with separate -blocksdir if block fsync fails while chainstate succeeds",
+    "optout21 tested and ACKed the latest commit after confirming unit tests verify failure handling",
+    "arejula27 reviewed and verified the gap closure, subsequently opening follow-up refactor PR #35731"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35731"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies Chainstate::FlushStateToDisk in src/validation.cpp and adds a flush failure test in src/test/chainstate_write_tests.cpp.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Prevents chainstate and block-tree state desynchronization under disk I/O errors. As mzumsande noted, if block storage fsync fails while coins and index writes succeed, BLOCK_HAVE_DATA could be permanently recorded without underlying block data being durable."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches src/validation.cpp but only affects chainstate disk flush error handling, not transaction validation, acceptance policy, or mempool limits.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR aborts Chainstate::FlushStateToDisk immediately if FlushChainstateBlockFile fails, returning the error before writing block-index metadata or coins data and before advancing m_last_flushed_block. It resolves a long-standing TODO from #27866 and prevents chainstate and block-tree corruption when block data fails to write (particularly with -blocksdir on separate volumes). Review is in good shape with a tested ACK from optout21 and concept ACKs from mzumsande and arejula27."
+ },
+ "raw_text": null
+}

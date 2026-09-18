@@ -1,0 +1,252 @@
+{
+ "number": 35054,
+ "input_hash": "6f26b907db197ea0",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 36116,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8056
+ },
+ "cost_usd": 0.0778023,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets a node fetch and serve a full UTXO set snapshot over the P2P network so assumeutxo can be used without a third-party download.",
+    "Implements a draft BIP with a new service bit, P2P messages, chunked Merkle-verified transfer, and a downloadutxoset RPC."
+   ],
+   "reviewability": [
+    "Not ready for line-by-line review right now.",
+    "Needs rebase, CI is failing, and the author has been silent for well over 100 days while the concept debate plays out."
+   ],
+   "agreement": [
+    "Deeply disputed at the concept level, not just on implementation details.",
+    "Multiple concept NACKs argue the whole approach degrades P2P trust assumptions and extends AssumeUTXO complexity unjustifiably (evoskuil, eynhaender, stickies-v, l0rinc, narula, nkaretnikov).",
+    "Concept ACKs and a working live demo exist too (andrewtoth, svanstaa, danielabrozzoni), and maintainers like sipa and ajtowns argue the underlying goal is legitimate even if this particular PR isn't where that debate should be settled.",
+    "Author (fjahr) has engaged extensively but the disagreement remains open."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it is a real, working attempt to remove a third-party trust dependency from AssumeUTXO bootstrapping, demoed successfully on mainnet by a reviewer (svanstaa).",
+      "Not P1: nothing is currently blocked by its absence, and the debate is fundamentally about whether the project wants this class of feature at all, which caps how much delay costs."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds one new RPC (downloadutxoset) whose only purpose is to drive this specific feature, with no independent external consumer requesting the RPC itself.",
+      "Value is entirely derivative of the underlying p2p feature's fate."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the change to validation.cpp is a single added log line and the AssumeutxoData struct only gains a new optional field, with no change to consensus or chainstate logic.",
+      "The field exists to support p2p verification, not to fix or improve validation behavior."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because the chainparams.h/.cpp edits only add a metadata field (chunk_merkle_root) to an existing struct, not a change to the kernel API boundary or library usability.",
+      "No external kernel consumer is asking for this field."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because the added contrib script is a narrow, single-purpose helper (computing a snapshot's Merkle root) used only by this feature's operators.",
+      "No broader operator or developer workflow depends on it today."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR implements a draft BIP for sharing a full UTXO set over the P2P network, so a node can use assumeutxo without fetching a snapshot from a third party. It adds a NODE_UTXO_SET service bit, new P2P messages for advertising and transferring UTXO set chunks with Merkle-proof integrity checks, a share-provider and download-manager subsystem, a downloadutxoset RPC, chainparams Merkle-root commitments, and functional/unit tests. The author explicitly frames it as a concept/approach draft with rough edges and incomplete Merkle-root data.",
+  "problem": "Assumeutxoso today requires users to obtain a UTXO snapshot from an external, unverified source (a torrent, a website), which the author argues is a UX and trust barrier limiting adoption by end users and prepackaged-node projects. The PR tries to let the P2P network itself serve that role safely via Merkle-verified chunks.",
+  "discussion": {
+   "open_concerns": [
+    "Whether AssumeUTXO-based P2P set sharing is wanted at all: several contributors (evoskuil, eynhaender, l0rinc, stickies-v, narula, nkaretnikov) argue it degrades trust-minimization of the P2P network or extends an already-costly feature further into critical code.",
+    "DoS vector: a malicious peer can claim an arbitrary huge data_length in utxosetinfo causing large allocations before the merkle root is checked (andrewtoth); not committed/fixed yet.",
+    "What happens if ActivateSnapshot fails after a P2P download completes (andrewtoth) is unresolved.",
+    "RPC design question: should height be user-specified or derived automatically (danielabrozzoni, stickies-v) is unresolved.",
+    "Many merkle roots in chainparams are still unfilled placeholders per the author's own status note."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-05-24, PR moved to draft by author pending BIP/code rework"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, CI failing",
+   "reason": "needs_rebase and ci_failed are both true, and the author has had no activity for 115 days, well past the 60-day stale threshold, while the PR sits in draft awaiting rework to match an evolving external BIP."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: six contributors issued concept NACKs against extending AssumeUTXO into P2P (evoskuil, eynhaender, stickies-v, l0rinc, narula, nkaretnikov) while others concept-ACKed and demoed it working (andrewtoth, svanstaa, danielabrozzoni); author (fjahr) engages at length but disagreement is unresolved.",
+   "reason": "The disagreement is about the underlying approach/feature itself, not just code quality, and both sides continue to hold their positions after extensive back-and-forth including on the mailing list.",
+   "evidence": [
+    "evoskuil: 'Concept NACK. ... Shoving that into the p2p network is not acceptable.'",
+    "eynhaender: 'This PR violates don't trust, verify by introducing a new protocol-level dependency on trusted, hardcoded data.'",
+    "l0rinc: 'I'm also leaning towards a concept NACK, I'd rather see a proposal to completely remove assumeUTXO.'",
+    "stickies-v: 'I'm Concept NACK any changes that add more AssumeUTXO complexity.'",
+    "narula: 'Concept NACK, for the same reasons @l0rinc has articulated.'",
+    "nkaretnikov: 'Concept NACK... this proposal comes with a bunch of concrete downsides.'",
+    "andrewtoth: 'Concept ACK' with DoS and RPC design feedback.",
+    "svanstaa: built and demoed the branch successfully on mainnet, 'Overall feature works as advertised.'",
+    "ajtowns: argues the concept debate belongs elsewhere and that improving AssumeUTXO usefulness is fine while it exists in the codebase.",
+    "fjahr: extensive rebuttals defending the motivation and use cases through mid-May, then went silent."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Would make AssumeUTXO self-contained without third-party snapshot sourcing, if the concept debate resolves in favor of merging.",
+    "Depends conceptually on an external, still-evolving BIP draft (bitcoin/bips#2137)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds a chunk_merkle_root field to AssumeutxoData in src/kernel/chainparams.h/.cpp, but does not touch the kernel API boundary or usability for external consumers.",
+    "band": "P4",
+    "reason_tag": "unblocks p2p feature",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The chainparams struct extension only carries a new metadata field used by the P2P sharing code; it does not change what libbitcoinkernel exposes or how it can be used as a library, so it has no independent leverage in this category."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool policy, acceptance, or fee-estimation code is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Adds a new service bit, four new P2P message types, net_processing handling, and DoS-relevant chunk/proof validation logic; carries the P2P label.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Reviewer svanstaa demoed a working end-to-end download and activation on mainnet, and the motivation (removing third-party trust for AssumeUTXO snapshots) is echoed by sipa as fundamental to AssumeUTXO's real-world usefulness. It is not P1 because nothing else in the project is blocked by its absence, and whether the network should carry this kind of data is itself unresolved."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds the downloadutxoset RPC method and its client/fuzz registration.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The RPC is a thin driver for the underlying P2P feature with no independent external consumer asking specifically for this method; its value rises and falls with the feature it exposes."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added functional and unit tests (p2p_utxo_set_share.py, utxo_set_share_tests.cpp) pin the behavior of this one feature rather than improving the general test framework.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per category scope, area-specific tests belong to their area (p2p), not to the test-infrastructure category."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Adds contrib/utxo-tools/utxo_snapshot_merkle.py, a standalone script for computing a snapshot's chunk Merkle root.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A narrow, single-purpose helper script with no independent user base beyond this feature; low priority regardless of size per category guidance on niche scripts."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Only adds a new UTXOSETSHARE logging category flag, a mechanical addition following from the feature rather than a change to logging infrastructure itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical follow-on from the p2p feature, not a substantive utils change."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds a chunk_merkle_root field to AssumeutxoData (used within validation's assumeutxo scope) and one added log line in validation.cpp; no validation logic changes.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The touch to validation.cpp is a single log statement, and the chainparams data addition supports P2P verification rather than altering consensus or chainstate correctness, so it carries none of the weight validation reviewers care about most."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the fundamental concept disagreement (should AssumeUTXO be extended into P2P at all) should suppress the p2p band further, since per the rubric approach disputes shouldn't lower priority but several NACKs target the problem itself, not just the approach.",
+   "Whether the chainparams/kernel touches deserve member status at all given how thin they are; included them for completeness since the category hints point there.",
+   "No confirmation whether the DoS and RPC-design concerns raised by andrewtoth and danielabrozzoni were ever addressed before the author went silent."
+  ],
+  "card": "This PR implements a draft BIP letting a Bitcoin Core node fetch and serve a full UTXO set snapshot over P2P, so AssumeUTXO can be bootstrapped without a third-party snapshot source, adding a new service bit, P2P messages, a share provider/download manager, and a downloadutxoset RPC. The strongest evidence of real value is a mainnet demo by reviewer svanstaa that successfully downloaded, activated, and resynced from a shared snapshot, and sipa's argument that P2P sync is what would let AssumeUTXO compete with less-trustworthy alternatives users already turn to. But the PR triggered a deep concept-level dispute: six contributors (evoskuil, eynhaender, stickies-v, l0rinc, narula, nkaretnikov) issued concept NACKs arguing this further embeds trust assumptions into the P2P network and grows AssumeUTXO's already-criticized validation complexity, while the author (fjahr) has defended the motivation at length without resolving the disagreement. The PR is currently draft, needs rebase, has failing CI, and the author has been silent for over 100 days pending a BIP rework, so it is not presently reviewable as code. It depends conceptually on an external, still-evolving BIP draft."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

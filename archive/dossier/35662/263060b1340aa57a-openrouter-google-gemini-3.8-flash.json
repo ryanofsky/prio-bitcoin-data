@@ -1,0 +1,154 @@
+{
+ "number": 35662,
+ "input_hash": "263060b1340aa57a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:24+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21365,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3236
+ },
+ "cost_usd": 0.022666275,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent reusing PrecomputedTransactionData across transactions and enforce initialization at construction.",
+    "Avoid allocating unused transaction data storage during assumevalid block connection."
+   ],
+   "reviewability": [
+    "Ready to review. The rework directly implements reviewer feedback."
+   ],
+   "agreement": [
+    "Reviewer critique on the original approach was resolved by author rework to construct data eagerly (sedited)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it eliminates an API footgun where stale sighash precomputations could be reused across transactions.",
+      "It also avoids an unneeded vector allocation in ConnectBlock when script checks are skipped during assumevalid."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request removes the default constructor and public `Init()` method of `PrecomputedTransactionData`, ensuring that sighash cache objects are constructed directly for a specific transaction. Validation call sites that require deferred precomputation now wrap the object in `std::optional`, and `ConnectBlock` skips allocating `txsdata` storage entirely when script verification is skipped under assumevalid.",
+  "problem": "Previously, `PrecomputedTransactionData` could be default-constructed and populated later with `Init()`, exposing a public reuse path where stale BIP143 and Taproot sighash cache state could be carried across transactions or left partially uninitialized.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "sedited objected to resetting flags inside Init() and suggested requiring initialization at construction instead. The author reworked the PR to eliminate default construction and public Init()."
+   ],
+   "author_status": "Active; rebased and addressed review feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author addressed all reviewer feedback in a rework, CI passes, and no further changes are pending."
+  },
+  "agreement": {
+   "state": "Neutral",
+   "summary": "Initial objection from sedited resolved by implementing their suggested architectural change; awaiting follow-up review.",
+   "reason": "sedited initially leaned NACK on re-initializing through Init() and suggested construction-time initialization. The author adopted that suggestion and reworked the PR, but no formal ACKs have been posted yet.",
+   "evidence": [
+    "sedited: 'I think rather than messing with Init, we should seriously reconsider whether this data can be initialized at construction.'",
+    "l0rinc: reworked PR to remove default construction and public Init(), following sedited's suggestion."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/bitcoinkernel.cpp only mechanically to update the C API wrapper constructor call.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a kernel PR; changes to kernel files are mechanical call-site updates following the PrecomputedTransactionData constructor change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches CheckInputsFromMempoolAndCache signature mechanically to pass std::optional.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not affect transaction acceptance, replacement policy, or mempool structures."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test and fuzz harnesses purely to adapt them to the new constructor signature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test changes are standard updates adjusting to interface changes rather than modifications to test infrastructure."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies script interpreter precomputed transaction data structures and validation script check workflows in src/validation.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Hardens the validation and script interpreter interface against misuse by guaranteeing that PrecomputedTransactionData is bound to a single transaction at construction time. It also avoids an unneeded vector allocation in ConnectBlock during assumevalid sync."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches feebumper.cpp and psbt.cpp only to update call sites to use direct constructor syntax.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Wallet files are modified purely mechanically to adjust to the new PrecomputedTransactionData constructor."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR removes default construction and public Init() from PrecomputedTransactionData, enforcing that each instance is constructed explicitly for a single transaction. This closes an API reuse footgun where cached BIP143 and Taproot sighash data could theoretically persist across re-initializations. Validation now manages deferred precomputations via std::optional and skips allocating transaction data vectors during assumevalid. The changes incorporate reviewer suggestions from sedited and are ready for review."
+ },
+ "raw_text": null
+}

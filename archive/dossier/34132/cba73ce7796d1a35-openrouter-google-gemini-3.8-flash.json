@@ -1,0 +1,117 @@
+{
+ "number": 34132,
+ "input_hash": "cba73ce7796d1a35",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:29+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27381,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3322
+ },
+ "cost_usd": 0.03299325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Abort safely on LevelDB point-read and deserialization corruptions instead of returning missing-key results or unhandled exceptions.",
+    "Simplify the coins view stack by eliminating CCoinsViewErrorCatcher and restricting HaveCoin to CCoinsViewCache."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "Active discussion on whether optional index failures should abort the entire node or disable the index."
+   ],
+   "agreement": [
+    "Positive support with an architectural question (optout21, andrewtoth, sedited, maflcko).",
+    "ajtowns questions whether optional index read failures should abort the node and suggests caller-level handling instead of deep callbacks; author suggested IRC discussion."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it prevents corrupt UTXO point reads from being misinterpreted as missing coins and removes CCoinsViewErrorCatcher indirection.",
+      "Ensures reliable node termination on database corruption across chainstate and backing views."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request ensures that LevelDB point-read and typed deserialization failures in CDBWrapper are treated as fatal errors across chainstate, block index, and optional index databases. It routes a fatal error callback to notify the user and trigger an abort rather than throwing or returning false. As a consequence, it eliminates CCoinsViewErrorCatcher, marks coin view lookups noexcept, and removes HaveCoin from the backing coins view interfaces.",
+  "problem": "Unreadable or corrupt database entries in CDBWrapper::Read() can return false (mimicking a missing key) or throw LevelDB exceptions, which can cause valid transactions to be rejected as missing inputs or RPCs to fail while the node continues running in a corrupted state. In addition, the coins stack maintains an extra CCoinsViewErrorCatcher indirection layer solely to catch such errors.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns questioned whether corruptions in optional indexes (e.g. txindex) should abort the whole node versus disabling the index or passing errors back up to the caller, and critiqued the deep callback mechanism."
+   ],
+   "resolved_concerns": [
+    "Handling test failures on 32-bit platforms where LevelDB mmap is disabled and block cache retained stale data across disk corruption.",
+    "Specific exception handling in the functional read error test instead of a wildcard exception catch.",
+    "Clarified scope of HaveCoin removal from backing views versus caching checks."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, mergeable state is clean, and the author recently rebased on master after #34931."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Mild: ajtowns questions whether optional index corruption should abort the node; author requested IRC discussion.",
+   "reason": "Reviewers generally approve of simplifying the coins view stack and catching fatal DB errors, but ajtowns raised an open concern about whether optional index read failures warrant aborting the node rather than disabling the index or handling the failure locally.",
+   "evidence": [
+    "optout21 ACKed code and tests (reACK 6c07101f28).",
+    "sedited Concept ACKed.",
+    "andrewtoth Concept ACKed the indirection removal.",
+    "maflcko assisted with test coverage and refactoring commits.",
+    "ajtowns questioned whether hard aborts on optional index reads make sense compared to disabling the index, and noted the callback arrangement is convoluted."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "src/dbwrapper is explicitly defined as validation storage infrastructure rather than general utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "CDBWrapper and LevelDB wrappers belong under validation per definition."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies CDBWrapper, chainstate database reading, UTXO view hierarchy (CCoinsViewErrorCatcher, CCoinsViewDB, CCoinsViewCache), and coin lookup behavior.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P2 because it prevents chainstate database corruption from masquerading as missing coin entries, which could lead to incorrect validation decisions. It also removes the longstanding CCoinsViewErrorCatcher wrapper layer and streamlines backing coin view lookups."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the project decides to retain abort-on-read-error for optional indexes or shifts to local error handling / disabling indexes."
+  ],
+  "needs": [],
+  "card": "This PR modifies CDBWrapper to treat LevelDB point-read and typed deserialization errors as fatal aborts, routing an error notification callback through DBParams for chainstate and index databases. This allows eliminating CCoinsViewErrorCatcher entirely and restricting HaveCoin to CCoinsViewCache, making coin view lookups noexcept. The change fixes a scenario where corrupt UTXO entries or index lookups return missing-key results or surface as unhandled RPC exceptions while the node keeps running. Reviewers strongly support cleaning up the coins view stack, though ajtowns questioned whether optional index corruption should abort the whole node. The PR is clean, passing CI, and ready for review."
+ },
+ "raw_text": null
+}

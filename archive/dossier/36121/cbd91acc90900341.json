@@ -1,0 +1,125 @@
+{
+ "number": 36121,
+ "input_hash": "cbd91acc90900341",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6402,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5031
+ },
+ "cost_usd": 0.0329633,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up fuzz CI runs by splitting each target's corpus into shards so --par actually parallelizes single-target and uneven-length runs."
+   ],
+   "reviewability": [
+    "Draft with real code, worth reviewing now, but the author has raised open doubts about whether the benefit holds on every platform and floated closing the PR if it gets too complicated."
+   ],
+   "agreement": [
+    "Concept ACK from one reviewer, who found several real issues: broken per-target coverage aggregation, tmp-dir cleanup and error-reporting regressions (jeanpablojp).",
+    "Author fixed the tmp-dir lifetime and error-path issues in a follow-up push, but acknowledged the coverage-reporting loss is a real, unresolved drawback with no fix in hand (maflcko).",
+    "No objection is being pressed as blocking; the reviewer and author are jointly still evaluating whether the approach's net win is real."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because measured CI numbers show real wins on some jobs (msan 15min faster, windows 7min faster) but a real, unresolved regression in per-target fuzz coverage reporting and an inconclusive result on macOS.",
+      "This is test-infrastructure speed and reliability work every fuzz-CI run pays for, but its net value is still being argued out in review."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P4 because the accompanying tmpfs change for CI test runs is an experimental attempt at the same storage-IO bottleneck, and the author's own conclusion is that it 'helped a bit on macOS but still not enough' and made no difference on Linux.",
+      "Speculative and inconclusive; no clear supported-platform breakage or release-integrity issue is at stake."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR splits each fuzz target's on-disk corpus into --par equal-sized shards by default so that parallel fuzz CI runs actually benefit from --par even with a single target or with unevenly-sized targets, plus a follow-up commit that mounts a tmpfs for CI test scratch space (including a macOS RAM disk) to reduce storage IO overhead from the added sharding. It adds a --corpus-shards flag, reworks run_once to materialize per-shard temp directories via hard links, and changes CI container setup to use tmpfs-backed TMPDIR.",
+  "problem": "Fuzz CI jobs with --par do not speed up when only one target is selected, and multi-target runs are bottlenecked by whichever target runs longest, wasting reviewer and CI time on every run. This affects Bitcoin Core CI infrastructure and contributors who wait on fuzz job completion times.",
+  "discussion": {
+   "open_concerns": [
+    "Coverage reporting is now per-shard rather than per-target, so 'Summary' output balloons (237 to 3754 lines on one run) and coverage numbers can no longer be meaningfully compared across changes; author agrees this is a real limitation with no known fix beyond compiling with coverage instrumentation separately.",
+    "Whether the sharding approach actually delivers a net win is unresolved: the tmpfs addition 'helped a bit on macOS but still not enough' and made no measurable difference on Linux, and the author has floated closing the PR if this proves too complicated to fix well.",
+    "SIGTERM handling can still leave orphaned shard temp directories, acknowledged by the author as unfixed."
+   ],
+   "resolved_concerns": [
+    "Reviewer's concern about shard temp dirs being created before knowing whether sharding will happen (breaking on read-only parents) was fixed by moving to a per-job temp dir in a follow-up push.",
+    "Reviewer's concern about corpus file paths in error logs pointing into an already-deleted shard dir was addressed by per-job temp dirs, per author's response."
+   ],
+   "author_status": "active, addressing review and still evaluating with the reviewer whether the underlying approach delivers enough benefit to keep"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Benefit unproven",
+   "reason": "No mechanical blocker (CI passes, no rebase needed) and the author is actively engaging with review, but both author and reviewer are still jointly investigating whether the sharding approach's benefit is real across all CI platforms; the author has said they might close the PR if this proves too complicated, though no firm 'wait' has been issued."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACK from jeanpablojp, who also flagged a real unresolved harm (broken per-target coverage aggregation) that neither party treats as blocking merge.",
+   "reason": "One reviewer supports the concept and raised several concrete, largely-fixed implementation issues, but a real drawback (loss of per-target coverage numbers, useful for tracking regressions) remains unresolved and unaddressed by a fix; nobody is treating it as a blocking objection.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK' with detailed benchmark analysis of where the win comes from and where it doesn't.",
+    "jeanpablojp: coverage Summary output becomes unusable for cross-run comparison after sharding.",
+    "maflcko: 'I don't think it is possible to recover the coverage from the shards... I guess this is fine to leave as-is.'",
+    "maflcko: considering closing the PR if the storage-IO tradeoffs can't be resolved cleanly."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Faster fuzz CI jobs across platforms if the approach is kept, which could free up CI time budget for other fuzz-related test infra work"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "The accompanying 'ci: tmpfs' commit changes ci/test/02_run_container.py to mount tmpfs for CI test scratch space, including a macOS RAM disk setup, directly touching CI configuration.",
+    "band": "P4",
+    "reason_tag": "speedup",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the tmpfs change is a speculative attempt to offset storage overhead from corpus sharding, and the author's own measurement is that it 'helped a bit on macOS but still not enough' and 'didn't really make a difference' on Linux. No release-integrity or supported-platform breakage is at stake, just an inconclusive CI-time experiment."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Fuzzing-labeled PR that changes test/fuzz/test_runner.py's core parallelization logic, the framework used to run all fuzz targets in CI.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because the author's own CI comparison shows real wins on several jobs (msan 15min faster, windows 7min faster, asan 9min faster) which matters since 'test speed... every contributor pays for on every run,' but a genuine regression was found in per-target coverage reporting that the author has not resolved, and macOS results are inconclusive by the discussion's own admission, which keeps this from being a clear P2."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the author will continue this PR or close it given the admitted inconclusive/negative results on macOS and Linux is not resolved in the visible discussion.",
+   "No explicit maintainer sign-off beyond one contributor's Concept ACK; broader project appetite for accepting the coverage-reporting tradeoff is unclear."
+  ],
+  "card": "This PR shards each fuzz target's corpus into --par pieces so parallel fuzz CI runs actually speed up for single-target or uneven-length runs, and adds a tmpfs mount for CI test scratch space to offset the added IO. The author's own benchmarking shows real time savings on some CI jobs (msan 15min faster, windows 7min faster) but no clear win on macOS and no difference on Linux with the tmpfs addition. A reviewer (jeanpablojp) gave a Concept ACK but identified that the change breaks per-target coverage aggregation into hard-to-compare per-shard numbers, a real drawback the author has acknowledged but not fixed. The author has floated closing the PR if the storage-IO tradeoffs prove too complicated to resolve. It is a draft with no blocking review request outstanding, but the core premise (worthwhile net speedup) is still being jointly investigated by author and reviewer."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,212 @@
+{
+ "number": 35355,
+ "input_hash": "04365a53cd9f4041",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20621,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5300
+ },
+ "cost_usd": 0.0485273,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the mutex-guarded log-level state (global level plus a per-category map) with a single atomic bitmask, and make the common debug/trace-disabled checks lock-free.",
+    "Also introduces a new -trace option/RPC field replacing the removed -loglevel, and cleans up duplicated Enable/Disable/WillLog helper functions."
+   ],
+   "reviewability": [
+    "Stale: draft, needs rebase, and the author has not touched it in 118 days.",
+    "Zero reviewer engagement so far, and the PR conflicts with several other open logging PRs from a different contributor, so direction is unsettled."
+   ],
+   "agreement": [
+    "Crickets: no reviewer has commented on the change itself.",
+    "Author only left a comment linking three years of prior discussion and noting it conflicts with #35322 (ajtowns)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it removes a mutex from the hot LogDebug/LogTrace disabled-path check across the entire codebase, and this exact idea has been proposed by the author for three years across multiple PRs (#25203, #28318).",
+      "Multiple other open logging PRs (#35387, #35322, #34778, #33847) touch the same internals, showing this is a live area of contention that needs a decided direction."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it changes the `logging` RPC's return shape (three category arrays instead of a flat bool map), a compatibility-relevant change guarded by -deprecatedrpc=logging.",
+      "Also introduces the -trace RPC parameter that lets external tooling toggle trace logging, which existing tooling cannot do today."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P3 because it updates developer-notes.md and adds release notes describing the -loglevel to -trace transition, needed so contributors and users are not misled by stale docs if this direction ships.",
+      "No independent leverage beyond documenting this PR's own behavior change."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because it only swaps the internal implementation of btck_logging_* functions (AddCategoryLogLevel/EnableCategory calls become SetCategoryLogLevel) without changing the kernel API surface.",
+      "No external kernel consumer is waiting on this."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the functional and unit test edits (feature_logging.py, rpc_misc.py, i2p_tests.cpp) pin logging-specific behavior rather than test framework machinery."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "Not a member because the only wallet touch is a one-line comment update in sqlite.cpp reflecting the new -trace flag name, with no behavior change."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the mutex-protected global log level and per-category level map in BCLog::Logger with a single atomic uint64_t bitmask, making the common ShouldDebugLog/ShouldTraceLog/Enabled checks lock-free. It also introduces a new -trace startup option (replacing -loglevel), updates the logging RPC's output format with a -deprecatedrpc compatibility fallback, and consolidates several duplicated category-enable/disable helper functions. Roughly a dozen commits touch logging.cpp/h, init/common.cpp, rpc/node.cpp, kernel bindings, and associated tests.",
+  "problem": "Bitcoin Core's LogDebug/LogTrace hot-path checks currently take a mutex even when logging is disabled, which the author has wanted to remove for three years (linking discussions from 2023 and 2024). The -loglevel option's interaction with -debug was also confusing (silently doing nothing without -debug set), which this PR fixes by introducing an explicit -trace option.",
+  "discussion": {
+   "open_concerns": [
+    "PR is in conflict with several other open logging-related PRs (#35387, #35322, #34778, #33847) working on overlapping logging infrastructure; no discussion yet on which approach the maintainers prefer.",
+    "No reviewer feedback has been given on the atomics design, the RPC output format change, or the new -trace/-debug interaction rules."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-05-22 (created and force-pushed same day, then no further activity)"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked needs rebase, has mergeable_state dirty, and the author has had no activity for 118 days, exceeding the stale-author threshold. It also conflicts textually with a cluster of other open logging PRs, so the eventual mergeable diff may look quite different."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer has commented on the PR; only the author left context linking prior discussions and noting the conflict with #35322.",
+   "reason": "Zero distinct reviewers per signals, and the sole comment is from the author (ajtowns) framing the history rather than reviewing the change.",
+   "evidence": [
+    "ajtowns (author): links prior discussion from #25203 (2023) and #28318, notes 'Obviously conflicts with #35322.'",
+    "No other participants have commented."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Would let LogTrace/LogDebug hot paths in every subsystem run lock-free when disabled",
+    "Supersedes or conflicts with the logging rework in #35322, #34778, #33847, #35387 \u2014 one direction needs to be chosen",
+    "Related to landing the -trace/-loglevel behavior proposed in #34038"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds doc/release-notes-34038.md and edits doc/developer-notes.md to describe the -trace option replacing -loglevel.",
+    "band": "P3",
+    "reason_tag": "docs update",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Keeps developer-notes.md and release notes accurate for the -loglevel to -trace transition this PR makes; low harm if wrong but would mislead contributors if this direction ships without doc updates."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "src/kernel/bitcoinkernel.cpp changes the implementation of btck_logging_set_level_category/enable_category/disable_category to call SetCategoryLogLevel instead of the removed Add/Enable/DisableCategory methods.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely an internal call-site update to match the new Logger API; the kernel C API surface and behavior are unchanged, so there is no external kernel consumer benefit."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "src/rpc/node.cpp adds a third 'trace' parameter to the logging RPC and changes its default output from a flat bool map to three category arrays, with a -deprecatedrpc=logging fallback; rpc/client.cpp registers the new parameter.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Changes what every caller of the `logging` RPC receives, which the rpc category treats as a compatibility-sensitive change; the deprecatedrpc guard mitigates but does not eliminate the break. Real value: lets external tooling toggle trace logging via RPC, something not currently possible."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "All test edits (feature_logging.py, rpc_misc.py, i2p_tests.cpp, bench/logging.cpp, setup_common.cpp) pin logging-specific behavior, not the test framework itself, so per the category definition they belong to the area they test rather than to tests.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a category member; see evidence."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Core of the PR: src/logging.cpp/h and src/util/log.h are rewritten to use atomic<uint64_t> m_trace_categories and lock-free ShouldDebugLog/ShouldTraceLog/Enabled checks, per the commit 'logging: Make Enabled() lock-free'.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Removes a mutex from the log-disabled hot path used throughout the entire codebase, an idea the author has pursued since 2023 (linked to #25203, #28318). The area is contested: multiple concurrent open PRs (#35322, #34778, #33847, #35387) rework the same logging internals, so this PR carries leverage for whichever direction the project settles on, but that direction is undecided."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only change is a one-line comment update in sqlite.cpp reflecting the renamed -trace flag; no wallet logic or interface changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical comment follow-on from the option rename; not a substantive wallet change."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether maintainers intend to pick this PR's atomics approach over the competing logging refactors (#35322, #34778, #33847, #35387) is unresolved and materially affects whether reviewing this specific diff is worthwhile.",
+   "No reviewer has weighed in, so it's unclear whether the RPC output format change (breaking without -deprecatedrpc) will be accepted as-is."
+  ],
+  "card": "This draft PR replaces Bitcoin Core's mutex-guarded log-level state with a single atomic bitmask, making the LogDebug/LogTrace disabled-path checks lock-free, and introduces a new -trace startup option and RPC parameter replacing the removed -loglevel. The author has argued for the lock-free logging design since 2023 (linked discussions from #25203 and #28318), and the change touches logging.cpp/h, init/common.cpp, the logging RPC output format (with a -deprecatedrpc fallback), and kernel API bindings. It conflicts with several other open PRs reworking the same logging internals (#35322, #34778, #33847, #35387), so the project's direction here is unsettled. Reviewability is Stale: it needs a rebase, is still a draft, and the author has been silent for 118 days. No reviewer has commented on the change, so Agreement is Crickets."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

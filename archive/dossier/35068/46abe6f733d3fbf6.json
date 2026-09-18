@@ -1,0 +1,101 @@
+{
+ "number": 35068,
+ "input_hash": "46abe6f733d3fbf6",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5653,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3832
+ },
+ "cost_usd": 0.0262193,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix a broken environment variable in the depends build system so cmake-based packages find dependencies built by depends instead of system libraries.",
+    "Prevents a compile error when building native_libmultiprocess with a conflicting system-installed CapnProto."
+   ],
+   "reviewability": [
+    "Stale, author has not responded since April 2026 despite unresolved design discussion and a status check in August."
+   ],
+   "agreement": [
+    "Disputed: hebasto and purpleKarrot question whether preserving an external CMAKE_PREFIX_PATH value undermines the depends system's isolation goal, and purpleKarrot proposes a simpler variant of the fix (purpleKarrot, hebasto).",
+    "Author defended the current approach with a rationale but conversation stalled without resolution (ryanofsky)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it fixes a real compile-time failure (\"Version mismatch between generated code and library headers\") in the native_libmultiprocess depends package, but only triggers when a conflicting system CMake package (e.g. via nix) shadows the depends-built one.",
+      "Narrow trigger conditions limit how many contributors feel this; it does not affect the mainline build for most developers."
+     ]
+    }
+   ]
+  },
+  "summary": "This one-line change to depends/funcs.mk replaces a non-functional CMAKE_MODULE_PATH environment assignment with CMAKE_PREFIX_PATH, which is the variable cmake actually reads from the environment and the one relevant for config-mode find_package() calls used by modern packages like CapnProto. The change prepends the depends prefix onto any existing CMAKE_PREFIX_PATH value, mirroring how PATH is already handled elsewhere in the file.",
+  "problem": "Building cmake-based depends packages (notably native_libmultiprocess) could pick up a system-installed CapnProto instead of the depends-built one, producing a hard compile error (\"Version mismatch between generated code and library headers\"). This affects contributors building with the MULTIPROCESS depends option in environments (e.g. Nix shells) where a conflicting system package is present.",
+  "discussion": {
+   "open_concerns": [
+    "hebasto: preserving an externally-set CMAKE_PREFIX_PATH value seems to undermine the depends system's isolation goal; suggested setting CMAKE_PREFIX_PATH explicitly per-package (as qt.mk does) instead.",
+    "purpleKarrot: proposes a simpler variant that does not preserve the prior CMAKE_PREFIX_PATH value, leaving the question of preserving external env vars for separate discussion; also notes CMAKE_INSTALL_PREFIX as an environment variable requires CMake 3.29, above the project's 3.22 minimum, relevant to an alternative fix discussed.",
+    "sedited (2026-08-10) asked for a status update; no reply."
+   ],
+   "resolved_concerns": [
+    "hebasto's suggestion to rely on CMAKE_INSTALL_PREFIX was addressed by ryanofsky explaining why it does not control dependency search, without further pushback from hebasto on that specific point."
+   ],
+   "author_status": "silent since 2026-04-15"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 154 days",
+   "reason": "No author activity since 2026-04-15, well past the 60-day stale threshold, and an unresolved question about whether the fix should preserve external CMAKE_PREFIX_PATH values remains open."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: hebasto and purpleKarrot question the approach of preserving external CMAKE_PREFIX_PATH; author defended it but discussion stalled with no resolution.",
+   "reason": "Two reviewers (hebasto, purpleKarrot) raised a substantive design concern about whether the fix should preserve or override any externally set CMAKE_PREFIX_PATH, proposing a simpler alternative; the author gave a rationale for the current approach but neither side reached agreement, and the author has not replied since.",
+   "evidence": [
+    "hebasto: \"Keeping the CMAKE_PREFIX_PATH value potentially set externally seems to me to undermine the purpose of the depends build subsystem\"",
+    "purpleKarrot: proposes dropping the preserved prior value as \"the proper fix\"",
+    "ryanofsky: defends setting env vars correctly in one place rather than resetting individual variables",
+    "sedited: \"What is the status here? There seems to be some unaddressed review.\""
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Correct native_libmultiprocess builds under the depends system, relevant to the multiprocess/IPC project"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Directly modifies depends/funcs.mk, the shared depends build logic, and is labeled Build system.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a genuine compile-time failure in the depends build of native_libmultiprocess caused by a non-functional CMAKE_MODULE_PATH assignment, per the description: cmake never read CMAKE_MODULE_PATH from the environment and CapnProto uses config-mode discovery which needs CMAKE_PREFIX_PATH. The bug is real but narrowly triggered (only when a conflicting system package shadows the depends-built one, as with a Nix shell), limiting its reach across the build category."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the disputed design question (preserving external CMAKE_PREFIX_PATH vs not) is severe enough to be a blocking objection or just a nonblocking style/architecture preference.",
+   "No linked issue confirms how many contributors actually hit this failure outside the author's own Nix environment."
+  ],
+  "card": "This PR fixes a one-line bug in depends/funcs.mk, replacing a non-functional CMAKE_MODULE_PATH environment assignment with the correct CMAKE_PREFIX_PATH, which cmake's config-mode find_package (used by CapnProto and other modern cmake packages) actually reads. It fixes a real compile error in native_libmultiprocess (\"Version mismatch between generated code and library headers\") that occurs when a conflicting system-installed dependency (e.g. via Nix) shadows the depends-built one. Reviewers hebasto and purpleKarrot raised a substantive but unresolved design concern about whether the fix should preserve externally set CMAKE_PREFIX_PATH values, proposing a simpler alternative; the author defended the current approach but has been silent since 2026-04-15, and a later status-check comment went unanswered. The fix is narrow in scope, mattering mainly to contributors building the MULTIPROCESS depends option in environments with conflicting system packages."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

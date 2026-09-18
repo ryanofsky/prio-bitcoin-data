@@ -1,0 +1,299 @@
+{
+ "number": 34193,
+ "input_hash": "7d61f282b76b6128",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:25:23+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24158,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6277
+ },
+ "cost_usd": 0.04165725,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent corrupted or partially migrated wallets during migration failures",
+    "Restore the original legacy wallet automatically without requiring manual user intervention"
+   ],
+   "reviewability": [
+    "Merge conflict needs rebase before review can be finalized",
+    "Code is otherwise complete with author addressing earlier reviewer feedback"
+   ],
+   "agreement": [
+    "Strong support for making legacy wallet migration robust against failure (ryanofsky)",
+    "Earlier concerns regarding filesystem error handling and cleanup addressed (achow101, ryanofsky)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it protects wallet integrity during legacy-to-descriptor migration failures",
+      "Eliminates manual recovery steps and avoids crashes on read-only directories or disk write failures"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request improves the robustness of legacy wallet migration by handling exceptions gracefully and retaining the original BerkeleyDB database until SQLite database creation fully succeeds. It prevents abrupt GUI crashes and ensures failed migrations can restore the original wallet automatically without user intervention.",
+  "problem": "During legacy wallet migration, unhandled exceptions or filesystem errors (such as non-writable directories) can abort the process mid-migration. This leaves the wallet in an inconsistent half-migrated state requiring manual restoration from backup.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Checking path writability up front risked TOCTOU issues and masked lower-level errors; author switched to catching filesystem exceptions during operations directly (ryanofsky).",
+    "Temporary directory naming and error return instead of throwing in MigrateToSQLite (achow101).",
+    "Handling symlinks, removing temporary SQLite directories on failure, and avoiding unnecessary asserts (ryanofsky)."
+   ],
+   "author_status": "active, addressed reviewer feedback with force-push on 2026-09-02"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with the base branch and carries the Needs rebase label."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "Reported benchmark CI failure on Windows and suggested drafting"
+    },
+    {
+     "login": "hebasto",
+     "stance": "neutral",
+     "note": "Pointed out specific failing benchmark"
+    },
+    {
+     "login": "achow101",
+     "stance": "objection",
+     "note": "Suggested improving temp directory naming and returning errors instead of throwing"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "support",
+     "note": "Reviewed and ACKed approach; noted benefits for old wallet preservation while raising several error-handling suggestions"
+    },
+    {
+     "login": "sedited",
+     "stance": "neutral",
+     "note": "Asked author to rebase and address review comments"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ryanofsky",
+     "kind": "approach",
+     "harm": "Pre-checking writability introduces TOCTOU risks, duplicates write logic, and masks error reporting",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-01-07: 'I\u2019d advise against the approach in the last two commits of checking whether paths are writable before writing, rather than handling write failures directly.'",
+     "resolution_evidence": "2026-06-25: 'Initial concern i had earlier about trying to predict whether paths were writable is resolved and well handled.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "achow101",
+     "kind": "correctness",
+     "harm": "Throwing an exception in MigrateToSQLite bypasses failed migration cleanup",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-01-26: 'Why throw instead of returning an error? MigrateToSQLite already bypasses failed migration cleanup.'",
+     "resolution_evidence": "2026-01-26: 'Changed it to return an error instead.'",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "correctness",
+     "harm": "Filesystem operations could throw or leave temporary wallet directories on failure",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-25: 'This function returns util::Result but contains a lot of filesystem calls that can throw exceptions... Could delete tmp_wallet_path here.'",
+     "resolution_evidence": "2026-09-02: 'All cases should be covered now, thanks!'",
+     "sources": [
+      "dossier"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "Delays deleting original database until new SQLite database is fully created so user does not need manual restore",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: ryanofsky supported the migration safety improvements, and all inline suggestions were addressed by the author.",
+   "reason": "ryanofsky gave a detailed code review ACK welcoming the preservation of the original database during migration failures. All suggestions by achow101 and ryanofsky have been resolved in subsequent commits.",
+   "evidence": [
+    "2026-06-25: ryanofsky approved (Code review ACK 406c14d): 'The last commit provides a potentially significant benefit because it delays deleting the original wallet database until the new sqlite database is fully created'",
+    "2026-09-02: furszy pushed updates addressing all open inline review points"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (ryanofsky)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "approach",
+      "harm": "masks other problems, adds unnecessary complexity, and introduces TOCTOU risks",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-07: \"I\u2019d advise against the approach in the last two commits of checking whether paths are writable before writing, rather than handling write failures directly.\"",
+      "resolution_evidence": "2026-06-25: \"Initial concern i had earlier about trying to predict whether paths were writable is resolved and well handled.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "first 4 commits straightforwardly improve error handling, and the last commit provides a potentially significant benefit by delaying original wallet deletion until the new SQLite database is created, preventing manual restore requirements",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "reported CI failure and suggested switching to draft"
+     },
+     {
+      "login": "hebasto",
+      "stance": "neutral",
+      "note": "noted which benchmark failed in CI"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "support",
+      "note": "advised against pre-checking path writability (resolved), then gave code review ACK"
+     },
+     {
+      "login": "achow101",
+      "stance": "question",
+      "note": "asked why throw instead of returning an error and suggested naming improvement"
+     },
+     {
+      "login": "sedited",
+      "stance": "neutral",
+      "note": "pinged author to rebase and address feedback"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: ryanofsky gave a code review ACK after initial concerns about path pre-checking were resolved.",
+    "usage": {
+     "input_tokens": 6773,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2553
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "approach",
+      "harm": "Pre-checking writability introduces TOCTOU risks, duplicates write logic, and masks error reporting",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-07: 'I\u2019d advise against the approach in the last two commits of checking whether paths are writable before writing, rather than handling write failures directly.'",
+      "resolution_evidence": "2026-06-25: 'Initial concern i had earlier about trying to predict whether paths were writable is resolved and well handled.'"
+     },
+     {
+      "reviewer": "achow101",
+      "kind": "correctness",
+      "harm": "Throwing an exception in MigrateToSQLite bypasses failed migration cleanup",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-01-26: 'Why throw instead of returning an error? MigrateToSQLite already bypasses failed migration cleanup.'",
+      "resolution_evidence": "2026-01-26: 'Changed it to return an error instead.'"
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "correctness",
+      "harm": "Filesystem operations could throw or leave temporary wallet directories on failure",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-25: 'This function returns util::Result but contains a lot of filesystem calls that can throw exceptions... Could delete tmp_wallet_path here.'",
+      "resolution_evidence": "2026-09-02: 'All cases should be covered now, thanks!'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "Delays deleting original database until new SQLite database is fully created so user does not need manual restore",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes wallet migration logic in src/wallet/wallet.cpp and handles database conversion between BDB and SQLite.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Legacy-to-descriptor migration correctness is an essential reliability safeguard for remaining legacy wallet users. Preventing broken partial migrations and automatic rollback on errors removes a high-friction failure mode that currently requires manual backup recovery."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The PR modifies wallet database migration logic; filesystem helper touchpoints were specific to wallet directory handling and later dropped.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not provide general utility infrastructure or shared libraries."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR improves legacy wallet migration robustness by preventing crashes and ensuring failures do not leave the database in an inconsistent state. The original BerkeleyDB database is kept intact until SQLite database creation succeeds, avoiding the need for manual backup recovery. Migration correctness is high priority for safe deprecation of legacy wallets, and ryanofsky strongly supported the approach. The PR needs a rebase to resolve merge conflicts before it can proceed."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0146535
+}

@@ -1,0 +1,201 @@
+{
+ "number": 32468,
+ "input_hash": "392af45e9f8b3624",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:44+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33796,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5770
+ },
+ "cost_usd": 0.0469845,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Extend generateblock on regtest to support multiple coinbase outputs with custom rewards and optional mempool mining",
+    "Enable developers to simulate mining pool payouts and multi-recipient coinbase protocols like Ocean and Braidpool"
+   ],
+   "reviewability": [
+    "Ready for review following the recent rebase and completion of custom reward splits"
+   ],
+   "agreement": [
+    "Strong support for extending generateblock rather than creating new RPCs (andrewtoth)",
+    "Requested general solution with custom reward splits implemented (stickies-v)",
+    "Earlier design concerns on keeping changes out of node miner code resolved (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it enhances the generateblock testing interface with multi-output splits and mempool inclusion",
+      "Resolves testing limitations for developers simulating multi-output coinbases without altering production RPCs"
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it improves regtest block generation tooling to simulate complex coinbase transactions",
+      "Has no impact on production block template construction or stratum mining interfaces"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates the `generateblock` RPC to accept multiple addresses or descriptors for the coinbase output, optionally specifying explicit amounts in satoshis while dividing any remainder equally. It also falls back to burning the reward in an OP_RETURN output if no outputs are specified. Furthermore, `generateblock` now mines transactions from the mempool if the `transactions` argument is omitted, and only mines an empty block if an empty list is explicitly passed.",
+  "problem": "Developers testing protocols that expect multiple recipients in a coinbase transaction (such as mining pools like Ocean or Braidpool) previously had no clean way to generate such blocks via RPC on regtest without manual raw block construction. Additionally, `generateblock` required explicit transaction hexes or IDs and could not automatically assemble a block from the mempool.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Initial implementation added a new `generatetomany` RPC; andrewtoth suggested extending `generateblock` instead to avoid RPC bloat and deprecation cycles.",
+    "maflcko noted that test-only logic should not live in `src/node/miner.cpp`; the author moved the custom coinbase mutation logic to `src/rpc/mining.cpp`.",
+    "Handling JSON arrays vs strings in the CLI argument parser was resolved after prerequisite PR #33230 merged.",
+    "stickies-v and andrewtoth advocated for custom reward amounts rather than only equal splits; author implemented custom reward pairs in collaboration with bicaru20."
+   ],
+   "author_status": "active, recently marked ready for review after implementing custom reward splits and rebasing on master"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All requested design changes have been implemented, the PR has been rebased on master, and CI is passing."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus to extend generateblock; feedback from andrewtoth, maflcko, and stickies-v addressed",
+   "reason": "Reviewers agreed on the concept and shaped the design: extending generateblock rather than adding a separate RPC, moving the code out of src/node, and supporting explicit per-output reward allocations.",
+   "evidence": [
+    "andrewtoth proposed extending generateblock to take multiple outputs and optional mempool mining rather than adding generatetomany",
+    "maflcko guided the implementation to avoid modifying core miner code in src/node",
+    "stickies-v argued for implementing custom rewards as the general solution, which the author incorporated"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Simplifies regtest functional tests by removing boilerplate raw block construction for custom coinbases"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies the arguments and behavior of the generateblock RPC in src/rpc/mining.cpp and src/rpc/client.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Extending `generateblock` adds flexibility requested by external developers to simulate multi-output coinbases on regtest. As andrewtoth highlighted, allowing an optional transaction list that defaults to the mempool also makes `generateblock` a more complete testing tool."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Touches src/rpc/mining.cpp to modify regtest block construction and coinbase outputs.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.25,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Improves developer-facing block generation tools on test chains by allowing customized coinbase outputs and mempool-based template mining, but does not alter mainnet block assembly or pool interfaces."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes a release notes entry, which is standard for RPC changes and does not make it primarily a documentation PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Only adds release notes accompanying the RPC change."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Only mechanical test invocation changes in test/functional/rpc_txoutproof.py.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No index code is touched."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Only updates calls to generateblock in functional tests under test/functional/mempool_*.py.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change mempool policy, validation, or data structures."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Only updates generateblock call sites in p2p_outbound_eviction.py.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No peer-to-peer networking code is affected."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only mechanical call site update in test/functional/wallet_bumpfee.py.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet logic or wallet RPCs are touched."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies the generateblock RPC to allow multiple coinbase outputs with custom reward amounts, falls back to burning reward in OP_RETURN if no outputs are given, and mines the mempool if the transactions argument is omitted. It addresses a gap where regtest testing could not simulate multi-output coinbase distributions used by modern mining pool setups like Ocean or Braidpool. Reviewers andrewtoth and stickies-v guided the architecture toward extending generateblock with custom amounts rather than introducing new commands. The PR was recently updated with custom reward allocation logic, rebased on master, and is ready for review."
+ },
+ "raw_text": null
+}

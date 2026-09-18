@@ -1,0 +1,121 @@
+{
+ "number": 33034,
+ "input_hash": "b88aa8b29fb3b31a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19186,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3242
+ },
+ "cost_usd": 0.0368023,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Store wallet transactions in their own SQLite table instead of packing everything into KV-store blobs.",
+    "Lets the wallet load transactions in the order it originally assigned them, simplifying future features and reducing serialization headaches."
+   ],
+   "reviewability": [
+    "CI is failing and the PR is still marked draft after many force pushes over more than a year.",
+    "Author remains active (last push mid-September) but the code is a moving target; review effort risks being invalidated by further rework."
+   ],
+   "agreement": [
+    "Strong support: two contributors gave Concept ACKs, one (rkrux) with a specific stated reason that using SQLite relationally avoids awkward serialization hacks seen in prior PRs.",
+    "No objections raised (w0xlt, rkrux)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it is foundational plumbing for wallet data storage that the author says will make PRs like #27865 'a bit simpler and easier to reason about', and because getting the upgrade/downgrade path wrong risks fund safety during automatic migration.",
+      "Benefit is mostly to future wallet maintainability and correctness of the migration path rather than an immediate user-facing feature."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Not a member: the only touched validation-adjacent file (transaction_identifier.h) gets a minor span constructor used for deserializing txids from SQLite blobs, not a change to validation behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a dedicated SQLite table for wallet transactions, replacing the current key-value blob storage, so that transactions can be loaded in their original wallet order via a simple SQL query. It introduces client-feature versioning (LastClientFeatures, LAST_OPENED_FEATURES/LAST_DECRYPTED_FEATURES records) to detect when an automatic upgrade to the new table is needed, including upgrade-downgrade-upgrade handling to avoid fund loss. It also refactors sqlite.cpp/h to use a new SQLiteStatement RAII class and adds serialization for TxState structs to support the new column-based storage.",
+  "problem": "The wallet currently uses SQLite purely as a key-value store, requiring multiple fields to be serialized together and losing the ability to load records in a guaranteed order; this makes some features (like tracking no-longer-spendable TXOs, #27865) harder to implement correctly. Wallet maintainers feel this complexity when reasoning about record ordering and multi-field serialization.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, still iterating via force pushes as of 2026-09-15"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "The PR is a large, still-draft, actively reworked change with CI currently failing and 34 force pushes over 14+ months; reviewing the current head risks being invalidated by the author's ongoing rework, and CI failure itself signals the code is not settled."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Two Concept ACKs (w0xlt, rkrux), rkrux gives a specific rationale, nobody has objected.",
+   "reason": "rkrux explicitly endorses the underlying approach ('using its relational database properties for wallet transactions seem like a good start') and no reviewer has raised a harm or blocking concern; support is thin in volume but substantive and unopposed.",
+   "evidence": [
+    "w0xlt: 'Concept ACK'",
+    "rkrux: 'I find myself agreeing with the intent here... using its relational database properties for wallet transactions seem like a good start'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    32895,
+    33033
+   ],
+   "enables": [
+    "simplifies implementation of #27865 (Track no-longer-spendable TXOs separately), per author's stated rationale",
+    "establishes pattern for using SQLite relationally for other wallet metadata (stated future goal)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Only touches src/primitives/transaction_identifier.h to add a std::span constructor used to build a Txid from a SQLite blob column; no validation logic, chainstate, or consensus behavior is changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a validation change; the touched file is only incidentally shared infrastructure (transaction identifier type)."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly changes wallet.cpp/h, walletdb.cpp/h, transaction.cpp/h, sqlite.cpp/h, and wallet functional tests to add a transactions table and automatic upgrade logic; carries the Wallet label.",
+    "band": "P2",
+    "reason_tag": "unblocks #27865",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "The PR reworks core transaction persistence and adds an upgrade/downgrade path that must not lose funds ('This should give us sufficient upgrade-downgrade-upgrade handling to not lose any funds' - author), which touches fund safety directly. Its main value is leverage: the author states it simplifies future work like #27865 and moves the wallet toward relational storage, a stated multi-PR project, rather than delivering an immediate user-facing feature."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CI failure is a transient/mechanical issue or reflects an unresolved bug in the migration logic itself is not clear from the signals given.",
+   "The PR's true readiness for review is hard to judge given 34 force pushes over 14 months with only light review engagement; it's unclear if maintainers consider the underlying design settled or still in flux.",
+   "Fund-safety risk during upgrade/downgrade is asserted by the author but not independently verified by a reviewer in the visible discussion."
+  ],
+  "card": "This PR replaces the wallet's key-value blob storage of transactions with a dedicated SQLite table with per-field columns, enabling deterministic order-based loading and simplifying future wallet features; the author states it will make #27865 (tracking no-longer-spendable TXOs) simpler to implement and describes upgrade/downgrade handling designed to avoid losing funds during automatic migration. It depends on two other open PRs (#32895, #33033) and conflicts with numerous other open wallet PRs by the same and other authors, reflecting a long-running, still-evolving refactor (34 force pushes over 14+ months). Review support so far is two Concept ACKs (w0xlt, rkrux) with no objections, but the PR remains draft with CI currently failing, so the code itself is a moving target even though the underlying goal is well-reasoned. Priority in wallet is driven by fund-safety implications of the migration path and by the leverage it provides for other pending wallet work, rather than by any immediate user-facing feature."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

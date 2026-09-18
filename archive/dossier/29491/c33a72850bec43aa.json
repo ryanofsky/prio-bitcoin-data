@@ -1,0 +1,178 @@
+{
+ "number": 29491,
+ "input_hash": "c33a72850bec43aa",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 35623,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6787
+ },
+ "cost_usd": 0.07096430000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up Schnorr signature verification during block validation by batching many signatures into fewer secp256k1 calls.",
+    "Aims to reduce IBD and block-connection time, especially for taproot-heavy blocks."
+   ],
+   "reviewability": [
+    "Paused: the PR depends on an unmerged secp256k1 batch-verification module that is still being revised, and the author has explicitly deferred rebasing until that stabilizes.",
+    "Marked EXPERIMENTAL and draft for over two years, with 17 force-pushes as the design and upstream API keep changing."
+   ],
+   "agreement": [
+    "Constructive, ongoing collaboration on architecture (andrewtoth, Eunovo, fjahr) with several redesigns adopted in response to feedback.",
+    "0xB10C and willcl-ark benchmarked an early version and found it slower than master in some cases, a concern later mitigated but not conclusively resolved by later batching-per-thread redesigns.",
+    "No concept objections have been raised, but nobody has stated the current approach is a clear net win yet."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because the potential payoff is faster block/IBD validation, a real user-felt benefit, but benchmarks so far are inconclusive (0xB10C found it slower than master in places) and the approach depends on an unmerged, unstable secp256k1 API.",
+      "Marked EXPERIMENTAL by the author for exactly this reason, so it is not yet a decided direction to review for merge."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it vendors a substantial new secp256k1 batch module into the subtree, which would be a meaningful capability if it lands, but the upstream secp256k1 PRs it depends on are themselves still under review.",
+      "No stated consumer outside this experimental PR yet."
+     ]
+    }
+   ]
+  },
+  "summary": "This draft PR wires up experimental Schnorr batch signature verification into Bitcoin Core's block validation path, vendoring a new (also experimental) secp256k1 'batch' module and adding BatchableScriptCheck, a per-thread batch-verification scheme in the script check queue, and supporting tests/fuzzers. The author states it is put up 'for conceptual discussion, and collaborative benchmarking,' not for merge, and lists batching taproot tweak checks as an outstanding TODO. Over nearly two years the design has been substantially reworked multiple times in response to reviewer benchmarking and threading concerns.",
+  "problem": "Verifying many individual Schnorr signatures per block is slower than it could be; batch verification could speed up block connection and IBD for taproot-heavy blocks, which affects every node operator's sync time. However, whether this specific approach delivers a net win is still unproven, and its correctness/performance depend on an upstream secp256k1 API that is itself in flux.",
+  "discussion": {
+   "open_concerns": [
+    "Benchmarks from 0xB10C/willcl-ark (2024-05-13) showed the early implementation was slower than master, including after taproot activation.",
+    "Design concerns about lock contention (andrewtoth, Eunovo) led to several architecture changes (per-thread batches, deferred verification) whose net performance benefit is still being measured.",
+    "The underlying secp256k1 batch module (bitcoin-core/secp256k1#1134) and an ecmult refactor it depends on are still under review upstream; the API has changed multiple times, forcing repeated rebases here."
+   ],
+   "resolved_concerns": [
+    "Initial confusion about whether/how signatures were being batched was clarified by the author (2024-02-28).",
+    "Eunovo's concern about a shared batch mutex causing lock contention was addressed via a per-thread-batch redesign (2025-03-20 onward), with later benchmarks (Eunovo, 2025-05-18) showing improvement over master at high thread counts.",
+    "A discarded return value from secp256k1_xonly_pubkey_parse (raised by Eunovo 2025-06-15) was fixed in the 2026-01-26 push."
+   ],
+   "author_status": "active, most recently force-pushing 2026-08-01; has said rebasing further makes less sense until the upstream secp256k1 batch branch itself is rebased/stabilized"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on secp256k1 API",
+   "reason": "The author explicitly deferred further rebasing/rework until the upstream secp256k1 batch module (still under active review) stabilizes ('I don't think rebasing currently makes sense for me here... I would rather wait for that', fjahr 2025-05-18). The PR is also explicitly labeled EXPERIMENTAL by its author, indicating the current code is a discussion vehicle rather than a stable target for merge review."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Reviewers engaged substantively and iterated on the design together, but 0xB10C's benchmark showing a performance regression was never fully rebutted, only partly mitigated by later redesigns.",
+   "reason": "No one has raised a concept objection to batch verification itself; several members (andrewtoth, Eunovo, 0xB10C, willcl-ark) have invested real review and benchmarking effort and the author incorporated their suggestions repeatedly. The standing caveat is that the net performance benefit versus master is still unproven, which the author himself treats as an open, unresolved question rather than a settled win.",
+   "evidence": [
+    "0xB10C/willcl-ark (2024-05-13): early batch verification was slower than master, even worse post-taproot activation.",
+    "andrewtoth (2024-12-07) and Eunovo (2025-03-17): flagged lock contention in the shared-batch design; author redesigned to per-thread batches in response.",
+    "Eunovo (2025-05-05) measured the redesigned approach faster than master at high thread counts, but testing was still ongoing ('I'm waiting on more results from a fresh IBD benchmark').",
+    "fjahr (2025-05-18): explicitly frames several design choices as still experimental and unresolved pending secp256k1 pippenger work."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on bitcoin-core/secp256k1#1134 (batch module) and #1789 (ecmult refactor), which this PR treats as a hard prerequisite for a mergeable design.",
+    "Future batching of taproot tweak checks, listed as an explicit TODO in the description."
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "batchverify.cpp is added to kernel/CMakeLists.txt purely so the shared source file compiles into the kernel library; it does not touch or extend the kernel API or its boundary.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical build-list inclusion only, per the category's exclusion for validation code that happens to compile into libbitcoinkernel without touching its API."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The PR only affects block-connection signature verification (ConnectBlock/CheckInputScripts), not mempool acceptance, policy, replacement, or fee estimation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mempool policy or data structure is touched; validation.cpp changes here are in ConnectBlock's script-check path, not mempool acceptance."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New fuzz, unit, and functional tests (batchverify.cpp, key_tests.cpp, feature_taproot_invalid_output_key.py) all pin the behavior of the new batch-verification feature itself, which per the category definition belongs to the area (validation) rather than to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The checkqueue.cpp fuzz change is a minor determinism fix (SeedRandomStateForTest) incidental to the feature, not a framework capability change."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Vendors a large new 'batch' module into the secp256k1 subtree (new headers, Makefile/CMake wiring, CI matrix updates, benchmarks, examples) and substantially rewrites checkqueue.h's threading logic for per-thread batch verification.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because it is a meaningful addition to the vendored secp256k1 subtree and reworks core threading utility (checkqueue.h) with a real, if unproven, performance goal ('after pippenger is used in secp... this seems to be the fastest approach', fjahr 2025-03-20). It is capped below P2 because the upstream secp256k1 batch module it vendors is itself unmerged and still changing, so there is no stable dependency to build on yet."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Core changes are in validation.cpp/h: CScriptCheck becomes BatchableScriptCheck, CheckInputScripts and ConnectBlock gain batch-verification plumbing, and the script check queue's threading model is reworked to support per-thread signature batches.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because faster block validation would be a real, widely felt benefit ('IBD from a local node to height 840000... connect_block duration', 0xB10C benchmark 2024-05-13), but the author himself labels the PR EXPERIMENTAL and the measured benefit is inconsistent so far, with an early version measured slower than master and later redesigns only partially validated. It does not reach P2 because the change is explicitly not proposed for merge yet and depends on an unstable upstream API, so its value to reviewers today is mainly architectural discussion rather than a mergeable improvement."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the latest (2026-08-01) push resolves the performance regression that 0xB10C originally measured; no benchmark results were shown for the most recent pushes.",
+   "Whether the project intends to pursue this once secp256k1's batch module and pippenger algorithm land, or whether it is a speculative side project with no committed timeline.",
+   "Exact current state of review after the many recent force-pushes with no accompanying reviewer comments in the provided discussion."
+  ],
+  "card": "Draft, author-labeled EXPERIMENTAL PR adding Schnorr batch signature verification to block validation, aiming to speed up block connection and IBD for taproot-heavy blocks by verifying many signatures per secp256k1 call instead of one at a time. It vendors a new, still-unmerged 'batch' module into the secp256k1 subtree and reworks validation.cpp/checkqueue.h to collect signatures per worker thread and verify them in bulk. Evidence of impact is mixed: an early benchmark (0xB10C, 2024-05-13) showed it slower than master including post-taproot, while a later per-thread redesign (Eunovo, 2025-05-18) showed some improvement at high thread counts, but no conclusive net win has been demonstrated. The PR depends on the still-actively-revised upstream secp256k1 batch-verification and ecmult-refactor PRs, and the author has said further rebasing here should wait until that upstream work stabilizes. Review has been substantively collaborative (andrewtoth, Eunovo, 0xB10C, willcl-ark) with several architecture pivots, but nobody has yet confirmed the approach is ready or clearly beneficial."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

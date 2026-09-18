@@ -1,0 +1,128 @@
+{
+ "number": 35998,
+ "input_hash": "c40a5e3ea7ff88da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:19+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25900,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2372
+ },
+ "cost_usd": 0.02832,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent wallet state desynchronization and undetected database corruption",
+    "by requiring all database write operations to be checked or explicitly ignored."
+   ],
+   "reviewability": [
+    "Needs rebase due to merge conflicts with open wallet PRs."
+   ],
+   "agreement": [
+    "Positive concept support (l0rinc, rkrux, jeanpablojp).",
+    "Discussion on whether write failures should be treated as catastrophic corruption vs recovered gracefully (jeanpablojp, achow101)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes widespread silent database write omissions across the wallet,",
+      "preventing in-memory state from diverging from disk during critical operations like key encryption and passphrase changes."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR marks all `WalletBatch` database operations as `[[nodiscard]]`, forcing callers across the wallet to check write/erase results or explicitly ignore them. It updates key encryption, passphrase changes, descriptor management, and transaction persistence to handle or propagate failures instead of updating in-memory state when disk writes fail.",
+  "problem": "Many wallet database write failures were historically ignored, which could leave in-memory state desynchronized from disk (such as passphrase updates or newly generated/encrypted keys existing only in RAM and being lost or corrupted on restart).",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp noted that certain write failure paths leave in-memory state partially updated or abort before attempting backups, whereas achow101 responded that DB write failures are considered catastrophic corruption where continuation is unsafe."
+   ],
+   "resolved_concerns": [
+    "Integration of encryption atomicity improvements from #35752."
+   ],
+   "author_status": "active, last force-pushed after addressing comments on 2026-09-14"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with several active wallet PRs and its mergeable state is dirty."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive concept support from multiple reviewers; ongoing discussion on failure philosophy.",
+   "reason": "Reviewers strongly agree with enforcing database error checks (`[[nodiscard]]`), with technical feedback centering on how specific failure modes should unwind state.",
+   "evidence": [
+    "rkrux: 'Concept ACK... because it enforces the handling of database errors, thereby ensuring consistency between in-memory behaviour and databases behaviour.'",
+    "l0rinc: 'Concept ACK, thanks for taking over.'",
+    "jeanpablojp noted specific failure scenarios in `wallet.cpp` and `scriptpubkeyman.cpp` where in-memory state is modified prior to write failure, which achow101 clarified is intentionally treated as catastrophic corruption."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35752
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Touches `src/interfaces/wallet.h` only to return `util::Expected` error types from unlock/passphrase methods, with no changes to IPC protocol or process separation infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not an IPC PR; changes to interfaces are standard wallet call site updates."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Includes wallet failure-injection tests (`FaultInjectingDatabase`) and migration benchmark adjustments, but these are test coverage specifically validating wallet persistence behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test files changed exclusively exercise wallet-internal behavior."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly alters `WalletBatch`, `CWallet`, `DescriptorScriptPubKeyMan`, and wallet encryption error handling.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it addresses systematic data integrity and state synchronization risks in wallet persistence. As achow101 states, 'many database write failures are ignored, when they should probably be handled'. By marking `WalletBatch` methods `[[nodiscard]]` and conditioning in-memory state updates on successful transaction commits and writes, this change systematically eliminates silent failure modes during passphrase updates and key crypting."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35998 marks all database methods in `WalletBatch` as `[[nodiscard]]` and updates callers throughout the wallet to either handle errors or explicitly ignore them. This prevents subtle desynchronization where in-memory keys, passphrases, or descriptor states are updated while the underlying disk write silently failed. Reviewers strongly support the concept, though the author and reviewers have discussed whether unhandled disk write failures should be treated as catastrophic corruption. The PR is currently marked draft and needs a rebase against master."
+ },
+ "raw_text": null
+}

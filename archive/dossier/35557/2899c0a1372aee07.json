@@ -1,0 +1,148 @@
+{
+ "number": 35557,
+ "input_hash": "2899c0a1372aee07",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29524,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6061
+ },
+ "cost_usd": 0.0612353,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets kernel/libbitcoinkernel applications control the clock used during validation and IBD checks, so they can run validation deterministically instead of depending on the system clock.",
+    "Adds btck_chainstate_manager_set_clock_time as the new API, and refactors validation and mempool time handling to funnel through a single per-chainstate-manager clock."
+   ],
+   "reviewability": [
+    "Ready to review now. CI passes, discussion is active, and open questions are about API design rather than blocking defects."
+   ],
+   "agreement": [
+    "Multiple reviewers engaged constructively with no unresolved objections (maflcko, sedited, stickies-v).",
+    "Open design debate over whether a callback-based btck_Clock type would be more ergonomic than a setter (stickies-v); author implemented an alternative to compare but has not committed to switching.",
+    "No NACKs, all inline nits addressed with pushes."
+   ],
+   "categories": []
+  },
+  "summary": "Adds a new kernel API, btck_chainstate_manager_set_clock_time, that lets libbitcoinkernel applications override the clock used by validation and IBD logic, as a deterministic alternative to relying on the system clock. It threads a new ChainstateManager::Now()/m_clock_now_seconds field through IsTipRecent, header validation, IBD progress, and verification-progress calculations, and includes ancillary commits refactoring mempool time representation to NodeClock::time_point and enforcing at link time that kernel code cannot call the nondeterministic NodeClock::now() directly. It is presented as an alternative to the merged #35496 and has been repeatedly rebased due to conflicts with several other in-flight PRs.",
+  "problem": "Kernel library consumers (e.g. bitcoin-chainstate-style applications, test harnesses, simulators) need deterministic validation behavior, but validation code currently reads the system clock directly in several places, making results non-reproducible and hard to test outside the main node.",
+  "discussion": {
+   "open_concerns": [
+    "stickies-v suggested a callback-based btck_Clock type instead of a one-shot setter for better ergonomics across multiple objects; author implemented it as a demo but has not committed to either approach.",
+    "Author raised whether the PR should be split (main API commit vs. the mempool/time refactor commits) and whether the validation changes and API shape are acceptable; still open as of latest activity.",
+    "maflcko asked (2026-08-17) whether an earlier concern is still relevant given a related PR was merged, and flagged a new conflict with #35906; not clearly answered afterward."
+   ],
+   "resolved_concerns": [
+    "maflcko's suggestions to avoid casts and use chrono types directly (time.h, validation.h, chainstate.cpp) were implemented by the author.",
+    "seduless's suggestion to use FakeNodeClock RAII instead of bare SetMockTime was applied.",
+    "maflcko's objection to using GetMockTime() in a fuzz target was fixed by switching to tx_pool.Now().",
+    "sedited's request for the new clock to actually be exercised by a test was addressed with added tests in later pushes.",
+    "Multiple CI failures (UBSan overflow, compile errors, flaky test) were fixed across force-pushes."
+   ],
+   "author_status": "active, most recent force-push 2026-09-08, repeatedly rebasing to resolve conflicts with other in-flight PRs"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing and the author has addressed every specific review comment with follow-up pushes. Remaining open items are design-direction questions (API shape, whether to split the PR) which are an invitation to review rather than a blocker, per project convention. The main risk is repeated conflicts with a cluster of other open PRs (#35906, #35570, #35511, #34844, #29700, #26022, #25665) causing further rebases."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive, with active but unresolved design debate over the API shape (stickies-v vs setter, sedited on granularity); no reviewer opposes merging the concept",
+   "reason": "Several reviewers (maflcko, sedited, stickies-v) engaged substantively and all inline objections were fixed by the author. The remaining discussion is about which API design is nicest, which the author says he is open to changing either way, not a blocking objection.",
+   "evidence": [
+    "maflcko: multiple inline requests to avoid casts and use chrono types; author applied all of them.",
+    "sedited: 'I would feel more confident if something was actually exercising the various instances where the chainman-scoped fake time is used now'; author added tests in response.",
+    "stickies-v: suggested a btck_Clock callback type as more ergonomic; author implemented it experimentally and says he has no problem switching either way.",
+    "No NACKs or Concept NACKs recorded."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Deterministic kernel-library validation for external applications (bitcoin-chainstate-style consumers, simulators, test harnesses).",
+    "Presented as an alternative approach to the merged #35496, superseding its mock-time mechanism for kernel use."
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds btck_chainstate_manager_set_clock_time and the C++ wrapper SetClockTime, the PR's stated main purpose, with Kernel label present.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Gives kernel applications a concrete, documented way to make validation deterministic, which the description frames as necessary for testing and simulation use cases ('lets kernel applications run validation code deterministically without depending on the system clock'). Still unsettled whether the API shape (setter vs. callback-based clock, per stickies-v) is final, which affects durability but not the underlying need."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds ChainstateManager::Now()/m_clock_now_seconds, changes IsTipRecent's signature, and touches UpdateIBDStatus, ContextualCheckBlockHeader, VerifyLoadedChainstate, and GuessVerificationProgress.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.38,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "No consensus-validity change; it centralizes time access and fixes a real but rare test race ('If a second boundary was crossed between the two calls, the tip_recent=true case would fail spuriously'). Author himself flags a subtle behavior change in IsCurrentForFeeEstimation and GuessVerificationProgress from switching precision, worth a careful look but not category-critical."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Third commit changes CTxMemPoolEntry and CTxMemPool to represent times as NodeClock::time_point (MempoolTime) instead of int64_t/seconds, touching txmempool.cpp/h and many call sites.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.32,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Author states this commit 'does not need to be part of this PR' and was done mainly to make the main commit's kernel-determinism guarantee airtight ('it gets rid of all GetTime() calls in the kernel'). Type-safety and consistency benefit but no policy or DoS-relevant behavior change."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds time_nondet.cpp, splits NodeClock::now()/_now_nondet(), and changes the CMake build so kernel code cannot link non-deterministic clock calls.",
+    "band": "P3",
+    "reason_tag": "correctness",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Enforces at link time that libbitcoinkernel cannot accidentally call the nondeterministic clock, per the commit message: 'Kernel code should generally try to be deterministic and not rely on time variables outside of application control.' This closes off a class of future correctness bugs, but is a narrow mechanism rather than a widely felt improvement today."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will settle on the setter-based API (btck_chainstate_manager_set_clock_time) or the callback-based btck_Clock alternative that stickies-v proposed and the author prototyped; this could mean significant rework before merge.",
+   "Whether the PR will be split as the author suggested (main API commit vs. mempool/time refactor commits), which would change what future reviewers evaluate together.",
+   "Unclear whether maflcko's 2026-08-17 question about relevance/conflict with #35906 was ever answered; signals show waiting_on_author_days=0 but the discussion log does not show a reply before the next force-push."
+  ],
+  "card": "This PR adds btck_chainstate_manager_set_clock_time, a new libbitcoinkernel API letting applications override the clock used in validation and IBD checks, so kernel-based tools can run validation deterministically instead of depending on the system clock; it is offered as an alternative to the already-merged #35496. It threads a new ChainstateManager::Now() through IsTipRecent, header future-time checks, and IBD/verification-progress logic, and includes secondary commits that convert mempool entry times to time_point and enforce at link time that kernel code cannot call the nondeterministic clock directly. Reviewers (maflcko, sedited, stickies-v) engaged substantively; all concrete code issues were fixed across nine force-pushes, and the remaining open item is a design debate over whether a callback-based clock type would be a nicer API than the current setter, which the author is open to changing. The PR has been repeatedly rebased due to conflicts with a cluster of other open PRs (#35906, #35570, #35511, #34844, #29700, #26022, #25665), and the author has floated splitting the mempool/time-representation commits into a follow-up. No consensus-behavior change is involved; the value is enabling deterministic testing and simulation for kernel library consumers."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

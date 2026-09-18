@@ -1,0 +1,166 @@
+{
+ "number": 29491,
+ "input_hash": "c33a72850bec43aa",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:00+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 37229,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8039
+ },
+ "cost_usd": 0.058068,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Accelerate block validation and initial block download by batch verifying Schnorr signatures.",
+    "Reduce CPU time spent in signature verification during block connection on multi-core systems."
+   ],
+   "reviewability": [
+    "Ready for architectural and benchmark review of the CheckQueue batching design.",
+    "Final merge depends on upstream secp256k1 PR 1134 landing first."
+   ],
+   "agreement": [
+    "Constructive collaboration on CheckQueue multi-threading and benchmarking (andrewtoth, Eunovo).",
+    "Early performance regressions led to per-thread batch architecture with positive microbenchmark results (0xB10C, Eunovo).",
+    "No conceptual objections to Schnorr batch verification."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it targets a substantial speedup in block connection and IBD throughput for Taproot transactions.",
+      "Improves validation efficiency on multi-core hardware without compromising consensus verification."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces Schnorr signature batch verification into block connection and CCheckQueue. It vendors an experimental upstream secp256k1 batch verification module and implements per-thread signature collection and batch execution to avoid lock contention across worker threads during block validation.",
+  "problem": "Individual verification of Schnorr signatures during block connection is CPU-intensive and does not take advantage of BIP 340 batch verification math, slowing down initial block download and block propagation verification on Taproot-heavy blocks.",
+  "discussion": {
+   "open_concerns": [
+    "Requires upstream bitcoin-core/secp256k1#1134 (batch verification module) to be finalized and merged upstream before this can merge.",
+    "Full mainnet IBD benchmarks across mixed workloads are still needed to ensure gains hold outside synthetic microbenchmarks."
+   ],
+   "resolved_concerns": [
+    "Lock contention from a shared batch mutex was resolved by refactoring CheckQueue to maintain per-thread batches (andrewtoth, Eunovo).",
+    "Performance degradation identified in initial 2024 IBD benchmarks was resolved by moving batch verification outside the checkqueue critical section (0xB10C, Eunovo, fjahr).",
+    "Properly validated return values for xonly pubkey parsing during signature collection (Eunovo, fjahr)."
+   ],
+   "author_status": "Active, recently rebased against upstream secp256k1 API changes and iterated on CheckQueue threading optimizations."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The Core CheckQueue multi-threading architecture is stable and ready for code review and benchmarking, even though upstream secp256k1 dependency is still open."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive collaborative exploration of threading design and benchmarking (andrewtoth, Eunovo).",
+   "reason": "Reviewers have actively investigated performance bottlenecks and contributed code and benchmarks to make per-thread batching effective. There are no conceptual objections.",
+   "evidence": [
+    "0xB10C and willcl-ark provided initial bpftrace benchmarks identifying that early iterations were slower than master.",
+    "andrewtoth recommended per-thread batches to avoid mutex contention in worker threads.",
+    "Eunovo co-authored commits optimizing CheckQueue and provided comparative microbenchmarks demonstrating speedup."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Taproot tweak batch verification",
+    "Faster IBD and block validation for Schnorr spends"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/CMakeLists.txt only to link batchverify.cpp mechanically into the kernel build target.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical CMake linkage update does not alter the kernel boundary or public API."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Batch verification is restricted to block connection and does not alter mempool acceptance, policy, or eviction.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mempool and transaction relay are unaffected."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds unit tests and a fuzz target specifically exercising the new BatchSchnorrVerifier, but does not modify test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests validating a specific validation feature belong to validation rather than general test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Vendors an unmerged experimental commit from an upstream secp256k1 pull request strictly to support validation prototyping.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The author directs cryptographic review to bitcoin-core/secp256k1#1134. Reviewers of utils would not review unmerged upstream subtree code in this PR."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes block script verification in ConnectBlock and CCheckQueue to batch-verify Schnorr signatures across worker threads.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because accelerating block connection and IBD directly addresses validation performance, which node operators feel. Benchmarks demonstrate substantial throughput gains on synthetic Schnorr blocks (improving from ~52 to ~125 blocks/sec on 15 worker threads) once thread-local batches eliminated queue lock contention."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements multi-threaded Schnorr signature batch verification for block connection, utilizing an experimental batch module from upstream secp256k1. It targets initial block download and block validation performance for node operators processing blocks with Taproot spends. Microbenchmarks show noticeable speedups once worker thread lock contention was addressed with per-thread batches. The PR is technically ready for architectural review of the CheckQueue changes, but merging is blocked on upstream secp256k1 PR 1134 landing first."
+ },
+ "raw_text": null
+}

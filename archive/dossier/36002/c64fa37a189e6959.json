@@ -1,0 +1,141 @@
+{
+ "number": 36002,
+ "input_hash": "c64fa37a189e6959",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22996,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4541
+ },
+ "cost_usd": 0.047107300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets txindex run while pruning is enabled, and lets it be created on an already-pruned node."
+   ],
+   "reviewability": [
+    "Ready to review, no blocking design freeze."
+   ],
+   "agreement": [
+    "Strong concept support from multiple reviewers, with open non-blocking design questions (l0rinc, ajtowns, arejula27)"
+   ],
+   "categories": []
+  },
+  "summary": "This PR removes the long-standing incompatibility between -prune and -txindex by having txindex entries reference block hashes instead of file offsets (building on #35531), so a pruned block's containing-block hash can still be surfaced even after the data is deleted. It also allows creating a txindex on a node that is already pruned, indexing only from the first available block onward, and exposes the starting height via getindexinfo. getrawtransaction, gettxoutproof, and REST /tx now report candidate pruned-block hashes on a miss so a caller can fetch the block via getblockfrompeer and retry.",
+  "problem": "Users who wanted both pruning and a transaction index previously could not combine them at all, forcing a choice between disk savings and tx lookups; this affects node operators and lightweight block-explorer style setups that want both.",
+  "discussion": {
+   "open_concerns": [
+    "arejula27 (2026-09-13) suggests unifying AllowPrune()/AllowPartialHistory() into a single enum to make the invariant type-safe, and asks whether pruned block hashes should be returned as structured RPC data instead of embedded in an error string; both are open design suggestions, not stated as blocking.",
+    "mzumsande raised an alternative design (a genuine partial index with periodic cleanup of old entries) that would allow reporting only real gaps and be enabled on an already-pruned node without the current approach's ambiguity; author explained tradeoffs and chose not to implement the cleanup complexity, mzumsande did not push back further."
+   ],
+   "resolved_concerns": [
+    "ajtowns asked what happens if txindex is enabled on an already-pruned node; author initially explained current behavior mirrors other indexes (fatal error), then implemented partial-history support in response, addressing the concern with a code change."
+   ],
+   "author_status": "active, most recently force-pushed 2026-09-10 to rebase around #36116 and add partial-history support; last reviewer comment 2026-09-13"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No material unanswered request has been open past the 7-day threshold (only 3 days since arejula27's latest review comment), and the author has been actively responding and pushing changes throughout the discussion. The open design questions (enum refactor, structured RPC return) are suggestions for possible follow-up, not stated blockers."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from l0rinc, ajtowns, and arejula27 with no standing objection; ajtowns's and mzumsande's design concerns were addressed by author explanation or a follow-up push.",
+   "reason": "Three reviewers (l0rinc, ajtowns, arejula27) gave concept ACKs with l0rinc explicitly enthusiastic ('Big concept ACK'). ajtowns's question about pruned-node startup behavior led to a concrete code addition by the author (partial-history support) rather than staying unresolved. mzumsande's alternative-design suggestion was answered with a rationale (disk growth is bounded and manageable) and mzumsande did not contest it further. arejula27's latest structural questions are open but framed as suggestions for improvement, not objections to the change.",
+   "evidence": [
+    "l0rinc: 'Big concept ACK :D/'",
+    "ajtowns: 'Concept ACK, looks okay to me at first glance' plus a question about already-pruned startup, later resolved by author's added partial-history feature",
+    "mzumsande: suggested an alternative partial-index design with cleanup; author declined the added complexity with a stated rationale, no further pushback",
+    "arejula27: 'Concept ACK... I'm excited about this PR' with open suggestions about API shape, not objections"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35531
+   ],
+   "enables": [
+    "Running txindex on pruned nodes, a capability multiple reviewers (ajtowns) said they want for their own setups",
+    "Future structured-data or automated getblockfrompeer-retry RPC flow suggested by arejula27"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly changes the base index framework (BaseIndex::Init, AllowPartialHistory, first-block-height persistence) and TxIndex's pruning behavior, matching the 'UTXO Db and Indexes' area's core subject.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 3,
+     "leverage": 1
+    },
+    "rationale": "P2 because it removes a hard, long-standing restriction (prune and txindex were mutually exclusive) that affects any operator wanting both disk savings and tx lookups, described directly in the PR: 'This PR enables maintaining a txindex while pruned.' ajtowns independently confirmed demand: 'I'd definitely prefer to have a -prunetxindex=1 option I could set.' It builds on the disk-usage work of #35531 and is a genuine new capability rather than a refactor, but it is not consensus-critical or a correctness fix, keeping it below P1."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Substantively changes getrawtransaction, gettxoutproof, REST /tx, and getindexinfo: new error text for pruned-block misses, a new first_block_height field, and changed logic for undo-data availability checks (BLOCK_HAVE_MASK -> BLOCK_HAVE_UNDO).",
+    "band": "P3",
+    "reason_tag": "gap fix",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because the RPC surface changes are real but derivative of the indexes feature: existing callers get more informative error strings and a new getindexinfo field rather than a fundamentally new capability. arejula27's review flagged that returning pruned-block hashes only as embedded text (rather than structured JSON) may force callers to parse strings, a genuine RPC-compatibility consideration still open."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new functional test (feature_txindex_prune.py) pins txindex-and-pruning behavior specifically, which per the tests category definition belongs to the indexes area rather than the test-infrastructure category; the test_runner.py registration is mechanical.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the test changes are area-specific coverage for indexes, not changes to the test framework or harness itself."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "init.cpp changes are narrowly about the -prune/-txindex startup interaction, not general logging, argument-parsing, or shared-infrastructure behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the init.cpp edits only adjust the startup error/compatibility check for this specific feature, not utils-category subject matter."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the RPC error-string changes could break existing callers that pattern-match on the old 'Prune mode is incompatible with -txindex' or 'No such mempool or blockchain transaction' messages was not discussed by reviewers; treated as a moderate compatibility concern rather than confirmed harm.",
+   "Design direction (two flags vs enum, structured vs string pruned-hash return) is still under discussion; this affects future rework risk but not the current priority assessment per the rules."
+  ],
+  "card": "PR #36002 removes the long-standing rule that -prune and -txindex are mutually exclusive, letting a node maintain a txindex while pruning and even start one from an already-pruned state, building on the block-hash-based index format from #35531. It solves a real, independently-confirmed user need: reviewer ajtowns wrote 'I'd definitely prefer to have a -prunetxindex=1 option I could set... my prune=2000 node could lookup txs without needing to be reprovisioned with extra disk.' getrawtransaction, gettxoutproof, and REST now surface candidate pruned-block hashes so callers can retry via getblockfrompeer. Discussion shows strong concept support (l0rinc, ajtowns, arejula27) with an alternative cleanup-based design proposed by mzumsande and declined by the author with a stated rationale about bounded disk growth; arejula27's latest review (2026-09-13) raises open, non-blocking suggestions about API shape. The PR depends on #35531 and is currently reviewable with no material blocking request outstanding."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

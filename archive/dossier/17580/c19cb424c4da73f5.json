@@ -1,0 +1,192 @@
+{
+ "number": 17580,
+ "input_hash": "c19cb424c4da73f5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33132,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5488
+ },
+ "cost_usd": 0.0619783,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds ALLOW_LIST flag to ArgsManager so list-valued settings (like -debug, -whitelist) are correctly retrieved with GetArgs() instead of GetArg()",
+    "Enforces this at runtime to catch bugs where the wrong accessor is used, and fixes an inconsistent -blockfilterindex parsing bug along the way"
+   ],
+   "reviewability": [
+    "Paused, it sits on top of another draft PR (#16545) that a maintainer explicitly cited as the reason to mark this draft",
+    "No substantive reviewer engagement since 2020, though the author keeps rebasing to keep it mergeable"
+   ],
+   "agreement": [
+    "Multiple concept ACKs early on (hebasto, promag, ajtowns) with no unresolved objections",
+    "ajtowns raised a design nit (runtime vs compile-time checks) that was acknowledged and did not become a blocker (ajtowns, ryanofsky)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it closes a real class of bugs where list and scalar ArgsManager accessors were used interchangeably, one of which caused inconsistent -blockfilterindex parsing behavior",
+      "It is foundational for follow-on work (#17493, #17783) that further tightens argument validation"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it updates the fuzz harness and doc-check linter to tolerate new logic_error exceptions introduced by the flag enforcement, necessary framework upkeep rather than new regression coverage"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds ALLOW_LIST as a real flag on ArgsManager arguments and enforces, via CheckArgFlags, that GetArg()/IsArgSet() are never called on list-type arguments and GetArgs() is never called on non-list arguments. It also fixes a long-standing inconsistency where -blockfilterindex=\"\" sometimes enabled all indexes and sometimes triggered an error depending on argument order. The bulk of the diff is a scripted-diff tagging existing list arguments plus corresponding test and fuzz-harness updates.",
+  "problem": "ArgsManager's GetArg/GetArgs/IsArgSet methods are easy to misuse on list-valued settings (returning only the last or first value, or misreporting emptiness), a footgun for anyone adding or maintaining command-line/config options across the codebase.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns wondered whether these checks should eventually be compile-time rather than runtime; acknowledged as a possible future improvement, not blocking",
+    "ryanofsky noted IsArgSet is 'generally broken and misused for list settings', pointed at follow-up PR #17783 to address more broadly"
+   ],
+   "resolved_concerns": [
+    "ajtowns's CheckArgFlags simplification suggestion was implemented by the author in a subsequent push",
+    "Test restructuring suggestion from ajtowns was declined by the author with rationale (wants test diffs to reflect only behavior changes) and ajtowns did not push back"
+   ],
+   "author_status": "active, still periodically rebasing as of 2026-08-15 to keep in sync with base PR #16545 and resolve conflicts with unrelated merged PRs"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Review #16545 first",
+   "reason": "This PR is based on #16545, itself an open draft with no recent progress; fanquake explicitly moved this PR to draft in 2023 'given it's based on another PR, which itself is a draft'. No reviewer has substantively engaged with the current code since 2020, so a review now would mostly need to be redone once the base PR's shape settles."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from hebasto, promag, and ajtowns in 2019-2020, with ajtowns's implementation-detail concern addressed by the author and no follow-up objection.",
+   "reason": "Multiple reviewers explicitly endorsed the concept, and the one substantive technical comment (ajtowns on CheckArgFlags simplification) was implemented by the author in a later push with no further pushback.",
+   "evidence": [
+    "hebasto: 'Concept ACK'",
+    "promag: 'Concept ACK'",
+    "ajtowns: 'Concept ACK, shame all these checks are happening at runtime rather than compile time though'",
+    "ryanofsky implemented ajtowns's suggested CheckArgFlags simplification in a subsequent force-push"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    16545
+   ],
+   "enables": [
+    "#17493 (Forbid ambiguous multiple assignments in config file) builds directly on this",
+    "#17783 (Disallow calling IsArgSet() on ALLOW_LIST options) is a stated follow-up that narrows a hazard this PR partially identifies"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Only touches ci.yml's fetch-depth to support per-commit CI testing of this PR's own commit stack; not a build-system or platform change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical CI tweak needed only to let 'test-each-commit' work across this PR's many commits; author's own commit message says it 'can be dropped before merge'."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Discussion mentions an -rpcauth ALLOW_LIST fix, but the description says that fix was merged separately in #30401 and httprpc.cpp is not in this PR's current file list.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No current RPC-specific behavior change remains in this PR; the relevant fix already landed via #30401."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies the fuzz harness (src/test/fuzz/system.cpp) to catch new logic_error exceptions and updates the doc-check linter (test/lint/check-doc.py) to exclude args.h from its arg-doc regex.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "These are framework adjustments required so the fuzzer and linter keep working once flag enforcement throws new exceptions, not new coverage of a realistic regression; commit message explains the fuzz change is 'to avoid... causing HelpRequested() to raise a logic_error'."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Primary subject is src/common/args.h/.cpp: adding real ALLOW_LIST/ALLOW_BOOL/ALLOW_INT/ALLOW_STRING flags and enforcing them in CheckArgFlags, plus extensive documentation of ArgsManager semantics.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Commit 'Always reject empty -blockfilterindex=\"\" arguments' fixes a real, previously confusing inconsistency ('the same -blockfilterindex options could sometime trigger errors and sometimes not depending on option position'). The broader change prevents an entire class of latent bugs from mismatched GetArg/GetArgs usage and is explicitly the foundation for #17493 and #17783."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "chainparamsbase.cpp changes are limited to adding the ALLOW_LIST flag to existing AddArg calls (+4/-4), a mechanical follow-on from the ArgsManager change, not a change to validation logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No validation behavior, chainstate handling, or consensus logic is touched; only argument-flag annotations."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/init.cpp change is a one-line ALLOW_LIST flag addition to the -wallet argument, mechanical follow-on from the ArgsManager refactor.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet logic, fund-safety, or UX behavior is changed; it only tags an existing argument for consistency with the new flag system."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project still wants this exact approach given the six-year gap and heavy rebasing; no maintainer has re-affirmed concept agreement since 2020 despite continued activity.",
+   "Status of base PR #16545 is unclear from the data given, which directly determines whether this PR can ever move out of Paused.",
+   "Whether recent silent rebases (2024-2026) introduced new unresolved review comments not visible in the discussion log provided."
+  ],
+  "card": "This PR gives ArgsManager a real ALLOW_LIST flag and enforces, via CheckArgFlags, that list-valued settings are always read with GetArgs() and non-list settings with GetArg()/IsArgSet(), closing a footgun that has caused at least one real bug (inconsistent -blockfilterindex=\"\" parsing, now fixed to behave consistently). It is a foundational refactor for two other open PRs, #17493 and #17783, which build directly on the flags introduced here. Concept ACKs came in early from hebasto, promag, and ajtowns with no unresolved objections, but the PR is a draft stacked on another draft, #16545, and a maintainer (fanquake) explicitly cited that as the reason to pause review; there has been no substantive reviewer engagement since 2020 despite the author rebasing it roughly 35 times over six years to keep it mergeable. Its priority rests on preventing a class of latent argument-handling bugs across the whole option surface rather than on any single dramatic fix."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

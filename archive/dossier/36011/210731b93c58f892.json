@@ -1,0 +1,97 @@
+{
+ "number": 36011,
+ "input_hash": "210731b93c58f892",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5381,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2794
+ },
+ "cost_usd": 0.0207573,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes disconnecting a btcsignals callback destroy it immediately instead of leaving it alive indefinitely.",
+    "Fixes a shutdown deadlock in the multiprocess bitcoin-gui project where undestroyed callbacks held IPC references."
+   ],
+   "reviewability": [
+    "Ready to review now, no blocking question or stale state.",
+    "Only one reviewer has commented so far and did not raise a substantive objection."
+   ],
+   "agreement": [
+    "Reviewer welcomed the change and noted it's not urgent since the affected consumer (#10102) is unmerged (maflcko).",
+    "Author agrees there's no rush and floats further simplification ideas, no objections raised (ryanofsky)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it fixes a real correctness/lifetime bug in a shared signal/callback primitive used across the node.",
+      "Directly unblocks the multiprocess bitcoin-gui project (#10102) by resolving a shutdown deadlock caused by callbacks holding IPC proxy references.",
+      "Impact is currently limited since the affected consumer is not yet merged, so it is not urgent for the current release."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes btcsignals::connection::disconnect() to eagerly destroy the associated callback object (or as soon as an in-flight invocation finishes) instead of leaving it alive until an unrelated future connect() call garbage collects it. It adds characterization tests pinning the old and new destruction timing, and includes a follow-up commit adding a fallback for atomic shared_ptr operations on platforms lacking the C++20 feature. The change restores boost::signals2-like semantics for callback lifetime.",
+  "problem": "Previously, disconnected callbacks in btcsignals stayed alive indefinitely, which caused a deadlock on GUI shutdown in the multiprocess bitcoin project (#10102): node notification callbacks own mp::EventLoopRef references that kept the node process from exiting because they weren't freed on disconnect.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko questioned urgency; author confirmed there is no rush since the affected consumer (#10102) is not yet merged."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No rebase needed, CI not failing, and no material open question blocking review. mergeable_state 'blocked' reflects review/approval gating rather than a code conflict."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: maflcko appreciated the prior simpler design but confirmed no urgency for merging, author agreed and floated further simplifications with no objections raised.",
+   "reason": "One reviewer commented substantively with no unresolved criticism; the exchange concerned timing/urgency, not the correctness or desirability of the fix itself.",
+   "evidence": [
+    "maflcko: 'I really loved the simple garbage collect logic. Too bad it doesn't work for the mp-gui... I guess this can slip the next major release, as there is no rush, right?'",
+    "ryanofsky: 'Yeah no rush, and there are also some potential simplifications this change could allow.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Unblocks the multiprocess bitcoin-gui project (#10102) by fixing a shutdown deadlock caused by undestroyed callbacks."
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The change is entirely within src/util/btcsignals.h, a shared signal/callback utility used across node interfaces, matching the utils category's coverage of shared infrastructure and locking/lifetime correctness.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Fixes an unpredictable callback-lifetime bug that caused a real deadlock on GUI shutdown in the multiprocess project (#10102), per the PR description and linked CI failure log. The fix is a durable correctness improvement to a shared primitive and unblocks other work, but the affected consumer is not yet merged, so both reviewer and author agree there is no urgency ('no rush' - maflcko, ryanofsky)."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this bug also causes any currently-observable problem outside the unmerged multiprocess GUI project is unclear; no other consumer is cited.",
+   "The atomic shared_ptr fallback commit addresses CI platform build failures but its priority weight is folded into the same PR rather than assessed separately."
+  ],
+  "card": "This PR changes btcsignals::connection::disconnect() to eagerly destroy the disconnected callback object instead of leaving it alive until a later unrelated connect() call garbage collects it, restoring boost::signals2-like lifetime semantics. It fixes a real deadlock on GUI shutdown in the multiprocess bitcoin project (#10102), where undestroyed node notification callbacks held IPC proxy references that blocked the node process from exiting, per the CI failure link in the description. A third commit adds a fallback for atomic shared_ptr operations on platforms lacking the C++20 feature, addressing observed build failures on macOS, FreeBSD, and sanitizer CI builds. Reviewer maflcko engaged positively but noted no urgency since the affected consumer (#10102) is unmerged, and the author agreed while suggesting further simplifications; there are no unresolved objections. The PR is reviewable now with no blocking issues, and its priority stems mainly from being a correctness fix to a shared primitive that unblocks other multiprocess work rather than an urgent current-release need."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

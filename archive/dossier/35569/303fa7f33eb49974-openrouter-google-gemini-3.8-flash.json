@@ -1,0 +1,289 @@
+{
+ "number": 35569,
+ "input_hash": "303fa7f33eb49974",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:12+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 54663,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8319
+ },
+ "cost_usd": 0.0721935,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Hide CTransaction internal data members behind public accessor methods",
+    "Prevent callers from depending directly on transaction memory layout to enable future memory and immutability improvements"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "The branch merges cleanly, CI is passing, and recent comments are minor nits alongside an ACK"
+   ],
+   "agreement": [
+    "Concept NACK over large churn in consensus-critical code without immediate benefit (ajtowns)",
+    "Approach NACK citing premature abstraction, duplicate getters on mutable types, and broad diff size (l0rinc)",
+    "Strong support for encapsulating transaction invariants and unblocking future memory optimizations (josibake, alexanderwiederin, ryanofsky)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it establishes an encapsulation boundary on core consensus transaction types without fixing immediate bugs or improving performance",
+      "It lays architectural groundwork for future memory arena allocation and cleaner immutability models"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it adds a reusable, attribute-driven clang-tidy check to bitcoin-tidy for automated member-to-observer refactoring",
+      "The tool provides automated migration capabilities for developer refactoring workflows"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request encapsulates `CTransaction` data members behind public `const` observer functions (`GetInputs()`, `GetOutputs()`, `GetVersion()`, `GetLockTime()`) and makes the underlying fields private and non-`const`. A new `bitcoin-tidy` check (`use-observers`) is introduced to automate the mechanical migration across 86 files. It also adds mirror accessors to `CMutableTransaction` to allow generic template call sites to compile.",
+  "problem": "`CTransaction` exposes its internal member layout publicly, making storage representation part of its public API. This coupling prevents optimizing internal transaction storage, such as using a single allocation arena for blocks or implementing a regular value handle over immutable data.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns issued a Concept NACK, arguing the PR causes massive churn across consensus-critical code for zero immediate benefit and opposes making member fields non-const.",
+    "l0rinc issued an Approach NACK, arguing the refactoring is premature, adds duplicate getters to CMutableTransaction, and should be broken down into smaller review units retaining protocol naming like vin() and vout().",
+    "mzumsande questioned renaming protocol-level terminology like vin and vout to GetInputs and GetOutputs."
+   ],
+   "resolved_concerns": [
+    "Assignment operators on CTransaction were explicitly deleted to prevent accidental non-const aliasing while CTransactionRef remains in use.",
+    "Move constructor was removed to avoid leaving partially moved witness state.",
+    "The bitcoin-tidy check was generalized to use Clang attribute annotations rather than hardcoded class names.",
+    "LIFETIMEBOUND annotations were added to accessor methods returning references."
+   ],
+   "author_status": "Active, addressed technical questions in a detailed summary and engaged with reviewer feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is clean against master, CI is passing, and the automated tidy migration has been verified as reproducible by independent reviewers."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: ajtowns (Concept NACK) and l0rinc (Approach NACK) oppose the churn and direction, while josibake, alexanderwiederin, and ryanofsky support it.",
+   "reason": "Two experienced contributors have registered blocking objections against the concept and approach due to churn in consensus-critical code and lack of immediate payoffs, while several other contributors have ACKed the encapsulation architecture.",
+   "evidence": [
+    "ajtowns: 'Concept NACK. At this point my impression is that providing the kernel API is primarily acting as a supply-chain attack vector, encouraging multiple significant refactors into consensus critical code for extremely spurious reasons...'",
+    "l0rinc: 'Approach NACK for now. I don't see a concrete benefit here that justifies rewriting so many transaction call sites in consensus, policy, mempool, wallet, tests, fuzzers, and kernel-facing code.'",
+    "josibake: 'ACK 402500baad... Adding observer functions for data members moves towards an overall better design where the caller does not depend on the class layout.'",
+    "alexanderwiederin: 'ACK 402500baad... Verified fixup reproduces... Unit and Functional tests green'",
+    "ryanofsky: 'Concept ACK. I don't see practical downsides worth blocking over, and the techniques and direction seem valuable.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35904",
+    "#36015"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Changes to contrib/devtools/bitcoin-tidy/CMakeLists.txt are incidental to adding the devtool check.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change; touches CMakeLists only to register a new clang-tidy check."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Index files only receive mechanical call-site updates from tx->vin to tx->GetInputs().",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates do not make the PR a member of the indexes category."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/bitcoinkernel.cpp only for mechanical accessor call-site updates.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter the libbitcoinkernel API or its architectural boundary directly."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Mempool and policy files only have accessor call-sites updated mechanically.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change mempool behavior, policy rules, or eviction mechanics."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Touches src/node/miner.cpp and src/rpc/mining.cpp only for mechanical accessor calls.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify block template generation or the mining interface."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches p2p download manager implementation purely for mechanical getter updates.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter p2p protocol or message relay behavior."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "RPC files only have mechanical changes calling GetInputs() and GetOutputs().",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not add, remove, or modify RPC commands or return structures."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes across test files are mechanical call-site migrations to the new observer methods.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change test framework machinery or add specific test coverage."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Adds a generalized AST rewrite check (use-observers) in contrib/devtools/bitcoin-tidy.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "The PR introduces a generalized Clang-Tidy check to contrib/devtools/bitcoin-tidy that uses Clang annotations to automate migrating direct member accesses to accessor methods across the codebase, which can be reused for subsequent refactorings."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/common/bloom.cpp and src/util/rbf.cpp only to update CTransaction member accesses.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates do not make it a member of utils."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Labeled Validation; changes the core transaction primitive class (CTransaction in src/primitives/transaction.h) used throughout consensus and validation.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "The PR encapsulates CTransaction members behind observer methods, removing reliance on direct field layout as the public interface. While it introduces no immediate bug fixes or performance speedups, it establishes an architectural foundation for future optimizations such as block-level arena memory allocation and immutable value types."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches wallet code strictly through mechanical replacement of tx->vout and tx->vin with observer calls.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter wallet behavior, coin selection, database handling, or key management."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request encapsulates CTransaction data members behind public const observer methods and makes the underlying member variables private, migrating all call sites across the codebase via an automated bitcoin-tidy check. It addresses the architectural coupling where the in-memory layout of transactions acts as the public API, which prevents alternative internal representations such as arena allocation or value-handle semantics. Opponents including ajtowns and l0rinc argue the change causes widespread code churn in consensus-critical code with zero immediate benefit, while supporters including josibake, ryanofsky, and alexanderwiederin see it as a necessary foundation for future immutability and memory optimizations. The PR has working CI and reproducible tidy transformations, but remains disputed on concept and approach."
+ },
+ "raw_text": null
+}

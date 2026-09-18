@@ -1,0 +1,197 @@
+{
+ "number": 33117,
+ "input_hash": "e9bf6dd7591dfde8",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17192,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5839
+ },
+ "cost_usd": 0.047793300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets the GUI (and other future callers) load a UTXO snapshot through a clean node interface instead of touching chainstate internals directly.",
+    "Adds progress notifications during snapshot loading so users see feedback instead of a frozen UI.",
+    "Refactors the loadtxoutset RPC to go through the new interface."
+   ],
+   "reviewability": [
+    "Not reviewable right now: PR needs a rebase and shows a dirty mergeable state after 17 force-pushes over more than a year.",
+    "Code itself has been iterated through several review rounds and prior comments were addressed."
+   ],
+   "agreement": [
+    "Strong support: pinheadmz gave a code review ACK and called this the right way to expose snapshot loading to GUI users, sedited gave an approach ACK, Sjors tested it against a real GUI branch (pinheadmz, sedited, Sjors).",
+    "ryanofsky's design concern about interface shape for a future multiprocess split was resolved through several iterations (ryanofsky).",
+    "No open objections; remaining comments were nits or already addressed by later pushes."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it adds the interfaces::Snapshot abstraction the multiprocess project needs to move GUI snapshot loading out of node internals, directly serving the project's stated goal of running GUI as a separate process.",
+      "ryanofsky (an IPC maintainer) engaged directly on interface shape for the eventual process-separated case, which shows real leverage toward #10102 even though no GUI consumer has merged yet."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it adds one new virtual method to kernel::Notifications for snapshot progress, a small boundary extension rather than a core API change.",
+      "No stated external consumer depends on this specific notification yet outside the in-tree GUI work."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Not a member: nothing here touches mempool policy, acceptance, or relay."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it changes loadtxoutset's error codes from specific ones (-8, -22) to a single generic -32603, a compatibility-relevant change flagged and worked through in review (pinheadmz).",
+      "The refactor also removes duplicated file-parsing logic from the RPC handler, reducing surface area for divergence between RPC and interface behavior."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the validation.cpp change only adds a progress-notification call inside the existing snapshot-loading loop, without altering any validation rule or chainstate invariant.",
+      "A performance concern about calling the notification too often was raised and fixed by batching to every 100,000 coins (pinheadmz)."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an interfaces::Snapshot abstraction so the GUI and other callers can load a UTXO snapshot through the node interface instead of manipulating ChainstateManager and file parsing directly, adds a SnapshotLoadProgress notification so the UI can show progress during loading, and refactors the loadtxoutset RPC to go through the new interface, consolidating file-open, metadata-parse, and activation logic in one place.",
+  "problem": "Currently, loading an assumeutxo snapshot from the GUI would require GUI code to reach into chainstate internals directly, and there is no progress feedback during a multi-minute snapshot load, leaving GUI users staring at a frozen interface. Downstream GUI projects (Qt and QML) need this interface to add snapshot-loading support to their UIs.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ryanofsky's initial concern about passing an AutoFile across process boundaries was resolved by switching to a path-based Node::snapshot() API (ryanofsky, addressed by commit e79c50c).",
+    "ryanofsky questioned whether the Snapshot class was needed at all if it only had activate(); author kept it, arguing it will be needed once dump/generate snapshot functionality is exposed too (author, ryanofsky did not push back).",
+    "pinheadmz's concern that the progress notification fires too often (100M times on mainnet) was fixed by batching to every 100,000 coins (commit 8c932ff).",
+    "pinheadmz's several code-review comments about redundant file-parsing/error-code logic in the RPC handler were addressed across commits 328fef6 and af0c253, ending with a single activate() call and unified error surfacing.",
+    "fanquake's CI failure (unused variable warning on Windows) was fixed in commit 8bc4035."
+   ],
+   "author_status": "active, most recently rebasing on 2026-08-27 after sedited's nudge to rebase"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a 'Needs rebase' label and shows mergeable_state dirty after 17 force-pushes across more than a year of iteration; the code has been through multiple substantive review rounds and prior comments are resolved, but a fresh rebase is needed before further review is efficient."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "pinheadmz gave a code review ACK calling this 'the right way' to expose snapshot loading to GUI users, sedited gave an approach ACK, and Sjors tested it against a real GUI branch; ryanofsky's design concerns were resolved through iteration and nobody currently objects.",
+   "reason": "Multiple reviewers engaged substantively with specific stated reasons for wanting the change (GUI snapshot loading, testability via RPC reuse), and every raised concern was either implemented or accepted without pushback.",
+   "evidence": [
+    "pinheadmz: 'code review ACK ... I think this is an important feature to expose to GUI users, and this is the right way to get there.'",
+    "sedited: 'Approach ACK'",
+    "Sjors: 'At first glance this looks very reasonable. I also tested it in the (current) GUI...'",
+    "ryanofsky's interface-shape concerns were addressed across several force-pushes without further objection."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "GUI snapshot loading in bitcoin-core/gui#870 (Qt) and bitcoin-core/gui-qml#488 (QML), both currently draft/PR branches built on this interface.",
+    "Progress toward the multiprocess project (#10102) by moving snapshot file handling fully into the node process."
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds interfaces::Snapshot and interfaces::Node::snapshot(), the interfaces:: abstraction layer this category covers; labeled IPC; ryanofsky (an IPC-area reviewer) engaged specifically on interface design for the eventual multiprocess split.",
+    "band": "P2",
+    "reason_tag": "unblocks GUI/multiprocess",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because the PR builds the interface boundary needed to move snapshot loading out of node internals and into a callable abstraction, which is exactly the multiprocess project's stated direction; ryanofsky's sustained engagement on interface shape for the future process-separated case supports this. No external consumer has merged yet, so it stops short of P1."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds a new virtual method (snapshotLoadProgress) to kernel::Notifications, part of the kernel-node boundary this category covers.",
+    "band": "P3",
+    "reason_tag": "boundary extension",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a small, additive extension to the kernel notifications interface rather than a change to core kernel API completeness or the node-decoupling work the category prioritizes most; no external kernel consumer has asked for this specific hook."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool policy, acceptance, or relay code is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; the PR's validation.cpp change is about snapshot loading progress, unrelated to mempool."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Refactors the loadtxoutset RPC handler to use the new interface and changes its error codes from specific ones (-8, -22) to a generic -32603, a change to what existing callers get back.",
+    "band": "P3",
+    "reason_tag": "compatibility",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because collapsing distinct error codes into one generic RPC_INTERNAL_ERROR is exactly the kind of compatibility change this category flags as needing care; pinheadmz raised this and the author iterated through several revisions (328fef6, af0c253) to consolidate error handling, so the risk was worked through rather than ignored, but no external consumer complaint drove it."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies validation.cpp inside PopulateAndValidateSnapshot to call a new progress notification during snapshot loading, part of the assumeutxo snapshot path this category covers.",
+    "band": "P4",
+    "reason_tag": "progress reporting",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because the change is a UI progress hook layered on the existing snapshot-loading loop, not a change to validation correctness, chainstate integrity, or acceptance rules; the one performance concern raised (notification firing 100M times) was fixed by batching to every 100,000 coins (pinheadmz)."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the RPC error-code change (-8/-22 to -32603) would be treated by maintainers as a breaking compatibility change worth blocking on, since no external RPC consumer has weighed in.",
+   "Whether the Snapshot class's continued existence (versus a flat bool-returning method) will be revisited once actual dump/generate-snapshot GUI functionality lands, per ryanofsky's original comment.",
+   "Exact current mergeable-conflict scope with #35675 (mining template manager) and the two IWYU/unused-warning PRs is not detailed in the discussion beyond the tool-reported conflict list."
+  ],
+  "card": "This PR adds an interfaces::Snapshot abstraction so the GUI (and other future callers) can load a UTXO snapshot through the node interface instead of touching ChainstateManager and file parsing directly, adds a progress notification so a GUI can show feedback during the multi-minute load, and refactors the loadtxoutset RPC to route through the same interface. It serves the multiprocess project's goal of decoupling GUI operations from node internals, and is already exercised by draft Qt and QML GUI branches (gui#870, gui-qml#488) that add snapshot loading to those interfaces. Review has been substantive: ryanofsky shaped the interface design over several iterations, pinheadmz gave a code review ACK calling it the right way to expose this to GUI users after a performance concern (100M notification calls per snapshot) was fixed by batching, and sedited gave an approach ACK. The PR needs a rebase, has been force-pushed 17 times over more than a year, and currently shows a dirty mergeable state, so review should wait for a fresh push. No open objections remain, and the change also touches kernel notifications and RPC error-code behavior as secondary effects."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

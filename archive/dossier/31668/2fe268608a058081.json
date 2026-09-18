@@ -1,0 +1,107 @@
+{
+ "number": 31668,
+ "input_hash": "2fe268608a058081",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27580,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4252
+ },
+ "cost_usd": 0.0502463,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets importdescriptors skip the rescan entirely via a new timestamp value 'never'.",
+    "Aimed at users importing large batches (reported case: 2M addresses) where forced rescanning is slow and unnecessary."
+   ],
+   "reviewability": [
+    "Currently needs rebase, so review would be wasted until updated.",
+    "Beyond that, a reviewer (rkrux) flagged the new functional test may not actually verify the behavior it claims to; unclear if resolved."
+   ],
+   "agreement": [
+    "Concept ACK from rkrux early on, agreeing rescan-skip is a reasonable feature.",
+    "Multiple maintainers (furszy, achow101, davidrobinsonau) raised repeated implementation concerns over many months: magic -1 sentinel values, commit hygiene, and correctness of the new timestamp semantics.",
+    "Latest formal review from rkrux was Changes Requested, citing the test not proving what it claims and an incorrectly-resolved discussion thread; author pushed further fixes afterward but no confirming re-review followed."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it addresses a real but narrow performance pain point: skipping unnecessary rescans when bulk-importing descriptors known to have no history, per the author's report of importing 2M addresses.",
+      "It carries a mild footgun risk if a user misapplies 'never' to a funded address (silently missing funds until a manual rescan), which the discussion treats as a real but manageable tradeoff rather than fund-loss.",
+      "Deferrable: no urgent regression, and the design has been debated for nearly a year without settling."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a new 'never' value for the timestamp field of importdescriptors, allowing a descriptor to be imported without triggering a rescan, alongside changes to how the lowest-scanned-timestamp and rescan-trigger logic are computed. It also adds substantial functional test coverage for the new behavior in wallet_importdescriptors.py, though changes to wallet_transactiontime_rescan.py have been repeatedly flagged for removal by reviewers.",
+  "problem": "Users doing bulk descriptor imports (e.g. of many watch-only addresses known to have no prior chain history) are forced into an expensive rescan they don't need, per the author's report of importing 2M addresses. The RPC currently offers no way to explicitly opt out of rescanning per-descriptor.",
+  "discussion": {
+   "open_concerns": [
+    "rkrux (2026-05-25): the added test may not actually validate the never/now distinction it claims to (a wallet expected to have pre-existing funded history shows balance 0 without a rescan check confirming the cause), and naming in the test is confusing.",
+    "rkrux (2026-05-25/2026-01-22): a prior discussion thread was marked resolved without being addressed, and commit history has been repeatedly criticized for adding code (magic -1 sentinel) only to remove it in a later commit, making review harder.",
+    "furszy/achow101 (multiple rounds): concern about optional handling and magic-number sentinels for the 'no timestamp' case, revisited several times as fixes regressed to old patterns.",
+    "PR currently needs rebase (conflicts with #35377, #35224, #34861)."
+   ],
+   "resolved_concerns": [
+    "Original design questions about how 'never' interacts with the existing 'rescan' semantics were resolved by adopting std::optional-based timestamp handling.",
+    "Concerns about negative timestamps silently skipping full rescan were addressed by adding explicit validation rejecting negative timestamps.",
+    "Multiple nits (snake_case naming, brace placement, redundant code) were fixed across many pushes."
+   ],
+   "author_status": "active, last commented 2026-08-31 asking for final review; author_silent_days=16, no recent substantive response to rkrux's 2026-05-25 correctness concerns"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is flagged needs_rebase and conflicts with three other open wallet PRs. Even setting that aside, rkrux's 2026-05-25 review requested changes over test correctness and commit hygiene, and while the author pushed further fixes, no reviewer has since confirmed the concerns are resolved."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "rkrux gave an early Concept ACK but later filed Changes Requested over test correctness and unresolved discussion threads; author pushed fixes but no confirming re-review followed.",
+   "reason": "Multiple maintainers raised substantive, recurring implementation concerns (magic sentinel values, commit structure, test correctness) over nearly a year; the most recent formal review is a blocking Changes Requested with no subsequent maintainer sign-off.",
+   "evidence": [
+    "rkrux: 'Concept ACK ... Agree with the intent to avoid rescanning if the user specifies so' (2025-11-25).",
+    "rkrux: 'I don't think the test does what it's supposed to do' and flags an unresolved discussion mislabeled as resolved (2026-05-25, Changes Requested).",
+    "achow101 repeatedly required functional test coverage and flagged behavioral regressions (2025-04-10, 2025-12-24).",
+    "furszy repeatedly objected to use of magic -1 sentinel values recurring across pushes (2025-12-08, 2026-01-03, 2026-05-16)."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Bulk descriptor import workflows that need to skip rescanning for known-empty addresses, per the author's stated 2M-address use case."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies importdescriptors RPC logic in src/wallet/rpc/backup.cpp and its functional tests; core wallet descriptor-import behavior.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it targets a real but narrow performance pain point in bulk descriptor imports, per the author's account of importing 2M addresses where forced rescanning caused delays. It carries a mild footgun (a user could accidentally skip rescan on a funded address and see no balance until a manual rescan, as the tests themselves demonstrate), but no consensus or fund-loss risk. The lengthy, repeatedly-reset design discussion indicates the value is real but the change is not urgent or blocking other work."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether rkrux's 2026-05-25 correctness concerns about the test were actually fixed in the 2026-05-27 pushes; no reviewer confirmation is visible in the discussion.",
+   "Whether the wallet_transactiontime_rescan.py changes, repeatedly flagged for removal, remain in the current diff."
+  ],
+  "card": "This PR adds a 'never' timestamp value to importdescriptors so users can skip rescanning when importing descriptors known to have no prior history, addressing a real pain point reported by the author when bulk-importing 2M addresses. The problem is a genuine but narrow performance annoyance for large-scale watch-only imports, not a fund-safety or consensus issue, though misuse could cause a user to miss existing funds until a manual rescan. Review has spanned nearly a year with repeated maintainer pushback (furszy, achow101, rkrux) on sentinel-value handling, commit hygiene, and, most recently, whether the added functional test actually proves the claimed behavior; the latest formal review (rkrux, 2026-05-25) was Changes Requested and remains unconfirmed as resolved. The PR currently needs rebase and conflicts with three other open wallet PRs (#35377, #35224, #34861). Concept agreement exists (rkrux Concept ACK) but implementation disagreement has kept this unmerged through 45 force-pushes.\n"
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,189 @@
+{
+ "number": 35302,
+ "input_hash": "96e21b02c106f4f1",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27994,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6067
+ },
+ "cost_usd": 0.059735300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds wallet support for sending to BIP352 silent payment addresses: computing the shared secret, deriving taproot output scripts, coin selection awareness, RBF/bumpfee support, and a helper RPC to scan for SP outputs.",
+    "Lets Bitcoin Core wallets pay privacy-preserving silent payment addresses instead of requiring a separate address per payment, for users and second-layer software wanting output-address privacy."
+   ],
+   "reviewability": [
+    "Not ready right now: it needs a rebase and is stacked on an unmerged prerequisite (#35301), and conflicts with over a dozen other open wallet PRs.",
+    "Review of the core logic is otherwise fairly mature after multiple rounds of nits and test additions."
+   ],
+   "agreement": [
+    "Concept ACK from rkrux, no objections raised against the approach itself (rkrux).",
+    "Two rounds of substantive review (theStack, rkrux) on code style, missing test coverage, and hardcoded test data, all addressed by the author across several force-pushes.",
+    "No unresolved blocking criticism as of the latest exchange (rkrux, Eunovo)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it delivers a real, user-facing privacy feature (sending to SP addresses) that many wallets and second-layer users would value, and it touches fund-flow logic: coin selection, change type, RBF/bumpfee output recomputation.",
+      "Bugs in output-script derivation or RBF recompute could misdirect funds, so correctness here matters beyond a typical feature add.",
+      "Depends on the still-unmerged receiving PR and the base SP implementation PR, so it cannot land alone."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds a narrow-purpose RPC (scantxforsilentpayments) mainly used by this PR's own tests, without evidence of an external caller asking for it.",
+      "The other RPC touches are mechanical destination-variant plumbing rather than new interface surface."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because src/common/bip352.cpp wraps the libsecp256k1 silentpayments module, a cryptographic primitive whose correctness underpins both fund safety and the privacy guarantee the whole feature exists for.",
+      "It's shared infrastructure intended for wallet, RPC, and eventually node-side indexing, so a bug here has wide blast radius across the SP project."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P4 because the functional and unit tests mostly pin wallet-specific SP sending behavior rather than improving the shared test framework.",
+      "The fuzz-harness extensions for the new destination types are the one part that is genuinely framework coverage, and are minor."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR implements silent-payment sending in the wallet: deriving private keys and shared secrets for BIP352, generating taproot output scripts for silent payment recipients, making coin selection and change-type logic SP-aware, supporting RBF/bumpfee for SP outputs, and adding a scantxforsilentpayments RPC plus extensive unit and functional tests. It is the second of a multi-PR series building silent payments into Bitcoin Core, following the address/type/serialization groundwork and depending on the still-open BIP352 implementation PR (#35301).",
+  "problem": "Users who want to receive payments without revealing a reusable address currently cannot use silent payments in Core because the wallet has no way to send to an SP address; this PR closes that gap for senders, which is the counterpart needed for the SP receiving side (#32966) to be useful end to end.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "theStack's request to use the BIP-specified exact list of output types instead of an open-ended condition - addressed by author.",
+    "theStack's nits on code style (fake-use identifier, any_of, function naming) - addressed by author.",
+    "rkrux's request to remove createwallet descriptors flag and -replaceable arg from tests, add bumpfee-with-new-outputs and RBF self-cancel test cases, avoid hardcoded xprv/xpub, remove dead code, use assert_equal/assert_greater_than helpers - all addressed across subsequent force-pushes, most recently 'Fixed.' on 2026-07-24."
+   ],
+   "author_status": "active, addressing review comments through 2026-07-24, most recently reworking test file per rkrux's feedback"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Marked needs-rebase by the project bot and mergeable_state is dirty. It is also stacked on the unmerged prerequisite PR #35301, and conflicts with 13 other open PRs, so the diff will keep shifting until that base lands."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from rkrux with no objections raised, and all substantive review nits from theStack and rkrux have been addressed in later pushes.",
+   "reason": "No reviewer has raised a standing objection to the approach or the code; feedback has been iterative style/coverage requests that the author kept resolving.",
+   "evidence": [
+    "rkrux: 'Concept ACK' (2026-05-20)",
+    "theStack: several inline nits on scriptpubkeyman.cpp and rpc/spend.cpp, each marked 'Done'/'Removed' by author",
+    "rkrux: requested test hardening (remove -replaceable, remove createwallet descriptors flag, add bumpfee-with-outputs and RBF self-cancel tests, use test helpers, avoid hardcoded keys) - author implemented all, latest fix 2026-07-24"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35301
+   ],
+   "enables": [
+    "Completion of the silent payments sending side of the broader SP project tracked in issue #28536, complementing the receiving PR #32966"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Adds a silent_payment_hrp field to CChainParams used for address encoding, but does not touch the libbitcoinkernel API, its boundary, or any consumer of the library; it is incidental data plumbing, not a kernel change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a kernel-boundary change; chainparams additions here only serve address encoding/decoding used by wallet and RPC."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds the scantxforsilentpayments RPC in src/rpc/output_script.cpp and rpc/util.cpp, plus destination-variant plumbing in existing RPC visitor code.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The new RPC is described as 'Useful in sp sending functional tests to check that the resulting taproot outputs are correct' (commit message), i.e. built mainly to support this PR's own test suite rather than a known external consumer, which keeps it in the worthwhile-but-deferrable band."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Extends the fuzz harness (test/fuzz/util.cpp, script.cpp, rpc.cpp) to construct and validate the new SilentPaymentsDestination variants, alongside large functional/unit test additions that mainly pin wallet-specific SP behavior.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Most of the test volume (bip352_tests.cpp, wallet_silentpayments_sending.py) pins wallet behavior and belongs to the wallet category per the rules; only the fuzz-util additions for new destination variants are genuine framework coverage, and those are incremental rather than closing a known gap."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "src/common/bip352.cpp/h wraps the libsecp256k1 silentpayments module as new shared infrastructure intended for RPC, wallet, and future node-side index consumers per the commit message.",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Commit d7f1998fa5 states this module is 'intended to be used by: RPCs ... Wallet ... Node', making it a shared cryptographic primitive whose correctness determines whether SP outputs are computed correctly across every future consumer; errors here would propagate into fund-affecting wallet logic."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Bulk of the diff is wallet code: coin selection, change-type selection, feebumper/RBF handling, walletdb persistence of SP recipients, and scriptpubkeyman key derivation for SP outputs.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 3,
+     "leverage": 2
+    },
+    "rationale": "This is the wallet half of a widely anticipated privacy feature (silent payments), addressing a real gap described in the PR as completing 'integrating silent payments into Bitcoin Core'; it also touches fund-flow-sensitive paths (coin selection, RBF output recomputation, change type), where an error could misdirect funds, and it is a prerequisite for the SP project (#28536) to be usable end to end."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether prerequisite PR #35301 has stabilized enough that this PR's diff (measured against current main) reflects only its own net-new work versus duplicated content.",
+   "How severe the fund-safety risk actually is without deeper review of the coin-selection and RBF-recompute code paths.",
+   "Whether the many open conflicting PRs (#35716, #33034, #27865, etc.) will force substantial rework of this PR's wallet-side changes before merge."
+  ],
+  "card": "This PR adds silent-payment sending to the wallet: deriving shared secrets and taproot output scripts per BIP352, making coin selection and RBF/bumpfee aware of SP outputs, and adding a scantxforsilentpayments RPC plus large test suites, as part two of the multi-PR silent-payments project tracked in issue #28536. It depends on the still-open BIP352 implementation PR #35301 and conflicts with over a dozen other open wallet PRs, and is itself marked needs-rebase, so review value is currently capped by churn even though the code has had two rounds of substantive review (theStack, rkrux) with all raised issues addressed by the author through 2026-07-24. No reviewer has objected to the approach; rkrux gave a concept ACK. The strongest evidence of importance is that this closes the sending half of a privacy feature whose receiving half (#32966) already exists, and that its crypto-wrapper component (src/common/bip352.cpp) is explicitly designed to be shared by wallet, RPC, and future node-side consumers."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

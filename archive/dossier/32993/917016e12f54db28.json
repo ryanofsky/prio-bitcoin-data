@@ -1,0 +1,110 @@
+{
+ "number": 32993,
+ "input_hash": "917016e12f54db28",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15766,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3712
+ },
+ "cost_usd": 0.0357323,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a libFuzzer target that exercises CWallet::ScanForWalletTransactions against randomly generated blocks and transactions.",
+    "Aims to grow fuzz coverage for wallet rescanning, an area with a known crash issue (#31474)."
+   ],
+   "reviewability": [
+    "Paused: author moved the PR to draft to refactor for better fuzzing efficiency, current exec/s is poor.",
+    "Code has already had two real bugs found and fixed during review (dead branch, UAF from stale filter index)."
+   ],
+   "agreement": [
+    "Positive: one stale tACK plus a detailed review from ekzyis who found a UB and a UAF, both of which the author accepted and fixed (ekzyis, Chand-ra, brunoerg).",
+    "No standing objections; the only open item is the author's own plan to further refactor for speed."
+   ],
+   "categories": []
+  },
+  "summary": "Adds a new fuzz target, wallet_scan, that builds a chain of randomly generated blocks and transactions and then calls CWallet::ScanForWalletTransactions on it, exercising the wallet rescan path. It also wires optional block filter index creation/destruction into the harness. The author explicitly notes it is not a regression test for the known rescan crash issue #31474, since reproducing that would need async/multi-threaded scenarios.",
+  "problem": "Wallet rescanning (ScanForWalletTransactions) currently lacks fuzz coverage, and a real crash (assert) in this code path was previously reported in #31474; this closes part of the gap tracked by the wallet fuzzing tracking issue #29901.",
+  "discussion": {
+   "open_concerns": [
+    "Author has moved the PR to draft to refactor the harness for better exec/s efficiency, no timeline given."
+   ],
+   "resolved_concerns": [
+    "ekzyis found the AbortRescan() branch was a dead no-op; author confirmed and removed it.",
+    "ekzyis found a heap-use-after-free from a filter index surviving into the next fuzz iteration when initialized but the corresponding destroy branch wasn't taken; author agreed with the diagnosis and fixed it (unconditional DestroyAllBlockFilterIndexes call), confirmed in the follow-up force-push."
+   ],
+   "author_status": "active, said reworking for efficiency, moved to draft on 2026-06-12"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "On 2026-06-12 the author moved the PR to draft explicitly to refactor the harness for better fuzzing efficiency ('current avg exec/s is far from being good'), so the current code is expected to change materially before it should be reviewed again."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: Chand-ra gave a (stale) tACK and ekzyis's substantive review found two real bugs, both accepted and fixed by the author with no unresolved pushback.",
+   "reason": "No standing criticism of the change's purpose; the two concrete issues raised (a dead code branch and a UAF found via ASan) were both acknowledged by the author as valid and addressed in a subsequent push.",
+   "evidence": [
+    "Chand-ra: 'tACK 747d094 ... runs without crashing.'",
+    "ekzyis: found ASan heap-use-after-free and a no-op AbortRescan branch, said should be addressed before merge.",
+    "brunoerg: 'Nice catch, it's correct... it's a no-op, leftover... will remove' and later force-pushed addressing both comments."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Improves fuzz coverage tracked by #29901",
+    "May help surface bugs related to rescan crash class reported in #31474"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Per the tests category definition, a fuzz test that pins the behavior of a specific area (here, wallet rescanning) belongs to that area rather than to the generic test-infrastructure category, even though it carries the Tests/Fuzzing labels.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the change is a wallet-specific fuzz target, not test-framework machinery, per the category's own exclusion rule."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "The PR adds src/wallet/test/fuzz/scan.cpp, exercising CWallet::ScanForWalletTransactions directly, and is explicitly motivated by a wallet rescan crash issue (#31474) and the wallet fuzzing tracking issue (#29901).",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Worthwhile but not urgent: it adds fuzz coverage for the rescan path where a real crash was previously reported (#31474), and review already surfaced a genuine UAF bug in the harness itself (fixed), showing the approach has some teeth. It does not fix a shipped bug or add user-facing value itself, and the author says the harness is not yet efficient enough, so its practical bug-finding value is still unproven."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project intends this to sit in 'tests' or 'wallet' for review-routing purposes, despite the category rule pointing to wallet.",
+   "Unclear how much additional refactor the author plans and how long the draft period will last.",
+   "No indication yet that the fuzz target has found any new wallet-logic bug beyond bugs in its own harness."
+  ],
+  "card": "This PR adds a new libFuzzer target, wallet_scan, exercising CWallet::ScanForWalletTransactions by generating a small fuzzed chain of blocks/transactions and running rescans, motivated by the wallet fuzzing tracking issue #29901 and a related rescan crash report (#31474). Review by ekzyis found a genuine ASan heap-use-after-free in the harness (a block filter index surviving past its TestingSetup) plus a dead code branch, both accepted and fixed by the author brunoerg, alongside an earlier tACK from Chand-ra. The author then moved the PR to draft on 2026-06-12 to refactor the harness for better fuzzing throughput, pausing further review until that lands. This is a test-coverage improvement for the wallet rescan path, not itself a bug fix or feature, so it is worthwhile but not urgent within the wallet category. No dependencies block it, and it unblocks incremental progress on the broader wallet fuzzing tracking issue."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

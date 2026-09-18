@@ -1,0 +1,234 @@
+{
+ "number": 35570,
+ "input_hash": "95e073abc699f876",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25732,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7192
+ },
+ "cost_usd": 0.0630983,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Refactors several validation.cpp functions (CheckBlock, AcceptBlockHeader, AcceptBlock, FlushStateToDisk, etc.) to return BlockValidationState by value instead of via output parameter.",
+    "Removes ambiguity and possible bool/state inconsistency in error handling across validation's block-acceptance call chain."
+   ],
+   "reviewability": [
+    "Ready to review now, actively maintained with frequent pushes addressing nits through 2026-09-16.",
+    "No open blocking request; recent comments are style nits already being applied."
+   ],
+   "agreement": [
+    "Multiple concept ACKs and one reACK (w0xlt, purpleKarrot, stringintech, yuvicc, nervana21, arejula27).",
+    "Standing disagreement about direction: arejula27 argued the PR should go further and adopt util::Expected instead, but accepted this isn't blocking (arejula27).",
+    "hodlinator questions the safety of new assert-based invariants documenting 'never returns Error', author gave detailed rationale, not yet followed up (hodlinator, optout21).",
+    "Overlaps with a competing RFC (#35646) the author also supports; not treated as a reason to block this PR."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it touches the core AcceptBlockHeader/ProcessNewBlockHeaders/AcceptBlock/FlushStateToDisk call chain and removes a real inconsistency hazard (bool return vs state.IsValid() mismatch) that the author found mid-refactor.",
+      "Improves the maintainability and safety of code every future validation change must touch, and is explicitly a stepping stone toward related refactors (#29700, #35646)."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it simplifies the internal implementation of btck_chainstate_manager_process_block_header and btck_block_check, removing a redundant/ambiguous int+state combination inside the kernel boundary code.",
+      "No external API signature changes and no stated consumer is waiting on it, so impact is limited to code clarity at the boundary."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because review surfaced and fixed a real bug in the block fuzz target (an errant .Error() call that made a later assertion branch unreachable), which is exactly the kind of misleading-test fix this category values.",
+      "Also adds one new unit test for ProcessNewBlockHeaders with an empty header list, modest but genuine coverage gain."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes several internal and public validation.cpp/validation.h methods (CheckBlockHeader, CheckBlock, AcceptBlockHeader, ProcessNewBlockHeaders, AcceptBlock, FlushStateToDisk, FatalError, etc.) to return BlockValidationState by value instead of passing it in as an output parameter combined with a separate bool return. It adds MakeInvalid/MakeError factory helpers to BlockValidationState to simplify construction, and updates all call sites in validation.cpp, kernel/bitcoinkernel.cpp, net_processing.cpp, rpc/mining.cpp, blockstorage.cpp, and various tests/benchmarks/fuzz targets accordingly. The stated goal is a no-behavior-change refactor, with one identified minor behavior fix split off into the already-merged #35621.",
+  "problem": "Bitcoin Core's validation code has historically used an output-parameter + bool-return convention for BlockValidationState, which the author found can silently diverge (bool true while state carries stale/invalid info) and is ambiguous about whether an incoming state is consumed across chained calls. This affects anyone maintaining or reasoning about the sensitive block-acceptance path in validation.cpp, and previously surfaced a real inconsistency in AcceptBlock's FlushStateToDisk call that was split into its own fix (#35621).",
+  "discussion": {
+   "open_concerns": [
+    "hodlinator questions whether asserting 'this path never returns Error' via runtime Assume/assert is safe long-term versus using narrower return types; author explained rationale for keeping asserts but agrees narrower types would be superior if easy to achieve.",
+    "arejula27 initially argued the refactor should go further and adopt util::Expected instead of a bare BlockValidationState return value; resolved by agreeing to disagree, not a blocker.",
+    "Overlap with a separately opened RFC (#35646) proposing a related but different refactor using util::Expected; author supports both and says this PR will be updated if #35646 merges first."
+   ],
+   "resolved_concerns": [
+    "arejula27 found a real inconsistency where FlushStateToDisk's returned state was discarded in AcceptBlock; author split this behavior fix into #35621, which merged and is now the base for this PR.",
+    "w0xlt found a bug in the block fuzz target where an errant .Error() call made a branch unreachable; author fixed it promptly.",
+    "Multiple nits (const-ness, [[nodiscard]], variable naming, brace style, factory method naming) raised by arejula27 and hodlinator have been applied via force-pushes."
+   ],
+   "author_status": "active, addressing review comments with frequent force-pushes through 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Author is actively responding to and applying review feedback with force-pushes as recently as 2026-09-16; no open material request has gone unanswered past the threshold, and CI is passing after a recent IWYU fix."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Broad concept ACK support (w0xlt, purpleKarrot, stringintech, yuvicc, nervana21, arejula27 reACK) with a standing, acknowledged disagreement about whether util::Expected would be a better long-term direction.",
+   "reason": "Several reviewers gave concept ACKs early and one gave a full reACK on a later revision; the main friction is a design debate (BlockValidationState-by-value vs util::Expected-based typed returns) that arejula27 explicitly said should not block the PR, and hodlinator's more recent concern about assert-based invariants is unresolved but framed as a nonblocking design question the author addressed with rationale.",
+   "evidence": [
+    "purpleKarrot: 'Concept ACK... could we avoid using BlockValidationState as a state machine' (style, addressed)",
+    "arejula27: 'I completely disagree that this is orthogonal to the PR... I'd accept either [approach]... my concerns should not be a blocker'",
+    "hodlinator: 'It would feel safer if we made the paths... return a narrower state type... Maybe their additions could be broken out'; optout21 replied with detailed rationale but kept the asserts",
+    "arejula27: 'reACK 58d6d23...' after multiple nit rounds"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner base for the util::Expected-based refactor discussed in #35646",
+    "Feeds into the broader error-status refactor project #29700"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "blockstorage.cpp changes are mechanical call-site updates to FatalError's new signature, not a substantive index/storage behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No index-specific logic is touched; the blockstorage.cpp edits only adapt to FatalError's new return type."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Changes btck_block_check and btck_chainstate_manager_process_block_header in kernel/bitcoinkernel.cpp, removing an internally ambiguous int+state combination and simplifying construction at the kernel boundary.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The commit message states the prior int return was redundant and ambiguous ('non-zero could mean either invalid header or processing failure'); fixing this reduces a minor internal correctness hazard at the kernel API boundary, but no external API signature changes and no consumer is cited as waiting on it."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool policy, acceptance, or relay code is touched anywhere in the diff.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; PR is scoped to block header/body validation, not transaction policy."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "The rpc/mining.cpp change is a one-line mechanical adaptation of submitheader() to the new ProcessNewBlockHeaders return type, not a change to template construction or mining behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No block-template, fee accounting, or Mining interface logic is touched; the edit only follows the signature change elsewhere."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net_processing.cpp's ProcessHeadersMessage and cmpctblock handling are updated only to consume the new BlockValidationState return value in place of the old bool+state pair, with an added Assume documenting an existing invariant, not a behavioral change to header/compact-block processing.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The author states the PR is a no-behavior-change refactor; the net_processing.cpp edits are call-site adaptations following the ProcessNewBlockHeaders signature change, not a substantive p2p change."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/mining.cpp's submitheader() edit is a one-line mechanical call-site update to the new ProcessNewBlockHeaders signature.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC interface behavior, return data, or argument handling changes; purely a mechanical adaptation."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Review by w0xlt uncovered and the author fixed a real bug in the block fuzz target (an errant BlockValidationState::Error(\"\") call that made a later assertion branch unreachable), and a new unit test for ProcessNewBlockHeaders with empty input was added.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "w0xlt noted 'Calling validation_state_pow_and_merkle.Error(\"\") ... making the later if... always false so it never runs', a genuine fuzz-target correctness bug the author fixed ('this is a (minor) bug to the fuzz test'); most other test/bench edits are mechanical call-site adaptations, keeping this at worthwhile-but-modest priority."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "The bulk of the diff is inside validation.cpp/validation.h and consensus/validation.h, changing the signatures and internal control flow of CheckBlockHeader, ContextualCheckBlockHeader, AcceptBlockHeader, ProcessNewBlockHeaders, CheckBlock, ContextualCheckBlock, AcceptBlock, and FlushStateToDisk.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "The author explicitly found and documented a real hazard during this refactor ('one instance was identified where the invariant return_value == state.IsValid() was not guaranteed'), which was split off and fixed in the now-merged #35621; the remaining refactor durably removes a class of divergence bugs in the sensitive block-acceptance path and is described by multiple reviewers (arejula27, purpleKarrot, stringintech) as a needed step toward further error-handling work (#35646, #29700), giving it real leverage on future validation-code safety even though it is a no-behavior-change cleanup rather than a fix for an active bug."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the assert/Assume-based 'never returns Error' invariants added late in the PR (per hodlinator's concern) could later be tripped by an unrelated change is unresolved; I treated this as a nonblocking design disagreement rather than a correctness defect.",
+   "Relationship to the competing RFC #35646 is fluid; the author says this PR may be updated or superseded depending on which lands first, which could change its priority.",
+   "I judged rpc/mining.cpp, net_processing.cpp, and blockstorage.cpp edits as purely mechanical call-site updates rather than substantive category changes; a maintainer of those areas might view the net_processing.cpp Assume additions as worth a closer look."
+  ],
+  "card": "This PR refactors several core validation.cpp functions (CheckBlockHeader, AcceptBlockHeader, ProcessNewBlockHeaders, AcceptBlock, FlushStateToDisk, CheckBlock) to return BlockValidationState by value instead of via an output parameter plus a separate bool, aiming to eliminate a class of bool/state divergence bugs in the sensitive block-acceptance path. The author found and split off a real behavior bug this way (now merged as #35621), and reviewers broadly gave concept ACKs (w0xlt, purpleKarrot, stringintech, yuvicc, nervana21) with one full reACK (arejula27), though there is a standing, acknowledged disagreement about whether the codebase should instead adopt util::Expected-typed returns (an alternative explored in the competing #35646 RFC the same author also supports). Review found and fixed a genuine fuzz-test bug (an unreachable assertion branch) along the way. The PR is actively maintained with frequent force-pushes through 2026-09-16 addressing nits, and nothing is currently blocking review, though its final shape may depend on how #35646 resolves."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

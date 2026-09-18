@@ -1,0 +1,94 @@
+{
+ "number": 36276,
+ "input_hash": "46a8bd982fa6967d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:59:33+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15664,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2127
+ },
+ "cost_usd": 0.01972425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent the HTTP server from reading additional socket data while a worker processes an in-flight request.",
+    "Fix intermittent CI failures in interface_http.py on macOS."
+   ],
+   "reviewability": [
+    "Author converted to draft while investigating a potential 50ms RPC latency regression.",
+    "CI is also currently failing."
+   ],
+   "agreement": [
+    "Concept ACK from hodlinator with supportive analysis confirming the mechanism from davidgumberg.",
+    "No objections raised."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it plugs a minor 65kB socket buffer leak during request throttling and stabilizes a flaky functional test.",
+      "Not P2 because the memory impact is small (at most 65kB) and poses no serious DoS or OOM risk."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates the HTTP server event loop logic so that `RecvEvent` is not registered on a connection when a request from that connection is already being handled by a worker thread (`m_req_busy`). It also modifies `interface_http.py` to use `select()` before writing so tests do not hang on macOS when the kernel socket buffer fills up.",
+  "problem": "Under the existing read throttle implemented in #36123, an empty receive buffer would still allow the server to read up to 65kB from the socket even while an earlier request was in-flight. This drained the OS socket buffer, reopened the TCP window, and caused flaky timeout failures in `interface_http.py` on macOS due to delayed zero-window probing.",
+  "discussion": {
+   "open_concerns": [
+    "The author converted the PR to draft after noticing that 50ms might be added to RPC calls."
+   ],
+   "resolved_concerns": [
+    "davidgumberg verified the trace of the bug in `src/httpserver.cpp` and how the zero-window probe interaction manifests in the test."
+   ],
+   "author_status": "reworking (converted to draft to investigate latency impact)"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "The author converted the pull request to draft after noting that 50ms might be added to every RPC call, and CI is currently failing."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: hodlinator gave Concept ACK and davidgumberg confirmed the bug mechanism",
+   "reason": "Reviewers agree with the concept and the diagnosis of the throttling gap. No objections to the goal have been raised.",
+   "evidence": [
+    "hodlinator Concept ACKed the first commit.",
+    "davidgumberg detailed the state transitions and confirmed that the server was draining the kernel buffer when it should have maintained backpressure."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies src/httpserver.cpp, src/httpserver.h, and the HTTP interface test interface_http.py.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Fixes a minor edge-case in HTTP socket read throttling and resolves an intermittent test failure in interface_http.py (#36216). As noted by the author, the worst-case buffer drain is only 65kB so this is not an acute OOM/DoS vulnerability, making P3 appropriate."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #36276 updates the HTTP server event loop to avoid registering RecvEvent while a request is in-flight on a worker thread, preventing an extra 65kB read that reopens the TCP window. This addresses intermittent failures in interface_http.py on macOS (#36216) following the throttling introduced in #36123. Reviewers agree with the diagnosis, but the author has moved the PR to draft to investigate an apparent 50ms latency regression in RPC calls."
+ },
+ "raw_text": null
+}

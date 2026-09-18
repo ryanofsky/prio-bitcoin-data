@@ -1,0 +1,101 @@
+{
+ "number": 36014,
+ "input_hash": "8586c8260e63108e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5759,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2110
+ },
+ "cost_usd": 0.0177153,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops repeated -addnode startup values from being stored and retried separately.",
+    "Fixes redundant DNS lookups, connection attempts, and duplicate log entries for the same configured peer.",
+    "Complements #35600, which handles a different, in-flight duplicate connection scenario."
+   ],
+   "reviewability": [
+    "Ready to review, author addressed prior feedback by splitting into two credited commits.",
+    "Only open items are two non-blocking nits about log message wording and case-insensitive hostname matching."
+   ],
+   "agreement": [
+    "Strong support, both reviewers gave Concept ACKs and one gave a full ACK on the latest commit (pablomartin4btc, danielabrozzoni).",
+    "Minor nits raised on log clarity and case-sensitivity are explicitly marked non-blocking (pablomartin4btc)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it removes a minor operational annoyance (redundant DNS lookups and retries) rather than fixing a security or correctness issue.",
+      "Improves consistency between startup and runtime addnode duplicate handling but has no dependents or blocking use cases."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes CConnman::Init route startup -addnode values through CConnman::AddNode instead of pushing them directly into the added-node list, so startup values get the same duplicate-detection as the addnode RPC. A companion commit extends AddNode's duplicate check to also treat equivalent host:port representations (e.g. a hostname with and without its default port) as duplicates. Tests are added at both the unit and functional level.",
+  "problem": "Repeated -addnode entries at startup are currently stored and retried independently forever, unlike the addnode RPC path which already rejects exact and numeric-address duplicates. This wastes DNS lookups, connection attempts, and log lines, and pollutes getaddednodeinfo output for node operators who misconfigure or duplicate entries across config files.",
+  "discussion": {
+   "open_concerns": [
+    "pablomartin4btc suggested improving the log message to show what value the duplicate matched against (explicitly non-blocking).",
+    "pablomartin4btc noted hostname comparison is case-sensitive so 'Example.com' vs 'example.com' would not be caught, calling it a natural extension but optional and out of scope."
+   ],
+   "resolved_concerns": [
+    "pablomartin4btc's initial concern about not comparing host:port equivalence was addressed by adding SplitHostPort-based comparison, credited as co-author.",
+    "danielabrozzoni's suggestion to route startup values through AddNode for consistency was implemented, credited as co-author."
+   ],
+   "author_status": "active, addressed both reviewers' substantive suggestions with a two-commit split; two small nits from 2026-09-11 remain but are explicitly non-blocking"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code was reworked in response to reviewer feedback and received an ACK on the latest commit hash. The remaining comments are explicitly nits, not material blockers."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: both reviewers gave Concept ACKs and pablomartin4btc gave a full ACK on the current commit after their suggestions were implemented.",
+   "reason": "Two members reviewed substantively, both endorsed the approach, and the concrete suggestions they made were incorporated by the author, ending in an explicit ACK with only non-blocking nits remaining.",
+   "evidence": [
+    "pablomartin4btc: 'Concept ACK' then later 'ACK 4ebff1af2a...' after suggestion implemented",
+    "danielabrozzoni: 'Concept ACK on ignoring repeated values' with a concrete implementation suggestion, later credited as co-author",
+    "pablomartin4btc's remaining nits explicitly marked 'Not blocking, just a nice-to-have' and 'Happy to leave it out'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Complementary to but independent of #35600 (prevent duplication manual connections), does not block or get blocked by it"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies src/net.cpp and src/net.h logic for CConnman::AddNode and CConnman::Init, which govern added-node connection management, a core p2p connectivity mechanism.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "This is a minor correctness/consistency fix rather than a security or major bug issue: repeated -addnode entries cause redundant DNS lookups and connection attempts, as described, but this is a resource-waste annoyance, not a DoS or correctness hazard. The fix improves user experience for operators with misconfigured or duplicate addnode entries and brings startup handling in line with the existing RPC path, but has no stated downstream dependents and does not touch consensus, DoS resistance, or relay correctness."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the maintainers consider the case-sensitivity gap in hostname matching worth fixing in this PR or a follow-up was not resolved definitively, though it is explicitly marked optional by the reviewer."
+  ],
+  "card": "This PR makes bitcoind's handling of startup -addnode values consistent with the addnode RPC by routing them through CConnman::AddNode, and extends AddNode's duplicate detection to treat a hostname with and without its default port as equivalent. It fixes a minor resource-waste problem: previously, repeated -addnode config entries were stored and retried indefinitely, causing redundant DNS lookups, connection attempts, and log spam, and polluting getaddednodeinfo output. Both reviewers who examined it (pablomartin4btc, danielabrozzoni) gave Concept ACKs and made concrete suggestions that the author implemented in a two-commit split with co-author credit, and pablomartin4btc has since given a full ACK on the latest commit with only non-blocking nits (log message clarity, hostname case-sensitivity) remaining. It is explicitly complementary to, and independent of, open PR #35600 which addresses a different in-flight duplicate-connection scenario. No security, DoS, or consensus impact; it is a p2p operational cleanup of modest but real value to operators."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

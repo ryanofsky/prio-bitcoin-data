@@ -1,0 +1,286 @@
+{
+ "number": 35714,
+ "input_hash": "524ffe5716b7db89",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:36:57+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24587,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11561
+ },
+ "cost_usd": 0.061794,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent corrupted node state by aborting chainstate flushes if writing block or undo data fails"
+   ],
+   "reviewability": [
+    "Ready",
+    "CI is green and the change is small with a targeted unit test"
+   ],
+   "agreement": [
+    "Strong support from reviewers across multiple ACKs (arejula27, optout21, mzumsande)",
+    "Initial questions on log removal and timer updates were fully resolved by author explanations (optout21)",
+    "One test styling nit remains unsettled but does not block (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it protects chainstate crash consistency and metadata integrity during disk flush errors",
+      "Without this, a failed block or undo flush could still record durable block-index and coins entries, risking silent data corruption"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request stops `FlushStateToDisk()` from writing block-index metadata and coins data when `FlushChainstateBlockFile()` fails. By returning an error immediately, it prevents `m_last_flushed_block` from advancing past non-durable block or undo data and adds a unit test for this failure path.",
+  "problem": "When writing block or undo files to disk fails during a chainstate flush, the node previously continued to write coins cache and block-index metadata, advancing the last-flushed marker. If block storage and chainstate reside on different filesystems or block writing fails permanently, this can leave block-index metadata pointing to missing or incomplete block data.",
+  "discussion": {
+   "open_concerns": [
+    "Test formatting nit regarding compound assertions under BOOST_CHECK versus split assertions"
+   ],
+   "resolved_concerns": [
+    "Whether removing LogWarning lost logging coverage; resolved by noting lower-level FlushBlockFile already calls flushError",
+    "Whether skipping the m_next_write timer update had side effects; resolved by showing periodic timer should not advance after a failed flush before shutdown",
+    "Suppression of expected fatal log messages during unit tests; resolved by adding ASSERT_DEBUG_LOG"
+   ],
+   "author_status": "Active and addressed review comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, passes CI, and includes unit tests for the error boundary."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "arejula27",
+     "stance": "support",
+     "note": "ACKed after verifying locally, and opened follow-up PR #35731 for related helpers"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "Raised style nits regarding compound conditions in BOOST_CHECK"
+    },
+    {
+     "login": "mzumsande",
+     "stance": "support",
+     "note": "Concept ACK, pointing out corruption risks when -blocksdir is on a separate filesystem"
+    },
+    {
+     "login": "optout21",
+     "stance": "objection",
+     "note": "raised concern about skipping m_next_write update on early exit, which author explained; later ACKed"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "optout21",
+     "kind": "correctness",
+     "harm": "Skipping the update of m_next_write on early return could cause unwanted side effects",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-08-04: 'With this early exit, the update of m_next_write below is also skipped. It looks like that may cause some unwanted side-effects'",
+     "resolution_evidence": "2026-08-19: 'Thanks, it makes sense.' after author explained m_next_write should not advance after a failed write before shutdown",
+     "sources": [
+      "dossier",
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "optout21",
+     "reason": "Verified that without the behavior change the new test fails, and verified all call patterns",
+     "substantive": true
+    },
+    {
+     "reviewer": "arejula27",
+     "reason": "Tested locally, noted it closes a gap discussed in #34897",
+     "substantive": true
+    },
+    {
+     "reviewer": "mzumsande",
+     "reason": "Noted it prevents corruption when -blocksdir storage fails while chainstate write succeeds",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus with multiple ACKs (arejula27, optout21, mzumsande); all reviewer questions were answered.",
+   "reason": "Reviewers tested the patch, confirmed the problem and corruption risks, and resolved all questions on failure semantics and test output.",
+   "evidence": [
+    "mzumsande gave Concept ACK explaining that if blocksdir fsync fails permanently while chainstate succeeds, corruption occurs with BLOCK_HAVE_DATA set",
+    "arejula27 ACKed the approach and code",
+    "optout21 thoroughly reviewed call sites, tested failure injection, and gave full ACK"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (optout21, arejula27, mzumsande)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "optout21",
+      "kind": "correctness",
+      "harm": "skipping m_next_write update on early exit might cause unintended side-effects",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-04: \"With this early exit, the update of m_next_write below is also skipped. It looks like that _may_ cause some unwanted side-effects, so maybe it should be kept\"",
+      "resolution_evidence": "2026-08-19: \"Thanks, it makes sense.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "arejula27",
+      "reason": "small change closing a gap discussed in #34897, verified and tested locally",
+      "substantive": true
+     },
+     {
+      "reviewer": "mzumsande",
+      "reason": "prevents state corruption when -blocksdir is stored on a separate filesystem and fsync fails permanently while chainstate writes succeed",
+      "substantive": true
+     },
+     {
+      "reviewer": "optout21",
+      "reason": "reviewed, built, and unit-tested locally; verified that the test fails without the behavior change",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "arejula27",
+      "stance": "support",
+      "note": "ACKed after testing; noted it closes a gap discussed in #34897 and opened follow-up PR #35731"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "commented on test assertion style regarding compound && conditions"
+     },
+     {
+      "login": "mzumsande",
+      "stance": "support",
+      "note": "Concept ACK; pointed out it avoids corruption if a separate -blocksdir fails fsync while chainstate succeeds"
+     },
+     {
+      "login": "optout21",
+      "stance": "objection",
+      "note": "raised concern about skipping m_next_write update on early exit, which author explained; later ACKed"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: optout21 questioned skipping m_next_write on flush failure, resolved by author explanation; multiple ACKs with rationale.",
+    "usage": {
+     "input_tokens": 6651,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 8074
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "optout21",
+      "kind": "correctness",
+      "harm": "Skipping the update of m_next_write on early return could cause unwanted side effects",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-04: 'With this early exit, the update of m_next_write below is also skipped. It looks like that may cause some unwanted side-effects'",
+      "resolution_evidence": "2026-08-19: 'Thanks, it makes sense.' after author explained m_next_write should not advance after a failed write before shutdown"
+     },
+     {
+      "reviewer": "optout21",
+      "kind": "maintenance",
+      "harm": "Removing LogWarning might omit important failure logs",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-04: 'Why is the LogWarning removed? I could not convince myself that the fatalError()/state.Error() calls include the same logging.'",
+      "resolution_evidence": "2026-08-19: 'Very good, thanks.' after author clarified FlushBlockFile already calls flushError"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "optout21",
+      "reason": "Verified that without the behavior change the new test fails, and verified all call patterns",
+      "substantive": true
+     },
+     {
+      "reviewer": "arejula27",
+      "reason": "Tested locally, noted it closes a gap discussed in #34897",
+      "substantive": true
+     },
+     {
+      "reviewer": "mzumsande",
+      "reason": "Noted it prevents corruption when -blocksdir storage fails while chainstate write succeeds",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35731"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly alters Chainstate::FlushStateToDisk in src/validation.cpp to handle block file flush failure before committing coins and block index metadata.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Chainstate flush correctness and crash safety are central validation responsibilities. Continuing to commit block metadata and coins when underlying block or undo data failed to flush creates inconsistent state on disk, which is particularly hazardous when block files reside on a distinct mount point via `-blocksdir`."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not affect mempool acceptance, eviction, policy, or fee estimation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change is strictly inside validation chainstate flush routines and does not modify mempool logic."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR stops FlushStateToDisk from writing block-index metadata and coins data if FlushChainstateBlockFile fails, resolving a deferred TODO from PR 27866. Without this check, a failed block or undo flush can still advance the flushed block pointer and record block-index data, risking inconsistent disk state or corruption especially when using -blocksdir. The PR includes an error-injection unit test verifying that the last-flushed pointer does not advance on failure. It has strong support and ACKs from multiple reviewers with no open objections."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.03526575
+}

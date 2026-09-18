@@ -1,0 +1,153 @@
+{
+ "number": 35751,
+ "input_hash": "83e748d5c624f988",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 7984,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4828
+ },
+ "cost_usd": 0.033530300000000006,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up ConnectBlock inside TestBlockValidity by reusing the parallel-fetching overlay view instead of a fresh per-call cache.",
+    "Benefits block template validation paths such as the Stratum v2 Job Declarator Server checkBlock IPC call.",
+    "Also improves the AssembleBlock benchmark to actually fill blocks to max weight so the speedup is measurable."
+   ],
+   "reviewability": [
+    "Paused: a reentrancy concern raised by l0rinc is unresolved.",
+    "Author agreed an assert is the right fix but has not pushed it yet, open since 2026-08-26."
+   ],
+   "agreement": [
+    "Disputed: l0rinc requested changes over a potential reentrancy hazard if TestBlockValidity is ever called from a synchronous BlockChecked callback (l0rinc).",
+    "Author disagrees nothing calls it that way today but agreed to add a defensive assert as a fix (andrewtoth).",
+    "l0rinc agreed the assert is the ideal solution but the fix is not yet pushed (l0rinc).",
+    "Concept ACK from Sjors tying this to Stratum v2 template-checking performance (Sjors)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it is a real but incremental performance improvement (~10% on the AssembleBlock benchmark per the author) to a path used for mining template validation, not a correctness or consensus fix.",
+      "Sjors ties it to speeding up the checkBlock IPC call used by the Stratum v2 Job Declarator Server, a concrete but narrow consumer.",
+      "An unresolved reentrancy question means the shared-overlay design needs a decision before merge."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because the accompanying benchmark rework makes AssembleBlock actually fill blocks to max weight, fixing a benchmark that previously understated the real workload and masked the performance claim.",
+      "This is a benchmark-realism fix rather than new coverage of a risky code path, so its value is moderate."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Not a member: the PR touches validation.cpp only for ConnectBlock's overlay-view plumbing, not mempool policy, acceptance, or fee logic."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes TestBlockValidity to reuse the chainstate's CoinsViewOverlay (the same parallel-prevout-fetching mechanism added in #35295) instead of creating a fresh CCoinsViewCache, so parallel input fetching now speeds up block-template validation, not just chain-tip connection. It also reworks the AssembleBlock benchmark to actually fill blocks to max weight so the resulting speedup is visible and measurable, showing roughly a 10% improvement locally. A small validation.h accessor (ConnectBlockView()) is added to expose the shared overlay.",
+  "problem": "TestBlockValidity (used when validating externally-proposed block templates, e.g. via getblocktemplate or the Stratum v2 Job Declarator Server) previously built input prevouts serially through a fresh cache, missing the parallel-fetch speedup already applied to normal block connection. Miners and template-validating tools that call this path repeatedly pay an avoidable performance cost.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc: reusing the shared ConnectBlockView() in TestBlockValidity creates a theoretical reentrancy hazard if a future synchronous BlockChecked callback calls TestBlockValidity while ConnectTip's fetch is still active; requested a regression test or safeguard before merge.",
+    "Benchmark nits from l0rinc (move semantics, loop style, brace style) not yet addressed since they were secondary to the reentrancy point."
+   ],
+   "resolved_concerns": [
+    "optout21's naming confusion (view_dummy vs view_shared) resolved by renaming to overlay_view.",
+    "optout21's question about the other m_connect_block_view usage in ConnectTip resolved by switching it to also use ConnectBlockView().",
+    "Initial disagreement over whether the performance claim was real was resolved once sedited and l0rinc reproduced the regression and the author fixed the benchmark to fill blocks to max weight, showing a real ~10% speedup."
+   ],
+   "author_status": "active, last responded 2026-08-23 proposing an assert-based fix for the reentrancy concern but has not yet pushed it; l0rinc endorsed the approach on 2026-08-26."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "l0rinc requested changes over a reentrancy hazard in reusing the shared ConnectBlockView() overlay from TestBlockValidity. The author agreed to add a defensive assert (Assert(overlay_view.GetCacheSize() == 0)) but has not pushed it since 2026-08-23, and the reviewer's follow-up endorsing that fix (2026-08-26) is still unaddressed, exceeding the 7-day waiting threshold."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: l0rinc requested changes over a reentrancy hazard reusing the shared overlay; author agreed to add a defensive assert but hasn't pushed it yet.",
+   "reason": "l0rinc formally requested changes citing a scenario where a future synchronous BlockChecked callback could call TestBlockValidity while ConnectTip's overlay fetch is active. The author disagrees anything does this today but accepted the concern is worth guarding against with an assert; l0rinc agreed this is the ideal fix on 2026-08-26, but the change has not been implemented, so the criticism remains open per the 'proposed fix not implemented' rule.",
+   "evidence": [
+    "l0rinc (CHANGES_REQUESTED): 'I think the reentrancy issue needs to be addressed before this can be merged.'",
+    "andrewtoth: 'I don't think there is a reentrancy issue... We can prevent this by calling Assert(overlay_view.GetCacheSize() == 0)'",
+    "l0rinc: 'Agree, the test is just a demonstration, an assert is the ideal solution here!'",
+    "Sjors (Concept ACK): 'making the checkBlock() IPC faster... intended to be called frequently by the Job Declarator Server role in Stratum v2.'",
+    "sedited: initial ACK later walked back pending understanding of an apparent regression, then confirmed the speedup once the benchmark was fixed."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Potentially informs #35671's TxCollection / makeTemplate design per Sjors's comment about pre-loading coins before checkBlock calls."
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly modifies ConnectBlock/TestBlockValidity plumbing in validation.cpp and validation.h, carries the Validation label, and is reviewed by validation-area contributors.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Speeds up block-template validation (TestBlockValidity) by reusing the parallel-fetch overlay, measured at roughly 10% faster in the reworked AssembleBlock benchmark. Sjors notes this indirectly speeds up the checkBlock() IPC call used by the Stratum v2 Job Declarator Server, giving it a concrete but narrow consumer. A raised reentrancy concern about the shared overlay is an unresolved design question that needs closing before merge, keeping this from P2.'"
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The first commit substantively rewrites the AssembleBlock benchmark (src/bench/block_assemble.cpp) to make it representative, which is benchmark infrastructure rather than a test pinning one area's behavior beyond the same PR's own claim.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The benchmark previously understated real workloads, hiding the performance regression that the main commit was supposed to fix, as shown when l0rinc could not reproduce the claimed slowdown until the benchmark was corrected. Fixing it improves the reliability of future performance claims in this code path but has no broader test-framework impact."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The PR only touches ConnectBlock's overlay-view plumbing in validation.cpp; it does not change mempool policy, acceptance rules, or fee logic despite the path hint matching validation.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mempool-relevant code or policy is touched; the hint matched only because validation.cpp is a shared file."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the reentrancy scenario l0rinc raised is realistic today (author disputes it) or only a future hazard; this affects how blocking the open concern really is.",
+   "Whether the project intends TestBlockValidity's speedup to matter much given Sjors notes #35671's TxCollection may supersede this path for mining use cases."
+  ],
+  "card": "This PR makes TestBlockValidity reuse the chainstate's parallel-prevout-fetching CoinsViewOverlay instead of a fresh per-call cache, extending the ConnectBlock speedup from #35295 to block-template validation, and reworks the AssembleBlock benchmark to fill blocks to max weight so the ~10% speedup is actually visible. Sjors gave concept ACK, noting this indirectly speeds up the checkBlock() IPC call used by the Stratum v2 Job Declarator Server. l0rinc requested changes over a theoretical reentrancy hazard from reusing the shared overlay across TestBlockValidity and ConnectTip; the author agreed to add a defensive assert but has not pushed it since 2026-08-23, leaving the PR Paused waiting on that fix. No merge dependency, but the design may interact with the in-progress #35671 TxCollection mining work. Priority is moderate: a real but narrow performance win for a specific mining-adjacent consumer, not a correctness fix."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,103 @@
+{
+ "number": 36142,
+ "input_hash": "e002e2ade2d97ef7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8203,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3229
+ },
+ "cost_usd": 0.0257543,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops a local attacker from injecting Tor control commands via a malformed onion service reply or cached private key.",
+    "Protects node operators who run a Tor onion service (-listenonion) from having their address hijacked or their service disabled."
+   ],
+   "reviewability": [
+    "Needs rebase before merge, otherwise ready.",
+    "Code addresses all raised review points; no open design questions remain."
+   ],
+   "agreement": [
+    "Strong support: three reviewers gave concept ACKs and the author fully implemented their suggestions (winterrdog, jeanpablojp, vasild).",
+    "jeanpablojp demonstrated a real exploit (space-based command injection) which the author fixed.",
+    "A follow-up idea about file permissions was raised and set aside as unnecessary (winterrdog, vasild)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it closes a demonstrated local command-injection path into the Tor control protocol that can hijack or disable a node's onion service.",
+      "Scope is limited to operators who run -listenonion, but the exploit is concrete: a reviewer showed fifteen of thirty connections redirected to an injected target."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR validates Tor ADD_ONION reply fields (service ID and private key) before the node logs, caches, or reuses them, closing a local command-injection path into the Tor control protocol. It adds a format check requiring NEW:ED25519-V3 or a 64-byte base64 ED25519-V3 key, and requires the returned service ID to resolve via LookupNumeric before it is used. It also adds functional tests demonstrating the injection via CRLF and space characters and verifying the fix.",
+  "problem": "An unprivileged local process (or a compromised operator-configured Tor endpoint) can impersonate or corrupt the Tor control connection and return a private key containing CRLF or a space, which is inserted unquoted into a later ADD_ONION command and can inject a second control command or extra arguments, letting an attacker hijack or disable the node's onion service. This affects any node operator running with -listenonion.",
+  "discussion": {
+   "open_concerns": [
+    "A tangential suggestion to enforce owner-only file permissions on the cached private key was raised by winterrdog and discussed with vasild, but concluded 'not necessary' given existing umask handling; not blocking."
+   ],
+   "resolved_concerns": [
+    "jeanpablojp found that the space character was not blocked, allowing a demonstrated command-injection attack via ADD_ONION arguments; author implemented full format validation covering this.",
+    "vasild suggested strict positive validation (base64 chars, 56-char service ID) rather than blacklisting bad characters; author implemented this approach.",
+    "jeanpablojp asked for cached-key validation to happen in auth_cb with the file path in the warning; author implemented this."
+   ],
+   "author_status": "active, force-pushed 2026-09-04 addressing all review comments; no author activity since 2026-09-04, silent 12 days per signals"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has an open merge conflict (mergeable_state dirty) and is labeled Needs rebase; the substantive review comments have already been addressed in the latest push, so the code itself is not blocked on any pending decision."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: winterrdog, jeanpablojp and vasild gave concept ACKs and the author implemented their concrete suggestions, including a demonstrated exploit fix; no outstanding objections.",
+   "reason": "Three reviewers with substantive rationale (a demonstrated exploit and spec-based validation suggestions) support the change, and the author addressed every point raised, including a full rework of the validation approach per vasild's suggestion.",
+   "evidence": [
+    "jeanpablojp demonstrated a working space-injection exploit and confirmed the author's later fix passes tests.",
+    "vasild suggested strict base64/format validation instead of blacklisting, which the author adopted.",
+    "winterrdog's follow-up about file permissions was resolved as unnecessary by vasild and winterrdog themselves."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Reduces attack surface for #36260 (torcontrol reconnect backoff) and other torcontrol PRs that touch the same reply-handling code, which currently conflict with this PR"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "The change is entirely within src/torcontrol.cpp, which handles the Tor control protocol connection used for onion service management, a core p2p networking feature (labeled P2P).",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "A local unprivileged process can inject Tor control commands via an unquoted cached or returned private key, as demonstrated by jeanpablojp: 'fifteen of thirty connections to the node's onion address landed on the injected target, with no warning about it in the log.' This is a genuine local attack against onion-service operators, but its impact is confined to users running -listenonion rather than the general node population, which keeps it at P2 rather than P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers consider onion-service hijacking severe enough for a security-critical P1 given the local-attacker precondition.",
+   "Exact merge-conflict scope from the 'Needs rebase' state and how much rework it requires.",
+   "Whether the file-permissions follow-up will become a separate PR or block this one later."
+  ],
+  "card": "This PR (torcontrol: validate ADD_ONION reply fields) fixes a Tor control command-injection vulnerability: a local unprivileged process or compromised Tor endpoint can return a private key containing CRLF or a space that, when cached and reused unquoted in a later ADD_ONION command, injects a second control command or extra argument, letting an attacker hijack or disable the node's onion service. Reviewer jeanpablojp demonstrated the exploit concretely, redirecting fifteen of thirty connections to an injected target, and the author (l0rinc, a maintainer) implemented strict format validation for both received and cached keys plus service-ID validation, per suggestions from jeanpablojp and vasild. Three reviewers gave concept ACKs and all raised issues were addressed in a follow-up push; a tangential file-permissions suggestion was discussed and set aside as unnecessary. The PR currently needs a rebase (mergeable_state dirty, labeled Needs rebase) but the code itself reflects the agreed approach. It conflicts with three other open torcontrol PRs (#36260, #35292, #34486) that touch the same area."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

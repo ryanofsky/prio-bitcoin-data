@@ -1,0 +1,88 @@
+{
+ "number": 35932,
+ "input_hash": "8b7c8ededcccb1ae",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:21:51+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 19968,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2097
+ },
+ "cost_usd": 0.02283975,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent shutdown assertion crashes when asynchronous IPC calls are in flight",
+    "Ensure incoming connections wait for executing server calls before freeing node state"
+   ],
+   "reviewability": [
+    "CI failing on the latest push",
+    "Draft pending upstream libmultiprocess PR 335"
+   ],
+   "agreement": [
+    "No reviews or comments yet"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it fixes a crash during node shutdown when asynchronous IPC calls are active",
+      "Hardens connection teardown and crash handling for external processes using the IPC mining interface"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies `Ipc::disconnectIncoming` and libmultiprocess connection handling so that disconnecting incoming IPC clients waits for in-flight server method bodies to finish executing before node state is destroyed. It introduces a `ServerObjectTracker` and `Connection::waitDrained()` to ensure asynchronous calls running on worker threads finish before shutdown proceeds to reset node subsystems.",
+  "problem": "During node shutdown, disconnecting incoming IPC clients cancels KJ promises but does not halt C++ server method bodies already dispatched to worker threads. A running call (such as `Mining.checkBlock`) can dereference `m_node.chainman` after shutdown has reset it, triggering an assertion failure (#35845, #33387).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-08-12 force-push; waiting on upstream libmultiprocess PR 335"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is currently failing on the latest push, and the author notes this draft is based on unmerged upstream libmultiprocess PR 335."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviews or comments yet.",
+   "reason": "No reviewers have commented on the PR since it was opened.",
+   "evidence": []
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Fixes shutdown assertion failures reported in #35845 and #33387"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes libmultiprocess connection teardown logic and `ipc::capnp::disconnectIncoming` in `src/ipc/`.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes an assertion failure on shutdown under active IPC mining calls reported by Antithesis in #35845 and #33387. Crash and disconnect handling during shutdown is critical to reliable external IPC usage, making this strategically important within the IPC subsystem."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR updates libmultiprocess and IPC connection teardown to wait for in-progress asynchronous IPC calls to drain before incoming connections are destroyed during shutdown. It fixes an assertion failure in MinerImpl::chainman() where asynchronous mining calls dereference node state after Shutdown() has already freed it (#35845, #33387). The PR is currently marked as a draft and depends on upstream libmultiprocess PR 335, with failing CI and no reviewer activity yet."
+ },
+ "raw_text": null
+}

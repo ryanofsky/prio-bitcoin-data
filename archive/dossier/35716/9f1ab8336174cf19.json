@@ -1,0 +1,94 @@
+{
+ "number": 35716,
+ "input_hash": "9f1ab8336174cf19",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24175,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2538
+ },
+ "cost_usd": 0.0382713,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the wallet's two loosely-synchronized transaction containers (mapWallet and wtxOrdered) with a single boost multi_index container.",
+    "Removes the raw-pointer indirection and manual bookkeeping needed to keep the two containers consistent."
+   ],
+   "reviewability": [
+    "Ready to review. Author has addressed all reviewer nits and pushed follow-up commits resolving them, no open material questions."
+   ],
+   "agreement": [
+    "Strong support from multiple reviewers who see clear structural benefit (theuni, pablomartin4btc, rkrux).",
+    "pablomartin4btc found the refactor incidentally fixes a real latent ordering bug in legacy wallets and added a regression test.",
+    "No unresolved objections, minor review nits were fixed by the author."
+   ],
+   "categories": []
+  },
+  "summary": "This PR replaces the wallet's two separate transaction containers, mapWallet (keyed by txid) and wtxOrdered (a secondary index of raw pointers keyed by insertion order), with a single boost::multi_index_container indexed by both txid and order position. All call sites across wallet.cpp, RPC, interfaces, tests, and fuzz harnesses are updated to use the new container via GetWalletTx, AddToWallet, m_txs_by_txid, and m_txs_by_pos. The change also makes CWalletTx::MarkDirty const to support extract/insert semantics instead of in-place pointer mutation.",
+  "problem": "Maintaining two hand-synchronized containers (a map and a pointer-based ordering multimap) creates a burden and a latent correctness hazard: nothing enforces that wtxOrdered stays consistent with mapWallet when nOrderPos changes. Wallet maintainers feel this complexity whenever they touch transaction storage or ordering logic.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "theuni requested explicit per-operation indices instead of implicit first-index usage; author implemented m_txs_by_txid/m_txs_by_pos.",
+    "theuni requested extract/insert instead of modify; author implemented this despite initial reluctance, also making MarkDirty const to simplify it.",
+    "pablomartin4btc raised several 'should this be continue instead of return' nits; author fixed them, calling them 'leftovers from the previous approach'.",
+    "pablomartin4btc noted a stale doc comment on AddToWallet; addressed by author (though pablomartin4btc later noted the fix was still slightly garbled, a minor wording nit)."
+   ],
+   "author_status": "active, last pushed 2026-09-14, addressing review promptly throughout"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All substantive reviewer requests (explicit indices, extract/insert pattern, logic nits) have been implemented across multiple force-pushes ending 2026-09-14. The only outstanding item is a trivial doc-comment wording nit from pablomartin4btc, which does not invalidate review of the code."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: theuni, pablomartin4btc, and rkrux all give concept ACKs with substantive reasons and no objections remain.",
+   "reason": "theuni, a maintainer working on a related kernel-facing rewrite, gave Concept ACK stating 'multi_index seems like the right thing to use here' and made concrete implementation requests that were fully adopted. pablomartin4btc gave an ACK on a specific commit and additionally found that the refactor incidentally fixes a real latent bug in legacy wallet transaction ordering, adding a regression test to prove it. rkrux gave a Concept ACK approving of removing the unintuitive mapWallet name. No reviewer raised a harm or blocking concern.",
+   "evidence": [
+    "theuni: 'Concept ACK. multi_index seems like the right thing to use here... I don't see the harm in spreading the dependency to wallet.'",
+    "pablomartin4btc: 'ACK c883fb0... this PR incidentally fixes a real bug on master' regarding ReorderTransactions and wtxOrdered desync.",
+    "rkrux: 'Concept ACK c883fb0... also scratches the itch of renaming/removing mapWallet'",
+    "All inline nits from pablomartin4btc were addressed by achow101 with 'Fixed, leftovers from the previous approach' and 'Done'."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "theuni's planned kernel-facing multi_index reimplementation work referenced in his review, though not a hard dependency",
+    "Improves testability of wallet tx ordering, as shown by pablomartin4btc's new regression test for the nOrderPos bug"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly changes core wallet data structures (mapWallet, wtxOrdered) and touches wallet.cpp, wallet.h, rpc/*.cpp, interfaces.cpp, spend.cpp, feebumper.cpp, receive.cpp, walletdb.cpp, and wallet tests across the board. Labeled Wallet.",
+    "band": "P2",
+    "reason_tag": "correctness+cleanup",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P2 because this is a durable internal-structure improvement that removes a real synchronization hazard between two containers, and reviewer pablomartin4btc found and demonstrated a genuine latent bug ('ReorderTransactions() mutates nOrderPos in place but never touches wtxOrdered... a legacy wallet needing reorder can return transactions in the wrong order') that this refactor makes 'structurally impossible'. It also reduces future maintenance burden and is explicitly welcomed by theuni as compatible with planned kernel-decoupling work, giving it leverage for future wallet/kernel separation efforts, though it is not itself a user-facing feature or urgent fix."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the fixed latent ordering bug (found by pablomartin4btc) has ever actually manifested for real users is unclear; it's described as narrow but real.",
+   "No explicit external blocking dependency was stated, though many open PRs conflict with this one (11 listed), meaning its merge will require rebase work across the wallet area regardless of its own priority."
+  ],
+  "card": "This PR replaces bitcoind wallet's mapWallet and wtxOrdered containers with a single boost::multi_index_container indexed by txid and by insertion position, removing the raw-pointer indirection and manual synchronization between the two structures. The problem is a maintenance and correctness hazard: reviewer pablomartin4btc discovered that the refactor incidentally fixes a real latent bug where legacy wallets with nOrderPos == -1 could return transactions in the wrong order from listtransactions, because wtxOrdered was never updated by ReorderTransactions(); the new structure makes this class of bug structurally impossible since nOrderPos is the sort key itself. Maintainer theuni gave a substantive Concept ACK, requested explicit per-index access and extract/insert semantics instead of implicit-index and modify, and the author implemented all of it across several force-pushes; two more reviewers (pablomartin4btc, rkrux) also gave positive reviews with no unresolved objections. The PR conflicts with eleven other open wallet PRs, meaning it will require coordination on merge order, but has no stated hard dependency itself. Review state is Ready, with only a trivial doc-wording nit outstanding as of the 2026-09-14 push."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

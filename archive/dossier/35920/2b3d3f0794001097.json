@@ -1,0 +1,98 @@
+{
+ "number": 35920,
+ "input_hash": "2b3d3f0794001097",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5718,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2623
+ },
+ "cost_usd": 0.020239299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes the node ignore MSG_WITNESS_TX entries received in INV messages, since BIP-144 specifies that type is only valid in getdata, not announcements.",
+    "Also reorders the disconnect check so relay-disabled peers get disconnected even if the invalid inv type would otherwise be ignored, and merges two duplicate hash-dedup sets."
+   ],
+   "reviewability": [
+    "Ready to review, no open questions.",
+    "Author pushed a revision after discussion settled and nothing has moved since."
+   ],
+   "agreement": [
+    "Strong support with concept ACKs from fjahr and l0rinc.",
+    "darosior raised a real compatibility concern about dropping support for txid-relay peers using this invalid type, which the author addressed by keeping it allowed for non-wtxid-relay peers after evidence (0xB10C) that the neutrino wallet relies on it (ajtowns, darosior, 0xB10C)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it corrects a decade-old protocol non-compliance in tx announcement handling, with real-world evidence (neutrino) it must be handled carefully.",
+      "Impact is narrow: it tightens spec adherence for wtxid-relay peers without changing behavior most peers rely on, so it does not unblock major work or fix a widespread bug."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes net_processing ignore MSG_WITNESS_TX entries in INV messages from wtxid-relay peers, since BIP-144 specifies that inv type is valid only in getdata, not announcements. It also reorders the disconnect check so that tx-relay-disabled peers are disconnected even for invalid inv types, and merges the seen_txids/seen_wtxids sets into one since only one type is ever used per message after the fix. A later revision preserves MSG_WITNESS_TX handling for peers without wtxid relay after evidence surfaced that the neutrino light client relies on it.",
+  "problem": "Since wtxidrelay was introduced, the node has treated MSG_WITNESS_TX inv entries as valid txid announcements even though BIP-144 restricts that type to getdata messages, an oversight from the original implementation (PR #18044). This allows behavior BIP-144 forbids and complicates the announcement-handling code with two separate dedup sets.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "darosior worried that dropping MSG_WITNESS_TX support for non-wtxid-relay peers could break an unmaintained codebase in the wild; author found evidence via 0xB10C that the neutrino light client does this, and revised the PR to keep allowing it for non-wtxid-relay peers, filing lightninglabs/neutrino#384 for the upstream issue."
+   ],
+   "author_status": "active, last pushed 2026-08-12 addressing review feedback"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No open material questions; the author already revised the approach in response to darosior's compatibility concern and nobody has objected since the 2026-08-12 push."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from fjahr and l0rinc, and darosior's compatibility concern was resolved by a code change plus real-world evidence (neutrino) confirming the concern and validating the fix.",
+   "reason": "A reviewer raised a real backward-compatibility harm and the author addressed it with both evidence and a revised implementation; no unresolved objections remain.",
+   "evidence": [
+    "l0rinc: Concept ACK",
+    "fjahr: Concept ACK",
+    "darosior: worried about breaking txid-relay peers relying on the invalid behavior",
+    "0xB10C: found neutrino relies on MSG_WITNESS_TX invs, ajtowns filed an upstream issue and revised the PR to preserve that compatibility"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "cleanup discussed in #35917 (closed) and related dedup logic simplification"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes net_processing.cpp's INV message handling logic directly, affecting tx announcement acceptance rules.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Fixes a long-standing spec non-compliance (BIP-144) in how the node treats MSG_WITNESS_TX inv entries, closing a minor correctness gap that could confuse relay logic. Real-world evidence from 0xB10C shows some peers (neutrino) still send this, which the author accommodated, indicating the change is handled with appropriate care but the underlying issue's practical impact is narrow."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the neutrino accommodation fully resolves darosior's original concern for all similar unmaintained clients, or whether more such clients exist undiscovered.",
+   "Practical security/DoS impact of the original oversight is not clearly quantified beyond spec non-compliance."
+  ],
+  "card": "This PR fixes net_processing to ignore MSG_WITNESS_TX entries received in INV announcements for wtxid-relay peers, correcting a BIP-144 non-compliance dating back to wtxidrelay's introduction (PR #18044). It also reorders the tx-relay disconnect check to fire even for invalid inv types, and merges two duplicate hash-dedup sets into one. During review, darosior raised a real compatibility concern that some peers (found by 0xB10C to include the neutrino light client) still send MSG_WITNESS_TX invs; the author revised the PR to preserve that behavior for non-wtxid-relay peers and filed an upstream issue with neutrino. The PR has concept ACKs from fjahr and l0rinc, no unresolved objections, and is ready for review as of the 2026-08-12 push. It has no stated dependencies and its impact is a narrow protocol-correctness fix rather than a major bug or feature."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

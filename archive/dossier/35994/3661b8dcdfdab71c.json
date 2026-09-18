@@ -1,0 +1,256 @@
+{
+ "number": 35994,
+ "input_hash": "3661b8dcdfdab71c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26137,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8331
+ },
+ "cost_usd": 0.0691983,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a bitcoin-tidy check that finds consecutive field assignments and suggests replacing them with a constructor call, and applies it to COutPoint/CTxIn/CTxOut and their many call sites.",
+    "Meant to demonstrate that most mutation of these primitives lives in test code, paving the way toward making them immutable."
+   ],
+   "reviewability": [
+    "Not reviewable right now: CI is failing and the branch needs rebase.",
+    "A maintainer question from 2026-08-24 about switching to init-list syntax is unanswered, and the author has been silent since 2026-08-21."
+   ],
+   "agreement": [
+    "Concept ACKs from several reviewers who like the mechanical cleanup (l0rinc, josibake, alexanderwiederin).",
+    "maflcko questions whether the annotation-based approach and broader immutability push are worth it for structs other than CTransaction, calling it 'no strong opinion' but a real open question (maflcko).",
+    "The author himself now leans toward a different approach (never merging the annotations, using the tool only to find candidates), so the PR's own future is unsettled (purpleKarrot)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it adds a new clang-tidy linter, which the tests category explicitly covers, and could unblock future mechanical cleanups across many test files.",
+      "Benefit is speculative until the author decides on an approach (A, B, or C) since the linter itself might never be merged as-is."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P4 because the CMakeLists change only wires a new opt-in lint pass into the bitcoin-tidy module, with no effect on release builds, CI reliability, or supported platforms."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because it is a narrow developer-productivity aid (a clang-tidy check) with no evidence yet that it will be kept in its current form."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it touches the core COutPoint/CTxIn/CTxOut types used throughout validation and raises a real design question (should these become immutable) that maintainers have not settled, per maflcko's comment that this may not be 'the best approach' to extend beyond CTransaction.",
+      "No behavior change is proposed here, only annotations and mechanical call-site rewrites, so urgency is low."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": []
+    },
+    {
+     "name": "mempool",
+     "why": []
+    },
+    {
+     "name": "rpc",
+     "why": []
+    },
+    {
+     "name": "wallet",
+     "why": []
+    }
+   ]
+  },
+  "summary": "This draft PR adds a new bitcoin-tidy check ('combine-assignments') that detects consecutive assignments to annotated struct members and suggests replacing them with a constructor call. It applies the check to COutPoint, CTxIn, and CTxOut by adding CONSTRUCTOR_ARGUMENT annotations and mechanically rewriting ~40 files (mostly tests and benches) to use constructor calls instead of piecewise field assignment. The stated goal is to demonstrate that most mutation of these primitives happens in test code, as groundwork for eventually making them immutable.",
+  "problem": "Validation code does not require COutPoint/CTxOut/CTxIn to be mutable; that requirement comes from test code written in a procedural rather than declarative style, per issue #35904's discussion of a stateless validation library. This PR is exploratory tooling meant to quantify and mechanically fix that mutation, mainly benefiting maintainers pursuing the immutability/encapsulation project (also touched by #35569).",
+  "discussion": {
+   "open_concerns": [
+    "maflcko asked whether the CONSTRUCTOR_ARGUMENT annotation is even necessary versus clang-tidy deriving constructor args itself, to avoid a second source of truth (unanswered in code, discussed only conceptually).",
+    "maflcko questioned whether extending the immutability effort beyond CTransaction to COutPoint/CTxOut/CTxIn is worth the churn, given #35569 (the related encapsulation PR) is already somewhat controversial.",
+    "alexanderwiederin flagged a possible witness-drop regression in test/util/transaction_utils.cpp; author confirmed it does drop the witness but no fix has landed since.",
+    "maflcko's 2026-08-24 suggestion to use init-list syntax (referencing #36019) is unanswered.",
+    "The author and janb84 discussed three different paths forward (merge as-is, do it class-by-class ending in immutability, or use the tool only as a backlog/never merge the annotations); the author now leans toward the third, meaning this PR's own annotations may never be merged."
+   ],
+   "resolved_concerns": [
+    "maflcko's narrowing-conversion comment on ccoins_caching.cpp was discussed; author explained aggregate initialization doesn't compile everywhere, and maflcko said he had no strong opinion and would be happy to review a follow-up.",
+    "The check's naming ('bitcoin-tidy' name was confusing) was raised by maflcko with a rename suggestion; not clearly implemented but treated as a nit."
+   ],
+   "author_status": "silent since 2026-08-21, 26 days; a maintainer question from 2026-08-24 is unanswered"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, CI failing",
+   "reason": "CI is failing and the branch needs rebase per repo signals, and the author has not pushed or replied since 2026-08-21, leaving a 2026-08-24 maintainer question about init-list syntax unanswered."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept ACKs from l0rinc, josibake, and alexanderwiederin, but maflcko raises an unresolved, nonblocking question about whether extending immutability effort to these structs is worth it, and the author himself now favors a different, non-merging approach.",
+   "reason": "Support exists for the mechanical cleanup itself, but the PR's premise (annotate-and-mechanically-rewrite as a path to immutability) is contested by maflcko on value grounds, and the author's own latest comment leans toward never merging these annotations at all (option C), leaving the PR's ultimate direction unsettled even though nobody has issued a blocking objection.",
+   "evidence": [
+    "l0rinc: 'reading the code seems to make sense, concept ACK'",
+    "josibake: 'Concept ACK'",
+    "alexanderwiederin: 'Concept ACK'",
+    "maflcko: 'for other structs, is there much value/benefit? ... may not be the best approach' (no strong opinion)",
+    "purpleKarrot: 'Concerning the approach, I actually lean towards C' (i.e., not merging this PR's annotations)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Groundwork for #35904's stateless validation library project",
+    "Potential precursor for follow-ups making COutPoint/CTxOut/CTxIn immutable (related to #35569)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds combine-assignments.cpp/.h and wires them into contrib/devtools/bitcoin-tidy/CMakeLists.txt",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Only adds an opt-in lint pass to the existing bitcoin-tidy module; no effect on release reproducibility, supported-platform builds, or CI reliability. Pure dev-tooling addition with speculative future payoff."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Touches src/kernel/chainparams.cpp only to combine two assignments into one CTxOut constructor call; no API or boundary change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical edit that follows from the primitives change elsewhere; does not touch the kernel API or boundary."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Edits several mempool-related bench and test files (mempool_eviction.cpp, mempool_stress.cpp, mempool_tests.cpp) but only to combine assignments; no policy or acceptance-rule change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test-only mechanical rewrite with no change to policy, replacement, or acceptance behavior."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "src/rpc/rawtransaction_util.cpp gets a two-line assignment combined into one constructor call; no interface or behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely mechanical, does not alter returned data, arguments, or RPC semantics."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a new clang-tidy linter (combine-assignments) and mechanically rewrites dozens of unit/fuzz/bench test files across the tree.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Linters are explicitly within this category's scope, and maflcko notes the cleanup 'should reduce test issues due to re-using dirty state accidentally,' citing #35863 as a prior real bug pattern. Benefit is real but modest and contingent on the tool actually being adopted, which is itself unresolved in discussion."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "combine-assignments.cpp/.h is a new contrib/devtools helper tool alongside the existing bitcoin-tidy checks.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "A narrow developer-productivity script; the author's own latest comment suggests it may only ever be used locally as a backlog tool rather than merged, per purpleKarrot: 'I actually lean towards C' (use as backlog only)."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds CONSTRUCTOR_ARGUMENT annotations to COutPoint, CTxIn, and CTxOut in src/primitives/transaction.h and touches src/validation.cpp's snapshot-loading code.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "No validation behavior changes, but the PR forces a real, unresolved design question about whether core validation primitives should become immutable; maflcko explicitly questions the value of extending this beyond CTransaction, calling the related #35569 'a bit controversial.' Deciding this direction has leverage for future validation refactors but is not urgent on its own."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "psbt.cpp and wallet/test files only get mechanical assignment-combining with no wallet behavior or interface change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Purely cosmetic rewrite of existing wallet test/PSBT code; no fund-safety, privacy, or reliability effect."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the author will pursue option A (merge as-is), B (per-class immutability PRs), or C (tool-only, never merged) is unresolved, which materially affects whether this exact PR ever lands.",
+   "Unclear whether the possible witness-drop issue flagged by alexanderwiederin in transaction_utils.cpp represents an actual behavior regression or is benign in context.",
+   "No maintainer area label was visible in the metadata, so category membership for build/tools/tests is inferred from file paths and category text about linters rather than a labeled prior."
+  ],
+  "card": "Draft PR adding a bitcoin-tidy 'combine-assignments' linter and mechanically rewriting ~40 mostly test/bench files to build COutPoint/CTxIn/CTxOut via constructors instead of piecewise field assignment, as a proof of concept for eventually making these primitives immutable (referencing issue #35904 on a stateless validation library and related PR #35569). Several reviewers gave concept ACKs (l0rinc, josibake, alexanderwiederin), but maflcko questioned whether extending immutability beyond CTransaction is worth the churn, and the author himself now leans toward never merging these annotations, instead using the tool only to find candidate files for manual rewrites. The PR is currently unreviewable as-is: CI is failing, it needs rebase, and the author has been silent since 2026-08-21 with an open maintainer question about init-list syntax from 2026-08-24. Its main lasting value would be as a design discussion catalyst and dev-tooling addition rather than a behavior change, since the diff touches no validation, mempool, or RPC semantics directly."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

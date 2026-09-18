@@ -1,0 +1,139 @@
+{
+ "number": 36149,
+ "input_hash": "ee43223efb6c3c73",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:17+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16726,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2471
+ },
+ "cost_usd": 0.02181075,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent assertion failures and container corruption when receiving missing parents of pruned blocks."
+   ],
+   "reviewability": [
+    "Paused: Author reworking.",
+    "The author marked the PR draft while exploring a rework suggested in review."
+   ],
+   "agreement": [
+    "Strong support with code review and fuzz verification (marcofleon).",
+    "Concept approvals from two contributors (l0rinc, jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it fixes chainstate invariants and container corruption during pruned stale fork resolution.",
+      "It resolves two open issues (#31512, #36021) and enables the fuzz target to prune non-main-chain blocks."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Not a member because the changes are confined to block storage tracking and chain candidate data structures."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because fuzz and functional test updates specifically validate block index tree and pruning logic."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request retains pruned blocks in `m_blocks_unlinked` so that ancestor transactions arriving later still update transaction counts across the fork. It also removes blocks from `setBlockIndexCandidates` before updating their `nSequenceId` to prevent set order corruption when pruned blocks are re-downloaded. In addition, it updates the functional test suite and extends the `block_index_tree` fuzzer to prune out-of-chain blocks.",
+  "problem": "When the parent of a previously pruned block arrives, the parent is unable to propagate transaction counts down the chain because pruning prematurely removed entries from `m_blocks_unlinked`. This causes `CheckBlockIndex` assertion failures (#31512, #36021) and corrupts candidate set ordering if a block is re-downloaded.",
+  "discussion": {
+   "open_concerns": [
+    "The author is investigating an alternative condition suggested by l0rinc to remove unlinked entries only after `m_chain_tx` is set.",
+    "marcofleon suggested an additional test case for submitting missing parents before node restart."
+   ],
+   "resolved_concerns": [
+    "Fuzz verification confirmed that erasing candidates before updating `nSequenceId` prevents corpus crashes on re-downloaded blocks."
+   ],
+   "author_status": "said wait while exploring an alternative conditional removal approach"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "The author moved the PR to draft to explore an alternative conditional removal approach suggested during review before pushing updates."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong approval with full review and fuzz reproduction; author exploring a minor rework.",
+   "reason": "marcofleon tested and ACKed the fix for both the unlinked chain tracking and the `nSequenceId` sorting bug. l0rinc and jeanpablojp provided Concept ACKs with no objections raised.",
+   "evidence": [
+    "marcofleon gave a tested ACK, noting the main fix looks correct and the sequence ID change fixes potential UB in setBlockIndexCandidates caught by fuzzing.",
+    "jeanpablojp confirmed that without the setBlockIndexCandidates erase, the extended fuzz target fails on existing qa-assets seeds.",
+    "l0rinc gave a Concept ACK."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies chain candidate tracking and block storage structures in src/validation.cpp, src/node/blockstorage.cpp, and src/node/blockstorage.h.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Fixes assertion failures in `CheckBlockIndex` and candidate set ordering corruption when handling pruned stale forks. As the author notes, while rare under normal operation without large reorgs, this occurs during `getblockfrompeer` flows and triggers crashes in debug builds (#31512, #36021). It also unblocks the `block_index_tree` fuzzer from exercising out-of-chain block pruning."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches src/validation.cpp only for block index linkage and candidate sorting, with no changes to mempool acceptance, replacement, or eviction.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Fuzz and functional test updates specifically exercise validation block index logic rather than test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications pin validation behavior and belong to validation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes two validation bugs that occur when receiving missing ancestors of pruned blocks. By keeping pruned blocks in m_blocks_unlinked, transaction counts correctly propagate down the fork when parents arrive, preventing CheckBlockIndex assertion failures (#31512, #36021). It also avoids undefined set ordering by removing candidate blocks before reassigning nSequenceId on re-downloaded blocks, allowing the block_index_tree fuzzer to prune out-of-chain blocks. The change is supported by reviewer ACKs and fuzz verification, but the author has paused review to explore a minor conditional-removal refinement."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,109 @@
+{
+ "number": 36124,
+ "input_hash": "9498c899f4fd21a3",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17170,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2362
+ },
+ "cost_usd": 0.030386299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops other code from arbitrarily setting an HTTPRequest's internal parsing state, closing off a class of bugs where state could be set inconsistently.",
+    "Also flattens the HTTP request-reading code path into fewer, clearer methods."
+   ],
+   "reviewability": [
+    "Ready. Discussion has settled into nits, and the author has kept the PR updated through multiple rounds of comments and splits."
+   ],
+   "agreement": [
+    "Strong support because two reviewers gave concept ACKs and one gave a tested ACK on the final commit (jeanpablojp, winterrdog, janb84).",
+    "All raised nits were addressed by the author in subsequent pushes, no standing objections remain."
+   ],
+   "categories": []
+  },
+  "summary": "This PR removes HTTPRequest::SetState(), which let any code with a reference to an HTTPRequest directly mutate its internal parsing state enum, and replaces the three public LoadControlData/LoadHeaders/LoadBody methods with a single internal Load() method that returns the current state. It also extracts and then flattens HTTPRemoteClient::TryReadRequestInternal() out of the previously static TryReadRequest()/ReadRequest() pair, tightening encapsulation around the client's receive buffer handling. Tests and the fuzz harness are updated to use the new Load()-based API.",
+  "problem": "After #35829 made HTTPRequest fields private, the state enum could still be externally mutated via SetState(), undermining the encapsulation that PR intended and leaving room for future bugs where code sets an inconsistent state. This affects maintainers of the HTTP server who rely on the state machine's invariants being enforced by the type system rather than convention.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "winterrdog asked about adding assert(false) for runtime safety in a switch branch; author addressed by expanding tests instead of adding asserts, no pushback.",
+    "janb84 nit about placement of the new function near other Load* helpers; author declined for now to keep commit count down, accepted.",
+    "janb84 nit about bool vs void return signature; author switched to returning State, addressed.",
+    "winterrdog nit about stale comment referencing removed LoadControlData/LoadHeaders/LoadBody; addressed in later push.",
+    "janb84 asked whether @returns documentation was needed since State seems self-explanatory; author added it back after winterrdog's input."
+   ],
+   "author_status": "active, addressing review and rebasing through 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All raised nits have been addressed in subsequent force-pushes, and the PR received a tested ACK on a recent commit (winterrdog, 2026-09-05). No open material questions remain, though it conflicts with three other open PRs touching the same file (#36204, #36160, #36135) which reviewers should be aware of when sequencing review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: concept ACKs from jeanpablojp and winterrdog, a tested ACK from winterrdog, and a re-ACK from janb84 after re-review; all nits resolved.",
+   "reason": "Multiple reviewers explicitly endorsed the design rationale (removing SetState() makes the no-arbitrary-state-mutation rule compiler-enforced) and no objections remain open.",
+   "evidence": [
+    "janb84: 'The removal of SetState() makes it a better design... makes the convention based rule... a compiler-enforced fact'",
+    "winterrdog: 'tACK 62796e6... successfully built and tested'",
+    "jeanpablojp: 'Concept ACK' with independent verification of behavior equivalence"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36159 (HTTPRemoteClient::MaybeDisconnect improvements) builds on similar refactor work",
+    "#36204 and #36135 conflict with this PR's changes to the same files and will need rebasing after it merges"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies src/httpserver.cpp and src/httpserver.h, the HTTP server that carries JSON-RPC, tightening encapsulation of the request state machine used by every RPC call.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "This is an internal encapsulation improvement to the HTTP server's request-parsing state machine, not a behavior or correctness fix visible to RPC callers. janb84 called it 'a better design' because it makes an existing convention compiler-enforced, reducing risk of future misuse, but no bug or user-facing gap motivates it. It has some leverage for other in-flight HTTP server refactors (#36159, #36204) but is otherwise a maintainability improvement within RPC's transport layer."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Updates src/test/fuzz/http_request.cpp and src/test/httpserver_tests.cpp to match the new Load() API, and reviewer jeanpablojp added new coverage for ShouldDisconnect() branches previously untested.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "jeanpablojp found that 'the unit tests run ShouldDisconnect() but assert nothing about its first two branches' and contributed a test that exercises both branches and a new log line, which the author incorporated. This closes a real coverage gap in HTTP server disconnect logic, but the tests are ancillary to the main refactor rather than the PR's primary subject."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the conflicting open PRs (#36204, #36160, #36135) will require significant rework of this PR's diff once merged, which is a Reviewability concern but not something explicitly discussed.",
+   "Exact scope of what remains after the split-off of #36159 and #36160 was not fully re-verified against the latest force-push at 2026-09-16, though no new discussion followed it."
+  ],
+  "card": "This PR removes HTTPRequest::SetState(), closing a gap where any code holding a request reference could arbitrarily mutate its internal parsing state, and consolidates the three public Load* methods into a single private Load() call, also flattening the client's read-request path. The problem is one of encapsulation and design hygiene in the HTTP server that carries RPC traffic, not a user-visible bug; janb84 called it 'a better design' since it makes the no-arbitrary-state rule compiler-enforced. Review is complete: three reviewers gave concept ACKs, one gave a tested ACK, and all nits raised were addressed across many force-pushes with no open objections. It conflicts with three other open PRs touching the same files (#36204, #36160, #36135), so sequencing matters, but the PR itself is Ready for merge consideration. Priority is modest since the benefit is internal robustness rather than a fix to a felt bug or feature gap."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

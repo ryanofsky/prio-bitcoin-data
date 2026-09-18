@@ -1,0 +1,118 @@
+{
+ "number": 36097,
+ "input_hash": "a1d6df5742b62b0e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 26510,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3615
+ },
+ "cost_usd": 0.045991300000000006,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets IPC clients cancel blocking mining calls (waitNext, createNewBlock, waitTipChanged) using capnp's native cancellation instead of a separate interrupt() RPC.",
+    "Simplifies and speeds up cancellation for rust, python and C++ IPC clients of the mining interface."
+   ],
+   "reviewability": [
+    "Paused because the PR depends on an unmerged libmultiprocess PR (#342) and the author says only the last commit is the real change, the first is a temporary subtree bump.",
+    "CI is currently failing and the PR is a draft pending that upstream merge."
+   ],
+   "agreement": [
+    "Strong: ryanofsky calls it a very nice end-to-end implementation that makes cancellation simpler and more efficient for clients (ryanofsky).",
+    "No objections raised."
+   ],
+   "categories": []
+  },
+  "summary": "This PR replaces the interrupt()/interruptWait() cancellation mechanism for blocking Mining interface methods (waitTipChanged, createNewBlock, BlockTemplate::waitNext) with an optional CancelArg parameter that registers a callback run on cancellation. It leans on new request-cancellation support being added upstream in libmultiprocess (bitcoin-core/libmultiprocess#342), updates the capnp schema with new annotations (extraParam, allowCancellation), and updates tests (miner_tests, interface_ipc_mining.py, ipc_tests) to exercise the new mechanism.",
+  "problem": "IPC clients of the mining interface currently need a separate interrupt() RPC call to cancel a blocking waitNext/createNewBlock/waitTipChanged call, which is less efficient and more complex than using capnp's native per-request cancellation. This affects anyone building external mining software (e.g. Stratum v2 template providers) or other multiprocess consumers who need to cancel in-flight calls.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, force-pushed 2026-09-11 to sync with upstream libmultiprocess changes"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on upstream #342",
+   "reason": "The PR's description states it depends on the unmerged bitcoin-core/libmultiprocess#342 and that 'only the last commit belongs to this PR', meaning the first commit (a temporary subtree bump) will be replaced once upstream lands. CI is currently failing. Reviewing the mechanics now is useful but the final shape of the subtree update is not settled."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: ryanofsky calls the implementation 'very nice' and worthwhile, no objections raised.",
+   "reason": "Single substantive reviewer (ryanofsky) gave a specific, positive rationale for the change and nobody has objected.",
+   "evidence": [
+    "ryanofsky: 'this is a very nice end-to-end implementation and demonstration that supporting this cancellation mechanism is worthwhile and makes things simpler for clients and servers'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Simpler, more efficient cancellation for future IPC mining consumers",
+    "Potential future support for individually cancellable blocking calls"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Core of the change is IPC infrastructure: new CancelArg/CancelGuard mechanism, capnp Proxy.extraParam and Cxx.allowCancellation annotations, and an update of the vendored libmultiprocess subtree.",
+    "band": "P2",
+    "reason_tag": "unblocks future IPC work",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it reduces the maintenance burden of the interface layer by replacing an ad-hoc interrupt RPC with a general capnp cancellation primitive, and ryanofsky notes it could enable individually cancellable calls in the future. It is not P1 because nothing is currently broken and there is no reported bug or urgent consumer waiting on it beyond the referenced RFC (#33575)."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Directly changes interfaces::Mining methods (waitTipChanged, createNewBlock, BlockTemplate::waitNext) and the mining.capnp schema, deprecating interrupt()/interruptWait().",
+    "band": "P3",
+    "reason_tag": "interface cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is an interface-mechanics improvement to the Mining interface rather than a change to template correctness, fees, or latency; it removes boilerplate interrupt plumbing but has no stated consumer bug it fixes. Some leverage exists since cleaner cancellation could smooth future work like the block template manager PRs (#35675/#35581) referenced in the conflicts list."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a drop_promise() helper to test_framework/ipc_util.py (general test infrastructure), plus a cancelable waitCancel method exercised in ipc_tests.cpp and updates to miner_tests.cpp and interface_ipc_mining.py.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because the new drop_promise() utility is genuine framework capability that other IPC tests could reuse, and the new waitCancel exercise gives coverage of both client and server cancellation hooks, per the description. It does not catch an existing realistic regression, so it is not higher."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether libmultiprocess#342 will land unchanged; the description explicitly says the diff will shrink once that happens, so the current diff size and some file contents are transitional.",
+   "Whether this PR should be scored on the final expected diff (last commit only) rather than the temporary subtree bump included now."
+  ],
+  "card": "This PR replaces the interrupt()/interruptWait() mechanism for canceling blocking Mining IPC calls (waitTipChanged, createNewBlock, BlockTemplate::waitNext) with a CancelArg/CancelGuard argument that uses capnp's native request cancellation, building on an unmerged libmultiprocess PR (#342). ryanofsky, the sole reviewer, called it 'a very nice end-to-end implementation' that makes cancellation simpler and more efficient for IPC clients, with no objections raised. The PR is a draft, CI is currently failing, and the author states only the last commit is the real change since the first is a temporary subtree bump pending the upstream PR merging, so review of the current diff may be partially invalidated once that lands. Impact is mainly leverage: it removes a workaround (separate interrupt RPCs) and could enable finer-grained cancellation for future IPC mining consumers, but it does not fix a reported bug or urgent user pain."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

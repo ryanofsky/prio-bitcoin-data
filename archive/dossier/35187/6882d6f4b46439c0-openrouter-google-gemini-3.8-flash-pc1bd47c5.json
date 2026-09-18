@@ -1,0 +1,433 @@
+{
+ "number": 35187,
+ "input_hash": "6882d6f4b46439c0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:29:09+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 40553,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 14408
+ },
+ "cost_usd": 0.08444475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow kernel consumers to validate blocks against caller-supplied coins without maintaining a full UTXO set or mutating chainstate."
+   ],
+   "reviewability": [
+    "Needs rebase against master due to merge conflicts."
+   ],
+   "agreement": [
+    "Broad concept support for sans-UTXO block validation (ismaelsadeeq, alexanderwiederin, yuvicc, nervana21, w0xlt).",
+    "Nonblocking approach objection preferring an in-memory coins container over callback lookups to prevent inconsistency (ajtowns).",
+    "Open question on whether assumevalid should skip script checks during isolated validation (nervana21)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it introduces a major API capability enabling external applications like rust-bitcoinkernel to validate blocks with custom UTXO storage.",
+      "It significantly expands what external consumers can do with the library without requiring full node storage."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it exposes a clean read-only block validation helper on ChainstateManager without altering consensus rules or chainstate invariants."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request adds a C API endpoint to libbitcoinkernel for validating blocks without access to a complete UTXO set. It introduces ChainstateManager::ValidateBlock, which executes CheckBlock, ContextualCheckBlock, and ConnectBlock in check-only mode against caller-supplied coins fetched through a callback.",
+  "problem": "External applications using libbitcoinkernel currently cannot validate individual blocks without instantiating and maintaining a full internal UTXO set, preventing lightweight or custom UTXO indexing architectures from verifying blocks.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns suggested using an explicit in-memory CCoinsView container instead of a callback function to avoid non-deterministic lookups and capture UTXO set deltas.",
+    "nervana21 noted that ConnectBlock will inherit assumevalid logic and potentially skip script checks for blocks under assumevalid, asking if script checking should be forced."
+   ],
+   "resolved_concerns": [
+    "Initial implementation used block undo data, which tied validation to internal cache structures; resolved by switching to outpoint/coin pairs and ultimately to a callback fetcher.",
+    "Addressed 31-bit integer limit documentation and handling for coin confirmation height.",
+    "Removed redundant intra-block spend filtering in FetchCoinFromBase."
+   ],
+   "author_status": "silent since 2026-08-28"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts with master and carries the 'Needs rebase' label."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "purpleKarrot",
+     "stance": "objection",
+     "note": "objected to two-array approach as not scaling to production; favored callback lookup"
+    },
+    {
+     "login": "ismaelsadeeq",
+     "stance": "support",
+     "note": "ACKed approach and code, suggested moving away from undo data and pointed out edge cases with intra-block spends."
+    },
+    {
+     "login": "alexanderwiederin",
+     "stance": "support",
+     "note": "Tested the C API in rust-bitcoinkernel and advocated for the callback approach."
+    },
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Approach ACK."
+    },
+    {
+     "login": "17031996",
+     "stance": "neutral",
+     "note": "Left empty comment link."
+    },
+    {
+     "login": "yuvicc",
+     "stance": "support",
+     "note": "Concept ACK."
+    },
+    {
+     "login": "ajtowns",
+     "stance": "objection",
+     "note": "Concept ACK but preferred controlling an in-memory coins container rather than using a caller-supplied callback."
+    },
+    {
+     "login": "nervana21",
+     "stance": "objection",
+     "note": "Concept ACK but raised an open question regarding assumevalid bypassing script checks during ValidateBlock."
+    },
+    {
+     "login": "optout21",
+     "stance": "neutral",
+     "note": "Reviewed with comments on testing and ConnectBlock side effects without taking a formal stance."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ajtowns",
+     "kind": "approach",
+     "harm": "A caller-supplied lookup callback allows non-deterministic lookups across calls and fails to capture the resulting UTXO set changes.",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-06: 'I think we should control the container ourselves, rather than using a lookup(outpoint) -> coin callback that the caller provides so that we can be sure the lookups are consistent across calls.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "nervana21",
+     "kind": "correctness",
+     "harm": "Blocks validated via ValidateBlock that are ancestors of the assumevalid block will omit script checks instead of doing full script validation.",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-09: 'When we call ConnectBlock on a main chain block that is an ancestor of the assumevalid block... we inherit assumevalid logic and omit script checks. Should there instead be some logic that forces a script_check_reason when ValidateBlock calls ConnectBlock...?'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "purpleKarrot",
+     "kind": "approach",
+     "harm": "flattening into two arrays and rebuilding an ephemeral map requires two full copies of the UTXO set and will not scale to production",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-21: 'While this approach may serve as a proof-of-concept, it will not scale to a production application. As @alexanderwiederin pointed out, a better approach would be to abstract the lookup function.'",
+     "resolution_evidence": "2026-08-06: sedited '* Switched to callback approach for fetching the coins'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "alexanderwiederin",
+     "reason": "Wrote rust-bitcoinkernel tests against the bindings and found the callback design intuitive and effective.",
+     "substantive": true
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "reason": "ACKed approach and code review after the removal of the block undo requirement.",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Approach ACK.",
+     "substantive": false
+    },
+    {
+     "reviewer": "yuvicc",
+     "reason": "Concept ACK.",
+     "substantive": false
+    },
+    {
+     "reviewer": "nervana21",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Blocked",
+   "summary": "Blocked: blocking objection open with no author reply (ajtowns)",
+   "reason": "There is broad agreement on the value of the feature, but an architectural dispute from ajtowns regarding callback determinism vs an in-memory coins container remains open alongside an unanswered question on assumevalid handling.",
+   "evidence": [
+    "alexanderwiederin: 'The design holds up well in my opinion.'",
+    "ajtowns: 'ConceptACK, approach = nearly, but not quite?... I think we should control the container ourselves, rather than using a lookup(outpoint) -> coin callback'",
+    "nervana21: 'Should there instead be some logic that forces a script_check_reason when ValidateBlock calls ConnectBlock or is the current logic the desired behavior?'"
+   ],
+   "model_state": "Mild",
+   "derivation": "blocking objection open with no author reply (ajtowns)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Blocked",
+    "derived": "Blocked",
+    "objections": [
+     {
+      "reviewer": "purpleKarrot",
+      "kind": "approach",
+      "harm": "flattening into two arrays and rebuilding an ephemeral map requires two full copies of the UTXO set and will not scale to production",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-21: 'While this approach may serve as a proof-of-concept, it will not scale to a production application. As @alexanderwiederin pointed out, a better approach would be to abstract the lookup function.'",
+      "resolution_evidence": "2026-08-06: sedited '* Switched to callback approach for fetching the coins'"
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "a user-provided callback can return non-deterministic coins and break internal validation logic, and the API throws away UTXO state change information",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-06: 'ConceptACK, approach = nearly, but not quite?... I don't think ValidateBlock has quite the right API -- returning a BlockValidationState is fine, but that throws away the \"here's how the utxo set ends up\" info... I think we should control the container ourselves, rather than using a lookup(outpoint) -> coin callback... A lookup(outpoint) function can return (randbool() ? coin1 : coin2) to break our logic'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "nervana21",
+      "kind": "correctness",
+      "harm": "ValidateBlock inherits assumevalid logic from ConnectBlock, potentially omitting script verification for blocks that are ancestors of the assumevalid block",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-09: 'When we call ConnectBlock on a main chain block that is an ancestor of the assumevalid block (and satisfies some other straightforward criteria), we inherit assumevalid logic and omit script checks. Should there instead be some logic that forces a script_check_reason when ValidateBlock calls ConnectBlock or is the current logic the desired behavior?'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "Approach ACK and Code review ACK; tested the path in unit tests without failures",
+      "substantive": true
+     },
+     {
+      "reviewer": "alexanderwiederin",
+      "reason": "tested the callback API with an end-to-end Rust harness validating blocks against an external UTXO set and found the design holds up well",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Approach ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "yuvicc",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "nervana21",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "purpleKarrot",
+      "stance": "objection",
+      "note": "objected to two-array approach as not scaling to production; favored callback lookup"
+     },
+     {
+      "login": "ismaelsadeeq",
+      "stance": "support",
+      "note": "Approach ACK and Code review ACK; suggested passing coins directly rather than undo data"
+     },
+     {
+      "login": "alexanderwiederin",
+      "stance": "support",
+      "note": "suggested callback signature and tested API against rust-bitcoinkernel bindings"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Approach ACK"
+     },
+     {
+      "login": "17031996",
+      "stance": "neutral",
+      "note": "empty comment"
+     },
+     {
+      "login": "yuvicc",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "ajtowns",
+      "stance": "objection",
+      "note": "objected that callback lookup allows non-deterministic returns and breaks validation logic; proposed in-memory CoinsDb container"
+     },
+     {
+      "login": "nervana21",
+      "stance": "objection",
+      "note": "Concept ACK, but asked whether assumevalid skipping script checks in ValidateBlock is intended"
+     },
+     {
+      "login": "optout21",
+      "stance": "neutral",
+      "note": "reviewed validation changes with minor comments, no formal position"
+     }
+    ],
+    "corrections": [],
+    "summary": "Blocked: ajtowns objects that callback lookup allows non-deterministic returns and breaks validation logic; author has not replied since 2026-08.",
+    "usage": {
+     "input_tokens": 10618,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 9223
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "A caller-supplied lookup callback allows non-deterministic lookups across calls and fails to capture the resulting UTXO set changes.",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-06: 'I think we should control the container ourselves, rather than using a lookup(outpoint) -> coin callback that the caller provides so that we can be sure the lookups are consistent across calls.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "nervana21",
+      "kind": "correctness",
+      "harm": "Blocks validated via ValidateBlock that are ancestors of the assumevalid block will omit script checks instead of doing full script validation.",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-09: 'When we call ConnectBlock on a main chain block that is an ancestor of the assumevalid block... we inherit assumevalid logic and omit script checks. Should there instead be some logic that forces a script_check_reason when ValidateBlock calls ConnectBlock...?'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "alexanderwiederin",
+      "reason": "Wrote rust-bitcoinkernel tests against the bindings and found the callback design intuitive and effective.",
+      "substantive": true
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "ACKed approach and code review after the removal of the block undo requirement.",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Approach ACK.",
+      "substantive": false
+     },
+     {
+      "reviewer": "yuvicc",
+      "reason": "Concept ACK.",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "External block validation workflows without full chainstate in projects like rust-bitcoinkernel"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds C API endpoints btck_chainstate_manager_validate_block, btck_coin_create, and related wrapper methods.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it adds an important new capability to libbitcoinkernel, allowing downstream applications to validate blocks without requiring a complete local UTXO database. Downstream consumers have already prototyped rust-bitcoinkernel tests on top of it."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches src/validation.cpp and src/validation.h to add ChainstateManager::ValidateBlock, and carries the Validation label.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it adds an isolated read-only helper to ChainstateManager that runs standard block checks against an external CCoinsViewCache, without changing consensus rules or node validation workflows."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool logic, transaction acceptance, or policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of the mempool category."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds a libbitcoinkernel C API endpoint for validating blocks without a local UTXO set by fetching spent coins via a user-supplied callback. It solves the problem of requiring full node chainstate data for external tools that already track UTXOs independently. Downstream consumers in rust-bitcoinkernel have verified the workflow, but the PR is currently unmergeable due to merge conflicts and has an open design critique from ajtowns over callbacks versus an in-memory UTXO container."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.04254975
+}

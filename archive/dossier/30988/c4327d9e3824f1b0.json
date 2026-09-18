@@ -1,0 +1,156 @@
+{
+ "number": 30988,
+ "input_hash": "c4327d9e3824f1b0",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 56352,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6091
+ },
+ "cost_usd": 0.08821330000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Split CConnman into a new SockMan class that handles low-level socket send/recv/bind/connect, separating it from Bitcoin P2P specific logic.",
+    "Aims to make socket-handling code reusable for other consumers such as a libevent-free RPC/HTTP server or a Stratum V2 template provider."
+   ],
+   "reviewability": [
+    "Paused, the author is mid-rework of the API based on late substantive feedback and has redirected effort to a smaller sibling PR (#32747).",
+    "Marked draft, heavily conflicts with many other open net PRs, and needs rebase."
+   ],
+   "agreement": [
+    "Split support: several concept ACKs (ryanofsky, tdb3, Sjors, hodlinator, jonatack, rkrux) and one full code-review ACK (pinheadmz), but a maintainer with networking history gave a substantive concept NACK (theuni), arguing the abstraction level is wrong and its two intended consumers would be better served by custom code.",
+    "Author engaged with the NACK and disputes parts of it but has not resolved it; other reviewers (ryanofsky) also raised structural API concerns the author is actively incorporating."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it is an internal restructuring of CConnman's socket handling with a plausible but contested leverage claim (reuse by HTTP/SV2/other consumers), not a fix to a live bug, DoS issue, or protocol gap.",
+      "It does fix one latent, subtle correctness issue in peer-eviction selection and turns O(n) node lookups into O(1), both minor.",
+      "Its main claimed value, unblocking other projects, is directly disputed by a maintainer, and no other project currently depends on it merging."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR extracts the low-level socket handling (bind, listen, accept, connect, send, recv, and the associated threads) out of CConnman into a new, reusable SockMan class, leaving CConnman with only Bitcoin P2P specific logic (V1/V2 transport, AddrMan interaction, banning, PeerManager interaction). It is a large, mostly move-only refactor spanning 17 commits and touching net.cpp/net.h heavily, plus corresponding test and fuzz-harness adjustments. Along the way it fixes a subtle correctness issue in peer-eviction bookkeeping and switches node lookup from a vector scan to an id-indexed map for O(1) access.",
+  "problem": "CConnman currently mixes low-level socket plumbing with Bitcoin-P2P-specific policy, which the author argues makes the code harder to reuse and maintain; this affects developers who want socket handling for other consumers (an HTTP server without libevent, a Stratum V2 template provider) and reviewers of net.cpp who must reason about both concerns at once.",
+  "discussion": {
+   "open_concerns": [
+    "theuni's concept NACK: SockMan's abstraction and API are too biased toward Core's P2P model to serve as a generic socket layer, and its two intended consumers (HTTP, SV2) would be better off with bespoke implementations; both consumers have since moved toward not using SockMan (#32061, #32747).",
+    "ryanofsky's structural suggestion to replace integer connection ids and parallel hash maps with a Connection/std::any-based API, which the author agreed with and started implementing but has not finished.",
+    "Numerous unresolved nits and design questions from hodlinator, pinheadmz, and Sjors accumulated over many months of rebases."
+   ],
+   "resolved_concerns": [
+    "Several naming, logging-category, and comment clarity issues raised by Sjors/hodlinator/pinheadmz were addressed in subsequent pushes.",
+    "A dependency-cycle concern from Sjors around i2p.cpp placement was resolved by moving files between libraries.",
+    "pinheadmz's uninitialized cancel_recv concern was fixed downstream in the HTTP consumer branch, and confirmed resolved."
+   ],
+   "author_status": "active but currently redirecting effort to the smaller follow-up PR #32747, last substantive comment 2026-03-05 saying rework is midway"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "The author stated (2026-03-05) they agree with ryanofsky's API-restructuring suggestions and are midway through implementing them, and separately marked the PR draft to focus on the smaller sibling PR #32747 per Sjors's suggestion; reviewing the current code risks being invalidated by that pending rework, and the PR also needs a rebase against numerous conflicting open PRs."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Multiple concept ACKs and one full code-review ACK, but theuni's concept NACK about the abstraction's fitness for its stated consumers remains substantively unresolved.",
+   "reason": "theuni gave a detailed concept NACK arguing SockMan is the wrong abstraction level and that its two motivating use cases (HTTP server, SV2) would be better served by custom implementations; both of those consumers have since moved toward not using SockMan. The author responded constructively but disagreement about whether the abstraction has independent value stands unresolved, while several other reviewers (ryanofsky, tdb3, Sjors, hodlinator, jonatack, rkrux, pinheadmz) support the direction.",
+   "evidence": [
+    "theuni: 'I'm afraid I'm a concept NACK... SockMan is essentially mimicking the behavior of a generic io multiplexing framework... not well-suited for the 2 use-cases which use it'",
+    "vasild: 'I find your feedback constructive... If it does not cover some of the needs of Sv2 or HTTP, I am open to tweaking it in any way possible'",
+    "ryanofsky: 'Concept ACK... this is a nice change that simplifies net.cpp... I think I agree with theuni's comment... but that seems like more of a concern for #32061 than this PR'",
+    "rkrux: 'Concept ACK... for the split of CConnman into smaller and modular parts that should be reused by other components'",
+    "pinheadmz: 'ACK 70c2f13f... Built and ran tests on macos/arm as well as debian/x86... synced to signet'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Potential reuse by a libevent-free HTTP/RPC server (#32061, superseded by #32747)",
+    "Potential reuse by a Stratum V2 template provider (contested by maintainers as no longer a motivating use case)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly restructures CConnman/net.cpp/net.h, the core of the node's P2P networking stack, including connection acceptance, transport, and eviction logic.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because the change is primarily an internal restructuring for modularity/reusability rather than a fix for a live bug, DoS vector, or protocol gap; its central justification, unblocking HTTP/SV2 reuse, is explicitly disputed by theuni, who notes both intended consumers have moved away from using it. It does fix one subtle correctness issue in EvictExtraOutboundPeers's peer-selection logic and turns several O(n) node lookups into O(1), which are real but minor improvements. Given the disputed leverage claim and no external blocking dependency, it ranks as worthwhile but deferrable within p2p."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only a 4-line mechanical fix to getpeerinfo's output ordering, needed because node storage changed from a vector to an unordered_map; not a substantive RPC change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the RPC touch is a mechanical side effect of the internal data-structure change (sorting output to preserve prior ordering behavior), not a change to RPC semantics or machinery."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Fuzz harness and unit test files are updated only to keep compiling against the new SockMan/CConnman constructor and API signatures, not to add new test framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per the rule that mechanical test-harness adjustments needed to keep compiling do not count as test-infrastructure membership."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "SockMan lives under src/common/ but is network-connection specific (sockets, I2P sessions, poll/select loops), not the generic logging/args/serialization/threading utilities the category covers.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: despite the file path under common/, the category's scope (logging, argument handling, serialization, randomness/crypto primitives, threading utils, vendored subtrees) does not include network socket-management code, which belongs to p2p instead."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the eventual direction (SockMan vs. bespoke implementations for HTTP/SV2 as theuni/pinheadmz are pursuing) will make this PR obsolete or merged in reduced form; the record shows the author redirecting effort to #32747 as of mid-2025.",
+   "Exact current relationship between this PR and #32747 (successor vs. parallel) is unclear from the available signals; card and dependency fields reflect the most recent stated intent only.",
+   "Whether the eviction-logic behavior change in net_processing.cpp (flagged by hodlinator and explained by vasild as bug-preserving) is fully correct was not independently re-verified here."
+  ],
+  "card": "This PR splits Bitcoin Core's CConnman into a new SockMan class handling low-level socket operations (bind, listen, accept, connect, send, recv) separately from Bitcoin-P2P-specific logic, aiming for more modular, reusable networking code. It is a large 17-commit, mostly move-only refactor with no direct user-facing feature, though it fixes one subtle latent bug in outbound-peer eviction selection and switches node lookups from O(n) to O(1). Review has been extensive over more than a year (11 reviewers, many concept ACKs from ryanofsky, tdb3, Sjors, hodlinator, jonatack, rkrux, and a full code-review ACK from pinheadmz), but a maintainer, theuni, gave a substantive concept NACK arguing the abstraction is a poor fit for its two motivating consumers (an HTTP server and a Stratum V2 provider), both of which have since moved toward custom implementations instead of SockMan. The author is currently mid-rework incorporating ryanofsky's suggested API changes and has redirected primary attention to a smaller sibling PR (#32747), leaving this draft PR paused and conflicting with numerous other open net PRs."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

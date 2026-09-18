@@ -1,0 +1,152 @@
+{
+ "number": 29256,
+ "input_hash": "f6425d2c0a558c09",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:32+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 54298,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3432
+ },
+ "cost_usd": 0.0535935,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow log macros to take context arguments for custom loggers and metadata",
+    "Enable subsystems like the wallet and libbitcoinkernel to control log destinations and prefixes"
+   ],
+   "reviewability": [
+    "Author silent for 113 days",
+    "Stacked on open PR 34778"
+   ],
+   "agreement": [
+    "Disputed: ajtowns Concept NACKs the introduction of non-global logger contexts",
+    "Support from sedited and jonatack for enabling multi-instance kernel logging"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it generalizes the logging macro interface to support instance-specific loggers",
+      "Unblocks downstream kernel logging isolation and wallet log formatting refactors"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request refactors the logging macro infrastructure (`LogTrace`, `LogDebug`, `LogInfo`, `LogWarning`, `LogError`) to optionally accept context arguments (`util::log::Context`). This allows callers to pass specific logger instances or formatting hooks to prepend metadata like wallet names or request IDs, and avoids mandatory reliance on the global `BCLog::Logger` singleton.",
+  "problem": "Current logging macros assume a single global logging instance, preventing callers such as `libbitcoinkernel` or multi-wallet setups from redirecting log output to isolated streams or automatically prepending contextual identifiers without dedicated wrapper functions.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns holds an active Concept NACK, arguing that instanced logging for kernel is an unnecessary architectural complication that could be handled via separate processes, and that adding context arguments adds code churn and complexity across call sites without commensurate benefit",
+    "hodlinator raised concerns about maintaining output behavior and preventing category arguments at higher severity levels, which the author partially addressed with restrictions and static asserts",
+    "l0rinc requested splitting up large commits and questioned several template abstractions"
+   ],
+   "resolved_concerns": [
+    "Restrictions from #28318 forbidding category arguments at Info/Warning/Error and requiring them at Debug/Trace were preserved to reach compromise",
+    "Dropped initial controversial changes that removed category restrictions across log levels"
+   ],
+   "author_status": "silent since 2026-05-27"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 113d",
+   "reason": "The author has been inactive for 113 days, exceeding the 60-day project staleness threshold. Additionally, the PR is based on open PR 34778."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: ajtowns maintains a Concept NACK against instanced logger contexts; author and supporters disagree.",
+   "reason": "ajtowns has registered a blocking Concept NACK against modifying logging macros to support non-global contexts and instanced loggers, viewing it as a design error for kernel and unnecessary churn for wallet. The author and reviewers sedited and jonatack maintain that multi-instance logging is valuable for external library consumers.",
+   "evidence": [
+    "ajtowns Concept NACK: 'This PR isn't solving any problems other than its author's aesthetic objection to the current logging API... adding multiple logger instances to the bitcoinkernel project still seems to be a massive design error to me'",
+    "sedited Concept ACK: 'There are use cases for having e.g. two chainstate managers running in parallel... Having something to distinguishing logs issued between the two sounds useful'",
+    "jonatack Concept ACK: supportive of simpler, consistent logging APIs across the project",
+    "hodlinator reviewed and requested changes regarding output behavior and category filtering enforcement"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34778
+   ],
+   "enables": [
+    "#30342",
+    "#30343"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches doc/developer-notes.md solely to update logging macro usage documentation following code changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation edits are purely secondary adjustments accompanying utility changes."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool logic or policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies shared logging infrastructure in src/util/log.h and src/logging.cpp.",
+    "band": "P3",
+    "reason_tag": "unblocks #30342",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because it provides a clean mechanism to attach context and custom loggers to log macros without requiring separate macro implementations for subsystems. While it unblocks #30342 (passing logger instances to kernel objects) and #30343 (wallet logging refactor), it does not fix an active bug or performance issue in bitcoind."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches src/validation.cpp purely for a mechanical update to UpdateTipLog to adapt to the new ratelimit option syntax.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The single call site modification in validation code is mechanical and does not affect consensus or validation logic."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 29256 generalizes the core logging macros (LogInfo, LogDebug, etc.) to optionally accept context parameters containing logger pointers and formatting hooks. This enables downstream work in libbitcoinkernel (#30342) to isolate log streams and in the wallet (#30343) to embed wallet names without custom wrapper functions. The change is conceptually disputed, with ajtowns maintaining a Concept NACK against non-global logging contexts in kernel while others support it. The PR is currently marked draft, is stacked on #34778, and has seen no author activity for over 100 days."
+ },
+ "raw_text": null
+}

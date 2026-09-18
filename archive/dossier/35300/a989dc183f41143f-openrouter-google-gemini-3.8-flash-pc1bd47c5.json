@@ -1,0 +1,325 @@
+{
+ "number": 35300,
+ "input_hash": "a989dc183f41143f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:32:32+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29613,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12489
+ },
+ "cost_usd": 0.0690435,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow IPC mining clients to submit and prefer a same-work block in a single atomic call",
+    "Avoid race conditions and extra round-trips from issuing a separate preciousblock RPC"
+   ],
+   "reviewability": [
+    "Review is blocked by merge conflicts and author inactivity"
+   ],
+   "agreement": [
+    "Concept approval for atomic block submission from multiple reviewers (pablomartin4btc, Sjors)",
+    "Unaddressed nonblocking interface objection regarding duplicate return semantics when precious is set (Sjors)"
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it adds an optional precious parameter to the IPC mining interface",
+      "It improves ergonomics and avoids races for external mining clients like Stratum v2 template providers"
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it extends the Cap'n Proto mining schema with a precious submission flag",
+      "It enhances the mining process boundary without altering core IPC transport infrastructure"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it refactors ActivateBestChain into an internal lock-held helper",
+      "It alters PreciousBlock locking scope to report connection status safely to callers"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an optional `precious` argument to `Mining.submitBlock` and `BlockTemplate.submitSolution` in the IPC mining interface. It allows external mining clients to submit a block and trigger `PreciousBlock` preference atomically. To support this safely, `Chainstate::ActivateBestChain_` is extracted as a lock-held helper and `Chainstate::PreciousBlock` is modified to report whether the block was connected before releasing `m_chainstate_mutex`.",
+  "problem": "Currently, external mining software submitting blocks over IPC must make a separate `preciousblock` RPC call to prefer a competing block with identical work, which introduces a race condition against concurrent chain activations.",
+  "discussion": {
+   "open_concerns": [
+    "Sjors questioned whether activating an already-known duplicate block should return success or continue returning 'duplicate'"
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-24"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and has been inactive for over 50 days."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Sjors",
+     "stance": "objection",
+     "note": "Concept ACK but questioned return value on duplicate blocks and suggested test restructuring"
+    },
+    {
+     "login": "pablomartin4btc",
+     "stance": "support",
+     "note": "Concept ACK, supported atomic submission rationale, and left minor nits"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "Sjors",
+     "kind": "interface",
+     "harm": "Returning success instead of duplicate when an already-known block is activated under the precious flag",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-07-24: \"mmm, I don't think `precious` should change the behavior if the block is duplicate, so just return `duplicate`?\"",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "pablomartin4btc",
+     "reason": "Allows IPC mining clients to atomically submit and prefer a same-work block in one go instead of a separate preciousblock RPC call",
+     "substantive": true
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "Concept ACK for preferring miner's own block during p2p relay, though noted game-theoretic caveats",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: Concept ACKs from Sjors and pablomartin4btc, but Sjors's comment on duplicate return semantics remains unanswered.",
+   "reason": "Reviewers favor the feature for IPC mining clients, but Sjors raised a nonblocking interface concern regarding whether duplicate return status should be suppressed when precious is true, which has received no author reply.",
+   "evidence": [
+    "2026-07-24 Sjors: 'Concept ACK' and 'mmm, I don't think `precious` should change the behavior if the block is duplicate, so just return `duplicate`?'",
+    "2026-07-24 pablomartin4btc: 'Concept ACK. Adding precious=true to submitBlock and submitSolution, allows IPC mining clients atomically submit and prefer a same-work block in one go...'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (Sjors)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "Sjors",
+      "kind": "interface",
+      "harm": "incorrect or inconsistent return status for duplicate blocks when precious is set",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-24: \"mmm, I don't think `precious` should change the behavior if the block is duplicate, so just return `duplicate`?\"",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "allows IPC mining clients atomically submit and prefer a same-work block in one go instead of a separate preciousblock RPC call",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "Sjors",
+      "stance": "objection",
+      "note": "Concept ACK, but raised a non-blocking concern about return behavior on duplicate blocks"
+     },
+     {
+      "login": "pablomartin4btc",
+      "stance": "support",
+      "note": "Concept ACK with non-blocking nits"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild; Concept ACKs from Sjors and pablomartin4btc, but Sjors's non-blocking criticism on duplicate return behavior remains unanswered",
+    "usage": {
+     "input_tokens": 4401,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3252
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "Sjors",
+      "kind": "interface",
+      "harm": "Returning success instead of duplicate when an already-known block is activated under the precious flag",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-24: \"mmm, I don't think `precious` should change the behavior if the block is duplicate, so just return `duplicate`?\"",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "Allows IPC mining clients to atomically submit and prefer a same-work block in one go instead of a separate preciousblock RPC call",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Concept ACK for preferring miner's own block during p2p relay, though noted game-theoretic caveats",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Modifies interfaces::Mining, src/node/miner.cpp, and IPC block submission handling.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it adds an optional feature to IPC block submission. As pablomartin4btc noted, it 'allows IPC mining clients atomically submit and prefer a same-work block in one go instead of a separate preciousblock RPC call'. While helpful for Stratum v2 template providers, it is an incremental API enhancement."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes src/ipc/capnp/mining.capnp and adds IPC functional test coverage.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it updates the IPC mining protocol schema to support the precious flag on submitBlock and submitSolution, improving process-separated mining interfaces."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies Chainstate::PreciousBlock locking and extracts ActivateBestChain_ in src/validation.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.28,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it refactors Chainstate locking helpers. As commit 42d48e7760 explains, it moves 'the lock-held body of ActivateBestChain() into an internal helper without changing behavior. This allows callers that already hold m_chainstate_mutex to run activation without releasing and reacquiring it'."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches only doc/release-notes-35300.md following the code changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release notes that accompany a feature do not qualify the PR for the docs category."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool data structures or validation policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not related to mempool or transaction acceptance."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/blockchain.cpp only to pass a new out-parameter to PreciousBlock.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site updates resulting from an internal function signature change do not make a PR an RPC member."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes test files solely to cover the new mining IPC feature and share a PoW grinding helper.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests tailored specifically to verify mining and IPC changes belong to those domain categories rather than test infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35300 adds an optional precious argument to the IPC Mining submitBlock and submitSolution interfaces. This allows IPC mining clients like Stratum v2 template providers to prefer same-work side blocks in a single atomic submission without calling the preciousblock RPC separately. To achieve this, it extracts an ActivateBestChain_ lock-held helper and updates Chainstate::PreciousBlock to return connection status while holding m_chainstate_mutex. Reviewers gave Concept ACKs, though Sjors raised an unaddressed question about duplicate return semantics. The PR is currently in draft and needs a rebase."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01549575
+}

@@ -1,0 +1,412 @@
+{
+ "number": 35641,
+ "input_hash": "eb3a3c209c06dae6",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:36:14+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 45595,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12084
+ },
+ "cost_usd": 0.07951125,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Provide a script execution tracing callback in libbitcoinkernel.",
+    "Allow external debuggers and language bindings to inspect opcode execution and stack states step-by-step."
+   ],
+   "reviewability": [
+    "Waiting on author: open bug report from w0xlt needs code changes before further review."
+   ],
+   "agreement": [
+    "Broad concept support for script debugging features (furszy, w0xlt, theStack, haanhvu).",
+    "Prior code structure and API design suggestions resolved (alexanderwiederin, stringintech).",
+    "Open nonblocking bug report on assertion failure with null error pointers (w0xlt)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it adds an optional developer and tooling feature to the kernel C API without affecting core node operation.",
+      "Valuable for external consumers like rust-bitcoinkernel building script debuggers, but easily deferrable."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds an optional script evaluation tracing mechanism to libbitcoinkernel gated behind the ENABLE_SCRIPT_TRACE CMake flag. When enabled, a registered callback receives snapshot frames at the start, step, and end of script evaluation in EvalScript, exposing stack items, opcodes, execution state, and script errors.",
+  "problem": "External applications and debuggers built on libbitcoinkernel lack visibility into internal script evaluation steps, making it difficult to write interactive script debuggers or trace interpreter execution.",
+  "discussion": {
+   "open_concerns": [
+    "An assertion failure triggers when tracing is enabled and EvalScript is invoked with a null serror pointer (e.g. in CheckSignetBlockSolution).",
+    "Oversized scripts are rejected before ScriptTraceScope is instantiated, preventing BEGIN and END trace frames from being emitted."
+   ],
+   "resolved_concerns": [
+    "Opaque C API types and getters adopted instead of exposing internal struct layouts.",
+    "Enum conversions between internal and kernel wrapper types made exhaustive.",
+    "Thread safety documentation and callback unregistration cleanup in kernel test suite."
+   ],
+   "author_status": "silent since 2026-08-31 after addressing alexanderwiederin's comments"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "Reviewer w0xlt reported a reproducible assertion failure when EvalScript is called with a null serror pointer, which has been open for 15 days without an author reply."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "furszy",
+     "stance": "support",
+     "note": "Concept ACK, noted benefits for testing"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "Initially Strong Concept ACK, later reported an assertion crash on null error pointers and oversized script handling"
+    },
+    {
+     "login": "alexanderwiederin",
+     "stance": "objection",
+     "note": "ACKed earlier, later caught test suite failure when feature flag enabled (fixed)"
+    },
+    {
+     "login": "theStack",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "elmeriniemela",
+     "stance": "support",
+     "note": "tested with python bindings and visualizer, confirmed it worked with no issues"
+    },
+    {
+     "login": "haanhvu",
+     "stance": "support",
+     "note": "Approach ACK after suggesting test coverage improvements"
+    },
+    {
+     "login": "stringintech",
+     "stance": "neutral",
+     "note": "Suggested using opaque types, getters, and exhaustive enum conversions, which author implemented"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "EvalScript triggers an assertion failure when tracing is enabled if called with a null serror pointer, such as in CheckSignetBlockSolution.",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-01: 'The tracing code assumes serror is non-null whenever a callback is registered, but EvalScript permits nullptr... This triggers the assertion assert(!m_callback || error); when tracing is enabled.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "dossier",
+      "thread",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "alexanderwiederin",
+     "kind": "correctness",
+     "harm": "test suite fails when compiled with ENABLE_SCRIPT_TRACE=ON due to lingering callback pushing into destroyed vector in subsequent tests",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-31: \"Add ScriptTraceUnsetCallback() to avoid the next test case push into a destroyed vector. Test suite currently does not pass with the feature flag.\"",
+     "resolution_evidence": "2026-08-31: \"unsetting the callback after the trace tests are complete.\"",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "haanhvu",
+     "kind": "correctness",
+     "harm": "BOOST_CHECK_EQUAL on vector size allows test execution to continue and access out-of-bounds indices, causing undefined behavior",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-29: \"BOOST_CHECK_EQUAL(states.size(), 11) is non-fatal, but the test checks states[0] through states[10] after this. So if the size check fails, the test still continues and may access out-of-bound items, resulting in an undefined behavior instead of a clean test failure.\"",
+     "resolution_evidence": "2026-08-28: \"made the boost size check a hard requirement.\"",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "furszy",
+     "reason": "would benefit testing greatly",
+     "substantive": true
+    },
+    {
+     "reviewer": "theStack",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "alexanderwiederin",
+     "reason": "ACK 114e48e968a087f74c1ab611ac2a31a9266812e1",
+     "substantive": false
+    },
+    {
+     "reviewer": "haanhvu",
+     "reason": "Approach ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Strong Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "elmeriniemela",
+     "reason": "tested with python bindings and visualizer, confirmed no issues found",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Concept supported by multiple reviewers, but w0xlt found an unaddressed assertion bug when serror is null.",
+   "reason": "The PR has broad concept approval for exposing script tracing hooks in the kernel API, but w0xlt identified a real bug where internal callers passing null error pointers crash an assertion when tracing is enabled.",
+   "evidence": [
+    "furszy: 'Concept ACK... something that would benefit testing greatly'",
+    "haanhvu: 'Approach ACK'",
+    "w0xlt: 'The tracing code assumes serror is non-null whenever a callback is registered... This triggers the assertion'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (w0xlt)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "assert(!m_callback || error) triggers and crashes during signet block validation or other callers where serror is nullptr",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-01: \"The tracing code assumes serror is non-null whenever a callback is registered, but EvalScript permits nullptr for example, CheckSignetBlockSolution() calls VerifyScript() without an error pointer. This triggers the assertion assert(!m_callback || error); when tracing is enabled.\"",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "oversized scripts fail before ScriptTraceScope is constructed, violating the guarantee that every evaluation emits at least begin and end frames",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-01: \"EvalScript rejects oversized scripts before constructing ScriptTraceScope, so a registered callback receives neither BEGIN nor END.\"",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "alexanderwiederin",
+      "kind": "correctness",
+      "harm": "test suite fails when compiled with ENABLE_SCRIPT_TRACE=ON due to lingering callback pushing into destroyed vector in subsequent tests",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-31: \"Add ScriptTraceUnsetCallback() to avoid the next test case push into a destroyed vector. Test suite currently does not pass with the feature flag.\"",
+      "resolution_evidence": "2026-08-31: \"unsetting the callback after the trace tests are complete.\""
+     },
+     {
+      "reviewer": "haanhvu",
+      "kind": "correctness",
+      "harm": "BOOST_CHECK_EQUAL on vector size allows test execution to continue and access out-of-bounds indices, causing undefined behavior",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-29: \"BOOST_CHECK_EQUAL(states.size(), 11) is non-fatal, but the test checks states[0] through states[10] after this. So if the size check fails, the test still continues and may access out-of-bound items, resulting in an undefined behavior instead of a clean test failure.\"",
+      "resolution_evidence": "2026-08-28: \"made the boost size check a hard requirement.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "furszy",
+      "reason": "this is something that would benefit testing greatly",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Strong Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "theStack",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "alexanderwiederin",
+      "reason": "ACK 114e48e968a087f74c1ab611ac2a31a9266812e1",
+      "substantive": false
+     },
+     {
+      "reviewer": "elmeriniemela",
+      "reason": "tested with python bindings and visualizer, confirmed no issues found",
+      "substantive": true
+     },
+     {
+      "reviewer": "haanhvu",
+      "reason": "Approach ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "furszy",
+      "stance": "support",
+      "note": "Concept ACK; noted it would benefit testing greatly"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "Strong Concept ACK, but later reported assertion failure when serror is null and missing frames for oversized scripts"
+     },
+     {
+      "login": "alexanderwiederin",
+      "stance": "objection",
+      "note": "ACKed earlier, later caught test suite failure when feature flag enabled (fixed)"
+     },
+     {
+      "login": "theStack",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "elmeriniemela",
+      "stance": "support",
+      "note": "tested with python bindings and visualizer, confirmed it worked with no issues"
+     },
+     {
+      "login": "haanhvu",
+      "stance": "support",
+      "note": "Approach ACK after code review comments on test robustness were addressed"
+     },
+     {
+      "login": "stringintech",
+      "stance": "neutral",
+      "note": "suggested opaque frame types, exhaustive switches, and error assertions, which author addressed"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild; w0xlt reported an assertion crash when serror is null (e.g. signet validation) and missing frames for oversized scripts; author has not replied yet.",
+    "usage": {
+     "input_tokens": 12177,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 6544
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "EvalScript triggers an assertion failure when tracing is enabled if called with a null serror pointer, such as in CheckSignetBlockSolution.",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-01: 'The tracing code assumes serror is non-null whenever a callback is registered, but EvalScript permits nullptr... This triggers the assertion assert(!m_callback || error); when tracing is enabled.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Oversized scripts return before constructing ScriptTraceScope, failing to emit BEGIN and END frames.",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-01: 'EvalScript rejects oversized scripts before constructing ScriptTraceScope, so a registered callback receives neither BEGIN nor END.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "furszy",
+      "reason": "would benefit testing greatly",
+      "substantive": true
+     },
+     {
+      "reviewer": "theStack",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "alexanderwiederin",
+      "reason": "ACK 114e48e968a087f74c1ab611ac2a31a9266812e1",
+      "substantive": false
+     },
+     {
+      "reviewer": "haanhvu",
+      "reason": "Approach ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds C API functions, headers, and CMake options to libbitcoinkernel under src/kernel/.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Adds an optional script execution tracing API to the C kernel interface, allowing external tools like rust-bitcoinkernel to inspect script evaluation step by step. While valuable for developer tooling and script debugging, it is gated behind an optional build flag and does not block core node or validation library functionality."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches src/script/interpreter.cpp solely to insert trace hooks for the kernel library API, without modifying validation behavior or consensus rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded by the validation rubric because the primary subject is the kernel library API for tooling, and the small hook added to EvalScript does not alter consensus validity or validation invariants."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR introduces an optional script execution tracer in libbitcoinkernel, gated behind the ENABLE_SCRIPT_TRACE build option. It exposes a C callback interface providing snapshot frames for opcode execution, stack items, and script errors, enabling external tools like rust-bitcoinkernel to build interactive script debuggers. Multiple reviewers support the concept and API design, but review is currently paused waiting on the author to resolve a recently reported assertion crash when EvalScript receives null error pointers. It has no external dependencies."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.03367275
+}

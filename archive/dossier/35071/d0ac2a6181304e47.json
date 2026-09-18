@@ -1,0 +1,109 @@
+{
+ "number": 35071,
+ "input_hash": "d0ac2a6181304e47",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8520,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3241
+ },
+ "cost_usd": 0.0261313,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets an interrupted -reindex resume from where it left off instead of restarting at blk00000.dat",
+    "Aims to save node operators from redoing hours of reindex work after a power loss or manual interrupt"
+   ],
+   "reviewability": [
+    "Paused: author switched the PR to draft to gather real-world measurements before continuing",
+    "Review would be premature until the author confirms the approach actually helps"
+   ],
+   "agreement": [
+    "Disputed: maflcko questions whether the change improves anything once you correctly drop -reindex on restart (maflcko)",
+    "mzumsande raised the same doubt that resuming without -reindex is already fast on master (mzumsande)",
+    "Author agrees the comparison needs real numbers and is investigating before continuing (pinheadmz)"
+   ],
+   "categories": []
+  },
+  "summary": "Adds persistence of reindex progress (last completed block file plus the in-memory orphan-block map) to the block tree database so an interrupted -reindex can resume instead of restarting from blk00000.dat. On completion the reindex flag and progress keys are erased with a synchronous flush so a crash right after finishing can't force a redundant reindex. The author iterated from writing progress after every file (a performance concern) to writing it only on interrupt.",
+  "problem": "Users who interrupt a long-running -reindex (crash, manual ctrl-c, disk move) currently must redo the entire reindex from the first block file, which can cost hours on large chains. The author hit this personally while moving a node's data directory.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko disputes that the PR provides any real benefit, since correctly restarting without -reindex already resumes quickly by skipping AcceptBlock work on already-indexed files; asks for concrete before/after measurements.",
+    "mzumsande separately noted that dropping -reindex on restart already avoids redoing the expensive work, undermining the premise.",
+    "Whether the improvement is real depends on the answer to the author's own posed question: does run1+run2 time equal run3 (single uninterrupted reindex)? This is unresolved."
+   ],
+   "resolved_concerns": [
+    "Initial concern about slowing the happy path by writing progress after every file was addressed by only persisting progress on interrupt (pinheadmz)."
+   ],
+   "author_status": "Active but self-paused: author moved the PR to draft on 2026-05-08 to gather measurements before continuing, per 'I'll switch to draft for now and get actual measurements on re-re-index to see if this branch actually improves anything.'"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "Author explicitly moved the PR to draft on 2026-05-08 and stated they need to get real measurements to determine whether the approach helps at all before continuing, which is an author-declared wait, not just draft status."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: maflcko argues the change may not improve anything in the realistic restart scenario; author is investigating but has not resolved the question.",
+   "reason": "A substantive, unresolved doubt about whether the PR solves a real problem, raised by a maintainer with a plausible counter-scenario (dropping -reindex on restart already resumes fast), and the author has acknowledged uncertainty rather than rebutting it.",
+   "evidence": [
+    "maflcko: 'I actually think this branch doesn't change anything, if the -reindex is supplied twice and started again from scratch.'",
+    "mzumsande: 'As long as you drop the -reindex parameter in the restart run it won't start indexing from scratch again after an interrupt.'",
+    "pinheadmz: 'I'll switch to draft for now and get actual measurements on re-re-index to see if this branch actually improves anything.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Changes are entirely within src/node/blockstorage.cpp/.h, the block/undo file storage and BlockTreeDB layer explicitly covered by the indexes category ('block and undo file storage on disk').",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.38,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it targets a real, if narrow, operator pain point: redoing a multi-hour reindex after an interruption, which the author experienced directly ('A few hours in I wanted to change something and hit ctrl-c... I wondered why I had lost those hours of progress'). However a maintainer disputes that the scenario as described actually loses that much work once -reindex is correctly dropped on restart, and no measurements yet substantiate the benefit, so it lacks the clear, uncontested value needed for P2 and is not a correctness or data-integrity issue."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "The PR does not change block or transaction validity rules, chainstate semantics, or acceptance logic; it only persists and resumes progress through the external block-file reindex loop in blockstorage.cpp, which the indexes category explicitly claims.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: no change to consensus validity, chainstate management, or validation invariants; the touched code is block-file storage and reindex bookkeeping, not validation logic."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the described UX benefit is real is itself the crux of the open discussion; no functional benchmark has been posted yet.",
+   "Unclear if the author will resume this PR or substantially rework/abandon it depending on the requested measurements.",
+   "Two open PRs (#36000, #29700) touch overlapping blockstorage code, which could cause conflicts but no explicit dependency was stated."
+  ],
+  "card": "This draft PR persists reindex progress (last completed block file and the in-memory orphan-block map) to BlockTreeDB so an interrupted -reindex can resume instead of restarting from blk00000.dat, and flushes the reindex-complete flag synchronously to avoid a crash forcing a redundant full reindex. It targets real operator pain: the author lost hours of reindex progress after a manual interrupt. However, maintainer maflcko disputes the premise, arguing that simply dropping -reindex on restart already resumes quickly on current master, and no before/after measurements have been provided to show real benefit; mzumsande echoed the same doubt. The author acknowledged the confusion and moved the PR to draft on 2026-05-08 to gather concrete measurements before continuing, so review right now would likely be invalidated by a rework. No stated dependencies on other PRs, though it overlaps files touched by two other open validation/kernel PRs."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

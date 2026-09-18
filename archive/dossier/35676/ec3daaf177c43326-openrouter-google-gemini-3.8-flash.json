@@ -1,0 +1,144 @@
+{
+ "number": 35676,
+ "input_hash": "ec3daaf177c43326",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:36+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18536,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4937
+ },
+ "cost_usd": 0.03241575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Provide clean logging and predictable termination when rare filesystem I/O errors occur during disk space checks"
+   ],
+   "reviewability": [
+    "Author silent for over 60 days"
+   ],
+   "agreement": [
+    "Disputed: reviewers argue low-level utilities should not force an abort instead of allowing graceful shutdown (josibake, furszy, sedited, optout21)",
+    "Author contends that rare I/O failures like disconnected media are akin to OOM kills and plumbing graceful error handling everywhere is impractical (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it addresses rare unhandled filesystem exceptions in shared disk-checking utilities.",
+      "The failure mode only triggers during abnormal storage disconnects and can be deferred without risking normal operation."
+     ]
+    }
+   ]
+  },
+  "summary": "Catches std::error_code during std::filesystem::space and create_directories in CheckDiskSpace and FlatFileSeq::Open, writes an error message to stderr and the debug log, and calls std::abort(). Also adds a functional test simulating I/O failures across background scheduler checks and index file allocations.",
+  "problem": "Uncaught filesystem_error exceptions during disk space checks in background threads (such as scheduler checks or block filter index allocations) trigger unhandled exception termination without descriptive logging when storage media becomes unavailable.",
+  "discussion": {
+   "open_concerns": [
+    "Low-level utility helpers should not make process-wide termination policy decisions; errors or exceptions should propagate up to subsystem boundaries (josibake, optout21).",
+    "Calling std::abort() abruptly prevents other subsystems like the wallet or chainstate from cleanly flushing to disk, which is dangerous if they reside on separate healthy storage (furszy).",
+    "Thread boundaries should catch runtime exceptions and trigger an orderly graceful shutdown rather than aborting directly in helper functions (sedited)."
+   ],
+   "resolved_concerns": [
+    "Missing error detail: initial iteration did not log the specific OS filesystem error code before failing (raised by sedited and furszy, addressed by logging the error code before aborting)."
+   ],
+   "author_status": "silent since 2026-07-15"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 64 days",
+   "reason": "The author has not commented or pushed updates since 2026-07-15, exceeding the 60-day project staleness threshold while approach objections remain unaddressed."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: reviewers object to aborting inside low-level helpers rather than propagating errors for clean shutdown",
+   "reason": "Multiple reviewers raised architectural objections to calling std::abort() inside low-level filesystem primitives, arguing that errors should propagate to allow clean state flushes, while the author argued that rare I/O errors are comparable to OOM kills and do not justify complex error plumbing.",
+   "evidence": [
+    "josibake: 'repeating the same bad pattern of having a policy decision being made in a low level primitive... caller then decides'",
+    "furszy: 'I don't think a low-level unclean shutdown is the right approach. An error accessing an index directory or another unrelated file shouldn't prevent the chain or wallet from attempting to flush their state to disk.'",
+    "sedited: 'In my opinion this is most clearly solved by throwing exceptions and catching them as close to the module/thread boundaries as possible.'",
+    "optout21: 'weak inclination towards N.A.C.K-ing the approach, on the grounds that higher-level context-aware error handling is preferable against low-level context-free abort.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Changes src/index/blockfilterindex.cpp only to expose a smaller file chunk size test option for functional testing.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The index code edit is purely a test hook to trigger allocation paths and does not change index logic or invariants."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds test/functional/feature_io_errors.py to test disk error handling in utilities and storage.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A test that covers the behavior of specific utility functions belongs to that functional area rather than the general test framework."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies shared filesystem helper CheckDiskSpace in src/util/fs_helpers.cpp and command line test options in src/common/args.cpp.",
+    "band": "P3",
+    "reason_tag": "stability",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Addresses unhandled exceptions in shared disk space helpers during rare filesystem faults, adding explicit error diagnostic logging prior to exit. While preventing silent termination without error messages is worthwhile, the problem occurs only during abnormal environment conditions like disconnected volumes and can be deferred."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Modifies FlatFileSeq::Open in src/flatfile.cpp to handle directory creation failures with an explicit abort.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "FlatFileSeq is a generic flat file storage helper and the change does not alter consensus rules, chainstate management, or validation logic."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies CheckDiskSpace and FlatFileSeq::Open to log the system error code and invoke std::abort() when filesystem operations fail unexpectedly, accompanied by a new functional test simulating volume detachments. It addresses unexpected termination via unhandled filesystem_error exceptions in background threads when a drive becomes unavailable. Multiple reviewers (josibake, furszy, sedited, optout21) dispute the design, maintaining that low-level helpers should not abort the process directly and should instead allow callers or thread boundaries to attempt clean state flushes. The PR is currently stale, with the author silent for over 60 days."
+ },
+ "raw_text": null
+}

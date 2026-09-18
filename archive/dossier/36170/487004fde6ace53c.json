@@ -1,0 +1,132 @@
+{
+ "number": 36170,
+ "input_hash": "487004fde6ace53c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5445,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4798
+ },
+ "cost_usd": 0.0308413,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make bitcoind refuse to start when an automatic Tor onion service shares a normal P2P bind instead of a dedicated one",
+    "This closes a misconfiguration where Tor-forwarded peers cannot be distinguished from direct peers and can silently inherit IP-based whitelist permissions"
+   ],
+   "reviewability": [
+    "Paused: jeanpablojp raised a related wildcard-bind bypass and doc gaps on 2026-09-06 and the author has not replied since 2026-09-04, past the 7-day window",
+    "The core init.cpp check itself is reviewable now but the scope question is still open"
+   ],
+   "agreement": [
+    "Concept and approach ACKs from two reviewers with no explicit objection to the change itself (jeanpablojp, winterrdog)",
+    "jeanpablojp flags an unresolved gap: wildcard binds like 0.0.0.0:P=onion still pass the check while leaking permissions, asked if closing that is in scope, no author reply yet (jeanpablojp)",
+    "A nit suggesting a test-helper simplification is also unanswered but non-substantive (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes a real misclassification/permission-leak hazard where Tor-forwarded connections can inherit an IP's whitelist permissions, which is a security-adjacent correctness gap in network classification",
+      "A reviewer's follow-up shows the fix is incomplete (wildcard binds still leak), so full resolution needs further work before the hazard is fully closed"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes bitcoind refuse to start when -listenonion is enabled and an explicit -bind is configured without a dedicated -bind=<addr>=onion. It updates several functional tests to use dedicated onion binds, adds a startup-time rejection with a clear error message in init.cpp, and documents the new requirement in a release note. It follows up on a recommendation made in the discussion of #34892.",
+  "problem": "When Tor's automatic onion service shares a normal P2P bind, the node cannot tell Tor-forwarded connections from direct connections, so network classification (and any IP-based permissions like -whitelist noban) can be misapplied to Tor peers. This affects any operator running listenonion with an explicit -bind and no dedicated onion bind, which after this change requires action to keep starting.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp: wildcard onion binds (0.0.0.0:P=onion or [::]=onion) still pass the new check but classify peers by IP network and can retain whitelist permissions, defeating the purpose of the fix; asks if rejecting wildcards is in scope",
+    "jeanpablojp: doc/tor.md and the -bind help text (\"default: 127.0.0.1:8334=onion\") don't reflect the new requirement for setups with explicit -bind",
+    "jeanpablojp: nit that feature_bind_extra.py could use assert_start_raises_init_error instead of the manual FailedToStartError/re approach"
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-09-04, no reply to the wildcard-bind and doc concerns raised 2026-09-06"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "jeanpablojp raised a material follow-up on 2026-09-06 (wildcard onion binds still leak permissions, plus doc gaps) that could change the scope of the fix, and the author has not responded since 2026-09-04, exceeding the 7-day waiting_on_author_days threshold (currently 9)."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept and approach ACKs from two reviewers, but jeanpablojp notes the fix leaves a wildcard-bind loophole open and the author hasn't responded.",
+   "reason": "Both reviewers who commented supported the change itself with no objection to its core mechanism. jeanpablojp's follow-up about wildcard binds is a real, still-open harm (permission leak persists via 0.0.0.0/[::] onion binds) but is framed as a scope question rather than a blocking NACK, and no pushback on the base approach has occurred.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK' plus a detailed note that '-bind=0.0.0.0:8334=onion passes the new check while tagging nothing' and 'Rejecting a wildcard onion bind would close that. ... Is the first one in scope here?'",
+    "winterrdog: 'Approach ACK'",
+    "No author reply to either comment as of the latest signals"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Builds on the discussion and recommendation from closed PR #34892 (Tor onion bind dedicated warning)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes Tor onion-service bind handling and network classification/permission semantics in init.cpp, and the P2P label is applied.",
+    "band": "P2",
+    "reason_tag": "privacy/permission fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because it closes a real misconfiguration where Tor-forwarded connections cannot be distinguished from direct connections and can inherit IP-based whitelist permissions, as described in the PR body and echoed by jeanpablojp's detailed technical review. It is not P1 because the hazard requires a specific misconfiguration (explicit -bind plus a permissioned whitelist) and a reviewer shows the fix as written still leaves a wildcard-bind variant of the same leak open, so the problem is only partially resolved by this patch."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Includes a release note and touches -bind help indirectly, but the primary change is behavioral (init.cpp rejection logic), with docs only along for the ride; per the docs category definition, a code change that also updates its docs belongs to that area, not docs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a documentation-primary PR; the release note is incidental to the p2p behavior change, and jeanpablojp's request for doc/tor.md and -bind help updates remains unaddressed but is a minor addition to a p2p fix, not a doc PR in itself."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The change is inside src/init.cpp's networking setup, but it is specific to Tor/onion bind policy rather than general startup or shutdown infrastructure that the utils category covers.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "init.cpp is touched only for network/Tor-specific bind validation, not generic startup sequencing, argument handling, or other shared infrastructure that utils covers."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether jeanpablojp's wildcard-bind concern will be treated as blocking by the project or folded into a follow-up PR affects both Reviewability and final Agreement once the author responds.",
+   "Priority band for p2p could shift to P1 if maintainers consider the whitelist-permission leak more severe than assessed here, or to P3 if they view it as a narrow misconfiguration edge case."
+  ],
+  "card": "This PR makes bitcoind refuse to start when Tor's automatic onion service would share a normal P2P bind, closing a gap where Tor-forwarded connections cannot be distinguished from direct connections and can silently inherit IP-based whitelist permissions. The problem affects any operator running -listenonion with an explicit -bind and no dedicated onion bind, a scenario the PR body ties to a recommendation from the closed PR #34892. Reviewer jeanpablojp gave a Concept ACK but also identified that wildcard onion binds (0.0.0.0 or [::]) still pass the new check while leaking the same permissions, asking if closing that gap is in scope; the author has not replied since 2026-09-04, over the 9-day waiting threshold. winterrdog gave an Approach ACK. The PR is currently Paused pending the author's response to that open scope question, though the core mechanism has no stated objections."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

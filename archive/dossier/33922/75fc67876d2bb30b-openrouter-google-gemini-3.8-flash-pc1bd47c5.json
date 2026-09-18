@@ -1,0 +1,479 @@
+{
+ "number": 33922,
+ "input_hash": "75fc67876d2bb30b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:26:50+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 57034,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11832
+ },
+ "cost_usd": 0.0871455,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Track memory used by block templates referencing transactions that have left the mempool.",
+    "Expose a getMemoryLoad IPC method so external mining clients can monitor and manage memory pressure."
+   ],
+   "reviewability": [
+    "Ready to review, but based on open PR 35675.",
+    "Reviewing PR 35675 first is recommended to understand the template manager base."
+   ],
+   "agreement": [
+    "Support for tracking template memory and adding the IPC query method (vasild, ryanofsky, enirox001).",
+    "Approach concern regarding client-driven eviction versus node FIFO eviction resolved after author explanation (ismaelsadeeq).",
+    "Thread safety and IWYU objections resolved by adding a mutex and moving controversial changes to PR 35101 (ryanofsky, maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it provides visibility into non-mempool memory held by block templates.",
+      "It aids mining clients such as Stratum v2 template providers in avoiding memory leaks without altering block assembly."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it extends the IPC Mining interface with a memory load query method.",
+      "It allows external mining processes to gracefully drop stale template references when memory grows."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request tracks the memory footprint of transactions that are retained in memory solely because open block templates reference them after they have been removed from the mempool. It adds transaction reference accounting to BlockTemplateManager and introduces a getMemoryLoad() method to the IPC Mining interface so external clients like sv2-tp can monitor this footprint. A fuzz test for template memory usage and functional test coverage in interface_ipc_mining.py are also included.",
+  "problem": "When external mining clients retain block templates over IPC, transactions evicted or replaced in the node's mempool cannot be freed until all template references are dropped. Without memory tracking or inspection methods, node operators and IPC clients have no visibility into how much memory stale templates are holding.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ismaelsadeeq argued that relying on IPC clients rather than node-enforced FIFO template eviction could risk OOM; Sjors explained getMemoryLoad() gives clients an opportunity to manage memory gracefully and does not preclude future node-side limits.",
+    "ryanofsky identified that template_tx_refs could be accessed concurrently and needed a mutex; Sjors added template_state_mutex.",
+    "maflcko NACKed an IWYU workaround in transaction primitives; Sjors split out the CTransactionRef hasher changes into PR 35101 and dropped them from this branch."
+   ],
+   "author_status": "Active; regularly rebasing on top of PR 35675, with recent updates in September 2026."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35675 first",
+   "reason": "The PR builds directly on open PR 35675 (block template manager); reviewing the base PR first will prevent redundant review of shared commits."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "ismaelsadeeq",
+     "stance": "objection",
+     "note": "Concept ACK but preferred node-internal FIFO memory limits over relying on IPC clients"
+    },
+    {
+     "login": "brunoerg",
+     "stance": "neutral",
+     "note": "Identified an unkilled mutant in reference count decrement, leading to improved test coverage"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "support",
+     "note": "Concept ACK; reviewed code and requested a mutex for thread safety, which was added"
+    },
+    {
+     "login": "vasild",
+     "stance": "support",
+     "note": "Approved several revisions; advised using a salted hasher to prevent collision deterioration"
+    },
+    {
+     "login": "enirox001",
+     "stance": "support",
+     "note": "Reviewed commits and verified functional tests pass"
+    },
+    {
+     "login": "hebasto",
+     "stance": "question",
+     "note": "Asked about parameter typing for std::hash specialization"
+    },
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "NACKed IWYU include workaround in primitives"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ismaelsadeeq",
+     "kind": "approach",
+     "harm": "Relying on external IPC clients rather than node-level FIFO eviction to free template memory could allow misbehaving clients to exhaust node memory",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2025-11-21: 'Delegating template eviction responsibility to the client can put us in a situation where they handle it poorly and cause us to OOM'",
+     "resolution_evidence": "2025-11-24: Sjors explained 'All getMemoryLoad() does is give clients an opportunity to handle it better. If they're fine with FIFO, then they never have to call this method' and ismaelsadeeq did not follow up.",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "safety",
+     "harm": "template_tx_refs map accessed across multiple threads without synchronization creates data race hazards",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-12-04: 'This map can updated from multiple threads, so it needs a mutex to be used safely.'",
+     "resolution_evidence": "2025-12-05: Sjors introduced template_state_mutex.",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "An incorrect IWYU workaround in transaction.h introduces brittle header inclusions",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-04-17: 'NACK This is wrong and harmful, as already explained in #35073'",
+     "resolution_evidence": "2026-04-17: Sjors moved the commit out to PR 35101 and removed it from this PR.",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ryanofsky",
+     "reason": "The getMemoryLoad() function is useful and underlying tracking provides what is needed to limit memory used by block templates",
+     "substantive": true
+    },
+    {
+     "reviewer": "vasild",
+     "reason": "Reviewed and approved the accounting and hashing logic across multiple updates",
+     "substantive": true
+    },
+    {
+     "reviewer": "enirox001",
+     "reason": "Reviewed all commits and verified functional tests",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Positive; consensus on the tracking approach, with thread safety, hashing, and IWYU concerns addressed in updates.",
+   "reason": "Reviewers support exposing template memory load over IPC. Objections regarding thread safety and IWYU header workarounds were addressed by pushing fixes or moving controversial commits into standalone PRs.",
+   "evidence": [
+    "2025-12-03: ryanofsky Concept ACKed the getMemoryLoad function and tracking design.",
+    "2026-04-27: vasild provided an updated PGP-signed ACK following hasher refinements."
+   ],
+   "model_state": "Positive",
+   "derivation": "substantive support, no open objection (ryanofsky, vasild, enirox001)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ismaelsadeeq",
+      "kind": "approach",
+      "harm": "relying on IPC clients rather than internal node FIFO eviction could lead to node OOM if clients fail to release templates properly",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2025-11-21: \"Currently, I don\u2019t see much use for the exposed getMemoryLoad method. In my opinion, we should not rely on the IPC client to manage our memory.\"",
+      "resolution_evidence": "2025-11-24: \"Note that it's already the clients responsibility, that's inherent to how multiprocess works... All getMemoryLoad() does is give clients an opportunity to handle it better. If they're fine with FIFO, then they never have to call this method.\""
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "safety",
+      "harm": "thread safety data race when accessing template_tx_refs from multiple threads without synchronization",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-12-04: \"This map can updated from multiple threads, so it needs a mutex to be used safely. I think I'd suggest combining template_tx_refs and gbt_template variables and a mutex\"",
+      "resolution_evidence": "2025-12-05: \"To limit the scope of this PR, I only added the mutex, but called it template_state_mutex in anticipation.\""
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "approach",
+      "harm": "introducing an inappropriate and harmful IWYU workaround in transaction headers",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-04-17: \"NACK This is wrong and harmful, as already explained in https://github.com/bitcoin/bitcoin/pull/35073#issuecomment-4258599969\"",
+      "resolution_evidence": "2026-04-17: \"The safety commit for CTransactionRef and IWYU changes are now in #35101 and dropped from this PR.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "The getMemoryLoad() function seems useful by itself and the underlying tracking would seem to provide almost everything needed to limit memory used by block templates",
+      "substantive": true
+     },
+     {
+      "reviewer": "vasild",
+      "reason": "reviewed code, suggested hasher improvements, and verified functionality across multiple revisions",
+      "substantive": true
+     },
+     {
+      "reviewer": "enirox001",
+      "reason": "reviewed each commit, verified locking and destruction order, and ran interface tests",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "ismaelsadeeq",
+      "stance": "objection",
+      "note": "Concept ACK with architectural objection against client-driven memory management instead of internal node FIFO eviction"
+     },
+     {
+      "login": "brunoerg",
+      "stance": "neutral",
+      "note": "mutation testing feedback leading to improved test coverage"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "support",
+      "note": "Concept ACK and code review; flagged a thread safety issue that author fixed with a mutex"
+     },
+     {
+      "login": "vasild",
+      "stance": "support",
+      "note": "detailed code reviews, suggested using salted hasher, repeated ACKs"
+     },
+     {
+      "login": "enirox001",
+      "stance": "support",
+      "note": "ACK after reviewing commits and testing"
+     },
+     {
+      "login": "hebasto",
+      "stance": "question",
+      "note": "inquired about parameter type in std::hash specialization"
+     },
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "NACK on an IWYU workaround commit which was subsequently moved to a separate PR"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: ryanofsky, vasild, and enirox001 support; thread safety and IWYU objections were addressed and resolved.",
+    "usage": {
+     "input_tokens": 15522,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3748
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Positive",
+    "objections": [
+     {
+      "reviewer": "ismaelsadeeq",
+      "kind": "approach",
+      "harm": "Relying on external IPC clients rather than node-level FIFO eviction to free template memory could allow misbehaving clients to exhaust node memory",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2025-11-21: 'Delegating template eviction responsibility to the client can put us in a situation where they handle it poorly and cause us to OOM'",
+      "resolution_evidence": "2025-11-24: Sjors explained 'All getMemoryLoad() does is give clients an opportunity to handle it better. If they're fine with FIFO, then they never have to call this method' and ismaelsadeeq did not follow up."
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "safety",
+      "harm": "template_tx_refs map accessed across multiple threads without synchronization creates data race hazards",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-12-04: 'This map can updated from multiple threads, so it needs a mutex to be used safely.'",
+      "resolution_evidence": "2025-12-05: Sjors introduced template_state_mutex."
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "correctness",
+      "harm": "An incorrect IWYU workaround in transaction.h introduces brittle header inclusions",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-04-17: 'NACK This is wrong and harmful, as already explained in #35073'",
+      "resolution_evidence": "2026-04-17: Sjors moved the commit out to PR 35101 and removed it from this PR."
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ryanofsky",
+      "reason": "The getMemoryLoad() function is useful and underlying tracking provides what is needed to limit memory used by block templates",
+      "substantive": true
+     },
+     {
+      "reviewer": "vasild",
+      "reason": "Reviewed and approved the accounting and hashing logic across multiple updates",
+      "substantive": true
+     },
+     {
+      "reviewer": "enirox001",
+      "reason": "Reviewed all commits and verified functional tests",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [
+    35675
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Modifies BlockTemplateManager and template transaction reference accounting to track non-mempool memory footprints.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because tracking memory footprint of stale block templates helps IPC mining clients manage their memory consumption during mempool churn. Mainnet testing indicates the unevicted memory footprint is typically modest under standard conditions, making this a worthwhile operational tool rather than a critical stability fix."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds the getMemoryLoad() RPC to the interfaces::Mining interface and updates Cap'n Proto mining definitions.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it supplies a concrete new capability to the multiprocess mining interface requested for Stratum v2 template providers (sv2-tp). It allows external clients to monitor server-side memory load caused by held template objects."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches CI IWYU scripts only to register the new block_template_manager file introduced by the base branch.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental CI script change to maintain IWYU compliance on newly added source files."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not alter any user-facing RPC interface; getblocktemplate changes are inherited from the base PR 35675.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC changes originate in this pull request; the RPC adjustments belong to the base PR 35675."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds functional and fuzz tests for block template manager and IPC mining, which belong to the mining and ipc areas.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are domain tests verifying template memory usage and IPC endpoints rather than changes to test framework infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Moves CTransactionRef comparison and hasher structs into util/hasher.h as an implementation helper.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The hasher changes in util/hasher.h are subsidiary helpers for mining template data structures, not general utility enhancements."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Validation test files are adjusted solely to reset and recreate the BlockTemplateManager during test environment teardown.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical adjustments to test setups resetting chainstate do not alter validation logic."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/test/fuzz/fees.cpp is updated mechanically to reset BlockTemplateManager when recreating mempool in fuzz tests.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change in wallet fuzz testing is a mechanical harness update following the BlockTemplateManager lifecycle."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR tracks the memory footprint of transactions that are retained in memory solely because open block templates reference them after removal from the mempool. It exposes a getMemoryLoad IPC method to allow mining clients such as Stratum v2 template providers to monitor memory pressure and drop stale templates accordingly. The change provides useful operational safety for process-separated mining setups without altering block construction. Code review has been positive with ACKs from multiple contributors, but the PR is stacked on open PR 35675."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0256965
+}

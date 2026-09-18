@@ -1,0 +1,137 @@
+{
+ "number": 36177,
+ "input_hash": "308b5c005ab4738a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6682,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3868
+ },
+ "cost_usd": 0.0274283,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a startup failure that hits users who follow Bitcoin Core's own Tor proxy documentation and help text.",
+    "Unifies the -proxy network-name parsing with the shared parser already used by -onlynet and getnodeaddresses."
+   ],
+   "reviewability": [
+    "Ready to review now, author already addressed all reviewer feedback and force-pushed the fixes."
+   ],
+   "agreement": [
+    "Strong support: reviewer gave a Concept ACK after building and testing the change (jeanpablojp)",
+    "All nits and a coverage gap raised were incorporated by the author, no open objections."
+   ],
+   "categories": []
+  },
+  "summary": "This PR fixes stale -proxy help text and Tor documentation that still referenced the removed 'tor' network name (removed in #34031), causing startup failures for users following the examples. It refactors -proxy's network-name parsing in init.cpp to reuse the shared network parser already used by -onlynet and getnodeaddresses, making behavior consistent (case-insensitive matching, unsupported names echoed verbatim). Tests were added/expanded in feature_proxy.py and rpc_net.py to characterize the previous behavior and cover the fix, including a pre-existing gap around clearing the IPv4 proxy also clearing the name proxy.",
+  "problem": "Users following the shipped -proxy help text or doc/tor.md examples (e.g. -proxy=addr:port=tor) hit a startup error because 'tor' was removed as a valid network name in #34031, and the -proxy code duplicated its own network-name mapping instead of using the shared parser used elsewhere.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp's doc wording concern (implying 'onion' was new in 31.0) addressed by author simplifying the doc text",
+    "jeanpablojp's nit about the widened comment in rpc_net.py resolved by removing the comment entirely",
+    "jeanpablojp's request to cover a pre-existing coverage gap (clearing IPv4 proxy also clears name proxy) addressed with a new test, author added reviewer as co-author"
+   ],
+   "author_status": "active, addressed all review feedback and force-pushed on 2026-09-08"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Author addressed all reviewer feedback with a force push on 2026-09-08, CI is not failing, and no rebase is needed. Nothing known would invalidate a fresh review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK with substantive verification (jeanpablojp built and tested), and all follow-up nits were incorporated by the author with no pushback.",
+   "reason": "One reviewer explicitly wanted the change after verifying behavior parity, raised several concrete but non-blocking suggestions, and the author implemented all of them; no objections remain.",
+   "evidence": [
+    "jeanpablojp: 'Concept ACK... Built and ran feature_proxy.py and rpc_net.py, and checked against the base that the refactor commit keeps the same accepted names and the same per-network proxies.'",
+    "l0rinc: 'Thanks @jeanpablojp, rebased, added new test, updated doc and removed redundant code comment.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner foundation for future network-name handling consistency across -onlynet, -proxy, and getnodeaddresses"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "doc/tor.md is directly edited to fix stale 'tor' network name references and clarify onion usage, and the description states this is a primary motivation.",
+    "band": "P2",
+    "reason_tag": "wrong docs",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because the existing docs actively led users to a startup failure by advertising a removed network name ('tor' was removed in #34031, but the -proxy help and Tor documentation still advertise it, and following those examples fails at startup'), which is exactly the top concern for this category: wrong documentation leading users to do the wrong thing."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "P2P label applied, and the change touches Tor/onion proxy network selection logic in src/init.cpp plus its documentation and tests.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it is a real but narrow bug: users following documented Tor proxy setup instructions hit a startup error, and this consolidates -proxy parsing with the shared network parser used elsewhere. The fix improves consistency for a niche but real configuration path (advanced Tor users) without any correctness or DoS implications for the wider p2p stack."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "test/functional/rpc_net.py changes only extend existing coverage of getnodeaddresses' network-name filtering (case-insensitivity, 'tor' rejection), which is p2p network-name behavior exposed via RPC, not a change to RPC machinery itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per category rules, the behavior an RPC merely exposes belongs to its area (p2p/network naming), and no RPC interface or machinery is changed here."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "src/init.cpp changes are argument parsing for -proxy, but the point of the change is p2p network-name behavior, not general settings/argument-handling infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: category rules exclude a settings change whose point is one area's behavior; this belongs to p2p (Tor/network naming), not utils."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the maintainers consider this worth a release-note mention given it fixes a regression introduced by a recently merged PR (#34031); not addressed in discussion.",
+   "No indication of how many users are actually affected by the stale docs in practice, beyond the PR description's claim."
+  ],
+  "card": "This PR fixes a startup failure that hits users who follow Bitcoin Core's own -proxy help text or doc/tor.md examples, which still reference the 'tor' network name removed in #34031. It refactors -proxy's ad hoc network-name mapping in init.cpp to reuse the shared parser already used by -onlynet and getnodeaddresses, adding tests for case-insensitivity, rejection of the removed 'tor' name, and a pre-existing gap around clearing the IPv4 proxy. Reviewer jeanpablojp gave a Concept ACK after building and running the affected functional tests, and every follow-up nit (doc wording, a widened test comment, added coverage) was incorporated by the author in a force push, leaving no open objections. The PR is small, labeled P2P, and touches doc/tor.md, src/init.cpp, and two functional test files; it has no stacking or blocking dependencies."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

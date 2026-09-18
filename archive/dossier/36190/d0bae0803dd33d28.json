@@ -1,0 +1,168 @@
+{
+ "number": 36190,
+ "input_hash": "d0bae0803dd33d28",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9876,
+  "cache_creation_input_tokens": 14063,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6655
+ },
+ "cost_usd": 0.06072975,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a Windows functional test that confirms the bitcoin wrapper correctly forwards a child process's exit code, including the -1/failure edge case that the original launcher implementation got wrong."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "A gap flagged by a reviewer (missing coverage of the launch-failure path) was already closed with a follow-up commit and re-tested."
+   ],
+   "agreement": [
+    "Strong support: cyb3ralbert tested the change on Linux and Windows across both CRTs and ACKed the final commit.",
+    "ryanofsky, the author of the underlying fix (#36105), reviewed and agreed with the added coverage.",
+    "No objections raised."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it validates that the bitcoin wrapper (part of the multiprocess launch path) correctly reports Windows child process exit status.",
+      "Unblocks re-enabling tool_bitcoin.py and interface_gui.py on Windows, improving platform coverage for the IPC-adjacent wrapper binaries.",
+      "The actual runtime fix lives in the depended-on #36105; this PR only adds test confirmation."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it directly tests the bitcoin wrapper tool's exit-status forwarding, a real regression class (spawn failure vs. child exit -1 conflation).",
+      "Affects anyone scripting around the wrapper's exit code on Windows, though the underlying fix ships in a separate PR."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it removes two long-standing Windows skips (tool_bitcoin.py, interface_gui.py) and adds a regression test for a previously real bug (wrapper misreporting -1 exit as a launch failure).",
+      "Also adds a small reusable framework helper (is_qt_vcpkg) for future Windows/vcpkg-aware test skips."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because the diff carries util/exec.cpp's Windows spawn/wait rework and errno-category fix (from the stacked #36105), labeled Utils/log/libs.",
+      "This PR's own contribution is validating that fix with tests, not authoring it, so its independent leverage here is coverage rather than the fix itself."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a Windows-only functional test verifying that the bitcoin.exe wrapper correctly forwards a spawned bitcoind child's exit code, distinguishing a genuine child exit of -1 from an actual spawn failure. It is a stacked follow-up to #36105, which contains the actual runtime fix (switching from _spawnvp(_P_WAIT) to _P_NOWAIT + _cwait); this PR's net diff still includes those commits until it is rebased after #36105 merges. It also re-enables previously Windows-skipped tests (tool_bitcoin.py, interface_gui.py) and adds a launch-failure test case requested during review.",
+  "problem": "The original Windows wrapper implementation conflated a failed spawn with a child that legitimately exited with code -1, both returning -1 from _spawnvp(_P_WAIT), causing the wrapper to report a bogus startup error instead of forwarding the real exit code. This PR's test catches that regression and would have failed against the earlier faulty implementation, and it also verifies the complementary case (a real launch failure is still reported correctly).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "cyb3ralbert noted the test covered only the exit-code-forwarding side and not the launch-failure side; author (with ryanofsky's agreement) added a dedicated test_launch_failure case, which cyb3ralbert then re-tested and ACKed."
+   ],
+   "author_status": "active, addressed review feedback with follow-up commit and awaiting merge behind #36105"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #36105 first",
+   "reason": "The code is stable and the one substantive review request (covering the launch-failure path) was already implemented and re-verified by the requester. The PR is stacked on and should land after #36105, so reviewers may prefer to start there, but this PR's own diff is reviewable now."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: cyb3ralbert tested on Linux and Windows (both CRTs) and ACKed the final commit; ryanofsky agreed with the added coverage; no objections.",
+   "reason": "A reviewer with concrete testing evidence supports the change and a gap they raised was fixed and re-verified.",
+   "evidence": [
+    "cyb3ralbert: 'ACK f2a1beb29873643ad382deb5d1848bd8572f4105 ... passes in all three, and the new case is reached in each.'",
+    "ryanofsky: agreed the launch-failure gap 'seems like a nice thing to check' and reviewed the fix."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36105
+   ],
+   "enables": [
+    "Re-enabling tool_bitcoin.py and interface_gui.py functional tests on Windows CI"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Touches src/bitcoin.cpp (the bitcoin wrapper) and src/util/exec.cpp, which the ipc category explicitly covers ('the bitcoin-node/bitcoin-gui/bitcoin-wallet executables and the bitcoin wrapper, IPC process management').",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Validates correct exit-status forwarding for the multiprocess wrapper on Windows, unblocking re-enablement of two previously skipped Windows tests. The runtime fix itself is in the depended-on #36105; this PR's leverage is confirming it and enabling platform CI coverage."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "tool_bitcoin.py functional test targets the bitcoin wrapper tool directly, which the tools category lists by name.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Catches a real class of bug (spawn failure vs. -1 exit conflated) affecting anyone scripting against the wrapper's exit code on Windows. Author notes it 'fails against the pre-fix launcher, passes against the fixed one.'"
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds/repairs functional test coverage (tool_bitcoin.py, interface_gui.py) and a small test_framework.py helper (is_qt_vcpkg), removing stale platform skips.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Removes two long-standing Windows-only test skips and adds a regression test for a bug that was previously present ('reverting _P_NOWAIT + _cwait back to _P_WAIT is caught' per cyb3ralbert). Framework addition is minor."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Labeled Utils/log/libs; diff includes src/util/exec.cpp spawn/wait logic and errno-category handling, though these commits originate in the depended-on #36105.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The exec.cpp changes fix a real Windows exit-code and errno-category bug, but the authorship and primary review of that fix belongs to #36105; this PR's independent contribution here is verification via tests."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The PR's diff currently includes #36105's runtime-fix commits because it is stacked on that PR; once rebased post-merge, the net diff will likely be test-only, which would reduce or remove membership in ipc/utils and leave mainly tools/tests.",
+   "No explicit maintainer priority label beyond 'Utils/log/libs' was given for the test-specific parts, so category assignment for tools/tests relies on file-path and content inference rather than labels."
+  ],
+  "card": "This is a Windows-only functional test PR, stacked on and dependent on #36105, verifying that the bitcoin.exe wrapper correctly forwards a spawned bitcoind child's exit code (including the tricky -1 case) rather than conflating it with a launch failure. It also re-enables two previously Windows-skipped tests (tool_bitcoin.py, interface_gui.py) now that the underlying spawn logic waits for the child properly. The problem is a real regression class: the original _spawnvp(_P_WAIT) approach returned -1 for both a failed spawn and a legitimate child exit of -1, which the author demonstrates by showing the test fails against the pre-fix launcher and passes against the fixed one. Review state is Ready, with reviewer cyb3ralbert requesting and then verifying an additional launch-failure test case, followed by an ACK after testing on Linux and Windows across both CRTs; agreement is Strong with no objections. Because the actual runtime fix lives in #36105, this PR's own priority rests mainly on unblocking Windows CI coverage rather than fixing the bug itself."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

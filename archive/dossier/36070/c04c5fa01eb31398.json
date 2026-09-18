@@ -1,0 +1,122 @@
+{
+ "number": 36070,
+ "input_hash": "c04c5fa01eb31398",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12998,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4863
+ },
+ "cost_usd": 0.038719300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets the GUI derive an HD key's xpub without going through RPC, for multisig wallet setup",
+    "Complements the earlier addHDKey interface as part of the tracked Multisig Wizard project"
+   ],
+   "reviewability": [
+    "Ready to review but the commit structure and RPC error-code handling are being actively reworked",
+    "A reviewer proposed a specific restructuring (extract, then change errors, then move, then add interface) that the author has not yet adopted"
+   ],
+   "agreement": [
+    "Multiple concept ACKs from reviewers who want the deriveHDKey interface for multisig GUI work (polespinasa, jeanpablojp, pseudoramdom)",
+    "Unresolved concern that collapsing derivehdkey RPC error codes (-8/-5 into -4) changes an already-shipped v32 error contract (pseudoramdom), with author open to reverting via duplicated checks but no maintainer decision yet",
+    "A maintainer's structural objection about duplicated code was addressed by merging into a single DeriveHDKey function (achow101)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it is a real, scoped building block for GUI multisig setup (tracked in #35645) with no correctness or fund-safety risk since only the xpub crosses the interface",
+      "It unblocks pairing addHDKey with a way to derive and display a shareable xpub in the GUI, but is deferrable since the RPC already exists"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds interfaces::Wallet::deriveHDKey(), backed by a new CWallet::DeriveHDKey() method that consolidates the HD key selection and derivation logic previously inlined in the derivehdkey RPC. The RPC is refactored to call the new wallet method instead of duplicating the checks, which changes several of its error codes (moving -8 and -5 cases to -4) while keeping the watch-only (-4) and locked-wallet (-13) codes unchanged. Only the derived xpub and its key origin cross the interface; private key material does not. It follows the same pattern as the already-merged #35436 (addHDKey) and #34861 (importdescriptors interface), all feeding the Multisig Wizard project (#35645).",
+  "problem": "The derivehdkey RPC (#32784) lets a user derive an xpub from an HD key at an arbitrary path, but the GUI does not go through RPC, so this capability is unreachable from the GUI. Multisig wallet setup in the GUI needs a way to derive and display a shareable xpub, which this interface provides.",
+  "discussion": {
+   "open_concerns": [
+    "Whether collapsing several derivehdkey RPC error codes into -4 breaks compatibility for callers relying on the v32 error contract (pseudoramdom, tagging achow101 for a decision); author has offered to duplicate checks to preserve old codes if needed",
+    "polespinasa proposed a cleaner four-step commit restructuring (extract in place, change errors, move, add interface) that has not yet been adopted",
+    "hebasto flagged an IWYU/forward-declaration cleanup from CI that has not been addressed"
+   ],
+   "resolved_concerns": [
+    "achow101's objection to duplicating derivation logic between RPC and interface was resolved by making both call the same CWallet::DeriveHDKey",
+    "jeanpablojp's concern that unit tests could pass even with a wrong derived key was fixed by comparing against the wallet's own active HD key",
+    "Reachability of a dead-code branch (locked-wallet check) flagged by jeanpablojp/polespinasa was removed"
+   ],
+   "author_status": ""
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Author reworking structure",
+   "reason": "The code functions correctly and has passing review rounds, but the author is mid-restructuring: a reviewer (polespinasa) just proposed a specific alternative commit sequence and the RPC error-code compatibility question is still open with a maintainer tagged for a decision. No 7-day silence yet (last activity 2026-09-15/16), so this is not yet Paused, but a review today risks being invalidated by the pending restructuring."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept ACKs from three reviewers, but pseudoramdom disputes the RPC error-code contract change as a possible compatibility break; unresolved, with author offering an alternative but no maintainer decision.",
+   "reason": "Multiple concept ACKs (polespinasa, jeanpablojp, pseudoramdom) support the interface itself, and a code-duplication objection from achow101 was resolved by unifying the implementation. But pseudoramdom's concern that collapsing -8/-5 into -4 changes an already-shipped (v32) RPC error contract is a concrete harm that remains open, with the author proposing to duplicate checks instead but no resolution yet, and polespinasa also flagged prior project discussion questioning error-code changes.",
+   "evidence": [
+    "polespinasa, jeanpablojp, pseudoramdom: 'Concept ACK'",
+    "pseudoramdom: 'I'm not sure if we're okay with changing the error contract since derivehdkey will ship in v32 ... @achow101'",
+    "PraneethGunas: '-8 and -5 are now collapsed to -4, or we can duplicate the checks in the RPC to preserve the v32 behaviour'",
+    "polespinasa: links to prior PR discussion about changing error codes, unreviewed follow-up as of last comment"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Multisig Wizard GUI project tracked in #35645, alongside #35436 (addHDKey) to let the GUI add and derive a shareable xpub"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds CWallet::DeriveHDKey and interfaces::Wallet::deriveHDKey, and refactors the derivehdkey RPC and wallet tests; Wallet label present.",
+    "band": "P3",
+    "reason_tag": "unblocks #35645",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P3 because it is a scoped, well-motivated building block for GUI multisig setup rather than an urgent fix. The description states the RPC already exists but 'the GUI does not go through RPC, so the logic is currently out of its reach,' and the change is explicitly tracked as an item in the Multisig Wizard tracking issue #35645, giving it real leverage on a stated project. Only public key material crosses the interface, so there is no fund-safety exposure, and the underlying RPC functionality already ships, so delay is not costly."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Adds a method to interfaces::Wallet, but the interface mechanics are not the point; this is a wallet feature exposed to the GUI via the existing pattern, not a change to IPC infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per category scope, a wallet PR adding a method to interfaces::Wallet is wallet first and only ipc when interface mechanics themselves are the subject; here the interface addition is incidental to the wallet feature."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the RPC error-code compatibility question will be resolved by duplicating checks or by accepting the collapse, which could still change the diff materially",
+   "Whether the commit restructuring proposed by polespinasa will be adopted, which would change what a reviewer sees but not the underlying behavior",
+   "No maintainer has yet weighed in decisively on the error-contract question despite being tagged"
+  ],
+  "card": "This PR adds interfaces::Wallet::deriveHDKey(), backed by a consolidated CWallet::DeriveHDKey(), so the GUI can derive and display a shareable xpub from an HD key without going through RPC, as part of the tracked Multisig Wizard project (#35645) alongside the already-merged addHDKey interface (#35436). It refactors the existing derivehdkey RPC to share the same logic, which changes some of its error codes from -8/-5 to -4, a compatibility question pseudoramdom raised as unresolved since the RPC already shipped in v32. Three reviewers (polespinasa, jeanpablojp, pseudoramdom) gave concept ACKs, and a maintainer's duplication objection was resolved by unifying the RPC and interface implementation. The commit structure is still being actively reworked per a detailed proposal from polespinasa, and the error-contract question awaits a decision. No fund-safety risk since only the derived xpub, not private key material, crosses the interface."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

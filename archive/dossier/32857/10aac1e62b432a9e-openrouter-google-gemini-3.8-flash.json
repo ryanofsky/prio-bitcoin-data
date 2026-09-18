@@ -1,0 +1,152 @@
+{
+ "number": 32857,
+ "input_hash": "10aac1e62b432a9e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:31+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 33671,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3494
+ },
+ "cost_usd": 0.03835575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow Taproot wallet RPC callers to sign and finalize only via the key path",
+    "Prevent accidental fallback script path signing, disclosure, and broadcast"
+   ],
+   "reviewability": [
+    "Ready",
+    "Clean branch with green CI and no outstanding requests"
+   ],
+   "agreement": [
+    "Strong support from reviewers focused on Taproot and MuSig signing flows (rkrux, w0xlt)",
+    "Tested and verified against Taproot script-path scenarios (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it provides a clear privacy and safety safeguard for advanced Taproot setups",
+      "Protects users with fallback script paths from prematurely revealing or spending via script paths when co-signing over key paths"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it exposes a consistent keypath_only argument across PSBT and spending RPCs",
+      "Allows downstream scripts and external signers to control Taproot signing behavior without breaking defaults"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a `keypath_only` option (defaulting to `false`) to `send`, `sendall`, `walletcreatefundedpsbt`, `walletprocesspsbt`, and `descriptorprocesspsbt`. When enabled, the wallet and PSBT processing code avoid adding new Taproot script-path metadata, avoid generating script-path signatures, and refuse to finalize transactions via script paths even if valid script-path signatures are already present.",
+  "problem": "When spending from Taproot descriptors that include both key path and script path alternatives (such as MuSig2 aggregate keys with timelocked fallback scripts), the wallet routinely adds and signs script-path data. This wastes fees, harms privacy by unnecessarily exposing fallback scripts, can trigger firmware bugs in external signing devices, and risks accidental broadcast of fallback paths.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Extended keypath_only to descriptorprocesspsbt and sendall for consistency across signing RPCs (raised by rkrux)",
+    "Unified parameter naming to keypath_only instead of mixing avoid_script_path and keypath_only (raised by rkrux)",
+    "Clarified that keypath_only prevents finalizing pre-existing script-path signatures in PSBTs as a safety feature (raised by jeanpablojp)",
+    "Disallowed keypath_only in the legacy fundrawtransaction RPC (raised by jeanpablojp)",
+    "Replaced hardcoded test keys with ExtendedPrivateKey test utilities (raised by rkrux)"
+   ],
+   "author_status": "Active; author resolved all reviewer feedback and has maintained the branch through several rebases."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Branch is rebased, mergeable, CI is passing, and all prior reviewer suggestions have been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: substantive Concept ACK and review from rkrux, tested ACK from jeanpablojp, no objections.",
+   "reason": "Reviewers agreed on the motivation and worked with the author to extend the option consistently across PSBT RPCs and functional tests.",
+   "evidence": [
+    "rkrux Concept ACKed and outlined multi-party MuSig keypath vs script-path race scenarios justifying the change",
+    "w0xlt Concept ACKed",
+    "jeanpablojp tested and ACKed earlier iteration, confirming test coverage and script-path suppression behavior"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only adds a release note accompanying code changes; category guidelines exclude code PRs that merely include release notes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release note additions for PR features do not make a PR part of the documentation category."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds the keypath_only parameter to multiple wallet and rawtransaction RPC interfaces (send, sendall, walletprocesspsbt, walletcreatefundedpsbt, descriptorprocesspsbt) and updates rpc convert params.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Exposes an optional parameter across five RPC methods to control Taproot signing behavior without modifying default RPC responses."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Modifications to types.h and sign.h are mechanical plumbing of signing options rather than improvements to shared utility infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Plumbing options through common structs in support of wallet signing does not make this PR a utilities improvement."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly touches wallet PSBT construction, coin spending, and signing logic in src/wallet/rpc/spend.cpp and src/psbt.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Provides real value for complex Taproot and MuSig2 descriptor wallets by preventing inadvertent fallback script-path exposure and spending, but remains an optional opt-in flag that can be reasonably deferred."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds a keypath_only option to wallet and PSBT RPCs (send, sendall, walletcreatefundedpsbt, walletprocesspsbt, and descriptorprocesspsbt) to restrict Taproot spending to the key path. This avoids unnecessary script-path signature creation, prevents premature on-chain disclosure of fallback scripts in complex descriptors (such as MuSig2 wallets with recovery branches), and avoids triggering external signer bugs. The PR has strong review support with concept and tested ACKs, is fully rebased, and is ready for final review."
+ },
+ "raw_text": null
+}

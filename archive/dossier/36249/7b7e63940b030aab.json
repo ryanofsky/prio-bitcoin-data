@@ -1,0 +1,163 @@
+{
+ "number": 36249,
+ "input_hash": "7b7e63940b030aab",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 7873,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3539
+ },
+ "cost_usd": 0.0269743,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Follow-up to #36215 that makes the asmap version easier to verify: expose it via getnetworkinfo, reuse it in exportasmap, log it consistently, and add test coverage for addrman re-bucketing."
+   ],
+   "reviewability": [
+    "Ready. Two members reviewed, author addressed a caching request with a new commit, and got a re-ACK on the latest commit."
+   ],
+   "agreement": [
+    "Strong support with no unresolved objections (jurraca, sedited).",
+    "sedited raised a performance nit about re-hashing the asmap on every RPC call and the author added caching, followed by a re-ACK (sedited)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because it only adds a new informational field (asmap_version) to getnetworkinfo and simplifies exportasmap's hash computation, with no external consumer asking for the field and no correctness or compatibility risk."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because it adds a short clarifying section on verifying the asmap version, useful but not fixing incorrect or missing critical documentation."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because it only caches an already-correct value inside NetGroupManager to avoid a redundant hash computation, with no change to bucketing behavior or DoS/privacy properties."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because the init.cpp change is a small internal refactor that removes a local variable in favor of an existing getter, with no effect on startup behavior or logged output content."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR is a small follow-up to #36215 that improves how the asmap (ASN mapping used for IP bucketing) version is surfaced and reused across the codebase. It makes exportasmap reuse AsmapVersion() instead of re-hashing, has init.cpp log the version via NetGroupManager, adds asmap_version to getnetworkinfo, documents how to verify the asmap in use, adds test coverage for addrman re-bucketing behavior, and finally caches the asmap version inside NetGroupManager to avoid repeated hashing.",
+  "problem": "Users and operators verifying which asmap dataset their node is using previously had to dig through logs or manually hash the embedded file; there was also redundant hash computation in code and missing test coverage for addrman re-bucketing when the bucketing method changes.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "sedited noted re-hashing the asmap on every getnetworkinfo call was wasteful; author added a caching commit to NetGroupManager and got a re-ACK from sedited."
+   ],
+   "author_status": "active, addressed review feedback with a new commit"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Nothing known would invalidate review. The one substantive review comment (caching concern from sedited) was addressed in a follow-up commit and re-ACKed on the latest SHA."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Two members reviewed and approved, with sedited's caching suggestion implemented and re-ACKed.",
+   "reason": "jurraca gave a tested ACK, sedited raised a nonblocking performance nit which the author fixed, followed by sedited's re-ACK on the new commit. No open objections.",
+   "evidence": [
+    "jurraca: tACK on commit c1e9d15",
+    "sedited: 'seems a bit wasteful to re-hash the map on every call... Maybe netgroupman can cache it?'",
+    "fjahr: 'Pushed caching the asmap version in netgroupman as a separate commit'",
+    "sedited: 'Re-ACK 0b353a9e8...'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36215
+   ],
+   "enables": [
+    "Backport to 32.x branch (labeled Needs Backport 32.x)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Modifies doc/asmap-data.md to add a section describing how to verify the asmap in use, plus fixes a stale repo link.",
+    "band": "P4",
+    "reason_tag": "clarity",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Adds a clarifying section on verifying asmap versions and corrects a stale GitHub org link. Useful but not fixing wrong or missing documentation that blocks a decision or misleads users on something safety-critical."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes src/netgroup.cpp/.h, which implement NetGroupManager used for IP bucketing in addrman, adding a cached asmap_version field and refactoring the constructor.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change avoids recomputing the asmap hash on repeated calls, a minor internal performance tidy-up requested by sedited: 'seems a bit wasteful to re-hash the map on every call'. No effect on bucketing correctness, DoS resistance, or privacy."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds asmap_version to getnetworkinfo and simplifies exportasmap to reuse AsmapVersion() instead of manually hashing.",
+    "band": "P4",
+    "reason_tag": "new field",
+    "score": 0.2,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Description states the motivation is making the version 'even more interesting for them to compare... via getnetworkinfo', but there is no cited external consumer or user request, which the rpc category ranks low. No compatibility or security implications."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "src/init.cpp is modified to drop a local asmap_version variable and instead log the version from NetGroupManager's cached getter.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Pure internal refactor removing a redundant local variable in startup code; the logged message content and behavior are unchanged, so it carries no user-facing or safety impact."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether asmap_version in getnetworkinfo was requested by any external tooling is not evidenced in the discussion; treated as unconfirmed user value.",
+   "Backport label suggests maintainers consider this worth including in 32.0, which slightly raises confidence in the PR's acceptance but does not by itself change the assessed importance of the underlying problem."
+  ],
+  "card": "This PR follows up on #36215 to make the asmap (IP bucketing map) version easier to verify and slightly more efficient: it exposes asmap_version via getnetworkinfo, reuses the cached AsmapVersion() in exportasmap and init logging, adds test coverage for addrman re-bucketing, documents the verification workflow, and caches the version inside NetGroupManager after a reviewer flagged redundant hashing. The change is small, well-scoped, and non-controversial; two members reviewed it, one review comment on caching was implemented by the author and re-ACKed. There is no evidence of external demand for the new RPC field, no bug being fixed, and no security or performance impact beyond a minor caching tidy-up, so it ranks low in every touched category (docs, p2p, rpc, utils) despite being fully ready to merge. It depends on the already-merged #36215 and carries a Needs Backport (32.x) label."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

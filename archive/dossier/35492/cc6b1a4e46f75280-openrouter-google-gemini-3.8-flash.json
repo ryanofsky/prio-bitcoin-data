@@ -1,0 +1,97 @@
+{
+ "number": 35492,
+ "input_hash": "cc6b1a4e46f75280",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:24+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14807,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2794
+ },
+ "cost_usd": 0.02158275,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Ensure wallet dumps fail cleanly and remove partial files on write errors",
+    "Prevent users from relying on incomplete or corrupt wallet backup dumps"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "The latest commit addresses prior feedback and has full ACK"
+   ],
+   "agreement": [
+    "Strong support with an explicit ACK highlighting fsync durability guarantees (pablomartin4btc)",
+    "Earlier structural and AutoFile suggestions were addressed in subsequent pushes (maflcko, sedited)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a silent failure bug where incomplete or interrupted wallet backups report success.",
+      "Ensuring backup durability and atomicity protects users from unrecoverable key loss."
+     ]
+    }
+   ]
+  },
+  "summary": "Updates `DumpWallet()` in `src/wallet/dump.cpp` to use `AutoFile`, check write operations for failure, flush changes to disk via `Commit()`, and synchronize the parent directory before reporting success. If an error occurs during writing or closing, the partial dump file is removed and an error is returned. A functional test using POSIX `RLIMIT_FSIZE` verifies failure handling.",
+  "problem": "Previously, `bitcoin-wallet dump` only verified that the output file could initially be opened. Any subsequent write or close failure still resulted in a success exit code, leaving behind an incomplete dump file that users could mistake for a valid backup.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko suggested replacing nested conditional error checks with a local try-catch pattern, which the author implemented.",
+    "sedited suggested using `AutoFile` instead of `std::ofstream` and adding `FileCommit`/`DirectoryCommit`, which the author incorporated.",
+    "pablomartin4btc noted that AutoFile error messages discard `errno`, spun this out into follow-up PR #36210, and gave a full ACK to this PR's approach."
+   ],
+   "author_status": "active; addressed all reviewer requests in the latest push"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code has clean CI, no merge conflicts, addressed all previous feedback, and has an ACK from pablomartin4btc."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: substantive ACK with durability rationale from pablomartin4btc; prior comments from maflcko and sedited addressed",
+   "reason": "pablomartin4btc tested and approved the PR, noting that AutoFile::Commit and DirectoryCommit provide necessary durability guarantees across crashes. Earlier reviewers saw their review comments incorporated.",
+   "evidence": [
+    "pablomartin4btc ACK 385a001: 'Switching to AutoFile is a meaningfully stronger guarantee...'",
+    "sedited suggested AutoFile and DirectoryCommit; author implemented both",
+    "maflcko commented positively on the RLIMIT_FSIZE test technique"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36210 (follow-up to surface OS error detail on AutoFile failures)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies src/wallet/dump.cpp which implements wallet backup and export functionality.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a silent failure condition during wallet dumps where writing errors or disk-full conditions still reported success and left truncated files. Wallet backup and recovery correctness is critical to prevent accidental key loss, making this a durable reliability fix for wallet tooling."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies bitcoin-wallet dump to detect write failures, commit data to disk with fsync and directory sync, and remove incomplete dump files on error. Previously, write errors after opening the destination file were ignored, allowing truncated dumps to exit with success and potentially causing users to trust incomplete key backups. Reviewers praised the RLIMIT_FSIZE test coverage and the addition of durable filesystem syncs. The PR has a detailed ACK from pablomartin4btc and is ready for merge consideration."
+ },
+ "raw_text": null
+}

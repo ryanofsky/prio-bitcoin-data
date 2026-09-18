@@ -1,0 +1,151 @@
+{
+ "number": 33854,
+ "input_hash": "81e37fa07d44cc4e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:06+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25051,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4093
+ },
+ "cost_usd": 0.034137,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent unnecessary script verification during -reindex when an interrupted IBD lacks minimum chainwork"
+   ],
+   "reviewability": [
+    "Stale: needs rebase due to merge conflicts"
+   ],
+   "agreement": [
+    "Concept ACK on fixing the assumevalid bypass (l0rinc)",
+    "Approach objection noting added complexity, offline reindex failure, and marginal value (sedited)",
+    "Concerns regarding msghand stalling during catchup (mzumsande)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it saves validation time in a specific edge case where IBD was aborted early",
+      "There is no risk of consensus failure or state corruption since the node safely falls back to full verification"
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because adjusting headers sync behavior during LoadingBlocks only serves the reindex startup sequence",
+      "It provides no standalone network or protocol benefit"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies reindex startup so that if the chainwork of the best header on disk is below minimumchainwork, the node defers ActivateBestChain(). Instead, it allows headers sync over P2P during reindexing until the header chain reaches minimumchainwork, ensuring that assumevalid is applied rather than falling back to full script verification.",
+  "problem": "When reindexing after an interrupted IBD that stopped before accumulating minimumchainwork, the node fails to locate the assumevalid block in its headers, forcing full script verification for all blocks on disk and significantly slowing reindex times.",
+  "discussion": {
+   "open_concerns": [
+    "sedited questioned the approach, noting high complexity, the inability to reindex offline without minchainwork, and whether the edge case justifies the added code",
+    "mzumsande warned about potential msghand thread stalling if large chains are connected during P2P processing"
+   ],
+   "resolved_concerns": [
+    "Eunovo moved deferred block connection to the background init thread using a condition variable to avoid blocking msghand"
+   ],
+   "author_status": "silent since 2026-07-21, though sedited's critique was posted recently on 2026-09-17"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with the main branch and is flagged dirty."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept ACK from l0rinc, but sedited questions whether the complexity is worth the squeeze and objects to breaking offline reindex",
+   "reason": "While l0rinc supported the concept and verified the reproducer, sedited argued that the change adds too much complexity for an infrequent edge case and impairs offline reindexing.",
+   "evidence": [
+    "l0rinc: 'Concept ACK' and confirmed the fix with a reproducer",
+    "mzumsande: raised concerns regarding peer disconnects from blocking msghand and offline reindexing failure",
+    "gmaxwell: noted security assumptions around not recommending users lower -minimumchainwork",
+    "sedited: 'This is a quite complicated change for what should be such a simple concept! ... Maybe the juice is also just not worth the squeeze for a salvage scenario that does not happen often.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches only validation, init, and net_processing for reindexing; no mempool or fee policy changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies net_processing.cpp to permit HEADERS sync while LoadingBlocks() is true.",
+    "band": "P4",
+    "reason_tag": "speedup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change to net_processing allows headers synchronization while loading blocks, but it does so purely as an auxiliary mechanism for validation's reindex logic without solving an independent P2P issue."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Init thread and notification changes are specific to startup synchronization of block reindexing rather than general utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes reindex behavior, ImportBlocks, ActivateBestChain, and block validation ordering in src/validation.cpp and src/node/blockstorage.cpp.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes issue #31494 where assumevalid is bypassed on reindex if previous IBD was interrupted before minimum chainwork. The bug only results in redundant script verification (which is strictly safer), so there is no consensus or security risk, making it a performance optimization for a rare scenario."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies reindex behavior so that if the best header on disk has less than minimumchainwork, block activation is deferred while the node syncs headers from peers over P2P. This prevents bitcoind from bypassing assumevalid and executing full script verification when reindexing after an early-interrupted IBD. While l0rinc gave Concept ACK, reviewers including mzumsande and sedited highlighted that this adds significant complexity, complicates or disables offline reindexing, and might not be worth the cost for a rare recovery scenario. The PR currently has merge conflicts and needs a rebase."
+ },
+ "raw_text": null
+}

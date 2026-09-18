@@ -1,0 +1,362 @@
+{
+ "number": 34083,
+ "input_hash": "61e617a89d9e0f40",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:26:26+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 101701,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10674
+ },
+ "cost_usd": 0.11630325,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Vectorize ChaCha20 encryption using portable compiler built-ins",
+    "Cut CPU overhead on the P2P network thread by 2-3x during BIP324 transport"
+   ],
+   "reviewability": [
+    "Paused: author needs to address review feedback from l0rinc and add tests"
+   ],
+   "agreement": [
+    "Concept supported for substantial performance gains (ajtowns, jonatack)",
+    "Unaddressed objection: missing tests, 64-byte slowdown, and cleanup requested (l0rinc)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it provides a 2x-3x speedup to the core cipher used in BIP324 transport",
+      "Measurably accelerates initial block download and reduces network thread CPU load",
+      "Lays the groundwork for future AVX2, AVX-512, and Poly1305 vectorization"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements a vectorized ChaCha20 cipher using compiler built-in vector extensions rather than hand-written assembly. It introduces 128-bit SIMD multi-block processing to compute multiple ChaCha20 states simultaneously across x86-64 and ARM64 architectures. The change yields a 2x to 3x throughput improvement on supported platforms while falling back to scalar code for non-vectorized environments.",
+  "problem": "ChaCha20 encryption accounts for up to 30% of the network thread's CPU time during BIP324 v2 P2P transport. Node operators on CPU-constrained or bandwidth-heavy nodes experience network thread bottlenecks during initial block download and peer relay.",
+  "discussion": {
+   "open_concerns": [
+    "Lack of unit test and differential fuzzing coverage across all target-specific multi-block dispatch sizes",
+    "Minor performance regression (~7%) observed on 64-byte single-block inputs",
+    "Code restructuring needed to separate generic vector helpers, endian conversions, and target dispatch logic"
+   ],
+   "resolved_concerns": [
+    "Initial implementation failed on big-endian architectures due to post-XOR byte swapping (fixed)",
+    "Severe performance regression on ARM64 when compiled with GCC (resolved by switching from 256-bit to 128-bit vector layout)"
+   ],
+   "author_status": "silent since 2026-08-25 after pushing a 128-bit rework, pending response to 2026-08-30 review"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Waiting on author",
+   "reason": "l0rinc submitted a Changes Requested review on 2026-08-30 requesting unit tests, differential fuzzing updates, and commit cleanup. The author has not responded for 18 days."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "ajtowns",
+     "stance": "support",
+     "note": "praised approach and benchmarks, suggested template/constexpr improvements"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "objection",
+     "note": "requested changes regarding missing tests, 64-byte regressions, and structuring"
+    },
+    {
+     "login": "sipa",
+     "stance": "neutral",
+     "note": "suggested index_sequence unrolling alternatives"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "discussed CI and big-endian test execution"
+    },
+    {
+     "login": "sedited",
+     "stance": "question",
+     "note": "asked about vector block layout and quarter-round mechanics"
+    },
+    {
+     "login": "fanquake",
+     "stance": "neutral",
+     "note": "asked about rebase and clean-up status"
+    },
+    {
+     "login": "jonatack",
+     "stance": "support",
+     "note": "Concept ACK"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "l0rinc",
+     "kind": "correctness",
+     "harm": "ChaCha20 produced incorrect output on big-endian platforms",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-12-17: 'My biggest objection currently is that it's broken on big-endian systems - left a suggestion how to reproduce and fix it.'",
+     "resolution_evidence": "2026-01-13: 'Also pushed @l0rinc's fix for big-endian.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "l0rinc",
+     "kind": "correctness",
+     "harm": "Untested multi-block dispatch states, a ~7% regression on 64-byte inputs, and potential IBD slowdown on some platforms",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-30: 'Corecheck currently has no coverage data for the new code and measures the 64-byte case about 7% slower... To be more confident in the correctness, I would like to see the new path covered by: tests... benchmarks... differential fuzzer'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "l0rinc",
+     "kind": "approach",
+     "harm": "2x performance regression compared to scalar on ARM64 when compiled with GCC",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-04: 'RPi5 with GCC shows a regression: the generic vectorized implementation is ~2x slower than scalar on ARM64 with GCC, while Clang handles it fine.'",
+     "resolution_evidence": "2026-08-18: 'The second introduces a pluggable vector interface, and adds a 128bit implementation. This works around gcc's vectorizer's limitations and should fix the performance regressions you pointed out.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "l0rinc",
+     "kind": "maintenance",
+     "harm": "circular include dependency between chacha20_vec and chacha20_vec_128impl breaks CI linting",
+     "blocking": true,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-21: 'Note that the CI indicates a dependency-cycle regression was introduced here.'",
+     "resolution_evidence": "",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ajtowns",
+     "reason": "Approach looks very nice, and at least going by the bench results, gives a good improvement.",
+     "substantive": true
+    },
+    {
+     "reviewer": "jonatack",
+     "reason": "Concept ACK, good work.",
+     "substantive": false
+    }
+   ],
+   "state": "Blocked",
+   "summary": "Blocked: l0rinc requested changes regarding missing test coverage, 64-byte regression, and branch cleanup; author has not replied.",
+   "reason": "The concept and substantial performance improvements are well supported by ajtowns and jonatack, but l0rinc's latest Changes Requested review highlighting missing tests and regressions remains open without an author response.",
+   "evidence": [
+    "2025-12-17 ajtowns: 'Approach looks very nice, and at least going by the bench results, gives a good improvement.'",
+    "2026-08-20 jonatack: 'Concept ACK, good work.'",
+    "2026-08-30 l0rinc: 'Corecheck currently has no coverage data for the new code... To be more confident in the correctness, I would like to see the new path covered by: tests... benchmarks... fuzz target...'"
+   ],
+   "model_state": "Blocked",
+   "derivation": "blocking objection open with no author reply (l0rinc, l0rinc)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Blocked",
+    "derived": "Blocked",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "test vector failures on big-endian architectures due to incorrect byte-swapping order relative to XOR",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-12-17: 'This appears to be an endianness issue in vec_read_xor_write: the current implementation swaps the result of the XOR, but on Big Endian systems we must swap the state vec before the XOR.'",
+      "resolution_evidence": "2026-01-13: 'Also pushed @l0rinc's fix for big-endian.'"
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "approach",
+      "harm": "2x performance regression compared to scalar on ARM64 when compiled with GCC",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-04: 'RPi5 with GCC shows a regression: the generic vectorized implementation is ~2x slower than scalar on ARM64 with GCC, while Clang handles it fine.'",
+      "resolution_evidence": "2026-08-18: 'The second introduces a pluggable vector interface, and adds a 128bit implementation. This works around gcc's vectorizer's limitations and should fix the performance regressions you pointed out.'"
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "maintenance",
+      "harm": "circular include dependency between chacha20_vec and chacha20_vec_128impl breaks CI linting",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-21: 'Note that the CI indicates a dependency-cycle regression was introduced here.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "untested dispatch block sizes, 64-byte performance regression, and slower IBD on Umbrel",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-30: 'To be more confident in the correctness, I would like to see the new path covered by: tests around every dispatch block count... focused benchmarks... extension of the existing crypto_diff_fuzz_chacha20'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ajtowns",
+      "reason": "approach looks very nice and bench results give a good improvement",
+      "substantive": true
+     },
+     {
+      "reviewer": "jonatack",
+      "reason": "Concept ACK, good work.",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "ajtowns",
+      "stance": "support",
+      "note": "supported the approach and performance improvement; explored template/constexpr alternatives"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "objection",
+      "note": "requested changes over endianness bugs, GCC ARM64 regression, CI dependency cycles, and insufficient test/fuzz coverage"
+     },
+     {
+      "login": "sipa",
+      "stance": "neutral",
+      "note": "suggested std::make_index_sequence template loops as an alternative to recursive templates"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "clarified big-endian CI capabilities and configuration"
+     },
+     {
+      "login": "sedited",
+      "stance": "question",
+      "note": "asked clarifying questions about the SIMD vector layout and doc comments"
+     },
+     {
+      "login": "fanquake",
+      "stance": "neutral",
+      "note": "asked whether the updated 128-bit branch would be pushed to the PR"
+     },
+     {
+      "login": "jonatack",
+      "stance": "support",
+      "note": "Concept ACK"
+     }
+    ],
+    "corrections": [],
+    "summary": "Blocked: l0rinc requested changes citing CI dependency cycles, unverified dispatch group coverage, and regressions; author has not replied.",
+    "usage": {
+     "input_tokens": 45683,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3941
+    }
+   },
+   "first_read": {
+    "state": "Blocked",
+    "model_state": "Blocked",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "ChaCha20 produced incorrect output on big-endian platforms",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-12-17: 'My biggest objection currently is that it's broken on big-endian systems - left a suggestion how to reproduce and fix it.'",
+      "resolution_evidence": "2026-01-13: 'Also pushed @l0rinc's fix for big-endian.'"
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "Untested multi-block dispatch states, a ~7% regression on 64-byte inputs, and potential IBD slowdown on some platforms",
+      "blocking": true,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-30: 'Corecheck currently has no coverage data for the new code and measures the 64-byte case about 7% slower... To be more confident in the correctness, I would like to see the new path covered by: tests... benchmarks... differential fuzzer'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ajtowns",
+      "reason": "Approach looks very nice, and at least going by the bench results, gives a good improvement.",
+      "substantive": true
+     },
+     {
+      "reviewer": "jonatack",
+      "reason": "Concept ACK, good work.",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Runtime-detected AVX2 and AVX-512 ChaCha20 optimizations",
+    "Vectorized Poly1305 MAC implementation"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies core cryptographic primitives under src/crypto/chacha20*.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because accelerating ChaCha20 by 2x-3x addresses a significant compute bottleneck on the network thread during BIP324 P2P processing. Profiling showed ChaCha20 consuming roughly 30% of net thread CPU, and benchmarks confirmed a measurable 3% speedup in overall IBD runtime. Furthermore, establishing the vector primitives unblocks subsequent AVX2/AVX512 and Poly1305 optimizations."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 34083 introduces a portable vectorized ChaCha20 implementation using compiler built-in vector extensions across x86-64 and ARM64. It addresses high CPU overhead on the P2P network thread during BIP324 encrypted transport, where ChaCha20 accounts for up to 30% of execution time. Benchmarks demonstrate a 2x to 3x speedup in raw cipher throughput and a measurable wall-clock reduction in initial block download time. The concept is widely supported, but the PR is currently paused waiting on the author to resolve a blocking review from l0rinc concerning test coverage, 64-byte regressions, and commit structuring."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.049041
+}

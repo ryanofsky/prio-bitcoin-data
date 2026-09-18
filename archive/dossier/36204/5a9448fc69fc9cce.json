@@ -1,0 +1,95 @@
+{
+ "number": 36204,
+ "input_hash": "5a9448fc69fc9cce",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10086,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3041
+ },
+ "cost_usd": 0.0266973,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent a client that never finishes sending an HTTP request from permanently occupying a connection slot on the RPC/REST server, which can starve out legitimate clients once rpcmaxconnections is reached."
+   ],
+   "reviewability": [
+    "Needs rebase, marked dirty, and conflicts with three other open PRs from the same reviewer touching the same files."
+   ],
+   "agreement": [
+    "Concept ACK from hodlinator, several nits already addressed in a rebase",
+    "One open technical question about whether Send() needs an extra deadline restart, author replied with reasoning but hodlinator has not yet responded (hodlinator)"
+   ],
+   "categories": []
+  },
+  "summary": "Adds a second 'completion deadline' timer to the HTTP server, separate from the existing idle timer, that starts on the first byte of a request and is not reset by subsequent reads. A client that trickles bytes in slowly without ever completing a request is now disconnected once -rpcservertimeout elapses, freeing its connection slot. Includes new unit and functional tests exercising the trickling scenario and confirming normal slow RPCs are unaffected.",
+  "problem": "The existing idle timeout resets on every byte received, so a client that keeps sending data without ever completing a request can hold a connection slot indefinitely. Since connection slots are capped (default 16 or -rpcmaxconnections), a handful of such clients can starve out legitimate RPC/REST callers; the author notes impact is low by default since RPC binds to localhost.",
+  "discussion": {
+   "open_concerns": [
+    "hodlinator asked whether Send()'s MaybeSendBytesFromBuffer() path is missing a RestartRequestDeadline() call; author explained why they believe it's unnecessary (m_request_since is nullopt at that point) but hodlinator has not confirmed since 2026-09-11 comment (author replied 2026-09-14)",
+    "hodlinator suggested adopting the mockable steady clock / FakeSteadyClock from #36159 for test determinism; author noted that would require #36159 to land first, effectively deferring this"
+   ],
+   "resolved_concerns": [
+    "nit about comment wording ('Slightly more accurate?') accepted and applied",
+    "nit about check ordering (!m_req_busy first) pushed back on by author with a rationale (register cost, short-circuit likelihood); no follow-up from hodlinator so treated as resolved by disagreement",
+    "docstring casing nit fixed",
+    "test cleanup and structure nits addressed in the 2026-09-14 rework"
+   ],
+   "author_status": "active, pushed a rebase and addressed most review feedback on 2026-09-14"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "PR is labeled Needs rebase and mergeable_state is dirty; it also conflicts with three other open PRs from the same reviewer (#36159, #36160, #36124) touching the same HTTP server files, so review effort could be invalidated once those land or once this is rebased."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from hodlinator plus multiple substantive review comments, all nits resolved; one open technical question about a possible missing deadline-restart call is unconfirmed but not framed as blocking.",
+   "reason": "hodlinator gave a Concept ACK and raised several inline comments, most addressed in the 2026-09-14 rebase; the remaining item (whether Send() needs another RestartRequestDeadline() call) is a clarifying remark the author answered with reasoning, and hodlinator has not pushed back, so it reads as resolved rather than a standing objection.",
+   "evidence": [
+    "hodlinator: 'Concept ACK 537944c...'",
+    "hodlinator: 'Was wondering whether we were missing another call to RestartRequestDeadline()...'",
+    "janb84: 'Do not think extra action is needed in send()... happy to be wrong.'",
+    "hodlinator nit on check ordering; janb84 pushed back with rationale, no further reply"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Overlaps and conflicts with hodlinator's #36159 (Improve HTTPRemoteClient::MaybeDisconnect()), #36160, and #36124; landing order between these needs coordination"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly modifies src/httpserver.cpp and src/httpserver.h, the HTTP server machinery underlying RPC/REST, and adds targeted unit and functional tests for it. Labeled RPC/REST/ZMQ.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because it closes a real resource-exhaustion path in the HTTP server: 'a client that keeps sending bytes without ever completing a request can hold the connection for ever,' reproduced concretely by the author with rpcmaxconnections=2 and trickled bytes. The rpc category rubric explicitly lists 'resource exhaustion through the HTTP server' as a priority, but the author's own admission that 'the impact is low because RPC port binds to localhost by default' and the lack of any external report of this being exploited keeps it from P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers consider this severe enough to want it prioritized over the overlapping hodlinator PRs touching the same code, or whether one approach should supersede the other",
+   "Whether the unresolved question about RestartRequestDeadline() in Send() represents a real gap that would need fixing before merge",
+   "How the needs-rebase state and file conflicts with #36159/#36160/#36124 will be resolved, which could substantially change the diff"
+  ],
+  "card": "This PR adds a second, non-resettable deadline to the HTTP server so that a client which keeps sending bytes without ever completing an HTTP request can no longer hold a connection slot indefinitely, addressing a connection-slot exhaustion issue reproduced by the author with rpcmaxconnections=2. The author notes real-world impact is low since the RPC port binds to localhost by default, framing this as a robustness fix rather than a remote security issue. hodlinator gave a Concept ACK and raised several review comments, most resolved in a 2026-09-14 rebase; one remark about a possibly-missing deadline restart in Send() got an author reply that has not yet been confirmed. The PR is marked Needs rebase and conflicts with three other open PRs from hodlinator touching the same httpserver files (#36159, #36160, #36124), so review timing should account for that overlap. No stated external dependency blocks the PR itself."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

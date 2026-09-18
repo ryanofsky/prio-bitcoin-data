@@ -1,0 +1,266 @@
+{
+ "number": 36033,
+ "input_hash": "23cd73e24be2d1bf",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22851,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5771
+ },
+ "cost_usd": 0.0531123,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Bump the minimum supported compiler to require C++23, letting the codebase drop C++20 workarounds and use newer standard library features."
+   ],
+   "reviewability": [
+    "Explicitly wip/nomerge with CI failing and needing rebase, reviewing now is largely wasted effort until the author settles the approach."
+   ],
+   "agreement": [
+    "One concept ACK with no stated objections (l0rinc). A reviewer noted an IWYU-related side effect as an observation, not an objection (hebasto)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it addresses accumulating C++20 workarounds and would unlock C++23 features, but it is an unforced, undated compiler-minimum bump the author admits timing is unclear about."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it removes a hand-rolled Expected implementation and ALWAYS_FALSE shim in favor of standard library equivalents, reducing a maintenance burden, but the simplification is entirely gated on the build-wide C++23 decision landing first."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because the only kernel-file change is a cosmetic loop-to-views::zip refactor in btck_chainstate_manager_import_blocks with no API or behavior change."
+     ]
+    }
+   ]
+  },
+  "summary": "This WIP/RFC PR raises Bitcoin Core's minimum required C++ standard to C++23, bumping minimum GCC to 13 and Clang to 19. It removes several C++20-era workarounds (a hand-written Expected type in favor of std::expected, the ALWAYS_FALSE shim, custom byteswap code) and mechanically replaces std::string::find(...)!=npos patterns with std::string::contains across many files. It also adds a release note and adjusts CI flags to build with an even newer standard (-std=c++26) to catch deprecated code early.",
+  "problem": "Maintainers who write C++ in this codebase currently must avoid C++23-only features and keep workarounds for older compilers, even though some subtrees (e.g. libmultiprocess) already rely on C++23 lambda attributes. The author states the workarounds keep accumulating and wants to unlock newer language and library features once the project decides it's safe to require them.",
+  "discussion": {
+   "open_concerns": [
+    "Author explicitly states 'I don't know when it is fine to switch' -- the core question of whether/when to require C++23 is unresolved.",
+    "hebasto flagged that a specific change looks like an IWYU automatic re-export heuristic in action; unclear if this needs follow-up but reads as observational rather than a blocking objection."
+   ],
+   "resolved_concerns": [],
+   "author_status": "active, multiple force-pushes through 2026-08-24, no reply since to hebasto's comment"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing, WIP",
+   "reason": "PR is tagged wip/nomerge/rfc, has 'Needs rebase' and 'CI failed' labels, and is a draft with mergeable_state dirty; the author has not pushed or commented in 23 days. Reviewing the current diff risks being invalidated by further rebases and the author's own stated uncertainty about direction."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from l0rinc with no stated objections; hebasto's comment is an observation about an IWYU side effect, not a blocking criticism.",
+   "reason": "Only one substantive reviewer response exists, a concept ACK, and no one has raised a harm or blocking objection. The author's own uncertainty about timing is not an external objection.",
+   "evidence": [
+    "l0rinc: 'Concept ACK'",
+    "hebasto: notes a change 'looks like IWYU's automatic re-export... heuristics in action' -- informational, unanswered but non-blocking"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced issue #34979 comment suggests future work ('new stuff') that a C++23 requirement would unlock, though unspecified."
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Primary change is CMakeLists.txt, depends/Makefile, depends/README.md, and CI script bumping the minimum C++ standard and compiler versions.",
+    "band": "P3",
+    "reason_tag": "dependency transition",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because this is a compiler-minimum bump with no stated deadline or forcing regression; the author frames it as 'I don't know when it is fine to switch' rather than an urgent need. Some leverage claimed ('new stuff is unlocked') but only vaguely sourced from a linked issue comment, not corroborated by other reviewers."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a mechanical release-notes stub was added as a side effect of the build change; not the primary subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a documentation-first PR; the release note is incidental to the build change."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Only adds an '#include <expected>' line to txospenderindex.cpp and blockstorage.cpp, a mechanical follow-on from the util/expected.h rewrite.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical include-only change, not a substantive index behavior change."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "bitcoinkernel.cpp changes a loop in btck_chainstate_manager_import_blocks to use std::views::zip, and adds an #include <ranges> and <expected>; this is inside the kernel API implementation file.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the change is a cosmetic refactor of an existing loop into a range-based zip view with no functional or API difference; no consumer is waiting on it."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "i2p.cpp change is a mechanical find()!=npos to contains() replacement with no behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call-site update only, not a p2p-area change."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/net.cpp, rpc/server.cpp, rpc/util.cpp changes are all mechanical find-to-contains substitutions with no behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC interface or behavior change, purely mechanical style updates following from the C++23 bump."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test file edits are mechanical adaptations to keep tests compiling under the new standard (contains() calls, std::expected API changes), not framework changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These are call-site updates required to keep existing tests compiling, not changes to test infrastructure or coverage."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "bitcoin-tx.cpp changes are mechanical find-to-contains substitutions.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical style update only, no tool behavior change."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "util/expected.h is rewritten from a custom implementation to a thin wrapper around std::expected, util/types.h (ALWAYS_FALSE) is deleted, and compat/byteswap.h is simplified using std::byteswap.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because this removes meaningful custom infrastructure (a hand-rolled Expected type, byteswap shims) in favor of standard library equivalents, judged on its own terms per the utils rubric, but it is gated entirely on the unresolved C++23 decision and has no independent urgency."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "blockstorage.cpp change is only an added '#include <expected>' line, a mechanical follow-on.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No validation behavior change, purely mechanical include addition."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet.cpp, encrypt.cpp, and test files only have mechanical find-to-contains substitutions with no behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No fund-safety, privacy, or wallet behavior change; purely mechanical style updates."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project has any actual timeline pressure to require C++23 (e.g. an upstream deprecation or a blocked project) is not stated beyond a vague linked issue comment.",
+   "How review of this PR should be weighed given the author's own explicit uncertainty about timing ('I don't know when it is fine to switch') is unclear -- it reads as inviting discussion on direction rather than seeking code review yet.",
+   "Whether hebasto's IWYU observation is meant as feedback requiring a response is ambiguous; treated as non-blocking here."
+  ],
+  "card": "This wip/nomerge/rfc PR by a Bitcoin Core maintainer proposes requiring a C++23 compiler (GCC 13+, Clang 19+), removing accumulated C++20 workarounds such as a custom Expected type and ALWAYS_FALSE shim in favor of std::expected, and mechanically replacing find()!=npos idioms with contains() across dozens of files. The stated motivation is that workarounds for pre-C++23 keep accumulating and some subtrees already rely on C++23 features, but the author admits 'I don't know when it is fine to switch,' making this squarely a decision-needed RFC rather than a ready-to-merge change. Review state is Stale: CI is failing, the PR needs rebase, and the author has been silent for over three weeks after several force-pushes. The only substantive feedback is a bare concept ACK from l0rinc and an observational comment from hebasto about an IWYU side effect; no objections have been raised. Its main leverage claim, unlocking unspecified 'new stuff' referenced in a linked issue comment, is not corroborated by other reviewers."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

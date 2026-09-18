@@ -1,0 +1,98 @@
+{
+ "number": 35071,
+ "input_hash": "d0ac2a6181304e47",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:46+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16634,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4722
+ },
+ "cost_usd": 0.030183,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow an interrupted reindex to resume from the last completed block file instead of scanning disk files from the beginning."
+   ],
+   "reviewability": [
+    "Review is not worthwhile now because the author put the PR into draft to measure actual overhead and has been silent for over four months."
+   ],
+   "agreement": [
+    "Skepticism over the premise that resuming an interrupted reindex is slow on master, noting that block acceptance is already skipped on restart (mzumsande, maflcko)",
+    "Concern that serializing the orphan map to LevelDB adds database complexity without demonstrated benefit (maflcko)",
+    "Author acknowledged misunderstanding the current behavior and paused the PR for benchmarks (pinheadmz)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the benefit is marginal and weakly justified.",
+      "Existing code already skips block processing when restarted after an interruption, making the sequential file re-read fast.",
+      "Persisting intermediate orphan state in LevelDB introduces complexity for an uncommon edge case without measured gains."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request records reindex progress to the block tree database upon user interruption. It saves the last completed block file index and serializes the in-memory orphan block map so that subsequent node startups can resume reindexing from that file rather than re-scanning earlier files.",
+  "problem": "When a node operator interrupts a reindex, restarting the node re-scans all block files starting from blk00000.dat. Even though previously accepted blocks are skipped, re-reading the files and re-populating orphan maps creates perceived redundant work.",
+  "discussion": {
+   "open_concerns": [
+    "Reviewers noted that on master, restarting without -reindex already skips AcceptBlock for indexed blocks, making the scan very fast.",
+    "Doubts about whether persisting orphan block maps into LevelDB adds unnecessary database complexity for negligible performance gains."
+   ],
+   "resolved_concerns": [
+    "Flushing reindex progress on every single block file was replaced with saving only upon shutdown interrupt to avoid slowing normal reindexing."
+   ],
+   "author_status": "silent since 2026-05-08 after moving the PR to draft to gather benchmarks"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 132d",
+   "reason": "The author converted the PR to draft after acknowledging reviewers' point that block acceptance is already skipped, promising benchmarks, and has been inactive for 132 days."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Mild: reviewers questioned whether re-scanning files without re-validating is actually slow; author moved to draft to benchmark and went silent.",
+   "reason": "Reviewers (maflcko, mzumsande) pointed out that re-reading block files on an interrupted reindex already avoids full validation on master, questioning the need for persisting orphan state in LevelDB. The author acknowledged this and agreed to test whether overhead exists, but has not returned.",
+   "evidence": [
+    "maflcko asked for flame graphs or benchmarks demonstrating that interrupted restarts have substantial overhead",
+    "mzumsande pointed out that restarting without -reindex does not re-index from scratch and that file scanning is very fast",
+    "pinheadmz admitted they had not realized master already skips block acceptance, and put the PR in draft to measure real overhead"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes BlockTreeDB and ImportBlocks in src/node/blockstorage to manage block file scanning and reindex persistence.",
+    "band": "P4",
+    "reason_tag": "speedup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because the optimization is speculative and weakly justified. On current master, restarting after an interruption without the -reindex parameter already skips block validation because blocks are already recorded in the block index, leaving only the sequential read overhead of the block files. Persisting checkpoint progress and serializing orphan multimaps to the block database adds code complexity for an edge case that already completes quickly."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [
+   "benchmark_data"
+  ],
+  "card": "PR 35071 checkpoints the last processed block file and serializes orphan block positions to LevelDB when reindexing is interrupted, allowing the node to resume from that file rather than scanning from blk00000.dat. It addresses the perception that interrupting a multi-hour reindex forces the operator to redo all previous progress. However, reviewers pointed out that master already skips block validation on restart and scans existing files quickly, so the actual performance improvement remains unproven. The PR is in draft and has been stale for 132 days awaiting benchmarks from the author."
+ },
+ "raw_text": null
+}

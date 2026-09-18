@@ -1,0 +1,113 @@
+{
+ "number": 34489,
+ "input_hash": "37fbca92412652a4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 35210,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4295
+ },
+ "cost_usd": 0.058091300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Batch index database writes during initial sync instead of flushing every block.",
+    "Cuts disk IO on HDDs and reduces cs_main lock contention during index catch-up.",
+    "Lays groundwork for the planned parallel index sync project (#26966)."
+   ],
+   "reviewability": [
+    "Stale: PR needs a rebase (labeled Needs rebase, conflicts with #34440 and #32875) and is draft while a contributor rebases it.",
+    "A live correctness concern about state going out of sync with persisted data on interrupt is also open and unresolved."
+   ],
+   "agreement": [
+    "Blocked: l0rinc requested changes over a correctness concern that batched in-memory state (e.g. CoinStatsIndex muhash) can outrun what is committed to disk, risking index corruption on interrupt, and this has not been resolved (l0rinc).",
+    "Multiple concept ACKs support the batching direction (arejula27, l0rinc, polespinasa, optout21 stale).",
+    "Benchmarks by l0rinc show real HDD speedups for some indexes (up to ~28% for txospenderindex, ~11% for txindex) but negligible gains for blockfilterindex/coinstatsindex.",
+    "Author engaged extensively with review but has not answered the latest correctness follow-up as of 2026-08-28."
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it reduces disk IO and cs_main contention during index initial sync, with benchmarked HDD speedups (~11-28% for some indexes) and is explicit groundwork for the parallel-sync project #26966.",
+      "The correctness concern raised by l0rinc about in-memory state advancing ahead of what's persisted (index corruption risk on interrupt) is real and needs resolving before merge, but the underlying batching problem itself remains valuable to solve."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes the index sync loop (BaseIndex::Sync) to batch database writes across a configurable window of blocks (default 500) instead of flushing after every block, and refactors NextSyncBlock/ProcessBlock into range-based processing to support this. It reduces the number of cs_main lock acquisitions during sync and the number of generated LevelDB files, and is explicitly described as groundwork decoupled from the larger parallel index-sync project (#26966). It adds several new tests for batch writes, reorgs during sync, and locator persistence across shutdown.",
+  "problem": "Index initial sync (txindex, blockfilterindex, coinstatsindex, txospenderindex) currently flushes to disk on every block and re-acquires cs_main per block, which is inefficient on HDDs and adds unnecessary lock contention that slows overall node responsiveness (including IBD) while indexes catch up.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc (CHANGES_REQUESTED): batching lets in-memory index state (e.g. CoinStatsIndex's muhash) advance ahead of what is committed to disk; an interrupt's Commit() can persist advanced state alongside a stale locator, which could make CoinStatsIndex::CustomInit reject the index as corrupted on restart, and a milder variant affects blockfilterindex's flat files. Not resolved as of the last comment (2026-08-28).",
+    "l0rinc: several 'no behavior change' refactoring commits (iterator ordering, NextSyncBlock restructuring) actually risk subtle behavior changes and lack tests/explanation; disputed with sipa siding with the author on one specific claim but the broader concern about undocumented behavior changes stands.",
+    "arejula27: whether #34897 (indexes can only commit up to flushed chainstate) limits the benefit of batching/parallelization and whether batch size should differ per index or be disabled during IBD for blockfilterindex - open design question, unresolved.",
+    "Batch size (500) chosen arbitrarily; l0rinc ran extensive benchmarks (100-1000) but the right value, and memory implications, remain unsettled.",
+    "Needs rebase (label) and conflicts with #34440 and #32875; rebase in progress by arejula27 as of 2026-08-23."
+   ],
+   "resolved_concerns": [
+    "fjahr's question about ProcessBlock/ProcessBlocks duplication and privacy was addressed by author explanation.",
+    "optout21's batching-logic confusion and missing end-index update bug were fixed and tested.",
+    "arejula27's restart-during-batch corruption scenario was investigated and a real bug was found and fixed with new test coverage.",
+    "arejula27's concern about removing `final` from BlockFilterIndex for testability was resolved by keeping `final` and basing the test off BaseIndex instead."
+   ],
+   "author_status": "active but coordinating a rebase with arejula27 as of 2026-08-23, last reply from author 2026-08-23, no response yet to l0rinc's 2026-08-28 follow-up on the corruption concern"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Labeled Needs rebase with real conflicts against #34440 and #32875, and a contributor (arejula27) is actively rebasing it as of 2026-08-23-2026-08-28, so review of the current diff would likely be invalidated by the rebase in progress."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Blocked: l0rinc's CHANGES_REQUESTED flags a possible index-corruption path from batching (advanced in-memory state vs. stale persisted locator), unresolved since raised in March and revisited 2026-08-28 with no author reply yet.",
+   "reason": "Several contributors gave concept ACKs for the batching direction, and benchmarks by l0rinc corroborate real (if uneven) performance gains, but l0rinc's substantive correctness objection (potential CoinStatsIndex corruption on interrupt, and blockfilterindex flat-file issue) was never resolved with a fix or an agreed rationale, and l0rinc explicitly marked CHANGES_REQUESTED.",
+   "evidence": [
+    "l0rinc (CHANGES_REQUESTED, 2026-03-09): 'the interrupt handler's Commit() can write the advanced m_muhash alongside the old locator... it directly contradicts the code comment'",
+    "arejula27, l0rinc, polespinasa: Concept ACK on the batching direction",
+    "optout21: crACK on an earlier commit (stale per bot)",
+    "l0rinc (2026-08-28): reopens the blockfilterindex flat-file write issue asking 'could we fix this... before we continue?' with no author reply yet"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34897
+   ],
+   "enables": [
+    "#26966 index initial sync parallelization, described as building directly on this PR's groundwork"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "PR is entirely about the index sync loop (BaseIndex::Sync, NextSyncBlock, ProcessBlock/ProcessBlocks) shared by txindex, blockfilterindex, coinstatsindex, and txospenderindex, and carries the 'UTXO Db and Indexes' label.",
+    "band": "P2",
+    "reason_tag": "speedup, unblocks #26966",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Benchmarks by l0rinc on real HDD hardware show measurable sync-time reductions (~11% for txindex, up to ~28% for txospenderindex) and a reduction in generated LDB files for coinstatsindex (144 to 10), with author framing it as 'lays the groundwork for the real speedups, since part of #26966 parallelization pre-work is introduced here.' Bug severity is elevated by l0rinc's unresolved concern that batching can leave in-memory state ahead of persisted state, risking index corruption on interrupt for CoinStatsIndex and blockfilterindex, which is a correctness question specific to this category's data-integrity priority."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the muhash/locator inconsistency l0rinc raised is a real exploitable corruption bug or already mitigated by later pushes is not settled in the visible discussion.",
+   "Current rebase status and diff content are unknown since the PR is actively being reworked by arejula27; the assessment is based on the pre-rebase state.",
+   "No maintainer (non-author, non-reviewer-with-history) has weighed in on whether this should target a specific release, leaving urgency somewhat unclear despite the #26966 dependency."
+  ],
+  "card": "This draft PR batches database writes during index initial sync (txindex, blockfilterindex, coinstatsindex, txospenderindex) instead of flushing per block, and reduces cs_main lock acquisitions by processing block ranges, explicitly as groundwork decoupled from the larger parallel-sync project #26966. Extensive real-hardware benchmarks by l0rinc show HDD sync-time improvements of roughly 11% (txindex) to 28% (txospenderindex), with fewer generated LevelDB files, though gains are negligible for blockfilterindex and coinstatsindex. The PR is blocked in agreement: l0rinc gave CHANGES_REQUESTED over a possible index-corruption path where in-memory state can advance ahead of what's persisted on interrupt, unresolved as of the latest comment. It also needs a rebase (labeled, with real conflicts against #34440 and #32875), and arejula27 is actively reworking it as of 2026-08-23-2026-08-28 in coordination with the author. It depends conceptually on the recently merged #34897 and is meant to unblock #26966."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

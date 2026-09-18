@@ -1,0 +1,119 @@
+{
+ "number": 35887,
+ "input_hash": "ae4bd06b30569149",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6950,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2278
+ },
+ "cost_usd": 0.019746299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Clean up the IPC child-process bootstrap code: replace the bool-plus-out-param checkSpawned() with std::optional, rename the confusing -ipcfd flag to -ipcchild since it's a pipe path on Windows, and add unit test coverage for the parsing logic."
+   ],
+   "reviewability": [
+    "Ready to review, code is small and settled after two review rounds."
+   ],
+   "agreement": [
+    "Strong support with two contributor ACKs after testing (jeanpablojp, enirox001)",
+    "No objections raised, one nit was addressed by adding a missing test case"
+   ],
+   "categories": []
+  },
+  "summary": "This PR implements follow-up cleanups requested during review of #35084: it changes ipc::Process::checkSpawned() to return std::optional<mp::SocketId> instead of a bool plus output parameter, renames the -ipcfd command-line argument to -ipcchild (since on Windows it's actually a named pipe path, not a file descriptor), and adds unit tests covering the various checkSpawned() argument-parsing cases. The changes are mechanical and small, touching bitcoin.cpp, ipc/interfaces.cpp, ipc/process.cpp/.h, the ipc test file, and a lint script's arg allowlist.",
+  "problem": "The prior checkSpawned() API used an unclear bool+output-parameter pattern predating C++17 optional, the -ipcfd flag name was misleading since it carries a pipe path on Windows, and the parsing logic lacked unit test coverage, all noted as desirable follow-ups by ryanofsky during #35084 review.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp noted a missing test case where argc==3 but the first arg isn't -ipcchild; author added it in a force-push and jeanpablojp then ACKed",
+    "enirox001 questioned commit squashing but retracted after realizing the tests depend on the second commit's rename"
+   ],
+   "author_status": "active, addressed all review feedback with force-pushes, last active 2026-08-18"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Code is small, self-contained, and CI is clean. Review feedback has already been incorporated via force-pushes, and the most recent comment is a positive utACK with no new concerns."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: two contributor reviewers (jeanpablojp, enirox001) gave Concept/Approach ACK and utACK after testing, with jeanpablojp's one test-coverage nit addressed by the author.",
+   "reason": "Both reviewers explicitly tested and approved the change, and the one substantive suggestion (missing test case) was implemented and re-reviewed positively; no outstanding objections.",
+   "evidence": [
+    "jeanpablojp: 'Approach ACK ... I have tested the code with IPC enabled and it is ok'",
+    "jeanpablojp inline nit about missing argc==3 non-ipcchild test case, resolved by author's force-push and later full ACK",
+    "enirox001: 'utACK' on the final commit"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Cleaner, tested checkSpawned() API for future IPC spawn-handling changes"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Directly modifies ipc/process.cpp/.h, ipc/interfaces.cpp, and ipc/test/ipc_tests.cpp, changing the checkSpawned() interface and the -ipcfd/-ipcchild spawn argument used by the multiprocess bootstrap.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "This is an interface cleanup and rename with added test coverage, explicitly a follow-up requested during #35084 review by ryanofsky rather than a fix for a reported bug. It improves API clarity (optional vs bool+outparam) and closes a documented naming inconsistency (-ipcfd carrying a pipe path on Windows), which is useful maintenance but has no external consumer waiting on it, keeping it in the P3 'worthwhile but deferrable' range per the category's guidance that 'interface cleanups without a consumer waiting on them are P3 or below.'"
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a new BOOST_AUTO_TEST_CASE covering checkSpawned() argument parsing edge cases, but this test pins the behavior of one specific IPC function rather than being framework work.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, 'a test that pins the behavior of one area... belongs to that area, not here,' so this is borderline; it is included because it was explicitly requested as a follow-up but its primary value accrues to ipc. As pure test coverage without framework impact it is modest, real but narrow value, matching P3 'worthwhile, reasonably deferrable.'"
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "The touched bitcoin.cpp change is a one-line arg-check update needed for the rename, not a tools-focused change; no standalone tool behavior is altered.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the bitcoin.cpp edit is a mechanical follow-on to the -ipcfd rename in ipc/process.cpp, not a tools-subject change."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the tests category maintainers would consider this test addition in-scope at all, given it pins ipc-specific behavior rather than framework capability."
+  ],
+  "card": "This PR implements follow-up cleanups explicitly requested by ryanofsky during review of #35084: it changes ipc::Process::checkSpawned() to return std::optional<mp::SocketId> instead of a bool with an output parameter, renames the confusing -ipcfd argument to -ipcchild (since on Windows it carries a pipe path, not a file descriptor), and adds unit tests for the argument-parsing logic. The change is small (+67/-24), self-contained, and CI is clean. Two contributor reviewers (jeanpablojp, enirox001) tested and ACKed the final commit after the author addressed a missing test-case nit via force-push, leaving no open objections. It is a maintenance and clarity improvement to the IPC spawn bootstrap with no external consumer blocked on it, so it is worthwhile but not urgent."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

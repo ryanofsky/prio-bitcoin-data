@@ -1,0 +1,169 @@
+{
+ "number": 29409,
+ "input_hash": "cae1301e2496eff1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:05+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 66108,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5036
+ },
+ "cost_usd": 0.068466,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Expose the node Chain interface over IPC so external processes can query chainstate and receive notifications.",
+    "Unblock running the Bitcoin Core wallet in a separate process and enable external tools to communicate via IPC."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "The branch is clean, CI passes, and recent discussion on interface bounds checking does not invalidate review."
+   ],
+   "agreement": [
+    "Strong support with tested ACKs and working prototypes using the interface (darosior, sedited).",
+    "Concept ACKs viewing IPC as a major improvement over linking node internals or parsing RPC (willcl-ark, josibake).",
+    "Non-blocking architectural and error-handling discussions (Sjors, willcl-ark, zaidmstrr)."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it delivers the foundational IPC interface needed to run the wallet as a separate process in #10102.",
+      "It enables external clients like Rust BDK wallets and Electrs to interact directly with node chainstate over IPC."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "Unranked because build changes are restricted to IPC-specific CMake targets and libmultiprocess subtree updates."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Unranked because the only file touched in policy is a comment reminder on FeeCalculation."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Unranked because the only file touched in RPC is a comment reminder on JSONRPCRequest."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds Cap'n Proto serialization and interface wrappers for interfaces::Chain and interfaces::Handler in the IPC subsystem. Updates the libmultiprocess subtree to support non-UNIX platforms and recent fixes. Exposes makeChain over IPC to allow out-of-process clients to invoke chain queries and receive block and chainstate notifications.",
+  "problem": "The wallet and external clients cannot run as separate processes because there is no IPC mechanism to call Chain interface methods or receive asynchronous chain notifications from bitcoin-node.",
+  "discussion": {
+   "open_concerns": [
+    "Calling getBlockHash with out-of-bounds height causes node assertion failure in ChainImpl rather than returning an error (zaidmstrr).",
+    "General question on how interface methods should handle invalid or null parameters passed by non-C++ IPC clients (willcl-ark).",
+    "Broader architectural discussion on whether to expose raw existing interfaces or craft specialized IPC interfaces (Sjors, #34981)."
+   ],
+   "resolved_concerns": [
+    "Various type mismatches, missing struct fields (such as best_height in estimateSmartFee), and signedness differences caught during review were fixed in rebases (l0rinc, sedited).",
+    "Client disconnect crashes during node shutdown investigated and tracked upstream in libmultiprocess (darosior, sedited, ryanofsky)."
+   ],
+   "author_status": "Active; regularly rebasing, resolving type and lint conflicts, and responding to review feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is up to date, passing CI, and has no pending structural changes that would invalidate review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support with tested ACKs and PoCs (darosior, sedited) and Concept ACKs (willcl-ark, josibake).",
+   "reason": "Multiple reviewers have actively tested the branch and built downstream clients against it, with no blocking objections to the change.",
+   "evidence": [
+    "darosior: 'tested ACK ... tested this with the Rust wallet PoC ... did not find any issue with this PR in all those tests'",
+    "willcl-ark: 'Concept ACK. Exposing interfaces::Chain over IPC seems very useful, especially for downstream users...'",
+    "sedited: 'lgtm ACK ... Re-ACK 64b83385'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#10102",
+    "#19460",
+    "#19461"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Implements Cap'n Proto interface wrappers and serialization for Chain in src/ipc/capnp/ and updates libmultiprocess.",
+    "band": "P2",
+    "reason_tag": "unblocks #10102",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "Exposing the Chain interface over IPC is a major prerequisite for the multiprocess project, specifically unblocking #10102 to run the wallet out of process. Multiple contributors have verified the utility with external prototypes, demonstrating clear demand and strategic value."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Build file edits are limited to IPC targets, warning flags for warn_interface, and libmultiprocess CI scripts.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Edits to CMakeLists.txt and libmultiprocess CI are internal glue for the IPC subsystem and do not alter the main build system."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The only change in policy/ is an advisory comment inside block_policy_estimator.h.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mempool behavior, data structures, or acceptance policies are changed."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The only change in rpc/ is an advisory comment inside request.h.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change JSON-RPC methods, transport, or client behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request defines Cap'n Proto messages and wrappers to expose interfaces::Chain and interfaces::Handler over IPC sockets. It directly addresses the lack of out-of-process access to node chainstate, serving as the required dependency for running the Bitcoin Core wallet out of process in #10102. Several developers have validated the interface against independent external applications, including a Rust BDK wallet and an Electrs integration. Review state is active and ready, with strong support and no blocking objections."
+ },
+ "raw_text": null
+}

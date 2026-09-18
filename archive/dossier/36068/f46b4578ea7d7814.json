@@ -1,0 +1,105 @@
+{
+ "number": 36068,
+ "input_hash": "f46b4578ea7d7814",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 7210,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3291
+ },
+ "cost_usd": 0.025071299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up the wallet-spend fuzz target by building the fuzzed wallet once and resetting it between inputs instead of rebuilding it every time, cutting the descriptor-import cost paid on every input.",
+    "Benefits fuzzing contributors and CI by letting more inputs run per unit of time."
+   ],
+   "reviewability": [
+    "Ready. The author addressed both inline review comments after a force push and left one style nit unresolved by mutual agreement."
+   ],
+   "agreement": [
+    "Strong support: jeanpablojp reproduced the ~4x speedup independently and gave an Approach ACK",
+    "Two substantive inline comments (index drift, clear-order) were resolved by comment fixes or agreed to disagree, with no outstanding objection (jeanpablojp, brunoerg)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR changes the wallet_create_transaction fuzz target to build the FuzzedWallet once in the target's .init hook and reuse it across inputs via a new Reset() method, instead of importing eight descriptors and deriving fresh addresses for every fuzz input. It adds a test-only CWallet::ClearInMemoryTxStateForTest() to drop in-memory transaction state cheaply, and precomputes a pool of destinations/change addresses to avoid repeated BIP32 derivation and WalletBatch writes. The author reports a ~6x local speedup; a reviewer independently reproduced a ~4x speedup on the qa-assets corpus.",
+  "problem": "Rebuilding FuzzedWallet from scratch on every fuzz input pays BIP32 derivation and three WalletBatch writes per address before the target even reaches the code under test, wasting most of the fuzzer's time on setup rather than exploring the target logic.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp noted next_index isn't reset per iteration, making transaction shape depend on run history; author acknowledged and revised the drift-assert comment after a force push.",
+    "jeanpablojp asked why mapWallet.clear() runs before wtxOrdered/m_txos unlike RemoveTxs's order; author said no particular reason, left it as-is, reviewer did not push back."
+   ],
+   "author_status": "active, addressed review comments with a force push on 2026-09-07"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Both inline review comments were resolved: one by a comment-text fix after the 2026-09-07 force push, one by the author explaining there was no reason for the order and the reviewer not objecting. No open material question remains."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "jeanpablojp gave an Approach ACK after independently reproducing the speedup, and both raised nits were resolved without objection.",
+   "reason": "One reviewer (jeanpablojp) confirmed the stated benefit by reproducing a ~4x speedup on the qa-assets corpus and gave an Approach ACK; the two inline concerns raised were either fixed or accepted as harmless without pushback.",
+   "evidence": [
+    "jeanpablojp: 'Approach ACK... the speedup reproduces, around 4x here.'",
+    "jeanpablojp raised next_index drift concern; brunoerg revised the comment after force push.",
+    "jeanpablojp asked about clear() ordering; brunoerg said 'No reason... will leave as is', no further objection."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Faster iteration for anyone running or extending the wallet_create_transaction fuzz target"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Primary subject is fuzz harness performance: FuzzedWallet setup cost is reduced by reusing state across inputs, labeled Fuzzing, files are under src/test/fuzz and src/wallet/test/fuzz.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a measured, reproduced speedup (jeanpablojp: '~4x here') to a single fuzz target's per-input cost, which lets that corpus run more inputs per unit of CPU time, a real but narrow contributor-productivity gain rather than a framework-wide capability or a fix for a misleading/flaky test."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds a new public CWallet method, ClearInMemoryTxStateForTest(), touching src/wallet/wallet.h and wallet.cpp, though it is explicitly test-only and has no production call sites.",
+    "band": "P4",
+    "reason_tag": "test coverage",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the wallet.cpp/h change is a test-only helper with no effect on fund safety, coin selection, or any user-facing wallet behavior; the commit message itself states it 'exists so that fuzz harnesses can reuse a single wallet.'"
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the fixed destination pool (16 per type) changes fuzz coverage meaningfully versus the prior unbounded GetNewDestination calls; jeanpablojp raised this (OutputGroup size effects) but it wasn't fully resolved with data, though it doesn't block merge.",
+   "No maintainer (non-contributor) has weighed in yet; only one reviewer (jeanpablojp, contributor) has engaged."
+  ],
+  "card": "This PR speeds up the wallet_create_transaction fuzz target by building the FuzzedWallet once per process and resetting its in-memory transaction state between inputs, rather than reimporting eight descriptors and deriving new addresses on every input. It adds a small test-only CWallet::ClearInMemoryTxStateForTest() helper and a precomputed pool of destinations to avoid repeated BIP32 derivation and wallet-database writes. The author measured a ~6x local speedup and reviewer jeanpablojp independently reproduced ~4x on the qa-assets corpus, giving an Approach ACK; both inline concerns raised (index drift tracking, clear-call ordering) were resolved without objection after a 2026-09-07 force push. The change is test infrastructure only, with no effect on production wallet behavior or fund safety. No dependencies are stated; it only conflicts textually with the unrelated #35511 CAmount refactor."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

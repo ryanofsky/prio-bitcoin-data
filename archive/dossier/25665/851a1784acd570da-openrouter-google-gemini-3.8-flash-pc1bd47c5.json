@@ -1,0 +1,610 @@
+{
+ "number": 25665,
+ "input_hash": "851a1784acd570da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:14:46+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 106201,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12852
+ },
+ "cost_usd": 0.12784575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow util::Result to return structured failure values, warnings, and multiple errors.",
+    "Enable accumulating and merging results from nested operations without verbose out-parameters."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "The branch is rebased and passing CI, though reviewers have suggested reopening freshly due to thread length."
+   ],
+   "agreement": [
+    "Strong support from several maintainers (laanwj, achow101, sedited, polespinasa).",
+    "Approach concerns regarding std::expected vs util::Result were addressed after #34006 landed (hodlinator, maflcko).",
+    "Reviewers noted thread exhaustion across 300+ comments and suggested closing and reopening a clean PR (sedited, polespinasa, maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it establishes a standardized error and warning reporting pattern across the codebase.",
+      "Unblocks kernel fatal error propagation in #29700 and wallet loading cleanups in #25722."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR expands the util::Result utility class to support returning structured failure values (instead of only void on failure), multiple error and warning messages, and result merging via an Update() method. It optimizes memory layout so happy-path Result objects are significantly smaller, and converts LoadChainstate and VerifyLoadedChainstate to use the updated class.",
+  "problem": "Functions across the codebase that report errors and warnings or distinguish between different failure reasons currently rely on awkward combinations of out-parameters (such as bilingual_str& and vector<bilingual_str>&) and status tuples. The existing util::Result class could only return user-facing error strings, making it unsuitable for functions requiring structured error handling or warning propagation.",
+  "discussion": {
+   "open_concerns": [
+    "Reviewers noted the discussion thread has accumulated over 300 comments over multiple years, suggesting closing and reopening a clean PR to reset review fatigue."
+   ],
+   "resolved_concerns": [
+    "Separated earlier naming and interface refactors into standalone PR #25721.",
+    "Addressed concern regarding Update() usage in non-chaining contexts by simplifying CompleteChainstateInitialization call sites.",
+    "Reconciled the role of util::Result with std::expected/util::Expected (#34006), aligning method names and separating message helpers into util/messages.h."
+   ],
+   "author_status": "Active, rebasing and maintaining the branch against master conflicts."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased cleanly on current master with green CI and no blocking requests pending on the author."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "Questioned Result complexity vs std::expected and recommended draft or reopening due to thread length"
+    },
+    {
+     "login": "stickies-v",
+     "stance": "objection",
+     "note": "Expressed concern about Update() semantics masking bugs where an empty Result is expected"
+    },
+    {
+     "login": "Riahiamirreza",
+     "stance": "support",
+     "note": "Reviewed internal union and lifetime handling and approved"
+    },
+    {
+     "login": "dongcarl",
+     "stance": "neutral",
+     "note": "Suggested enum naming adjustments for ChainstateLoadError"
+    },
+    {
+     "login": "AryanJ-NYC",
+     "stance": "neutral",
+     "note": "Pointed out outdated code comments"
+    },
+    {
+     "login": "sipa",
+     "stance": "neutral",
+     "note": "Suggested explicit operator bool() to avoid arithmetic conversions"
+    },
+    {
+     "login": "hernanmarino",
+     "stance": "support",
+     "note": "Tested ACK and code review ACK"
+    },
+    {
+     "login": "pablomartin4btc",
+     "stance": "neutral",
+     "note": "Reported compiler warnings on g++ 9.4"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Stale ACK on earlier version"
+    },
+    {
+     "login": "hebasto",
+     "stance": "support",
+     "note": "Approach ACK"
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Repeatedly reviewed and ACKed, but noted thread exhaustion suggests a fresh PR"
+    },
+    {
+     "login": "jonatack",
+     "stance": "support",
+     "note": "Stale ACK on earlier version"
+    },
+    {
+     "login": "achow101",
+     "stance": "support",
+     "note": "ACK on commit 8b892d4"
+    },
+    {
+     "login": "laanwj",
+     "stance": "support",
+     "note": "Concept and code review ACK on commit 8b892d4"
+    },
+    {
+     "login": "hodlinator",
+     "stance": "objection",
+     "note": "Debated Expected vs Result design and applicability to LoadChainstate"
+    },
+    {
+     "login": "arejula27",
+     "stance": "support",
+     "note": "Concept ACK and reviewed include hygiene"
+    },
+    {
+     "login": "polespinasa",
+     "stance": "support",
+     "note": "Concept ACK, noted usefulness for interface methods with complex results"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "stickies-v",
+     "kind": "interface",
+     "harm": "Using Update() when not chaining can mask bugs where a fresh assignment is intended",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2024-04-26: 'I don't think this is good usage of Update(), since there is no chaining happening here. I would find list initialization more readable and less error-prone'",
+     "resolution_evidence": "2024-07-09: 'Took suggestions to simplify usage in CompleteChainstateInitialization.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "hodlinator",
+     "kind": "approach",
+     "harm": "Conflating error values with multi-message reporting when util::Expected could suffice",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-12-05: 'I think util::Result is conflating 2 related but orthogonal needs... At this point I would prefer util::Expected be merged first (#34006).'",
+     "resolution_evidence": "2025-12-15: 'The former makes it a clearer departure from util::Expected - warnings can be added and merged into parent results while still returning successful values.'",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "approach",
+     "harm": "Adding complexity to util::Result when simpler Expected or smaller patches could be used",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "open",
+     "evidence": "2024-07-04: 'My recommendation would be to keep the code as simple as possible and not add complicated features or complication that isn't required.'",
+     "resolution_evidence": "2025-12-12: Author aligned Result naming with std::expected after #34006 merged and moved message logic to util/messages.h.",
+     "sources": [
+      "dossier",
+      "thread"
+     ],
+     "status_merged_from": "thread"
+    },
+    {
+     "reviewer": "hodlinator",
+     "kind": "approach",
+     "harm": "conflates distinct error-handling and error-reporting concepts; LoadChainstate does not motivate the extra complexity of Result over Expected",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2025-12-15: 'I maintain that the current example in this PR of applying util::Result to LoadChainstate & VerifyLoadedChainstate is not well motivated as they don't use warnings or multiple errors, and are thus a better fit for util::Expected'",
+     "resolution_evidence": "",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "laanwj",
+     "reason": "Concept and code review ACK",
+     "substantive": true
+    },
+    {
+     "reviewer": "sedited",
+     "reason": "Provided continuous code reviews and multiple re-ACKs",
+     "substantive": true
+    },
+    {
+     "reviewer": "achow101",
+     "reason": "ACK on code changes",
+     "substantive": false
+    },
+    {
+     "reviewer": "polespinasa",
+     "reason": "Noted it is useful for cleaning wallet code and for new interface methods with complex results",
+     "substantive": true
+    },
+    {
+     "reviewer": "hernanmarino",
+     "reason": "Tested ACK and code review ACK",
+     "substantive": true
+    },
+    {
+     "reviewer": "arejula27",
+     "reason": "concept ACK for merging results and error reporting capability",
+     "substantive": true
+    },
+    {
+     "reviewer": "Riahiamirreza",
+     "reason": "approved code after review",
+     "substantive": false
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: nonblocking objection open (maflcko, hodlinator)",
+   "reason": "Multiple maintainers have ACKed the code and concept. Earlier approach questions regarding compatibility with std::expected were resolved when #34006 merged and the author adapted Result to mirror expected's interface. Remaining reviewer remarks concern PR length and review noise rather than unaddressed technical harms.",
+   "evidence": [
+    "laanwj (2025-10-23): 'Concept and code review ACK'",
+    "achow101 (2025-10-27): 'ACK 8b892d41fdeb5756fd83f6050f27a170338d260a'",
+    "polespinasa (2026-05-11): 'Concept ACK: This is useful not only for cleaning the wallet code, but also for new interface methods with complex results'",
+    "sedited (2026-05-29): 'I've ACKed this pull request a few times, but I agree with the preceding comments here: This is clearly not getting review at the moment, so should be closed and re-attempted again in a fresh pull request.'"
+   ],
+   "model_state": "Strong",
+   "derivation": "nonblocking objection open (maflcko, hodlinator)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "stickies-v",
+      "kind": "interface",
+      "harm": "using Update() without chaining in CompleteChainstateInitialization is error-prone and hurts readability compared to direct return or initialization",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-04-26: 'I don't think this is good usage of Update(), since there is no chaining happening here. I would find list initialization more readable and less error-prone'",
+      "resolution_evidence": "2024-07-09: author updated branch: 'Also took suggestions to simplify usage in CompleteChainstateInitialization.'"
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "approach",
+      "harm": "unnecessary complexity and architectural churn in Result when a simpler variant or Expected would suffice",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2024-07-04: 'My recommendation would be to keep the code as simple as possible and not add complicated features or complication that isn't required.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "hodlinator",
+      "kind": "approach",
+      "harm": "conflates distinct error-handling and error-reporting concepts; LoadChainstate does not motivate the extra complexity of Result over Expected",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2025-12-15: 'I maintain that the current example in this PR of applying util::Result to LoadChainstate & VerifyLoadedChainstate is not well motivated as they don't use warnings or multiple errors, and are thus a better fit for util::Expected'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "laanwj",
+      "reason": "concept and code review ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "achow101",
+      "reason": "ACK on rebased commits",
+      "substantive": false
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "repeated reviews and re-ACKs of the refactoring and test coverage",
+      "substantive": true
+     },
+     {
+      "reviewer": "hernanmarino",
+      "reason": "tested ACK and code review ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "useful for cleaning wallet code and interface methods with complex results",
+      "substantive": true
+     },
+     {
+      "reviewer": "arejula27",
+      "reason": "concept ACK for merging results and error reporting capability",
+      "substantive": true
+     },
+     {
+      "reviewer": "Riahiamirreza",
+      "reason": "approved code after review",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "recommended keeping Result simple without merging features or using Expected instead; later suggested closing and reopening fresh PR"
+     },
+     {
+      "login": "stickies-v",
+      "stance": "support",
+      "note": "concept ACKed, did in-depth code review, raised concerns about Update() usage which author addressed"
+     },
+     {
+      "login": "Riahiamirreza",
+      "stance": "support",
+      "note": "approved after questions about union and m_info implementation"
+     },
+     {
+      "login": "dongcarl",
+      "stance": "neutral",
+      "note": "suggested enum class naming for chainstate load errors"
+     },
+     {
+      "login": "AryanJ-NYC",
+      "stance": "neutral",
+      "note": "pointed out an outdated code comment"
+     },
+     {
+      "login": "sipa",
+      "stance": "neutral",
+      "note": "suggested making operator bool explicit"
+     },
+     {
+      "login": "hernanmarino",
+      "stance": "support",
+      "note": "tested and code review ACKed"
+     },
+     {
+      "login": "pablomartin4btc",
+      "stance": "neutral",
+      "note": "reported compilation warnings with g++ 9.4.0"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "neutral",
+      "note": "participated in earlier omitted discussion"
+     },
+     {
+      "login": "hebasto",
+      "stance": "neutral",
+      "note": "participated in earlier omitted discussion"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "reviewed and re-ACKed multiple revisions over time; suggested fresh PR due to thread length"
+     },
+     {
+      "login": "jonatack",
+      "stance": "neutral",
+      "note": "participated in earlier omitted discussion"
+     },
+     {
+      "login": "achow101",
+      "stance": "support",
+      "note": "ACKed the PR"
+     },
+     {
+      "login": "laanwj",
+      "stance": "support",
+      "note": "concept and code review ACKed with minor questions"
+     },
+     {
+      "login": "hodlinator",
+      "stance": "objection",
+      "note": "argued util::Expected should be prioritized and questioned motivating util::Result with LoadChainstate"
+     },
+     {
+      "login": "arejula27",
+      "stance": "support",
+      "note": "concept ACKed while discussing interaction with util::Expected"
+     },
+     {
+      "login": "polespinasa",
+      "stance": "support",
+      "note": "concept ACKed, noting usefulness for clean wallet code and interface methods"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild, multiple ACKs (laanwj, achow101, sedited, polespinasa), but hodlinator and maflcko question whether the complexity is justified over util::Expected.",
+    "usage": {
+     "input_tokens": 42265,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3779
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "stickies-v",
+      "kind": "interface",
+      "harm": "Using Update() when not chaining can mask bugs where a fresh assignment is intended",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-04-26: 'I don't think this is good usage of Update(), since there is no chaining happening here. I would find list initialization more readable and less error-prone'",
+      "resolution_evidence": "2024-07-09: 'Took suggestions to simplify usage in CompleteChainstateInitialization.'"
+     },
+     {
+      "reviewer": "hodlinator",
+      "kind": "approach",
+      "harm": "Conflating error values with multi-message reporting when util::Expected could suffice",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-12-05: 'I think util::Result is conflating 2 related but orthogonal needs... At this point I would prefer util::Expected be merged first (#34006).'",
+      "resolution_evidence": "2025-12-15: 'The former makes it a clearer departure from util::Expected - warnings can be added and merged into parent results while still returning successful values.'"
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "approach",
+      "harm": "Adding complexity to util::Result when simpler Expected or smaller patches could be used",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-07-04: 'My recommendation would be to keep the code as simple as possible and not add complicated features or complication that isn't required.'",
+      "resolution_evidence": "2025-12-12: Author aligned Result naming with std::expected after #34006 merged and moved message logic to util/messages.h."
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "laanwj",
+      "reason": "Concept and code review ACK",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Provided continuous code reviews and multiple re-ACKs",
+      "substantive": true
+     },
+     {
+      "reviewer": "achow101",
+      "reason": "ACK on code changes",
+      "substantive": false
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "Noted it is useful for cleaning wallet code and for new interface methods with complex results",
+      "substantive": true
+     },
+     {
+      "reviewer": "hernanmarino",
+      "reason": "Tested ACK and code review ACK",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "PR #25722: Use util::Result class for wallet loading",
+    "PR #29700: kernel: return error status on all fatal errors",
+    "PR #26022: Add util::ResultPtr class"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Changes to CMakeLists.txt and CI scripts only register the new messages.cpp file and suppress compiler warnings on legacy jobs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical build updates accompanying utility code do not constitute a build system change."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Edits in src/kernel/bitcoinkernel.cpp only adjust internal call sites following the LoadChainstate signature change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "While followup PR #29700 applies this utility to kernel error propagation, this PR does not modify kernel boundary APIs or library contracts."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Modifications in src/test/result_tests.cpp and setup_common.cpp are unit tests for the util::Result class and harness call site updates.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unit tests that validate the primary changes of the PR do not qualify it for test infrastructure membership."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Redesigns src/util/result.h and adds src/util/messages.h to provide generalized error and warning handling primitives.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 3
+    },
+    "rationale": "Major maintainability improvement that establishes a standard pattern for error and warning propagation, removing out-parameter boilerplate across subsystems. It unblocks critical downstream error-handling work in wallet (#25722) and libbitcoinkernel (#29700), while shrinking the memory footprint of Result on 64-bit platforms from 72 bytes to 16 bytes on the happy path."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Modifications in src/node/chainstate.cpp and chainstate.h only change the return type of LoadChainstate and VerifyLoadedChainstate from a tuple to util::Result.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change alters function return types during chainstate initialization as an initial application, but does not alter validation rules, chainstate invariants, or consensus behavior."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Edits to src/wallet/wallet.cpp are minor lint and type compatibility fixes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Wallet loading conversions are deferred to followup PR #25722; changes here are incidental."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR expands util::Result to support returning structured failure types, multiple error and warning messages, and result merging via an Update() method. It solves the recurring boilerplate of ad-hoc error and warning out-parameters across high-level operations like wallet loading and chainstate initialization. Downstream, it directly unblocks kernel fatal error reporting in #29700 and wallet loading refactoring in #25722. The code has strong support and multiple ACKs from maintainers, but has experienced review friction due to thread length spanning several years."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.04587
+}

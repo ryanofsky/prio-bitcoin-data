@@ -1,0 +1,121 @@
+{
+ "number": 35113,
+ "input_hash": "dd464f0cdcaf3612",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12374,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3740
+ },
+ "cost_usd": 0.0324803,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets bitcoind automatically retry fetching a manually requested block (via getblockfrompeer) from another peer if the first attempt fails or the peer disconnects."
+   ],
+   "reviewability": [
+    "Not ready to review as-is: it needs a rebase (marked Needs rebase, mergeable_state dirty) and conflicts with three other open PRs touching the same code."
+   ],
+   "agreement": [
+    "Reviewer luke-jr requested changes on the RPC parameter design (positional boolean, unclear default behavior) and the author has only said he will consider it, not yet implemented (luke-jr, optout21)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it adds a real but narrow robustness improvement: retrying a manually requested block download from another peer instead of leaving the user stuck.",
+      "Limited today to the getblockfrompeer RPC path, though the author notes it could later extend to normal sync or BIP157/158 workflows."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it closes a gap users hit (getblockfrompeer previously silently failed with no retry), addressing an explicit user request tied to issue #27652.",
+      "Interface design (optional peer_id, new retry boolean) is still contested, so its final shape may change before merge."
+     ]
+    }
+   ]
+  },
+  "summary": "Revives a previously closed PR (#27837) that adds a BlockRequestTracker to net_processing so blocks manually requested via getblockfrompeer are automatically retried from another peer if the original request fails or the peer disconnects. It reworks FetchBlock to accept an optional peer id (meaning 'any peer') and a retry flag, adds the tracker class with pending/in-flight bookkeeping, and extends the getblockfrompeer RPC with new peer_id-optional and retry parameters plus functional test coverage.",
+  "problem": "Users calling getblockfrompeer previously had no way to recover automatically when the chosen peer failed to deliver the block or disconnected, since block delivery is asynchronous and the RPC gave no failure notification. This PR lets the node keep trying other peers instead of leaving the user to notice failure and retry manually.",
+  "discussion": {
+   "open_concerns": [
+    "luke-jr: the peer_id-optional / retry=true default combination is confusing ('sounds like a default of true is being expressed via Optional::OMITTED rather than an explicit default'), and suggested clarifying the RPC help text or making it work without retry.",
+    "luke-jr: booleans should not be positional RPC parameters; should be named-only, e.g. via an options object.",
+    "optout21 (author) notes the final commit re-introduces behavior removed earlier in the commit series and says he wants to reorder commits to avoid that churn."
+   ],
+   "resolved_concerns": [],
+   "author_status": "active but not yet addressed review; last comment 2026-04-30 says will consider luke-jr's RPC parameter feedback in upcoming changes"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "PR is marked Needs rebase and mergeable_state is dirty; it also conflicts with three other open PRs (#35498, #34565, #28690) touching the same block-fetch code, so a review now risks being invalidated by upstream changes."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "luke-jr requested changes on the RPC parameter design (positional boolean, unclear retry default); author acknowledged but has not yet implemented a fix.",
+   "reason": "A maintainer-level reviewer flagged concrete interface problems and requested changes; the author engaged but the concerns remain open in the code.",
+   "evidence": [
+    "luke-jr: 'Booleans should ideally not be positional parameters, named only'",
+    "luke-jr: review state CHANGES_REQUESTED on 2026-04-25",
+    "optout21: 'thanks for the comments on the RPC parameters, I will consider them with upcoming changes' (2026-04-30), no implementation yet"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "future automatic retry logic could extend to regular chain sync or BIP157/158-based rescans per the PR description",
+    "referenced open issue #27652 (allow getblockfrompeer to use any peer) and tracking issue #29183 (prune node rescan project)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Adds BlockRequestTracker used inside net_processing.cpp's FindNextBlocksToDownload, FetchBlock, and disconnect/timeout handling; changes block request bookkeeping and peer selection logic for manually fetched blocks.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Addresses a real gap: getblockfrompeer previously gave no automatic recovery when a peer failed or disconnected, per the PR description and referenced issue #27652. Impact is currently narrow since it only applies to manually triggered block fetches, not the main sync path, though the author suggests it could extend there later."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Directly changes the getblockfrompeer RPC signature and semantics: peer_id becomes optional, adds a new retry boolean parameter, and updates help text and client.cpp param conversion.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a usability gap users hit (no retry/notification on failed manual block fetch), evidenced by the linked open issue #27652 asking for 'any peer' fetching. However luke-jr's review flags the new parameter design itself as flawed (positional boolean, confusing default), meaning the interface as proposed may not be the final shape."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the conflicting open PRs (#35498, #34565, #28690) will land first and force a substantial rework of this PR's approach to FetchBlock and block-in-flight tracking.",
+   "Whether the project intends to extend this tracker beyond the manual RPC use case, which would raise its p2p priority; the description speculates but no maintainer has confirmed.",
+   "Exact reason for author_silent_days=139 given last_author_activity is listed as 2026-04-30, close to PR creation; possibly a signal computation artifact."
+  ],
+  "card": "This PR revives closed PR #27837, adding a BlockRequestTracker so blocks requested via the getblockfrompeer RPC are automatically retried from other peers if the original peer fails or disconnects, instead of silently stalling. The problem is a real user-reported gap (issue #27652: getblockfrompeer lacks failure notification and any-peer support), but the change only affects the manual RPC path, not regular block sync. Reviewer luke-jr requested changes to the new RPC parameters (positional boolean, ambiguous default) and the author has only promised to address it, not yet done so. The PR needs a rebase, is marked dirty, and conflicts with three other open PRs touching the same block-fetch code, making review timing awkward. No dependency blocks it outright, but its final interface shape is still contested."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

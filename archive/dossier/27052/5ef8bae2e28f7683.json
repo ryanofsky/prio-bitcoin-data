@@ -1,0 +1,146 @@
+{
+ "number": 27052,
+ "input_hash": "5ef8bae2e28f7683",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21546,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3066
+ },
+ "cost_usd": 0.038282300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Exposes an existing internal timestamp (last time a peer first announced a new block) via getpeerinfo",
+    "Adds functional test coverage for stale-tip eviction's underlying timestamp logic, which was previously hard to test"
+   ],
+   "reviewability": [
+    "Ready, recently rebased and CI fixed after a functional-test API change (author)",
+    "Long history of style nits but no open technical blockers"
+   ],
+   "agreement": [
+    "Strong support with multiple concept ACKs, a tested ACK, and two recent lgtm/ACK reviews (satsie, kristapsk, naiyoma, rkrux)",
+    "Only pushback was luke-jr questioning whether a non-critical field should be RPC-exposed, unaddressed but not pursued further",
+    "Long-running style and structural nits from maflcko, dergoegge, danielabrozzoni were all addressed by the author over successive pushes"
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds a new `last_block_announcement` field to the `getpeerinfo` RPC, exposing an existing internal timestamp used by the stale-tip eviction logic. It also refactors the internal type from int64_t to NodeClock::time_point for clarity and mockability, and adds a new functional test (p2p_block_times.py) that verifies the timestamp updates correctly on block announcements, which incidentally provides regression coverage for the already-merged PR #26172.",
+  "problem": "There was no way to observe, via RPC, which peer most recently announced a new block first, information already tracked internally and used to decide which peer to evict during stale-tip situations. Testing the correctness of #26172's fix to this timestamp logic was otherwise very difficult with the existing functional test framework, as noted by satsie's investigation.",
+  "discussion": {
+   "open_concerns": [
+    "luke-jr questioned why a field is exposed to RPC if the author considers a related test-only detail 'not very important'; no follow-up from either side",
+    "naiyoma suggested additional mutation-testing-informed test coverage for an edge case (>= vs > chainwork), partially addressed with a follow-up test case in a later push"
+   ],
+   "resolved_concerns": [
+    "dergoegge and maflcko's early questions about type choice (NodeSeconds vs NodeClock::time_point vs where the field belongs) were iterated on and settled by later pushes, most recently maflcko's own fixup commit for the type in the first commit",
+    "danielabrozzoni's style nits (assert_equal, p2p connection object reuse, github links, commit prefixes) were addressed by the author",
+    "CI failures from a functional test framework signature change (create_block ntime keyword) were fixed by rebasing"
+   ],
+   "author_status": "active, most recently force-pushed 2026-07-25 to fix CI, and has responded to essentially every review comment across the PR's long lifetime"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is currently passing after the author's 2026-07-25 rebase fixed a functional-test API compatibility issue. No open, unaddressed material requests remain; recent reviews (rkrux, naiyoma) are fresh lgtm/ACKs on the latest commit."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: two concept ACKs, a tested ACK, and two recent full ACKs, with no unresolved objections to the change itself.",
+   "reason": "Multiple reviewers (satsie, kristapsk, naiyoma) gave concept ACKs specifically because the field is useful and solves the difficult-to-test #26172 problem; naiyoma gave a Tested ACK confirming the test fails without #26172's fix and passes with it. The only critical remark, luke-jr's rhetorical question about RPC exposure of a field the author called 'not very important' in a different context, drew no response and was not pressed further by luke-jr.",
+   "evidence": [
+    "satsie: 'Concept ACK... I agree it can be useful information'",
+    "naiyoma: 'Tested ACK... catching last_block_announcement not being updated'",
+    "rkrux and naiyoma both gave fresh ACKs on the final commit 13ce46b",
+    "luke-jr: 'If it isn't important, then why expose it to RPC at all?' unanswered but not escalated"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Provides regression test coverage for already-merged #26172",
+    "Complements #23352's unit-test approach to stale-tip eviction testing, per author's description"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a new field, last_block_announcement, to the getpeerinfo RPC result, with corresponding help text and functional test updates.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because the new field is a small, additive, backward-compatible RPC extension with modest direct user value (helps evaluate peer quality) and no evidence of external consumer demand beyond the author's own speculation ('I'm not sure if that would be useful, but it may be'). Its main leverage is enabling functional test coverage of #26172, which is a testing benefit rather than a direct RPC improvement."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Refactors CNodeState::m_last_block_announcement's type and the outbound eviction worst-peer selection logic in net_processing.cpp, code central to stale-tip peer eviction.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because the change touches the stale-tip eviction selection logic (a DoS/connectivity-relevant path) purely for type-safety and RPC exposure, without altering eviction behavior. Its leverage lies in providing functional test coverage for the timestamp underlying eviction decisions, which satsie's investigation confirmed was previously hard to test, but it does not itself fix or improve eviction correctness."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a new functional test file p2p_block_times.py specifically designed to catch regressions in the last_block_announcement timestamp logic (the fix from #26172).",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because the test catches a realistic regression: naiyoma confirmed the test fails without #26172's fix ('last_block_announcement doesn't get updated instead value is always default 0'), and later mutation testing found the test could be strengthened to kill two surviving mutants in the chainwork comparison, which was subsequently added. This is a real regression test for a previously untested code path, not a test added for its own sake, but it covers a narrow corner of eviction logic rather than a high-traffic path."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds doc/release-notes-27052.md describing the new RPC field.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is a short, standard release note for a minor RPC addition, with no broader documentation gap being filled; rkrux's inline comments asked only for minor clarification of which eviction logic is referenced."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether any external tooling or operators actually want or would use last_block_announcement is unconfirmed; luke-jr's skepticism about RPC value was never resolved.",
+   "The PR has been open since 2023 with over 30 force-pushes; while the current state looks ready, the long tail of stylistic churn suggests review fatigue rather than unresolved substance.",
+   "Not fully certain the p2p membership classification is right given the change is more about test/RPC exposure than altering p2p behavior; included because it substantively touches net_processing.cpp's eviction selection code."
+  ],
+  "card": "This PR exposes an existing internal peer timestamp (time a peer first announced a new block) via the getpeerinfo RPC, and adds a functional test, p2p_block_times.py, that specifically regression-tests the timestamp logic fixed in the already-merged PR #26172. Reviewer satsie documented that testing #26172 directly was very difficult, which motivated this RPC-exposure-as-test-vehicle approach; naiyoma's Tested ACK confirmed the new test fails without #26172's fix and passes with it. The PR has a very long review history (opened 2023, over 30 force-pushes) with many resolved style and type nits from maflcko, dergoegge, and danielabrozzoni, and currently has two ACKs (rkrux, naiyoma) on the latest commit with CI passing after a 2026-07-25 rebase. The only unresolved comment is luke-jr questioning the RPC field's value, which went unanswered but was not escalated. No dependencies block this PR; it complements the unmerged unit-test PR #23352 as an alternative testing approach for the same eviction logic."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,128 @@
+{
+ "number": 34864,
+ "input_hash": "7303e1431e139ca4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:18:01+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24710,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3079
+ },
+ "cost_usd": 0.03007875,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Eliminate invalid and unreachable state combinations from coins cache entries.",
+    "Derive cache entry dirtiness directly from linked-list membership and make spend failures explicit."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "All previous review feedback was addressed and the branch has an active reACK."
+   ],
+   "agreement": [
+    "Strong support with no open objections.",
+    "Detailed review and ACK verifying that removing unused cache states simplifies invariants (optout21).",
+    "Concept ACK and co-authored commits from a previous iteration (andrewtoth).",
+    "Independent fuzz testing across coins view targets showing no crashes or invariant violations (ptrinh)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it hardens the coins cache by eliminating invalid state representations.",
+      "Tightens SpendCoin contracts and prevents state-space divergence without changing consensus behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors `CCoinsCacheEntry` so that dirty status is derived from membership in the dirty-entry linked list rather than a separate flag, making fresh-without-dirty states unrepresentable. It removes unreachable fresh-only states across production and test code, asserts that `BatchWrite()` cursor entries are dirty, rejects spent `FRESH` entries, and tightens `SpendCoin()` to return false without mutating cache state when attempting to spend an already-spent entry while marking the return value `[[nodiscard]]`.",
+  "problem": "`CCoinsCacheEntry` tracked dirty state using both a bit flag and linked-list pointers, allowing contradictory or unreachable entry states (such as fresh but not dirty) to be represented and tested. In addition, `SpendCoin()` handled repeated spends on already-spent entries inconsistently, mutating output without checking for prior spends.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth noted that `SetDirty()` should not silently clear freshness when passing `fresh=false`; author added `Assume(!pair.second.m_fresh || fresh)`.",
+    "andrewtoth requested keeping descriptive wording in log messages and retaining relevant comments, which the author restored."
+   ],
+   "author_status": "Active; addressed all inline comments and rebased cleanly."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, CI passes, and the latest push has a matching reACK with no unresolved review questions."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: thorough ACK from optout21, concept ACK from andrewtoth, and clean fuzz testing from ptrinh",
+   "reason": "Reviewers support making invalid cache states unrepresentable, with optout21 providing a detailed analysis and reACKing the latest head, and ptrinh verifying with fuzz runs.",
+   "evidence": [
+    "optout21: 'Post-change the invalid states cannot be represented. This change is a code maintainability benefit... ACK fa9683... reACK f27eba'",
+    "andrewtoth: 'Concept ACK. Thanks for picking this up.'",
+    "ptrinh: 'Tested the coins fuzz targets on this branch... No crashes, OOMs, sanitizer errors, or hits on the new BatchWrite() logic_error.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Modifies core UTXO cache classes (CCoinsViewCache, CCoinsCacheEntry, CCoinsViewDB) and validation calling code in validation.cpp and txdb.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Tightening UTXO cache invariants and eliminating redundant state flags reduces the risk of logic errors in consensus-critical cache synchronization, but does not fix an active bug or affect user-facing behavior."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches src/txmempool.cpp only to assert the return value of SpendCoin() after adding the [[nodiscard]] attribute.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change in txmempool.cpp is a mechanical fallout adjustment to accommodate SpendCoin()'s new [[nodiscard]] return type."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches coins_tests.cpp, coinscachepair_tests.cpp, and coins view fuzz harnesses to align test setups with the updated coins cache invariants.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The test modifications are specific to the coins cache subsystem rather than general testing infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR tightens coins cache invariants by deriving dirty status directly from dirty linked-list membership rather than separate flags, making fresh-without-dirty states impossible to represent. It eliminates unreachable test states, asserts cursor dirty invariants in BatchWrite(), and makes SpendCoin() return values nodiscard while leaving cache state untouched on repeated spends. The change reduces the state space in the consensus-critical UTXO cache, has concept support from andrewtoth, fuzz verification by ptrinh, and an ACK from optout21."
+ },
+ "raw_text": null
+}

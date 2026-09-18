@@ -1,0 +1,338 @@
+{
+ "number": 35294,
+ "input_hash": "1265a5c80dc65867",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:31:25+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29941,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6077
+ },
+ "cost_usd": 0.0452445,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent wallet crashes by updating transaction chain states only after chain notifications are registered"
+   ],
+   "reviewability": [
+    "Ready",
+    "Recent push addressed feedback, CI is passing, and no blocking requests remain"
+   ],
+   "agreement": [
+    "Strong support across wallet contributors and testers (dergoegge, pablomartin4btc, rkrux, shuv-amp)",
+    "Testing confirmed it resolves the crash reproduced in issue #34599 (dergoegge, shuv-amp)",
+    "Minor comments and test structure queries were fully resolved (rkrux, l0rinc, pablomartin4btc)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a wallet assertion crash triggered when loading wallets while the chain tip advances",
+      "Resolves issue #34599 where inconsistent transaction confirmation states caused an unhandled failure on restart"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves wallet transaction chain state updates and inactive coinbase abandonment out of the database loading phase and into `AttachChain`, occurring strictly after chain notification handlers are registered. It also processes transactions in reverse order to ensure descendant transactions update before parent coinbases are evaluated for abandonment, and adds a regression test simulating an unclean shutdown during active block production.",
+  "problem": "When loading a wallet, querying chainstate before chain notifications are attached allows the chain tip to advance between individual transaction loads. This can leave child transactions marked confirmed while parent coinbases appear inactive, triggering an assertion failure (`assert(!wtx.isConfirmed())`) and crashing the node (#34599).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "rkrux noted that abandonment inside the state update loop could cause issues; author adjusted the order and added reverse traversal.",
+    "rkrux suggested reducing the test block count from 1000 to 100 and adding explicit height assertions; author updated the test.",
+    "maflcko reported a CI failure in the functional test; author pushed a fix.",
+    "l0rinc asked about separating state update and abandonment into two passes; author clarified that a single reverse pass minimizes expensive iterations over large wallets."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is clean, test failures from earlier revisions were fixed, and all reviewer feedback has been addressed."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "shuv-amp",
+     "stance": "support",
+     "note": "tested locally, verified test fails on parent and passes on PR head"
+    },
+    {
+     "login": "rkrux",
+     "stance": "objection",
+     "note": "Concept ACKed, but pointed out an issue where transaction state was not fully updated before abandonment in the loop, plus suggested test improvements"
+    },
+    {
+     "login": "fanquake",
+     "stance": "neutral",
+     "note": "asked for Antithesis testing"
+    },
+    {
+     "login": "dergoegge",
+     "stance": "support",
+     "note": "ran Antithesis tests and approved (tACK, utACK)"
+    },
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "Reported a CI assertion failure in the new functional test"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "support",
+     "note": "approved, suggested separate passes or nits"
+    },
+    {
+     "login": "pablomartin4btc",
+     "stance": "support",
+     "note": "Concept ACK with detailed walkthrough of the race fix and minor nits"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "rkrux",
+     "kind": "correctness",
+     "harm": "wallet transaction states were not completely updated because abandonment was called within the same loop",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-19: \"This doesn't seem entirely correct now because the state of all transactions are not updated due to the following abandon call being present in the same loop that also updates the transaction state.\"",
+     "resolution_evidence": "2026-05-19: \"Updated\"",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "intermittent test failure in CI due to height assertion failure",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-05-28: \"wallet_chain_reprocess.py failed ... AssertionError: 302 <= 302\"",
+     "resolution_evidence": "2026-05-28: \"Hopefully fixed\"",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "shuv-amp",
+     "reason": "Moving tx state update to AttachChain ensures wallet no longer updates tx states against a moving tip without receiving intervening block connections",
+     "substantive": true
+    },
+    {
+     "reviewer": "dergoegge",
+     "reason": "Verified fix locally and via Antithesis runs",
+     "substantive": true
+    },
+    {
+     "reviewer": "pablomartin4btc",
+     "reason": "Moving updateState to AttachChain closes a real race where the chainstate advances during PopulateWalletFromDB",
+     "substantive": true
+    },
+    {
+     "reviewer": "rkrux",
+     "reason": "Concept ACK, noted the issue is subtle and the fix makes sense",
+     "substantive": true
+    },
+    {
+     "reviewer": "l0rinc",
+     "reason": "notes the change makes high-level sense",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus with multiple ACKs confirming the race condition and bug fix.",
+   "reason": "Multiple maintainers and contributors examined the race condition in depth, verified that the test caught the bug, and tested the fix with positive reviews.",
+   "evidence": [
+    "shuv-amp (2026-05-19): 'The new test fails on the pre-fix parent with a wallet transaction still reporting 0 confirmations after restart, and passes on this PR head'",
+    "dergoegge (2026-05-22): 'tACK 4de5c3b... This fixes the issue.'",
+    "pablomartin4btc (2026-08-06): 'Concept ACK... closes a real race: previously, as each tx was loaded, updateState queried the live chainstate \u2014 which could advance between loading tx A and tx B.'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (shuv-amp, dergoegge, pablomartin4btc, rkrux)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "rkrux",
+      "kind": "correctness",
+      "harm": "wallet transaction states were not completely updated because abandonment was called within the same loop",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-19: \"This doesn't seem entirely correct now because the state of all transactions are not updated due to the following abandon call being present in the same loop that also updates the transaction state.\"",
+      "resolution_evidence": "2026-05-19: \"Updated\""
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "correctness",
+      "harm": "intermittent test failure in CI due to height assertion failure",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-05-28: \"wallet_chain_reprocess.py failed ... AssertionError: 302 <= 302\"",
+      "resolution_evidence": "2026-05-28: \"Hopefully fixed\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "shuv-amp",
+      "reason": "moving tx state updates to AttachChain prevents wallet from missing block connections and confirmed that the functional test fails on parent and passes on PR head",
+      "substantive": true
+     },
+     {
+      "reviewer": "rkrux",
+      "reason": "recognizes the issue as subtle and peculiar, broadly approved of the direction and test structure",
+      "substantive": true
+     },
+     {
+      "reviewer": "dergoegge",
+      "reason": "verified that the PR fixes the issue after testing with Antithesis",
+      "substantive": true
+     },
+     {
+      "reviewer": "l0rinc",
+      "reason": "notes the change makes high-level sense",
+      "substantive": false
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "moving updateState and coinbase abandonment to AttachChain closes a race condition where the chain can advance mid-load and trigger an assertion failure",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "shuv-amp",
+      "stance": "support",
+      "note": "ACKed after code review and reproducing the fix with the new test"
+     },
+     {
+      "login": "rkrux",
+      "stance": "objection",
+      "note": "Concept ACKed, but pointed out an issue where transaction state was not fully updated before abandonment in the loop, plus suggested test improvements"
+     },
+     {
+      "login": "fanquake",
+      "stance": "neutral",
+      "note": "Asked dergoegge to run CI through Antithesis"
+     },
+     {
+      "login": "dergoegge",
+      "stance": "support",
+      "note": "Tested via Antithesis and approved (tACK, utACK)"
+     },
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "Reported a CI assertion failure in the new functional test"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "support",
+      "note": "Approved with suggestions and questions regarding loop order and test assertions"
+     },
+     {
+      "login": "pablomartin4btc",
+      "stance": "support",
+      "note": "Concept ACKed with detailed analysis of the race condition being fixed"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: multiple reviewers confirm the fix resolves race conditions during wallet loading; all review comments and CI issues resolved.",
+    "usage": {
+     "input_tokens": 8721,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2919
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [],
+    "support": [
+     {
+      "reviewer": "shuv-amp",
+      "reason": "Moving tx state update to AttachChain ensures wallet no longer updates tx states against a moving tip without receiving intervening block connections",
+      "substantive": true
+     },
+     {
+      "reviewer": "dergoegge",
+      "reason": "Verified fix locally and via Antithesis runs",
+      "substantive": true
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "Moving updateState to AttachChain closes a real race where the chainstate advances during PopulateWalletFromDB",
+      "substantive": true
+     },
+     {
+      "reviewer": "rkrux",
+      "reason": "Concept ACK, noted the issue is subtle and the fix makes sense",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes CWallet::AttachChain, CWallet::LoadToWallet, and wallet database loading logic in src/wallet/.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes a wallet assertion crash triggered during wallet loading if the chain tip moves before notifications are attached (#34599). While the condition requires an unclean shutdown or rapid block generation while loading, the resulting crash halts the node."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added test wallet_chain_reprocess.py tests wallet-specific behavior rather than test framework utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The PR modifies test/functional/test_runner.py solely to register a new wallet functional test, which belongs to the wallet category."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves wallet transaction state updating and inactive coinbase abandonment into AttachChain after notification listeners are registered, resolving an assertion crash (#34599) where the active chain tip advances during database loading. It also adds a functional test reproducing the failure after an unclean shutdown. Review is mature with strong support and verified testing from multiple reviewers, and the code is ready for final review."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.017487
+}

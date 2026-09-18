@@ -1,0 +1,247 @@
+{
+ "number": 32427,
+ "input_hash": "02633e43a0658536",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 73266,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7812
+ },
+ "cost_usd": 0.11373230000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the leveldb-backed block index/header database with a new flat-file, WAL-based store (BlockTreeStore).",
+    "Goal is to remove leveldb from the kernel library so external processes can eventually read block index data while a node is running, e.g. for parallel indexer builds."
+   ],
+   "reviewability": [
+    "Paused: author converted the PR to draft on 2026-07-09 to rework the WAL/locking design after a reviewer found a possible race between writers and the log-apply step.",
+    "Needs rebase; substantial redesign is planned before further review would be productive."
+   ],
+   "agreement": [
+    "Broad concept ACKs from multiple maintainers and contributors (theuni, ismaelsadeeq, marcofleon, l0rinc, stickies-v, HowHsu, craigraw) who like moving off leveldb.",
+    "willcl-ark found an unresolved race between the write-ahead log commit and its application across processes, and stringintech and stickies-v raised related locking-model concerns (willcl-ark, stickies-v, stringintech).",
+    "Author agrees the design needs more work and is reworking rather than defending the current code (sedited).",
+    "No one has voiced opposition to the goal itself; disagreement is about approach details, corruption guarantees, and locking, all still being resolved."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it directly serves the kernel library's stated goal of removing node/leveldb dependencies, which the category treats as core project work.",
+      "It unblocks a real external use case (electrs/Esplora index building via libbitcoinkernel, demonstrated in a proof of concept by josibake) but is not yet shipped or stable.",
+      "Correctness at the process boundary (crash safety, locking, read/write races) is still unresolved, which matters for kernel API stability."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it replaces the on-disk format and database engine for the block index, which is squarely a data-integrity and storage concern for this category.",
+      "Reviewers (ryanofsky, willcl-ark) flagged open questions about corruption handling and cross-process locking races that bear directly on data integrity, the category's top priority.",
+      "Startup time and disk footprint improve modestly (stickies-v's benchmark: startup 0.362s->0.330s, index size 59.4MiB->30.9MiB) but reindex time regressed slightly (589.5s->627.9s), and none of this is decisive either way."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a docs PR because doc/files.md is a one-line incidental update to reflect the removed leveldb path, not the primary subject."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Not a mempool PR because nothing here touches transaction policy, acceptance, or relay."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not test-infrastructure because the new tests (blocktreestorage_tests.cpp, fuzz and bench changes) pin the behavior of one specific new area (block tree storage) rather than improving shared test machinery."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not utils because the changes are specific to the block-tree storage format and its locking, not general-purpose logging, argument, or primitive infrastructure."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Not validation because the touches to chain.h and validation.cpp are mechanical call-site updates (a new header_pos field, a renamed flag-write call) needed by the storage change, not substantive changes to validation logic."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the leveldb-based CBlockTreeDB with a new custom flat-file, write-ahead-logged store (BlockTreeStore) for block indexes and headers, adding crc32c checksums for corruption detection, a migration path from the old leveldb format, and cross-process file locking. It is motivated by the libbitcoinkernel project, where leveldb's inability to be shared across processes blocks use cases like running an external indexer against a live node's block data. The PR includes new unit tests, a differential fuzz target, a benchmark comparing write performance to leveldb, and a functional migration test.",
+  "problem": "leveldb cannot be safely opened by two processes at once, so kernel-library consumers (e.g. block explorers, indexers) currently must wait for bitcoind to shut down before reading block index data, which is clunky and limits libbitcoinkernel's usefulness as embeddable infrastructure. Node operators and developers also inherit leveldb's own weaker corruption/atomicity guarantees for this data.",
+  "discussion": {
+   "open_concerns": [
+    "willcl-ark identified a possible race where a completed WAL can be observed and applied by another process before the original writer finishes its own ApplyLog(), causing a spurious failure or double-apply.",
+    "Cross-process locking model (StoreLock/WriterLock) is fragile with nested locks and was reworked multiple times; author acknowledges the design 'could be left for a different PR' in earlier iterations but ultimately paused the whole PR over it.",
+    "On Windows, flag-file deletion is not guaranteed to be durable (no fsync-on-delete equivalent), which stickies-v flagged as a potential source of inconsistent pruned/reindexing state.",
+    "Broader block-storage redesign ideas (one-file-per-block, sharded directories) raised by Sjors, sipa, hodlinator, theuni remain unresolved but author considers them out of scope for this PR.",
+    "mzumsande noted that block-file (not just index) corruption is a common real-world cause of needing -reindex, so this change alone won't let Bitcoin Core drop reindex support."
+   ],
+   "resolved_concerns": [
+    "Multiple stickies-v code-level nits (naming, redundant checks, constant sizing, log ordering) were addressed via follow-up pushes.",
+    "Initial reported crash/corruption on Signet by ismaelsadeeq was addressed by adding the write-ahead log and checksums in a later push.",
+    "Migration correctness questions were addressed with a dedicated functional test (feature_blocktree_migration.py) covering pruned nodes per stickies-v's request."
+   ],
+   "author_status": "Author converted the PR to draft on 2026-07-09 and said they plan to rework the write-ahead-log/locking model (moving log application off the write path, adding true parallel reader support) before further review is useful."
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "On 2026-07-09 the author explicitly converted the PR back to draft, stating intent to redesign the WAL application and locking model in response to willcl-ark's race-condition finding, so reviewing the current locking code would likely be invalidated by the planned rework."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Broad concept ACKs support removing leveldb, but willcl-ark's unresolved cross-process WAL race and locking-model concerns led the author to pause for a redesign.",
+   "reason": "Many contributors and maintainers voiced concept support for the direction (moving off leveldb for kernel use cases), and no one objects to the goal. However, real correctness concerns about the locking/WAL model remain open, and the author is treating them as needing more design work rather than disputing them, which is why the PR was drafted rather than merged as-is.",
+   "evidence": [
+    "theuni, ismaelsadeeq, marcofleon, l0rinc, stickies-v, HowHsu, craigraw gave Concept ACK per the bot-generated ack table.",
+    "willcl-ark: 'another process can observe the completed WAL, apply it, and clear the flag first... this could happen if another kernel process opens the same datadir'.",
+    "sedited: 'Going to convert this to draft for now... I'd like to mitigate the write penalty by getting rid of the log flag file again and applying the log in a separate thread. Will take a bit of time to implement all of this.'",
+    "ryanofsky and shahsb raised early corruption/atomicity concerns that were substantially (but not completely) addressed by adding a WAL and checksums."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "External kernel-library consumers (e.g. electrs/Esplora-style indexers, per josibake's proof of concept) reading block index data from a running node without waiting for shutdown.",
+    "Future removal of leveldb as a kernel dependency, simplifying the libbitcoinkernel build and API surface.",
+    "Potential future removal of the -reindex-chainstate salvage path for block-tree corruption, if the new format's integrity guarantees hold up (partially disputed by mzumsande)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only a one-line incidental edit to doc/files.md reflecting the removed leveldb path; documentation is not the primary subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a docs PR; the change is a byproduct of the storage rewrite."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly replaces the leveldb-based block index/header database and its migration, matching the 'UTXO Db and Indexes' label and the category's database-wrapper/block-storage scope.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Data integrity is this category's top concern, and this PR both improves it (checksums, WAL, atomic flag files) and introduces new unresolved integrity/locking risks (willcl-ark's WAL race, Windows flag-durability gap raised by stickies-v). Benchmarks from stickies-v show modest startup and disk-size wins with a small reindex-time regression, none of which is decisive. The change is substantial and durable but not yet correctness-complete, so it lands as strategically important rather than urgent."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "The new code lives under src/kernel/ (blocktreestorage.cpp/h), and the description states the change is motivated entirely by libbitcoinkernel's need to avoid leveldb's cross-process limitations.",
+    "band": "P2",
+    "reason_tag": "unblocks kernel use cases",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "Per the kernel category, 'removing node dependencies from kernel code' is the project's core work, and this PR does exactly that for leveldb. josibake reported a working proof-of-concept using this to let Electrs build indexes via libbitcoinkernel without waiting for node shutdown, which is concrete external demand. It is not yet API-stable or exposed (willcl-ark notes read-only mode isn't wired into btck_chainstate_manager_create yet) and the author is reworking core locking behavior, so it is strategically important rather than release-blocking today."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No changes to policy, acceptance, replacement, or fee estimation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Out of scope for mempool."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New tests (blocktreestorage_tests.cpp, fuzz/bench changes) pin the behavior of the new block-tree-storage area specifically rather than improving shared test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, area-specific tests belong to their area (kernel/indexes here), not test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "No changes to logging, argument handling, serialization primitives, or vendored subtrees as a primary subject; crc32c usage is incidental to the storage format.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a utils-focused change."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches to chain.h (new header_pos field) and validation.cpp (renamed WritePruned call) are mechanical call-site updates required by the storage change, not substantive validation-logic changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the validation category's exclusion rule, PRs whose primary subject is an index change belong to indexes even when they touch validation-adjacent files."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the WAL/locking redesign the author plans will be a major rewrite or a targeted fix, which affects how soon this becomes reviewable again.",
+   "Whether the project will ultimately prefer this custom flat-file+WAL approach over the sqlite alternative ryanofsky suggested, which could change the shape of a future resubmission.",
+   "Long-term interaction with the separate one-block-per-file storage redesign ideas (Sjors, sipa, hodlinator) that several reviewers see as related but out of scope here.",
+   "Windows-specific durability of flag-file deletion (stickies-v's concern) is unresolved and could affect the security_stability assessment once addressed or dismissed."
+  ],
+  "card": "This draft PR replaces Bitcoin Core's leveldb-based block index (CBlockTreeDB) with a new flat-file, write-ahead-logged store (BlockTreeStore), adding crc32c checksums, cross-process locking, and a leveldb migration path. It is motivated by libbitcoinkernel, where leveldb's single-process limitation blocks external tools (e.g. Electrs, per josibake's proof-of-concept) from reading block index data from a running node without shutting it down first. The PR drew broad concept ACKs from maintainers and contributors (theuni, ismaelsadeeq, marcofleon, l0rinc, stickies-v, HowHsu, craigraw) over more than a year of iteration, but willcl-ark identified an unresolved race in the WAL-application/locking model that led the author to convert the PR back to draft on 2026-07-09 to redesign it. Benchmarks show modest startup-time and disk-size improvements with a small reindex-time regression, per stickies-v's testing, and correctness under crash/corruption is still being hardened. It has no hard external dependency but conflicts with several other open cache/reindex/build PRs, and is currently paused pending the author's rework rather than ready for fresh review."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

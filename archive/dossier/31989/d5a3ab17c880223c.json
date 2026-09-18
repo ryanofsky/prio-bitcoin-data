@@ -1,0 +1,180 @@
+{
+ "number": 31989,
+ "input_hash": "d5a3ab17c880223c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34694,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6254
+ },
+ "cost_usd": 0.06737030000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Implements BIP-119 OP_CHECKTEMPLATEVERIFY as a regtest-only soft fork so covenant-style contract designs (vaults, congestion trees, non-custodial payout batching) can be prototyped and tested.",
+    "No policy or consensus change on mainnet or testnet; only regtest activates the new opcode."
+   ],
+   "reviewability": [
+    "Stale: needs a rebase and the author has been silent for well over a year.",
+    "Code review of the current diff would likely be invalidated by the pending rebase."
+   ],
+   "agreement": [
+    "No consensus on whether Bitcoin Core should take this at all: darosior and BitcoinErrorLog gave Concept NACKs saying there's no rough community consensus for the soft fork (darosior, BitcoinErrorLog).",
+    "Several concept ACKs, some citing concrete use cases like mining payout batching (average-gary, prasincs, moonsettler, jonatack, stevenroose).",
+    "The author has not directly engaged the concept NACKs and redirected most conceptual debate to Delving Bitcoin and a meta-repo discussion thread.",
+    "ariard raised a DoS concern (block sigop/weight overflow interaction) that the author disputed as not CTV-specific, and a fix was proposed in a side branch, not this PR."
+   ],
+   "categories": []
+  },
+  "summary": "This PR implements BIP-119 OP_CHECKTEMPLATEVERIFY, activating it only on regtest via a new versionbits deployment, with no policy or consensus change on mainnet/testnet. It adds the CTV script opcode, hash computation, standardness rule for bare CTV outputs, deployment/softfork RPC reporting, and extensive unit, script, and functional test coverage. The stated purpose is to let CTV-based use cases be built and tested without altering live network rules, and to allow composition with other proposed opcodes (CSFS, CAT) in a future bundled deployment.",
+  "problem": "CTV has been proposed for years as a minimal covenant primitive enabling vaults, congestion trees, and non-custodial payout batching, but there is no regtest-only implementation in Core for developers to test against, and no rough consensus among Bitcoin users or developers on whether to activate it at all.",
+  "discussion": {
+   "open_concerns": [
+    "darosior (2025-07-07): Concept NACK, arguing there is no rough consensus among Bitcoin developers or users for this soft fork and that outstanding conceptual/spec disagreements make merging premature; suggests marking the PR as draft instead.",
+    "BitcoinErrorLog (2025-03-05, reiterated 2025-07-26): Concept NACK citing lack of demonstrated user demand and risk of chain split from unsolicited consensus changes.",
+    "ariard (2025-06-10): identified a block-sigop/weight overflow interaction that could be abused against CTV-based contracts; author disputed CTV-specificity and discussion moved to a side branch (jamesob/bitcoin#3), not merged here.",
+    "ariard, moonsettler: raised whether CTV should instead be a Taproot OP_SUCCESS to avoid legacy-script DoS/interaction concerns; not adopted in this PR."
+   ],
+   "resolved_concerns": [
+    "instagibbs's request for a regtest deployment to restore functional test coverage was implemented by the author.",
+    "average-gary's uint256::FromHex() migration suggestion was incorporated by the author.",
+    "JeremyRubin's nits on commit structure and span usage were largely addressed across rebases."
+   ],
+   "author_status": "silent since 2025-07-01 (last force-push), roughly 440+ days of inactivity per signals; no response to the concept NACKs from darosior or BitcoinErrorLog"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR needs a rebase (mergeable_state dirty, needs_rebase true) and the author has shown no activity since 2025-07-01, well past the 60-day stale threshold, so a review of the current diff risks being invalidated by the eventual rebase."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Blocked: darosior and BitcoinErrorLog gave substantive Concept NACKs saying there is no community consensus for this soft fork, and the author has not responded to either.",
+   "reason": "Multiple concept ACKs exist (average-gary, prasincs, moonsettler, jonatack, stevenroose, jaybny), but the change is a proposed consensus rule change and darosior's NACK is an explicit, reasoned objection to merging at all absent broader consensus, unaddressed by the author since it was raised in July 2025. BitcoinErrorLog raised the same objection earlier and it was likewise never answered by the author.",
+   "evidence": [
+    "darosior: 'Concept NACK on merging this pull request' citing lack of rough consensus and premature inclusion, no author reply.",
+    "BitcoinErrorLog: 'NACK...there is no clear user demand...' no author reply.",
+    "average-gary, prasincs, moonsettler, jonatack, stevenroose: Concept ACKs, some with stated use cases (mining payout batching).",
+    "ariard (2025-08-24): long Concept ACK acknowledging risks but supportive, also flags open DoS-interaction concern not incorporated into this PR."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "A regtest deployment other proposed opcodes (CSFS, CAT) could be bundled with in a future combined soft-fork deployment, per the PR description."
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds a new versionbits deployment (DEPLOYMENT_CTV), a new SCRIPT_VERIFY_CHECKTEMPLATEVERIFY flag enforced in GetBlockScriptFlags and PolicyScriptChecks, and new consensus-affecting opcode semantics in interpreter.cpp; this is a proposed soft fork.",
+    "band": "P1",
+    "reason_tag": "decision needed",
+    "score": 0.8,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Per the validation category's own rule, a proposed soft fork like this is P1 because reaching a decision on it (and having correct code if activated) matters regardless of whether the fork itself is wanted. The PR has been open 561 days with unresolved Concept NACKs (darosior, BitcoinErrorLog) disputing whether Core should carry consensus-changing code without community consensus, which is exactly the kind of blocking decision the P1 band is meant to flag."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Adds a standardness rule in policy.cpp/h for bare CTV outputs (scriptSig must be empty) and a new STANDARD_SCRIPT_VERIFY_FLAGS bit for discouraging CTV pre-activation.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The description states 'There is no effective policy change, since the SCRIPT_VERIFY_* flags... result in the same NOP-like behavior' outside regtest, so mainnet mempool policy is unaffected today. The policy hook only matters if/when CTV activates elsewhere, making this a real but currently dormant policy addition."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds CTV softfork reporting to getdeploymentinfo (rpc/blockchain.cpp) and decodescript handling for the new TxoutType (rpc/rawtransaction.cpp).",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "These are mechanical additions needed so existing RPCs stay consistent with the new opcode and deployment, gated to regtest only; no external consumer has asked for this RPC surface, per category guidance that 'new methods without an external consumer asking rank low.'"
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The bulk of new tests (feature_checktemplateverify.py, ctvhash.json, ctvhash_tests.cpp, tx_valid/tx_invalid additions) pin CTV's own consensus behavior rather than adding general test-framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the tests category definition, 'a test that pins the behavior of one area... belongs to that area, not here'; the framework touches (script.py opcode rename, a CTV-specific hashing helper in messages.py) are mechanical follow-ons of the CTV feature, not new general framework capability."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "scriptpubkeyman.cpp adds a switch case returning IsMineResult::NO for the new TxoutType, required only to keep the exhaustive switch compiling.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "This is exactly the kind of mechanical call-site update the rules exclude from membership: it follows automatically from adding a new TxoutType enum value elsewhere, with no wallet-specific design or behavior change."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "kernel/chainparams.cpp is touched only to add regtest consensus deployment parameters for CTV, not to change the libbitcoinkernel API or its boundary.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change does not touch the kernel C/C++ API, notifications, or the node/library boundary; it is a consensus-parameter addition that happens to live in a file under src/kernel."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CTV opcode implementation itself has unresolved bugs is not something this pass verified; the code has received several rounds of contributor code review (JeremyRubin, average-gary) but no maintainer sign-off.",
+   "Whether the block-sigop/weight overflow concern ariard raised is a real vulnerability requiring a fix in this PR versus being orthogonal to CTV is disputed between ariard and the author and not resolved.",
+   "The true current staleness is uncertain: signals show author_silent_days=442 while last_author_activity is 2025-07-01, suggesting the 'now' reference date used for signals is well over a year after that push; treated Stale based on the provided signal."
+  ],
+  "card": "This PR implements BIP-119 OP_CHECKTEMPLATEVERIFY, but activates it only on regtest via a new versionbits deployment, so it has no effect on mainnet or testnet policy or consensus today. It is a proposed soft fork intended to let developers build and test covenant-style contracts (vaults, congestion trees, non-custodial mining payout batching) without live network risk, and to allow future bundling with other proposed opcodes like CSFS or CAT. The strongest evidence of its stakes is the unresolved Concept NACKs from darosior and BitcoinErrorLog, both arguing there is no rough community consensus to justify Bitcoin Core carrying this consensus-change code, met by several Concept ACKs citing concrete use cases; the author has not directly responded to either NACK. The PR needs a rebase and the author has been silent for well over a year, so review right now risks being invalidated by a future rebase. Within validation this is P1 because a decision on proposed soft forks is itself category-critical; in mempool and rpc its current impact is minor since the feature is dormant outside regtest."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

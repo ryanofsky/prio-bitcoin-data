@@ -1,0 +1,97 @@
+{
+ "number": 35724,
+ "input_hash": "5f35f061759fdd0a",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13472,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3162
+ },
+ "cost_usd": 0.030688299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Improves debug/trace logging around compact block reconstruction so developers can see where prefill, mempool, and extrapool transactions come from and diagnose redundant prefills."
+   ],
+   "reviewability": [
+    "Not ready right now: author said he still needs to rework the redundant-prefill logic (map-based approach) per andrewtoth's suggestion, so the current diff will change."
+   ],
+   "agreement": [
+    "Generally positive, w0xlt ACKed and 0xB10C tested it on signet and liked the output",
+    "0xB10C is withholding a full review pass until andrewtoth's data-structure suggestion is addressed (andrewtoth, 0xB10C)",
+    "Author acknowledged the suggestion is still outstanding and plans to update (davidgumberg)"
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds and improves debug/trace-level logging for compact block (cmpctblock) reconstruction: it logs sizes and counts of transactions sourced from prefill, mempool, and extrapool, logs redundant prefilled transactions and their source, and adds trace-level logging of transaction IDs that are missing or requested via GETBLOCKTXN. It is split off from #35558 (prefill compact blocks) to make reconstruction performance observable ahead of that larger change. No consensus or wire-protocol behavior is altered, only logging and some internal counting refactors in blockencodings.cpp/h and net_processing.cpp.",
+  "problem": "Developers and operators debugging compact block reconstruction currently have limited visibility into where reconstructed transactions come from and how much redundancy exists in prefills, making it hard to evaluate or tune the reconstruction logic (including the upcoming prefill series in #35558).",
+  "discussion": {
+   "open_concerns": [
+    "andrewtoth suggested a cleaner data structure (map-based) to track redundant prefills that avoids repeatedly taking the mempool lock inside a loop via pool->exists; author has not yet implemented this and confirmed on 2026-09-16 he still needs to integrate it with other in-flight work.",
+    "0xB10C is withholding an ACK until andrewtoth's suggestion is addressed, and left several nits (log message formatting, missing block hash in one log line, reusing debug_log variable)."
+   ],
+   "resolved_concerns": [
+    "w0xlt's original concern about incorrect decrement logic for collided extrapool/mempool transactions was resolved after #35727 merged and the PR was reworked on top of it.",
+    "w0xlt's contradictory log level (LogDebug inside a ShouldTraceLog check) was fixed by switching to LogTrace.",
+    "0xB10C's suggestion to combine per-txid log lines into one line was implemented.",
+    "Naming and minor readability nits from 0xB10C and andrewtoth were fixed in a later push."
+   ],
+   "author_status": "active, said will address andrewtoth's outstanding suggestion soon"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "On 2026-09-16 the author acknowledged andrewtoth's structural suggestion (avoiding repeated lock acquisition via pool->exists, using a map instead of a sorted vector) is still unaddressed and said he needs to integrate it with related in-flight work before updating, so the current prefill-redundancy tracking code is expected to change."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive from w0xlt (ACK) and 0xB10C (tested on signet, liked the output), but 0xB10C is withholding a full ACK until andrewtoth's lock-efficiency suggestion is addressed; author agrees it needs addressing but hasn't yet.",
+   "reason": "No one opposes the logging improvement itself; the open item is a code-quality/efficiency suggestion about how redundant prefills are tracked (repeated mempool lock acquisition), which the author has accepted as valid but not yet implemented.",
+   "evidence": [
+    "w0xlt: 'ACK a55e3bb55ad473556e3e5011bb9782a941f26f84'",
+    "0xB10C: tested on signet, log output 'looks good to me', but 'before leaving an ACK, it would be good to have andrew's comment addressed'",
+    "andrewtoth: suggested avoiding pool->exists per-prefill in favor of a map populated during the locked mempool scan",
+    "davidgumberg: 'Sorry, I did not mean to leave this unaddressed ... will update soon'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35727
+   ],
+   "enables": [
+    "Better diagnosability for #35558 (prefill compact blocks), which this PR is split from and intended to support"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "The PR changes compact block (cmpctblock) reconstruction logic and logging in blockencodings.cpp/h and net_processing.cpp, which is core p2p relay code.",
+    "band": "P4",
+    "reason_tag": "logging",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P4 because the change is purely diagnostic logging around compact block reconstruction with no change to relay correctness, DoS resistance, or protocol behavior. It has minor leverage as groundwork for observing the in-progress prefill series (#35558) per the description ('makes it easier to observe compact block reconstruction performance'), but that benefit is limited to developers debugging that feature, not end users or node operators broadly."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project considers observability for the prefill series (#35558) important enough to elevate this beyond a routine logging PR is not stated by any maintainer beyond the author's own framing.",
+   "It's unclear whether andrewtoth's outstanding suggestion will require a substantial rewrite that invalidates most of the current diff, or just a localized change to the redundant-prefill tracking."
+  ],
+  "card": ""
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

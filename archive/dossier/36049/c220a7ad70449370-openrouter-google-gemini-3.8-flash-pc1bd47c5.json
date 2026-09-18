@@ -1,0 +1,199 @@
+{
+ "number": 36049,
+ "input_hash": "c220a7ad70449370",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:47:20+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18905,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5837
+ },
+ "cost_usd": 0.0360675,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent std::terminate crashes during disk write failures",
+    "Allow block and undo file storage errors to shut down the node cleanly"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Small, clean patch with unit tests and clear reproduction instructions"
+   ],
+   "agreement": [
+    "Concept ACK from contributor who encountered the same disk-full bug (w0xlt)",
+    "Clarification requested on shutdown behavior and answered (andrewtoth)",
+    "Discussion on finding a wholesale fix for throwing destructors rather than one-by-one (maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes an exception-safety bug in BufferedWriter::flush",
+      "Clearing the buffer position before writing prevents secondary exceptions during stack unwinding"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it improves crash resilience when block or undo writes fail due to full disk",
+      "Explicit flushing routes storage write errors through standard shutdown handling instead of aborting"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request ensures that `BufferedWriter::flush()` clears its pending buffer counter prior to invoking the underlying stream write. It also adds explicit `flush()` calls before block and undo storage writers go out of scope, preventing write errors from throwing inside `~BufferedWriter()` and triggering `std::terminate`.",
+  "problem": "When writing blocks or undo data to a filesystem that has run out of space, write failures throw an exception inside `BufferedWriter`'s destructor. Because destructors are implicitly non-throwing, this triggers `std::terminate` instead of allowing the node to report the storage failure and shut down gracefully.",
+  "discussion": {
+   "open_concerns": [
+    "Whether this class of exception-during-destruction issues should be addressed holistically across the codebase rather than piecemeal"
+   ],
+   "resolved_concerns": [
+    "Clarified why catching the exception is preferable to an immediate crash on storage write failure"
+   ],
+   "author_status": "Silent for 27 days since addressing initial feedback on 2026-08-20"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, self-contained, clean, and CI is passing."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "andrewtoth",
+     "stance": "question",
+     "note": "Asked why std::terminate is bad here if storage failure forces a crash anyway"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "Noted that a wholesale tooling or compiler-based fix for throwing destructors would be better than reviewing piecemeal fixes"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Concept ACK; confirmed hitting the same bug and shared an alternative implementation"
+    }
+   ],
+   "objections": [],
+   "support": [
+    {
+     "reviewer": "w0xlt",
+     "reason": "Encountered the same bug when working in the area and confirmed the need for a fix",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong concept support from w0xlt; maflcko raised general interest in wholesale solutions for throwing destructors.",
+   "reason": "w0xlt gave a substantive Concept ACK after running into the exact same bug, andrewtoth's question on terminate versus error handling was answered, and maflcko's comment was general musing rather than a blocking objection.",
+   "evidence": [
+    "andrewtoth: 'Can you expand on why this is a problem? If there is a storage error, don't we have to crash anyways?'",
+    "l0rinc: 'Handling the exception lets the node report the storage error and run its normal shutdown cleanup.'",
+    "maflcko: 'It would be good to find a code pattern that avoids this class of problem wholesale.'",
+    "w0xlt: 'Concept ACK. I ran into the same bug while working in this area and implemented an alternative fix before finding this PR.'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (w0xlt)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "ran into the same bug while working in this area and implemented an alternative fix",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "andrewtoth",
+      "stance": "question",
+      "note": "asked why std::terminate is a problem if a storage error requires stopping anyway; author explained error-handling and clean shutdown"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "commented that finding a wholesale pattern or clang-tidy check for exception-termination issues would be preferable to reviewing one-by-one fixes"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Concept ACK, reported hitting the same bug and shared an alternative implementation"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: w0xlt Concept ACKs having hit the same bug; no objections raised",
+    "usage": {
+     "input_tokens": 3881,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2536
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "Encountered the same bug when working in the area and confirmed the need for a fix",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies `BufferedWriter` in `src/streams.h` to make buffered stream flushing exception-safe.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes an exception-safety bug in `BufferedWriter::flush()` where failing to clear `m_buf_pos` before writing caused duplicate writes and uncatchable exceptions during stack unwinding. As author notes: 'Calling flush() before destruction is insufficient on its own because a failed flush leaves the same bytes pending, so the destructor retries the write while the original exception unwinds.'"
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes block and block undo file storage error handling in `src/node/blockstorage.cpp`.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it prevents unhandled `std::terminate` process aborts when writing blocks and undo data under full-disk conditions. Author notes that with explicit flushing, 'it reports Failed to write genesis block and exits 1 instead of terminating the process.'"
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes an exception-safety bug in `BufferedWriter` where write failures caused unhandled exceptions in the destructor and triggered `std::terminate`. By setting the pending buffer count to zero before writing and explicitly calling `flush()` in `BlockManager::WriteBlock` and `WriteBlockUndo`, storage failures when the disk fills up result in clean shutdown handling instead of an immediate SIGABRT. The PR has a Concept ACK from a contributor who ran into the same issue, and review is ready."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01242075
+}

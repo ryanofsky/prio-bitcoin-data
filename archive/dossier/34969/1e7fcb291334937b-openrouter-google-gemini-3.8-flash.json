@@ -1,0 +1,110 @@
+{
+ "number": 34969,
+ "input_hash": "1e7fcb291334937b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:52:03+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17138,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9620
+ },
+ "cost_usd": 0.0489285,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up the scriptpubkeyman fuzz target and prevent premature execution aborts."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "The branch is clean, CI passes, and review comments are addressed."
+   ],
+   "agreement": [
+    "Strong support with Concept ACK citing speedup and bug fix (pablomartin4btc).",
+    "Sanitizer benchmarks confirmed a 3x to 10x execution rate improvement (andrewtoth).",
+    "Feedback regarding SPKM invariant assertions was resolved in the latest push (maflcko, pablomartin4btc)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it significantly improves fuzz execution throughput on the scriptpubkeyman target.",
+      "Fixes an early abort bug that prevented fuzzers from exploring deeper descriptor states."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request optimizes the `scriptpubkeyman` fuzz harness and adds a `num_coins` limit parameter to the `ConsumeCoins` fuzz utility. It removes redundant `IsMine` calls, moves costly operations such as `GetNewDestination` and `GetDescriptorString` out of inner loops, reduces the coin generation ceiling from 10,000 to 5 for this harness, and fixes an early return that aborted execution when descriptor updates failed.",
+  "problem": "The `scriptpubkeyman` fuzz target ran very slowly under libfuzzer sanitizers (under 40 exec/s on standard development hardware) due to repetitive expensive descriptor string conversions and massive coin generations in loops. Additionally, an early return bug prematurely terminated executions when failing to update wallet descriptors, reducing fuzz exploration depth.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko and pablomartin4btc noted that removing IsMine assertions weakened verification of the IsMine/GetScriptPubKeys bidirectional invariant; brunoerg restored the full bidirectional check efficiently outside the loop."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI, is up to date, and the author addressed all inline reviewer feedback in the latest push."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support with Concept ACK from pablomartin4btc; prior invariant concerns resolved.",
+   "reason": "Reviewers verified that the performance gains are real under sanitizers, and pablomartin4btc provided a Concept ACK noting the bug fix and performance improvements. All assertion concerns were resolved.",
+   "evidence": [
+    "pablomartin4btc gave Concept ACK: 'A real improvement \u2014 the early return bug fix and moving expensive ops out of the hot path are the right calls.'",
+    "andrewtoth benchmarked the branch with libfuzzer presets and confirmed speedup from ~39-128 exec/s to ~128-385 exec/s.",
+    "ekzyis verified corpus behavior and execution counts.",
+    "maflcko asked for clarification on IsMine assertion removal, which was addressed in a subsequent commit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies the scriptpubkeyman fuzz target and fuzz test helper ConsumeCoins in src/test/fuzz/util.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Substantially improves fuzzing execution throughput for the scriptpubkeyman target from under 40 exec/s to between 150 and 385 exec/s under libfuzzer sanitizers. It also fixes a harness bug where descriptor update failures aborted fuzz iterations early instead of continuing."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Does not touch wallet production logic, interfaces, or wallet data structures; changes are restricted entirely to test harnesses and fuzz utilities.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of the wallet category because it modifies only fuzzing test harness code rather than wallet runtime behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR optimizes the scriptpubkeyman fuzz harness by removing redundant IsMine calls, limiting the number of generated coins, moving heavy descriptor operations out of the loop, and fixing an early harness exit on descriptor update failure. Fuzzing throughput improves by 3x to 10x under sanitizer builds (from ~40 exec/s up to 150-385 exec/s). The PR has a Concept ACK, verified benchmarks, and no open reviewer objections."
+ },
+ "raw_text": null
+}

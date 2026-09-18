@@ -1,0 +1,180 @@
+{
+ "number": 17580,
+ "input_hash": "c19cb424c4da73f5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:14+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34567,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6055
+ },
+ "cost_usd": 0.0486315,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enforce correct option retrieval in ArgsManager by tagging multi-value options with ALLOW_LIST.",
+    "Prevent configuration bugs by making it an error to call single-value GetArg on list options or GetArgs on single options."
+   ],
+   "reviewability": [
+    "Review #16545 first to inspect the underlying type flag framework this PR builds on.",
+    "Code is rebased and passing CI with no open review blockers."
+   ],
+   "agreement": [
+    "Strong support for enforcing argument type safety and cleaning up list option handling (hebasto, promag, ajtowns).",
+    "Draft status was applied administratively because it sits on draft base PR #16545 (fanquake)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it eliminates recurring footguns in argument parsing by enforcing type consistency between option declarations and call sites.",
+      "Unblocks downstream improvements to configuration validation such as forbidding duplicate assignments in config files (#17493)."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces the ALLOW_LIST flag to ArgsManager and enforces at runtime that options declared as lists can only be retrieved using GetArgs() rather than GetArg() or IsArgSet(). It updates option definitions across the codebase to annotate list options properly, adjusts call sites that previously queried list options incorrectly, and fixes edge-case parsing inconsistencies with options like -blockfilterindex.",
+  "problem": "ArgsManager permitted calling single-value accessors on list options and multi-value accessors on scalar options. This caused subtle bugs where calling GetArg on a list returned the last command-line value but the first configuration-file value, and IsArgSet returned true on negated list options.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ajtowns suggested simplifying CheckArgFlags logic to avoid unnecessary masking of type flags, which the author implemented.",
+    "ajtowns asked about IsArgSet usage on -rpcauth, which was addressed by showing IsArgSet is broken on negated list options and splitting fixes into dedicated PRs."
+   ],
+   "author_status": "active, regularly rebasing on top of base PR #16545"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #16545 first",
+   "reason": "The code cleanly applies and passes CI, but it sits directly on top of base PR #16545; reviewing the base PR first is recommended to avoid duplicate effort."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept approved by hebasto, promag, and ajtowns; drafted solely due to stacked base PR.",
+   "reason": "Multiple maintainers provided Concept ACKs approving the type-checking discipline in ArgsManager, and technical feedback from ajtowns was addressed without objections.",
+   "evidence": [
+    "hebasto gave Concept ACK",
+    "promag gave Concept ACK",
+    "ajtowns gave Concept ACK and had review suggestions incorporated",
+    "fanquake moved to draft purely due to dependency on draft PR #16545"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    16545
+   ],
+   "enables": [
+    "#17493",
+    "#17783"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches the CI configuration solely as a temporary measure to increase Git fetch depth for stacked commits.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change; the CI modification is an ephemeral testing adjustment."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not alter RPC dispatch, wire format, or JSON output.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not affect the RPC subsystem; earlier -rpcauth fixes were separated into PR #30401."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes in test files only update unit test fixtures and fuzz targets to conform to the new ArgsManager flag rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Modifies tests only to cover utility changes, with no framework-level improvements."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly refactors ArgsManager in src/common/args.{cpp,h} and config parsing in src/common/config.cpp.",
+    "band": "P3",
+    "reason_tag": "unblocks #17493",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Enforces internal consistency in utility configuration parsing and eliminates misleading behaviors when retrieving list options, while serving as a prerequisite for stricter config checking in #17493 and #17783."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches chainparamsbase.cpp only to annotate existing CLI options with ALLOW_LIST.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter validation logic, chainstate invariants, or consensus rules."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only modifies src/wallet/init.cpp to append ALLOW_LIST to the -wallet option registration.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical parameter registration update with no impact on wallet functionality."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request introduces the ALLOW_LIST flag in ArgsManager to require that list options are fetched with GetArgs() and scalar options with GetArg(). It resolves confusing inconsistencies where calling single-value accessors on list arguments yielded different results between configuration files and the command line. The change is primarily an internal refactoring for developer safety and code hygiene across all option definitions. Reviewers have shown strong concept agreement, though progress has been deferred while waiting on base PR #16545."
+ },
+ "raw_text": null
+}

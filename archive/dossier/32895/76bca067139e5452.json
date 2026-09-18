@@ -1,0 +1,92 @@
+{
+ "number": 32895,
+ "input_hash": "76bca067139e5452",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 13643,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3025
+ },
+ "cost_usd": 0.030174299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets the wallet detect when a wallet file was opened by an older client after being upgraded, so needed automatic upgrades are not silently skipped."
+   ],
+   "reviewability": [
+    "Ready. Latest push incorporated w0xlt's suggestion and was ACKed same day."
+   ],
+   "agreement": [
+    "Strong support: ajtowns, Bortlesboat, Eunovo, w0xlt all ACKed the final commits, ryanofsky gave concept ACK",
+    "Design concerns from maflcko and ryanofsky about coupling to CLIENT_VERSION were addressed by decoupling into separate version/feature-flag records",
+    "No open objections remain (ajtowns, Bortlesboat, Eunovo, w0xlt, ryanofsky, maflcko)"
+   ],
+   "categories": []
+  },
+  "summary": "This PR decouples the wallet's 'last client version' record from the node's CLIENT_VERSION and introduces separate wallet-client feature-flag records (LAST_OPENED_FEATURES and LAST_DECRYPTED_FEATURES) to track which automatic-upgrade features the last client that opened or decrypted a wallet supported. It also updates migration code to set these flags so migrated wallets don't get re-upgraded, and adjusts a functional test to match the new versioning scheme. The goal is to reliably detect upgrade-downgrade-upgrade scenarios so pending automatic upgrades are not skipped.",
+  "problem": "When a wallet is auto-upgraded in a backward-compatible way and later reopened by an older client, then reopened again by a newer client, the wallet may end up with a mix of upgraded and non-upgraded data because the newer client cannot tell an upgrade is still needed. This affects any user who moves a wallet file between different Bitcoin Core versions, and blocks the author's plans for future upgrade features that need reliable detection of this scenario.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko and ryanofsky objected to tying the record to CLIENT_VERSION; achow101 reworked the design into a decoupled wallet-client version plus feature flags, which both later endorsed via ACKs",
+    "ajtowns questioned enum design (wasted bit space, what happens after 64 features) and cs_wallet locking annotations; author answered and updated code, ajtowns ACKed subsequently",
+    "Bortlesboat questioned whether a failed WriteLastDecryptedFeatures write could cause the in-memory guard to skip retry; achow101 explained it is a harmless no-op optimization, no further pushback",
+    "w0xlt suggested erasing stale LAST_DECRYPTED_FEATURES on downgrade detection; author implemented it and w0xlt ACKed the same day"
+   ],
+   "author_status": "active, most recently pushed and responded on 2026-09-16 after w0xlt's suggestion, followed immediately by an ACK"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The latest push (head_sha 1f5c103fe0) incorporated w0xlt's suggestion to erase stale decrypted-feature records on downgrade, and w0xlt ACKed that exact commit the same day. No open material requests remain."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: ajtowns, Bortlesboat, Eunovo, and w0xlt all ACKed recent commits with substantive review (range-diffs, test runs); no unresolved objections remain.",
+   "reason": "Multiple reviewers with concrete rationale (design correctness, locking, enum semantics) raised concerns that the author addressed through rework, and each reviewer subsequently ACKed the resulting commits.",
+   "evidence": [
+    "ryanofsky: 'Concept ACK... nice because it can avoid slowing down wallet loading by avoiding unnecessary upgrade rescans'",
+    "ajtowns: 'ACK 3e4490241f26a6932d1d15312d9cb10b35027d48; didn't find any problems' after his enum concerns were addressed",
+    "Bortlesboat: 'ACK 7369187...; reviewed the range-diff... built and ran unit and functional tests, all passed'",
+    "w0xlt: 'ACK 1f5c103fe0...' immediately after his stale-record suggestion was implemented"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "future wallet auto-upgrade features that need reliable upgrade-downgrade-upgrade detection, per achow101: 'I've got a few things in mind already that would utilize this'"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies wallet.cpp/h, walletdb.cpp/h, and walletutil.h to change how wallet version and upgrade-feature metadata is stored and read, and updates migration logic; carries the Wallet label.",
+    "band": "P2",
+    "reason_tag": "upgrade correctness",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it fixes a real correctness gap where upgrade-downgrade-upgrade cycles can leave a wallet with a mix of upgraded and non-upgraded material, per the PR description, and because it is explicitly designed as foundational infrastructure the author says will be reused by several planned future upgrade features ('I've got a few things in mind already'). It is not P1 because the scenario is an edge case (moving wallets between client versions) rather than an active bug affecting most users today, but the leverage for future work and long, careful review (7 distinct reviewers, multiple rounds of design negotiation) indicate durable value worth deliberate review time."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this should be considered fund-safety critical or merely a correctness/maintenance concern is a judgment call; the discussion frames it as preventing missed upgrades rather than direct fund loss.",
+   "Potential conflicts with four other open wallet PRs (#36126, #36031, #35998, #34909) touching overlapping wallet files could require rebasing but do not appear to block merge readiness now."
+  ],
+  "card": "This PR decouples the wallet's 'last client version' record from the node's CLIENT_VERSION and adds new LAST_OPENED_FEATURES / LAST_DECRYPTED_FEATURES flag records so a wallet can detect upgrade-downgrade-upgrade cycles and re-run needed automatic upgrades instead of ending up with a mix of upgraded and non-upgraded data. The author (achow101) states this is foundational for several planned future wallet upgrade features that depend on reliable detection of this scenario. The design went through substantial back-and-forth with maflcko, ryanofsky, and ajtowns over multiple months, converging on a decoupled version-plus-feature-flags approach; the final commits have been ACKed by ajtowns, Bortlesboat (with test runs), Eunovo, and w0xlt, with the last reviewer suggestion incorporated and ACKed the same day. Reviewability is Ready with no open material requests. It conflicts (file-level) with four other open wallet PRs but has no stated hard dependency."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

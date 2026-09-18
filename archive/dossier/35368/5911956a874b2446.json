@@ -1,0 +1,122 @@
+{
+ "number": 35368,
+ "input_hash": "5911956a874b2446",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14752,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4003
+ },
+ "cost_usd": 0.036173300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds two USDT tracepoints so operators can measure compact block relay: which peers announce headers and how successfully blocks reconstruct without round trips."
+   ],
+   "reviewability": [
+    "Stale: needs rebase and author has been silent since May 27, well past the silence threshold.",
+    "Code itself is small and mechanical; the blocker is process not substance."
+   ],
+   "agreement": [
+    "Concept ACKs from 0xB10C and m4ycon who want measurable compact block relay data (0xB10C, m4ycon).",
+    "0xB10C and stickies-v suggested clarifying the structured-logging/IPC tracing direction (#35369, #35142) before adding more tracepoints; author disagreed and neither pushed back further (0xB10C, stickies-v)."
+   ],
+   "categories": [
+    {
+     "name": "docs",
+     "why": [
+      "P4 because it only documents the two new tracepoint signatures in an existing reference file, a small addition with no independent value beyond the code it describes."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it adds diagnostic visibility into compact block reconstruction performance, a real pain point one user described (m4ycon's unexplained reconstruction stalls), but changes no relay behavior itself and only helps future investigation."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds two USDT tracepoints to net_processing.cpp: net:block_header, which fires when a new valid header arrives via headers or cmpctblock, and net:compact_block_reconstructed, which fires with per-peer, per-source (prefilled/mempool/extra-pool/requested) transaction counts when a compact block is successfully reconstructed. A small blockencodings.cpp/.h refactor factors the existing debug-log statistics computation into a reusable GetReconstructionStats() used by both the log line and the new tracepoint. Includes doc/tracing.md documentation and a substantial functional test (test/functional/interface_usdt_net.py) exercising both tracepoints.",
+  "problem": "Compact block relay performance (mempool overlap, extra-pool usefulness, per-peer reconstruction success) is currently observable only through unstructured debug logs, which are hard to consume programmatically for continuous measurement or tooling built by operators and researchers running dashboards over node internals.",
+  "discussion": {
+   "open_concerns": [
+    "0xB10C and stickies-v suggested it might make more sense to first resolve the structured-logging (#35369) or IPC tracing (#35142) direction rather than add more ad hoc USDT tracepoints now; no further reply from either after the author's rebuttal.",
+    "m4ycon suggested also exposing the missing txids from vtx_missing for deeper diagnosis; 0xB10C noted lists/sets are impractical to pass via tracepoints and this was left out of scope."
+   ],
+   "resolved_concerns": [
+    "Author (w0xlt) argued IPC tracing is a longer-term project not ready to replace USDT tracing today, and this is a small incremental addition; no further objection followed."
+   ],
+   "author_status": "silent since 2026-05-27, PR needs rebase and was pinged for a rebase by sedited on 2026-08-27 with no response"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, author silent",
+   "reason": "The PR needs rebase and mergeable_state is dirty. Author last activity was 2026-05-27, 113 days of silence, well past the 60-day stale threshold, and a maintainer's 2026-08-27 rebase request went unanswered."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept ACKs from 0xB10C and m4ycon, but both suggested waiting on a structured-logging/IPC tracing direction first; author disagreed and neither followed up, leaving that as a standing but non-blocking reservation.",
+   "reason": "Two reviewers gave substantive concept ACKs with stated motivation (matching work in peer-observer). A design-direction concern was raised twice, the author rebutted with a reasoned argument, and the objectors did not push back, which per the rules resolves it by agreeing to disagree rather than by a fix.",
+   "evidence": [
+    "0xB10C: 'Concept ACK on exposing this data.'",
+    "m4ycon: 'Concept ACK. Also a suggestion on additional info.'",
+    "0xB10C and stickies-v suggested clarifying #35369/#35142 direction first",
+    "w0xlt: 'I don't think the IPC tracing discussion should block this functionality, assuming there is demand for it.' \u2014 no reply from stickies-v or 0xB10C afterward"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Could inform or be superseded by a future structured-logging interface discussed in #35369",
+    "Related to the broader IPC tracing RFC in #35142, which the author argues is not a near-term substitute"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "doc/tracing.md gets 30 lines documenting the two new tracepoint signatures, argument order, and semantics.",
+    "band": "P4",
+    "reason_tag": "reference doc",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Purely a reference addition describing new tracepoints introduced in the same PR; no independent documentation problem being solved, and no evidence of confusion or demand around the existing tracing docs."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Adds tracepoints and a small stats-computation refactor inside src/net_processing.cpp and src/blockencodings.cpp/.h, in the compact block relay and header-processing code paths (ProcessCompactBlockTxns, LogBlockHeader, ProcessMessage).",
+    "band": "P3",
+    "reason_tag": "observability",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "It does not change relay behavior, correctness, or resource use; it only exposes existing computed data via inert USDT probes (design note: 'nothing new is computed in the hot path'). Its value is diagnostic: m4ycon described a real production case where compact block reconstructions unexpectedly required round trips and lacked the data to investigate, which this PR would help with going forward. Reviewers flagged an open question of whether this duplicates effort better spent on a structured-logging or IPC-tracing interface, which affects direction more than urgency."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project wants more ad hoc USDT tracepoints added while #35369 (structured logging) and #35142 (IPC tracing RFC) are unresolved is a live strategic question that could change this PR's priority for the p2p category once settled.",
+   "No indication of how many external tools (peer-observer or others) are actively waiting on these specific tracepoints beyond m4ycon's referenced dashboard work."
+  ],
+  "card": "This PR adds two USDT tracepoints, net:block_header and net:compact_block_reconstructed, giving operators structured, low-overhead visibility into compact block relay: which peer announced a header and how a reconstruction split across prefilled, mempool, extra-pool, and requested transactions. It solves a real diagnostic gap: reviewer m4ycon described running dashboards (peer-observer) and hitting periods of unexplained round-trip requests with no structured data to investigate why. Concept ACKs came from 0xB10C and m4ycon, though both suggested first clarifying whether a structured-logging interface (#35369) or the IPC tracing RFC (#35142) should supersede ad hoc tracepoints like this; the author rebutted that IPC tracing is not a near-term substitute, and neither reviewer pushed back further. The PR needs rebase and the author has been silent for over 100 days, including through a maintainer's rebase request, so it is currently Stale. The change is purely observational, touching no relay logic or behavior, so its priority in p2p is moderate rather than critical."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

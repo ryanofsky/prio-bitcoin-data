@@ -1,0 +1,232 @@
+{
+ "number": 28690,
+ "input_hash": "d70d2b8d6b93d4bc",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 49023,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7027
+ },
+ "cost_usd": 0.08556430000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Restructure the internal C++ library layout so a slimmed-down internal kernel library only pulls in the utility code the validation engine actually needs.",
+    "Aims to complete the internal-library design in doc/design/libraries.md and make it easier to build the external libbitcoinkernel with a real dependency boundary instead of ad hoc source lists."
+   ],
+   "reviewability": [
+    "Ready. CI is clean, the branch is mergeable, and the author has continuously addressed review comments across 46 force-pushes with a fresh re-ACK on 2026-09-08."
+   ],
+   "agreement": [
+    "Strong support with multiple concept, approach, and code-review ACKs plus real testing (guix builds, an iPhone kernel demo app) (hebasto, ryanofsky, janb84, yuvicc, w0xlt, BrandonOdiwuor, Sjors).",
+    "ajtowns questioned whether the whole approach reduces or adds to library complexity but did not block, and the author updated the design doc in response; no standing objection remains.",
+    "Naming bikeshed (util_kernel vs kernel_util vs util_core) was never resolved definitively but is style, not a blocking concern."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it reorganizes core CMake library boundaries that every future kernel-isolation and symbol-export effort depends on, reviewed in depth by multiple build maintainers.",
+      "No bug or regression is fixed; the payoff is structural clarity and unblocking follow-on library-separation work."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it advances the stated goal of making libbitcoinkernel a real standalone dependency boundary, tested against an actual external kernel consumer (Sjors' iPhone app) with no behavior change.",
+      "Sets up future work like REDUCE_EXPORTS-safe symbol exporting, which this PR explicitly defers."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it splits the util library into a kernel-only subset and a superset, a boundary change every future kernel consumer and every util contributor has to respect.",
+      "Debated at length by ryanofsky and ajtowns over whether a three-way split (util/util_kernel/common) is the right shape."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it only updates the check-deps.sh dependency-checking script to recognize the new libraries, a supporting change rather than new tooling capability."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because it only adds a build-time link dependency from bitcoin_wallet to the new kernel libraries, and reviewers (achow101) questioned whether it is even needed."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces an internal libbitcoin_kernel static library and a slimmed-down libbitcoin_util_kernel library so the external libbitcoinkernel shared library can be built from a real, enforced internal dependency graph instead of a hand-maintained source file list. It splits src/util/CMakeLists.txt into a kernel-only subset and a full util library, updates doc/design/libraries.md and contrib/devtools/check-deps.sh accordingly, and reuses the internal libraries' source lists to build the external kernel target. A known trade-off is called out: without manual symbol export management, the change would break REDUCE_EXPORTS=ON builds, so the external library still gets a separately populated source list for now.",
+  "problem": "Bitcoin Core's build system does not currently enforce the internal library dependency boundaries described in doc/design/libraries.md, so the kernel library's actual dependencies can silently drift from what a kernel consumer needs, making it hard to know what is safe to depend on when building a minimal, embeddable libbitcoinkernel. This mainly affects kernel maintainers and downstream projects trying to build against libbitcoinkernel with minimal dependencies.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns thinks the overall three-plus-library split (consensus/common/util/util_kernel) is a messy way to achieve the goal and sketched an alternative topology, but did not block and the author called the impact 'pretty marginal' while remaining open to future restructuring.",
+    "achow101 and yuvicc questioned specific link dependencies (kernel link for bitcoin-cli/bitcoin-wallet, ws2_32) which were addressed by dropping the unneeded links.",
+    "Naming of the new library (util_kernel vs kernel_util vs util_core) was never fully settled."
+   ],
+   "resolved_concerns": [
+    "hebasto's MSVC and CMake circular-dependency issues were fixed via subsequent pushes.",
+    "ryanofsky's concerns about file placement (bytevectorhash, readwritefile, sock, expected.cpp) were addressed by moving files back or adding them explicitly.",
+    "w0xlt's leftover readwritefile.cpp/serfloat.cpp misplacement and CMAKE_SOURCE_DIR vs PROJECT_SOURCE_DIR nits were fixed in later pushes.",
+    "Design doc omissions flagged by ajtowns (missing edges, missing libbitcoinkernel node) were added."
+   ],
+   "author_status": "active, most recently pushed 2026-08-28 addressing a review comment and PR has a fresh re-ACK from 2026-09-08"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, the branch is mergeable, and the author has kept the PR current through 46 force-pushes over roughly three years, most recently addressing a comment from yuvicc on 2026-08-28 with a re-ACK following on 2026-09-08. No open design question is known to be about to invalidate the current code."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: multiple concept/approach/code-review ACKs and real-world testing (guix builds, an external kernel-app test), with ajtowns' broader design critique addressed via doc updates rather than left standing.",
+   "reason": "Numerous members and contributors reviewed and tested the change over an extended period without a standing blocking objection; the one substantive design pushback (ajtowns) was engaged with and resolved through documentation changes and clarification, not through an unaddressed NACK.",
+   "evidence": [
+    "ryanofsky: 'Code review ACK ... most of the changes here seem good, and all look like they should work and be safe.'",
+    "hebasto: 'Approach ACK' after verifying undefined symbols.",
+    "janb84: multiple re-ACKs including a successful Guix build test.",
+    "Sjors: 'Concept ACK ... Switching from master to this PR in that project makes no difference, so that's good.'",
+    "ajtowns: 'it would be nicer if this was reducing the complexity ... rather than adding another one to menagerie' \u2014 raised but not escalated to a blocking NACK, followed by doc updates from the author.",
+    "yuvicc and w0xlt: re-ACKs on the latest commit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future work to safely export symbols from libbitcoinkernel under REDUCE_EXPORTS=ON",
+    "#35167 (Convert check-deps.sh to python), which the author says should be merged to enforce the new dependency structure",
+    "Further kernel library decoupling, e.g. a stated plan to split mempool policy out of the kernel library"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Directly restructures CMakeLists.txt across src, src/kernel, src/util and adds entries to check-deps.sh; carries the 'Build system' label.",
+    "band": "P2",
+    "reason_tag": "maintainability",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 3
+    },
+    "rationale": "P2 because it establishes an enforceable internal library dependency graph that multiple build maintainers (hebasto, ryanofsky, ajtowns, achow101, fanquake) spent years refining, and the author frames it as groundwork for eventually making libbitcoinkernel exportable and independently buildable, e.g. 'this is more about establishing a moat to prevent new entanglements on the build system level.'"
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "doc/design/libraries.md is substantially updated, but only as an accompanying change to the build restructuring, not the PR's primary subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category definition: 'a code change that also updates its docs' belongs to its own area, not docs."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Central to the libbitcoinkernel project: introduces bitcoin_kernel/bitcoin_util_kernel internal libraries and changes how the external kernel library's source list is generated.",
+    "band": "P2",
+    "reason_tag": "unblocks kernel export work",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "P2 because it moves the kernel project toward a real dependency boundary and was validated against an actual external consumer, per Sjors: 'Switching from master to this PR in that project makes no difference, so that's good.' The author explicitly frames this as a stepping stone toward safe symbol exports under REDUCE_EXPORTS=ON, which the PR currently cannot support."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "An early version touched test/sanitizer_suppressions/ubsan but the author dropped that change once it became redundant after another PR merged; no test infrastructure change remains.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; the sanitizer suppression touch was transient and removed, per the 2023-11-29 comment: 'dropped change in the sanitizer suppression that became redundant.'"
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "contrib/devtools/check-deps.sh is directly modified to register the new libraries and their allowed dependencies.",
+    "band": "P3",
+    "reason_tag": "dependency tooling",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it keeps a developer dependency-checking script accurate for the new libraries, a modest but real maintenance benefit; ajtowns noted the change 'shows up a lot of errors' if omitted, and a follow-up PR (#35167) aims to improve this tool further."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Splits src/util/CMakeLists.txt into bitcoin_util_kernel and bitcoin_util, moving files like chaintype.cpp, fees.cpp, and strencodings.cpp between libraries.",
+    "band": "P2",
+    "reason_tag": "library boundary cleanup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P2 because it redefines what belongs in the util library versus a kernel-only subset, a boundary every future util contributor and kernel consumer must respect, and it was the subject of sustained design debate between ryanofsky, ajtowns and the author over whether three libraries (util, util_kernel, common) is the right shape."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "src/wallet/CMakeLists.txt gains direct links to bitcoin_kernel and bitcoin_util_kernel.",
+    "band": "P4",
+    "reason_tag": "build dependency only",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because the wallet-facing change is purely a build-time link addition with no behavioral effect on wallet functionality, and achow101 even questioned whether it is necessary: 'It would be surprising to me if bitcoin-wallet needs the kernel. It builds without this.'"
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the final library topology (util_kernel/util/common/kernel) is the direction the project will ultimately settle on, given ajtowns' unresolved concern that it may not reduce overall complexity.",
+   "Whether wallet actually needs the added kernel link or if it will be dropped in a future push, per achow101's comment.",
+   "Long tenure (3+ years, 46 force-pushes) suggests either genuine complexity or lower urgency than the review volume implies; treated priority as about the underlying problem per the rules, not the PR's age."
+  ],
+  "card": "This PR restructures Bitcoin Core's internal CMake libraries to introduce a bitcoin_kernel and a slimmed bitcoin_util_kernel library, so the external libbitcoinkernel shared library can be built by reusing an enforced internal dependency graph instead of a manually maintained source list, per doc/design/libraries.md. It solves a build-system problem for kernel maintainers and downstream libbitcoinkernel consumers: making the kernel's real dependencies explicit and minimal ahead of exportable-symbol work. The strongest evidence of importance is years of sustained maintainer engagement (hebasto, ryanofsky, ajtowns, achow101, fanquake) and real-world validation, including a successful guix build and an external iPhone app built against the kernel with no observed behavior change. The PR is Ready to review, with CI green and mergeable, and carries Strong agreement despite an unresolved stylistic debate over whether the library topology (util/util_kernel/common/kernel) is the cleanest way to achieve the goal. It has no hard blocking dependency but is explicitly framed as groundwork for future REDUCE_EXPORTS symbol-export work and further kernel decoupling (e.g., splitting mempool policy out of the kernel)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

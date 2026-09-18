@@ -1,0 +1,151 @@
+{
+ "number": 29843,
+ "input_hash": "4d400ecdd78122c9",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 41838,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5048
+ },
+ "cost_usd": 0.0684843,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets test-network nodes fully disable script standardness checks with -acceptnonstdtxn=1",
+    "Helps researchers test proposed soft-fork opcodes (OP_NOPx, OP_SUCCESS) that current standardness rules reject",
+    "Restricted to non-mainnet chains only"
+   ],
+   "reviewability": [
+    "Ready to review, author has been actively iterating and just addressed the last outstanding implementation concerns in July 2026",
+    "Long-running PR with an evolving approach, but the current push resolves prior reviewer feedback"
+   ],
+   "agreement": [
+    "Several concept ACKs support the feature (benthecarman, glozow, fjahr, 1440000bytes, ismaelsadeeq) and sedited gave an approach ACK after extended design discussion",
+    "luke-jr raised a standing but non-blocking preference that this go further (mirror Knots' -acceptnonstdtxn=2 semantics), which the author has not directly resolved",
+    "ismaelsadeeq's implementation concerns about CheckInputScripts's interface were incorporated into the final design (enum-based check type)"
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it extends a testnet-only debug knob for standardness checks rather than fixing a live policy problem, though it has real leverage for soft-fork research (author notes it helps observe proposed features like OP_CAT/SIGHASH_APO that are otherwise unreachable on public testnets)",
+      "Deferrable since it is opt-in and restricted to non-mainnet chains, so no current mempool user is affected by default"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P3 because the PR touches core script-flag computation (GetBlockScriptFlags, new GetAllConsensusScriptFlags) with careful compile-time and runtime invariants to avoid ever admitting a consensus-invalid tx into the mempool, which is a real correctness concern worth reviewer attention",
+      "Its practical effect is scoped to a testnet-only flag, so the consensus-safety work here is defensive rather than fixing an active hazard"
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "Not a member: the only p2p-labeled files touched are functional test helpers (p2p_invalid_tx.py, p2p_segwit.py) adapted to validate the new policy behavior, not changes to p2p protocol or relay logic itself"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes the -acceptnonstdtxn=1 test-network option so that, instead of only relaxing standardness checks that live outside script verification, it also skips non-mandatory script verify flags (STANDARD_SCRIPT_VERIFY_FLAGS beyond MANDATORY), letting transactions using OP_NOPx or OP_SUCCESS opcodes into the mempool. It refactors CheckInputScripts to take an explicit CheckInputScriptsFor::Block/Mempool discriminator instead of inferring block-vs-mempool context from flag bits, and adds a new GetAllConsensusScriptFlags() plus compile-time/runtime checks ensuring STANDARD_SCRIPT_VERIFY_FLAGS and the accept-nonstd override always remain supersets of whatever GetBlockScriptFlags can return, so a node with this flag set can never keep a consensus-invalid tx cached in its mempool. The change remains restricted to non-mainnet chains.",
+  "problem": "Researchers and developers testing proposed soft-fork features (e.g. OP_CAT, SIGHASH_APO via the inquisition client) currently cannot get mainline Bitcoin Core nodes to accept transactions using those non-standard script features into their mempools, limiting cross-implementation testing on public testnets.",
+  "discussion": {
+   "open_concerns": [
+    "luke-jr's 2024-04/06-08 suggestion that -acceptnonstdtxn should behave like Knots' more conservative =2 mode has not been directly addressed by the author",
+    "instagibbs' 2026-04-08 comment about the log message in ConsensusScriptChecks being slightly stale after the refactor may still need a tweak"
+   ],
+   "resolved_concerns": [
+    "ismaelsadeeq's concern about CheckInputScripts needing to know block-vs-mempool context, and the resulting TX_NOT_STANDARD vs TX_CONSENSUS mismatch, was discussed at length and the author settled on an explicit CheckInputScriptsFor enum in the final revision",
+    "sedited's suggestion to use an enum instead of a bool was implemented by the author in the 2026-07-22 push",
+    "instagibbs' suggestion to avoid changing CheckInputScripts' signature was set aside after author explained why it would be more confusing/error-prone"
+   ],
+   "author_status": "active, last pushed 2026-07-22 addressing outstanding review comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author pushed a new revision on 2026-07-22 that incorporates the enum-based CheckInputScriptsFor design agreed upon in discussion and responds to open inline comments; no material request is currently unanswered."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Multiple concept ACKs and an approach ACK support the feature, but luke-jr's suggestion for more conservative semantics remains unaddressed without follow-up.",
+   "reason": "Five contributors gave concept ACK and sedited gave an approach ACK after the design settled; the main design disagreement (block/mempool discrimination mechanism) was resolved through iteration, leaving only a stale, non-blocking scope preference from luke-jr.",
+   "evidence": [
+    "benthecarman, glozow, fjahr, 1440000bytes: concept ACK",
+    "sedited: 'Approach ACK ... think this is the pragmatic solution'",
+    "luke-jr: 'Seems like this goes beyond the expected behaviour. Maybe make it =2 at least?' -- no reply from author, no further pushback from luke-jr",
+    "ismaelsadeeq's interface-design concerns were resolved via the final enum-based approach implemented 2026-07-22"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Testing of proposed soft-fork features (e.g. OP_CAT, SIGHASH_APO) on public testnets by researchers"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Directly changes mempool/policy script-check behavior under -acceptnonstdtxn, labeled 'TX fees and policy'.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P3 because the change is opt-in and restricted to testnets, so it does not affect mainnet mempool behavior or fee/DoS resistance for ordinary users. Its value is leverage for soft-fork researchers, as ajtowns notes it 'may make it easier to observe test transactions using proposed new soft-fork features.'"
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Substantively reworks CheckInputScripts' signature and adds GetAllConsensusScriptFlags with new invariants tying it to GetBlockScriptFlags, code a validation reviewer must understand.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it adds defensive compile-time and runtime checks ensuring no consensus-invalid tx can be cached in the mempool even with the new flag, a real correctness safeguard, but the trigger condition (testnet-only opt-in flag) limits how often this code path matters in practice."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Only functional test files under the p2p test harness are touched to validate the new mempool policy behavior; no p2p protocol, relay, or connection logic is changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the p2p_invalid_tx.py and p2p_segwit.py edits are mechanical test updates following the policy/validation change, not changes to p2p behavior itself."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether luke-jr's scope objection should be weighted as an unresolved criticism affecting Agreement more strongly, since he never explicitly withdrew it but also never escalated it",
+   "Whether the extensive validation.cpp changes here should be considered a red flag needing a split, given the category file's guidance about kernel/validation overlaps (though this PR is not primarily a kernel change)",
+   "Exact current review status of instagibbs' minor log-message and assert-placement suggestions, which appear addressed but were not explicitly confirmed in the visible discussion"
+  ],
+  "card": "ajtowns' PR extends the test-net-only -acceptnonstdtxn=1 flag so it also bypasses non-mandatory script verify flags, letting non-standard scripts (OP_NOPx, OP_SUCCESS, etc.) into the mempool, which the author says helps observe transactions using proposed soft-fork features like OP_CAT or SIGHASH_APO on public testnets. It required a substantial CheckInputScripts refactor (explicit Block/Mempool discriminator) and new compile-time/runtime invariants (GetAllConsensusScriptFlags) to guarantee no consensus-invalid tx can end up cached in the mempool even with the flag set. Discussion, spanning two years, included several concept ACKs (benthecarman, glozow, fjahr, ismaelsadeeq, 1440000bytes) and an approach ACK from sedited, with substantial back-and-forth over the CheckInputScripts interface design that the author resolved in a 2026-07-22 push using an enum-based approach. luke-jr's suggestion that the flag should mirror Knots' more conservative =2 semantics remains unaddressed but non-blocking. The change is restricted to non-mainnet chains, limiting its priority relative to mainnet-affecting mempool or validation work, but it does touch validation flag-computation logic that a validation reviewer would need to check carefully."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,95 @@
+{
+ "number": 36234,
+ "input_hash": "c8a1709f85c17d73",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3255,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3312
+ },
+ "cost_usd": 0.0212213,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a subtle bug in the rolling Bloom filter where re-inserting the same value repeatedly can prematurely expire unrelated entries.",
+    "Benefits any subsystem relying on CRollingBloomFilter for anti-DoS or dedup tracking (e.g. mempool, net message filtering)."
+   ],
+   "reviewability": [
+    "Ready to review now, small self-contained diff with new tests.",
+    "One reviewer question about motivation is open only 2 days, not yet a blocker."
+   ],
+   "agreement": [
+    "Only comment so far is a clarifying question about motivation, not an endorsement or objection (instagibbs).",
+    "No reviews or verdicts yet, so support is undetermined."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it fixes a genuine correctness bug in a shared primitive (CRollingBloomFilter) that other anti-DoS and dedup logic relies on.",
+      "Repeated insertion of one value silently expires unrelated entries sooner than intended, which is exactly the kind of subtle primitive bug the utils rubric prioritizes.",
+      "No performance or feature angle, but the fix and added tests close a real hazard."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes CRollingBloomFilter::insert so that re-inserting an item already represented in the current generation does not advance the entry counter, which previously let a single repeated value expire unrelated entries earlier than the configured capacity implies. It also avoids double-hashing by reusing computed hashes, and adds two new unit tests covering the repeated-insert and refresh scenarios. The change is a targeted bug fix within a shared low-level utility class.",
+  "problem": "CRollingBloomFilter is used to bound resource usage and deduplicate seen items across the node (e.g. anti-DoS tracking); the author's description explains that repeatedly inserting one value advances its generation counter without adding coverage, causing unrelated tracked entries to be evicted sooner than the filter's stated capacity, which weakens whatever protection the filter is meant to provide.",
+  "discussion": {
+   "open_concerns": [
+    "instagibbs asked whether this addresses an observed worrying usage pattern or is a general correctness fix; author has not yet replied (question raised 2026-09-14, PR still within the 7-day window)."
+   ],
+   "resolved_concerns": [],
+   "author_status": "active, no reply needed yet (question open only 2 days)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Small, self-contained, single-commit diff with new tests covering the fixed behavior; no CI failure, no rebase needed. A reviewer question about motivation is open but only 2 days old, well under the 7-day threshold for Paused, and does not block reviewing the code itself."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No evaluative review yet, only a clarifying question from instagibbs about the motivation, unanswered so far.",
+   "reason": "The sole comment is a question, not a concept or code review verdict, and there are no ACKs, NACKs, or stated objections to weigh.",
+   "evidence": [
+    "instagibbs asked whether this fixes an observed problematic usage pattern or is a general correctness fix, without stating a position for or against the change."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Labeled Utils/log/libs and modifies src/common/bloom.{h,cpp}, a shared primitive used across the codebase for filtering/deduplication.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes a genuine correctness bug in a low-level shared primitive: as the description states, 'Repeating one value can therefore expire unrelated entries sooner than the configured capacity implies,' which undermines the guarantees any consumer relies on (e.g. anti-DoS tracking). The utils rubric ranks correctness and safety of primitives highest since subtle bugs there become node-wide problems, but this is a narrow, already-isolated fix without evidence of an active exploit or user complaint, so it falls short of P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No linked issue or downstream report confirms this bug caused a real-world problem; impact assessment relies on the author's own description and diff logic.",
+   "Agreement classification is ambiguous since the only comment is a clarifying question rather than a clear evaluative stance; treated as Crickets but could reasonably be read as Neutral once answered.",
+   "Unclear which specific consumers of CRollingBloomFilter (mempool, net, wallet) are most affected, which would sharpen the security/stability severity."
+  ],
+  "card": "This PR fixes a correctness bug in CRollingBloomFilter::insert: repeatedly inserting the same value advanced the entry counter without adding new coverage, causing unrelated tracked items to expire earlier than the filter's stated capacity implies, per the author's description. The fix detects current-generation membership before rotating and reuses already-computed hashes to avoid double hashing, with two new unit tests demonstrating both the fixed behavior and correct refresh semantics. CRollingBloomFilter is a shared low-level primitive used for filtering/deduplication across the codebase, so a subtle capacity-eviction bug here could weaken whatever anti-DoS or dedup guarantee a consumer expects. The PR is small, self-contained, and ready for review; the only discussion so far is a reviewer (instagibbs) asking whether this addresses an observed real-world issue or is a general correctness fix, unanswered but not yet stale. No stated dependencies or blockers."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,295 @@
+{
+ "number": 35901,
+ "input_hash": "d0c1859ac2777d8e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:44:05+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 35007,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9303
+ },
+ "cost_usd": 0.0611415,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent wallet rescans from silently missing transactions when a block contains both a look-ahead transaction and a pool-expanding transaction.",
+    "Ensure wallet balances are accurate after importing descriptors or restoring wallets without requiring an unannounced second rescan."
+   ],
+   "reviewability": [
+    "Needs rebase due to merge conflicts with #34681.",
+    "Author is currently evaluating an alternative rescan loop proposed in review."
+   ],
+   "agreement": [
+    "Concept support for addressing the rescan omission (achow101, molnard).",
+    "Blocking objection: the shrinking-prefix rescan still misses downstream transactions and spends later in the block (jeanpablojp, molnard).",
+    "Author agreed the gap exists and is analyzing the proposed iterative rescan fix (pablomartin4btc)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it addresses a silent wallet bug where transactions are missed and balances are wrong following a rescan.",
+      "Downstream users restoring or importing descriptor wallets are left with incorrect balances without any indication a second rescan is needed."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR modifies `ScanForWalletTransactions` in `src/wallet/wallet.cpp` to prevent descriptor wallets from missing transactions during block rescans. When a transaction paying to a key just outside the look-ahead keypool appears before a pool-expanding transaction in the same block, the wallet currently fails to recognize the first transaction. The PR introduces a prefix re-scan pass over the block up to the last pool expansion point and adds a dedicated regression test.",
+  "problem": "Descriptor wallet rescans (`rescanblockchain`, `importdescriptors`, `restorewallet`) evaluate transactions in block order. If a transaction paying to a key beyond the current look-ahead pool precedes a transaction that expands the pool within the same block, the earlier transaction is ignored and the wallet reports an incorrect balance without warning.",
+  "discussion": {
+   "open_concerns": [
+    "The shrinking-prefix re-scan does not revisit transactions located after the expansion point, meaning a subsequent child spend or cascaded receive in the same block remains missed and the balance is still short.",
+    "Reviewer jeanpablojp demonstrated a concrete scenario where key 10 following key 4 and key 5 remains omitted, proposing an alternative loop tracking unmatched transactions instead."
+   ],
+   "resolved_concerns": [
+    "Avoiding redundant `collect_range_ends()` overhead on transactions that are not wallet-relevant by checking `SyncTransaction()` return value.",
+    "Consolidating the full pass and prefix rescan loops into a single bounded loop."
+   ],
+   "author_status": "Active; currently analyzing jeanpablojp's alternative loop implementation and test cases."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master following the merge of #34681, and the author is also reviewing alternative algorithm proposals before pushing an update."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "achow101",
+     "stance": "support",
+     "note": "Concept ACK-ish; noted scanning cost and suggested a loop cleanup."
+    },
+    {
+     "login": "molnard",
+     "stance": "objection",
+     "note": "Concept ACK, but pointed out that prefix rescanning leaves child spends of lookahead parents unrecorded."
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "objection",
+     "note": "Demonstrated with a test case that prefix rescan still misses receives past scan_end, and proposed an unmatched-set algorithm."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "molnard",
+     "kind": "correctness",
+     "harm": "If a child tx spends a parent output paying a lookahead key later in the block, the prefix rescan recovers the parent but never revisits the child, leaving the parent output classified as unspent.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-27: 'The parent output can remain classified as unspent, leaving the wallet balance incorrect until another rescan.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "correctness",
+     "harm": "A receive past scan_end that only becomes relevant after an earlier lookahead tx is found is never revisited, causing the balance to remain short.",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-08-29: 'A receive only becomes the wallet\\'s once the prefix pass recovers an earlier one, and it sits past scan_end. The balance comes out 0.00050000 short.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "correctness",
+     "harm": "-walletnotify fired twice for unchanged transactions during full second scan passes",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-10: 'The second walk also re-runs -walletnotify. AddToWallet notifies on every call, so the script fires again for transactions that did not change'",
+     "resolution_evidence": "2026-08-12: 'In the current code the re-scan covers only [0, last_expansion_pos)... for the common single-expansion case the double notification is gone.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "achow101",
+     "reason": "Agrees with concept despite double-scan performance consideration",
+     "substantive": false
+    }
+   ],
+   "state": "Disputed",
+   "summary": "Disputed: reviewers proved the prefix re-scan approach leaves intra-block spends and cascading receives missed, shorting the balance.",
+   "reason": "While everyone agrees the bug exists, jeanpablojp demonstrated that the proposed prefix-only scan does not fully resolve intra-block dependency chains and still leaves the balance short. The author acknowledged the issue and is evaluating an alternative iteration algorithm.",
+   "evidence": [
+    "2026-08-27 molnard identified that child spends after the expansion point are missed by prefix rescanning.",
+    "2026-08-29 jeanpablojp proved with a concrete benchmarked example that a cascading receive past scan_end is also omitted.",
+    "2026-08-29 pablomartin4btc responded that they are analyzing the suggested fix."
+   ],
+   "model_state": "Disputed",
+   "derivation": "blocking objection open, author engaging (jeanpablojp)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Disputed",
+    "derived": "Disputed",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "-walletnotify fired twice for unchanged transactions during full second scan passes",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-10: 'The second walk also re-runs -walletnotify. AddToWallet notifies on every call, so the script fires again for transactions that did not change'",
+      "resolution_evidence": "2026-08-12: 'In the current code the re-scan covers only [0, last_expansion_pos)... for the common single-expansion case the double notification is gone.'"
+     },
+     {
+      "reviewer": "molnard",
+      "kind": "correctness",
+      "harm": "When a child spends a lookahead parent after the expansion position in the same block, the prefix rescan does not revisit the child, leaving the parent output classified as unspent and the wallet balance incorrect",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'The prefix rescan subsequently finds the parent, but it stops before the expander and therefore never revisits the child. Consequence: The parent output can remain classified as unspent, leaving the wallet balance incorrect until another rescan.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "If a recovered transaction in the prefix pass further expands the pool, a later receive in the block past scan_end is never revisited, causing an incorrect wallet balance",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-29: 'On 1d9de0e6 there is a second case the prefix does not reach, with no spend in it. A receive only becomes the wallet's once the prefix pass recovers an earlier one, and it sits past scan_end. The balance comes out 0.00050000 short.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "achow101",
+      "reason": "Concept ACK-ish",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "jeanpablojp",
+      "stance": "objection",
+      "note": "Initially ACKed, but later found a case where prefix rescanning misses transactions past scan_end and leaves an incorrect balance, proposing an alternative algorithm"
+     },
+     {
+      "login": "achow101",
+      "stance": "support",
+      "note": "Concept ACK-ish; noted that blocks with lookahead outputs get scanned twice"
+     },
+     {
+      "login": "molnard",
+      "stance": "objection",
+      "note": "Concept ACK, but noted that prefix rescanning misses child spends after the expansion point, leaving outputs marked unspent"
+     }
+    ],
+    "corrections": [],
+    "summary": "Disputed: molnard and jeanpablojp identified scenarios where prefix rescanning misses transactions and leaves incorrect balances; author evaluating alternative approach",
+    "usage": {
+     "input_tokens": 9514,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 4658
+    }
+   },
+   "first_read": {
+    "state": "Disputed",
+    "model_state": "Disputed",
+    "objections": [
+     {
+      "reviewer": "molnard",
+      "kind": "correctness",
+      "harm": "If a child tx spends a parent output paying a lookahead key later in the block, the prefix rescan recovers the parent but never revisits the child, leaving the parent output classified as unspent.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-27: 'The parent output can remain classified as unspent, leaving the wallet balance incorrect until another rescan.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "A receive past scan_end that only becomes relevant after an earlier lookahead tx is found is never revisited, causing the balance to remain short.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-08-29: 'A receive only becomes the wallet\\'s once the prefix pass recovers an earlier one, and it sits past scan_end. The balance comes out 0.00050000 short.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "achow101",
+      "reason": "Agrees with concept despite double-scan performance consideration",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies `CWallet::ScanForWalletTransactions` in `src/wallet/wallet.cpp` to correctly handle look-ahead pool extensions during block scans.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "The PR fixes a silent wallet bug where transactions are skipped during rescan operations (`rescanblockchain`, `importdescriptors`), leaving users with an incorrect wallet balance without any diagnostic error. The issue is reasonably serious for descriptor wallet users recovering funds, though it is limited to specific intra-block transaction orderings."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes include a wallet functional test (`wallet_rescan_intrablock_ordering.py`), but it tests wallet behavior rather than the test runner or harness framework.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded because test additions verifying wallet features belong to the wallet category, not test infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request fixes a bug in descriptor wallet rescanning where ScanForWalletTransactions misses a transaction sent to a key outside the initial look-ahead pool if a pool-expanding transaction appears later in the same block. When this happens, the wallet displays an incorrect balance with no indication that another rescan is required. Reviewers demonstrated that the author's prefix re-scan approach still misses subsequent intra-block spends and cascading receives, leaving the balance short. The PR is currently stale due to merge conflicts with #34681 while the author evaluates a proposed multi-pass loop rewrite."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.024603
+}

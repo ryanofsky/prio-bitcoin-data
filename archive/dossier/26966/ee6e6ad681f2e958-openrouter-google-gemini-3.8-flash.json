@@ -1,0 +1,162 @@
+{
+ "number": 26966,
+ "input_hash": "ee6e6ad681f2e958",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:00+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 63890,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3372
+ },
+ "cost_usd": 0.0605625,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up initial sync for block filter and transaction indexes",
+    "Allow parallel block processing across configurable worker threads"
+   ],
+   "reviewability": [
+    "Needs rebase against current master",
+    "Author drafted the PR while extracting thread pool to #33689"
+   ],
+   "agreement": [
+    "Broad concept support and testing (ryanofsky, pinheadmz, mzumsande, Sjors)",
+    "Approach NACK citing complexity and txindex slowdowns on SSD (l0rinc)",
+    "Agreement to decouple thread pool into a dedicated PR before proceeding (furszy, andrewtoth)"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it dramatically cuts initial index build time from hours to minutes on multi-core systems",
+      "Directly addresses index sync latency, which is the primary resource hurdle for optional index users"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it introduces a reusable ThreadPool class to replace ad-hoc worker thread management",
+      "Provides a shared concurrent primitive for node subsystems without altering existing utility semantics"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces concurrent block processing for the initial synchronization of BaseIndex subclasses, specifically targeting blockfilterindex and txindex. It adds a general-purpose ThreadPool utility and a new configuration flag `-indexworkers=<n>` to divide block ingestion across background worker threads while maintaining sequential writes where required.",
+  "problem": "Initial construction of optional indexes (such as compact block filters and txindex) runs strictly sequentially, taking hours to complete on large chain histories even when multi-core hardware and fast storage are available.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc raised an Approach NACK over diff complexity and observed that txindex showed minor performance regressions on SSD setups rather than speedups",
+    "Conflicting benchmark results across different hardware and virtualized environments regarding txindex parallel scaling",
+    "Handling of potential disk head thrashing on spinning HDDs under concurrent reads"
+   ],
+   "resolved_concerns": [
+    "Deadlock and shutdown lifecycle issues in the ThreadPool class were identified and addressed with fuzz testing and RAII cleanup",
+    "Decoupling the ThreadPool into a prerequisite PR (#33689) was agreed upon to simplify review"
+   ],
+   "author_status": "Silent since February 2026; set PR to draft pending the merge and integration of the decoupled thread pool PR #33689."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and has been drafted by the author pending a rebase on top of #33689."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Strong concept ACKs and verified speedups, but l0rinc posted an Approach NACK over complexity and txindex slowdown.",
+   "reason": "Reviewers strongly support parallelizing index sync, and benchmarks confirm multi-fold speedups for block filters. However, l0rinc posted an Approach NACK urging a smaller per-index approach and noting txindex regressions, leading the author to put the PR on hold while splitting out the thread pool component.",
+   "evidence": [
+    "Approach ACK by ryanofsky: 'Seems like a nice design and good approach.'",
+    "Code review ACK by pinheadmz reporting blockfilter and txindex total sync time dropped from over 48h to 16h.",
+    "Approach NACK by l0rinc: 'txindex parallelization appears to be broken... The complexity of the changes makes thorough review very challenging... Breaking this into smaller, more manageable chunks would significantly improve the chances.'",
+    "andrewtoth also observed slight slowdowns with txindex on SSD and suggested reconsidering parallel sync for txindex."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    33689
+   ],
+   "enables": [
+    "#34489"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly modifies src/index/base.cpp, src/index/base.h, src/index/blockfilterindex.cpp, and src/index/txindex.h to implement parallel initial synchronization.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Initial index builds take hours, and multiple reviewers confirmed multi-fold speedups (from 6x to 16x on SSDs) for blockfilterindex. It provides durable value for index synchronization and lays groundwork for batched database writes in follow-up work."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Introduces src/util/threadpool.h, adding a general-purpose ThreadPool utility class intended for reuse across node components.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "The thread pool is a clean general utility designed for asynchronous task submission, but as an internal utility supporting other subsystems it is reasonably deferrable on its own."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds unit tests and a fuzz target for the new ThreadPool class, but does not alter general test harnesses or framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are limited to coverage for the introduced ThreadPool utility."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Changes apply exclusively to optional indexes under src/index/ and init startup arguments; mandatory chainstate validation logic is untouched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Optional indexes are outside the validation boundary."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether parallel sync will be retained for txindex or limited to blockfilterindex when rebased",
+   "Final shape of the PR once rebased over #33689"
+  ],
+  "needs": [],
+  "card": "This pull request parallelizes initial index synchronization for blockfilterindex and txindex using a worker thread pool configured via -indexworkers. Benchmark testing by multiple contributors demonstrates substantial speedups for block filter indexing (up to 6x faster on SSDs), though reviewers observed mixed results and occasional slowdowns on txindex. An Approach NACK was lodged regarding review complexity and txindex scaling, leading the author to mark the PR as draft while extracting the ThreadPool component into #33689. The PR is currently stale, with merge conflicts requiring a rebase before code review can proceed."
+ },
+ "raw_text": null
+}

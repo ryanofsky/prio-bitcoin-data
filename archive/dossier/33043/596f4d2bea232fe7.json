@@ -1,0 +1,147 @@
+{
+ "number": 33043,
+ "input_hash": "596f4d2bea232fe7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23400,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4787
+ },
+ "cost_usd": 0.0487413,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets a wallet export and later restore its seed as a printable codex32 code",
+    "Solves the lack of a standard non-electronic (paper) backup format that other wallets already offer",
+    "Aimed at users who want a human-writable, error-correcting backup instead of a digital-only one"
+   ],
+   "reviewability": [
+    "Not reviewable now: the author has not touched the code since July 2025 and it needs a rebase",
+    "Discussion since then has been concept-level only, so a code review would likely be wasted until the author returns or takes a position on the raised design questions"
+   ],
+   "agreement": [
+    "Concept support is real: rkrux gave a concept ACK and called paper backup 'highly desirable' given industry precedent",
+    "But Sjors argues the RPC-based approach duplicates existing addhdkey/gethdkeys work and proposes discussing paper backups as a broader project first (Sjors)",
+    "BenWestgate raises unresolved design gaps: no passphrase/threshold handling per spec, missing timestamp for existing wallets, and recovery should support codex32 shares not just secrets (BenWestgate)",
+    "None of this has been answered because the author has been silent since July 2025"
+   ],
+   "categories": []
+  },
+  "summary": "This POC adds codex32-based paper backups to the Bitcoin Core wallet: a ported codex32 encoder/decoder, a new wallet flag and on-disk storage for the raw HD seed, and two new RPCs (exposesecret to export the seed as codex32, recoverwalletfromseed to rebuild a wallet from it), plus unit and functional tests. It touches wallet creation call sites throughout the codebase to thread an optional seed key through CreateWallet and SetupDescriptorScriptPubKeyMans.",
+  "problem": "Bitcoin Core currently has no standard human-writable (non-electronic) backup format; other wallets in the ecosystem have offered codex32-style paper backups for years, and users who want an offline, error-correcting backup have no first-class option. The author explicitly frames this as a proposal to gauge whether the feature and this particular approach are wanted.",
+  "discussion": {
+   "open_concerns": [
+    "Sjors: this may duplicate the addhdkey/gethdkeys direction being pursued in #32652 and should be discussed as part of a broader design for paper backups covering keys, descriptors, and metadata separately.",
+    "BenWestgate: the design lacks passphrase/threshold handling matching BIP-93, lacks timestamp support needed to recover existing wallets safely, and should support codex32 shares (not just full secrets).",
+    "rkrux: has not reviewed code yet but flags that a timestamp is likely needed and that other approaches tie import/restore to a corresponding descriptor for robustness."
+   ],
+   "resolved_concerns": [
+    "apoelstra's point that the wallet passphrase adds no security once the seed is exposed was acknowledged by the author as correct."
+   ],
+   "author_status": "silent since 2025-07-24 (over a year); described as a draft/POC seeking early feedback"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase, stale author",
+   "reason": "The PR needs a rebase and the author has not been active since 2025-07-24 (419 days), well past the stale-author threshold. Reviewers picked up concept discussion as recently as 2026-04-08, but nobody has done code review, and any review now risks being invalidated once the author returns to address the open design questions or rebases."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Concept support exists (rkrux concept ACK) but Sjors and BenWestgate raise real unresolved design harms (duplicated approach, missing timestamp/threshold handling) that the silent author has not addressed.",
+   "reason": "Multiple substantive, nonblocking-worded criticisms about the chosen approach and missing safety features (timestamp, passphrase/threshold semantics, share-based recovery) remain open with no author response, while at least one reviewer expressed clear concept support for the underlying feature.",
+   "evidence": [
+    "Sjors: 'How does this relate to #27351/#32652? It's probably easier to support import before export' and suggested a broader design discussion.",
+    "BenWestgate: 'Wallets would need to begin storing the seed by default...this should support recovering from valid sets of codex32 shares not just codex32 secrets.'",
+    "rkrux: 'Concept a-c-k for the overall idea of allowing non-electronic (paper-based) wallet backups.'",
+    "apoelstra's security point was accepted by the author, resolving that thread."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "A broader paper-backup design discussion Sjors suggested opening as an issue",
+    "Potential convergence with #32652's addhdkey/gethdkeys approach to seed import/export"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Adds a new wallet flag, on-disk seed storage, and two wallet RPCs (exposesecret, recoverwalletfromseed); the diff is centered in src/wallet/ and test/functional/wallet_*.",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it addresses a real, ecosystem-standard gap (paper backup) that a reviewer (rkrux) called 'highly desirable', and it changes the wallet's security model by storing raw seed material on disk for the first time, which needs careful review regardless of whether this exact approach ships. Design questions raised by Sjors and BenWestgate (missing timestamp support, no share-based recovery, duplication with #32652's addhdkey path) suggest the concrete approach may not be final, which affects agreement, not the underlying importance of solving paper backup."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "exposesecret and recoverwalletfromseed are wallet-domain RPCs about seed backup/restore, not changes to RPC machinery itself, so per the category definition they belong to wallet, not rpc.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the RPC additions are wallet feature surface, not a change to JSON-RPC infrastructure."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "interfaces::Wallet::createWallet gains a seed_key_opt parameter, but this is a mechanical threading of a new option through an existing interface, not a change to IPC mechanics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per the category's own carve-out: an interfaces::Wallet parameter addition is wallet first and only ipc if interface mechanics themselves are the point, which they are not here."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added tests (codex32_tests.cpp, wallet_codex32.py) pin the behavior of the new wallet feature itself, not test framework or infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: per the category file, tests that pin one area's behavior belong to that area (wallet), not to test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project wants seed storage in the wallet DB at all (a fund-safety-relevant design decision) is unresolved; this affects how the wallet-category rationale should weigh security_stability going forward.",
+   "No explicit maintainer area label is present (label list only shows 'Needs rebase'), so category membership for wallet relies on path/content evidence rather than a label prior.",
+   "It is unclear whether the author intends to return to this POC; the long silence combined with continued reviewer interest as recently as April 2026 makes the true review urgency hard to pin down."
+  ],
+  "card": "This draft POC adds codex32 paper-backup support to the Bitcoin Core wallet: it stores the raw HD seed on disk behind a new wallet flag and adds exposesecret/recoverwalletfromseed RPCs to export and restore it in a human-writable, error-correcting format. The problem is real: reviewer rkrux calls paper backup 'highly desirable' given it is standard elsewhere, but the design is contested, with Sjors suggesting the approach duplicates the addhdkey/gethdkeys path in #32652 and BenWestgate flagging missing timestamp and share-based recovery support. The author has been silent since July 2025 despite a year of intermittent concept discussion, so the PR is stale and any code review risks being invalidated by a rework. It conflicts with several other open wallet PRs touching the same files (achow101's wallet-version and transaction-storage work, roconnor-blockstream's addhdkey codex32 PR). No formal dependency is declared, but it is conceptually entangled with #32652 and the broader paper-backup design discussion Sjors proposed opening as a separate issue."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

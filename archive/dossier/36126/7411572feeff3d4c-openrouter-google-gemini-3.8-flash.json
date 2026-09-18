@@ -1,0 +1,149 @@
+{
+ "number": 36126,
+ "input_hash": "7411572feeff3d4c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:57:48+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24618,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3630
+ },
+ "cost_usd": 0.032076,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Store and expose user-defined labels for master key fingerprints in the wallet",
+    "Help users identify cosigners and hardware wallets in multisig setups"
+   ],
+   "reviewability": [
+    "Paused by author while deciding whether key labels should be persisted in the wallet"
+   ],
+   "agreement": [
+    "Blocked by objections to persisting key labels in the DB and using collidable fingerprints (achow101, rkrux)",
+    "Supported by reviewers who want key labeling for multisig and hardware wallet UX (jeanpablojp, Eunovo, vicjuma, davidgumberg)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because labeling master keys improves multisig ergonomics and hardware wallet tracking",
+      "It is a convenience feature that is deferrable and does not impact wallet fund safety"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces key labeling to the wallet database, mapping master key fingerprints to arbitrary label strings. It adds three new RPCs (setkeylabel, getkeylabel, listkeylabels), exposes key labels in getaddressinfo and gethdkeys, and adds corresponding methods to interfaces::Wallet.",
+  "problem": "In multisig setups or setups with multiple signing devices, users and GUIs cannot easily track which master key corresponds to which physical device or cosigner.",
+  "discussion": {
+   "open_concerns": [
+    "achow101 NACKed storing key labels in the wallet database and objected that master key fingerprints are 4-byte collidable identifiers",
+    "rkrux expressed Concept ~0/NACK, arguing that key labels add maintenance burden and complicate the guided multisig workflow"
+   ],
+   "resolved_concerns": [
+    "jeanpablojp noted that getaddressinfo did not handle multisig descriptors, resolved by extracting origins for all securing keys",
+    "Eunovo suggested encapsulating m_key_labels inside CWallet, which author implemented"
+   ],
+   "author_status": "active; marked PR draft on 2026-09-10 to pause review until project reaches consensus on persisting key labels"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Awaiting concept decision",
+   "reason": "The author explicitly put the PR in draft and asked to pause until consensus is reached on issue #35645 regarding whether key labels belong in the wallet DB, making current code review premature."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: achow101 NACKs persisting key labels and using fingerprints; rkrux questions RPC utility.",
+   "reason": "Core wallet maintainer achow101 posted a blocking NACK against storing key labels in the wallet database and against indexing them by 4-byte key fingerprints due to collision risk. The author paused the PR to resolve the architectural dispute.",
+   "evidence": [
+    "achow101: 'NACK... The key labeling that was discussed is for the GUI only... Also, DO NOT USE FINGERPRINTS, THEY ARE COLLIDABLE.'",
+    "rkrux: 'Concept ~0 (tending towards NACK)... I don't see much benefit in providing RPCs for setting or viewing key labels...'",
+    "vicjuma: 'Approach ACK'",
+    "jeanpablojp: 'Concept ACK'",
+    "Eunovo: 'Concept ACK'",
+    "polespinasa: 'Will mark as draft for now until we decide if we want to include labels or not.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35645 (multisig setup GUI tracking)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches only release notes accompanying wallet code changes, not standalone documentation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release notes for a wallet feature are part of that feature's review, not docs category work."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Adds methods to interfaces::Wallet without changing IPC infrastructure, protocols, or serialization mechanics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the IPC category guidelines, adding domain methods to interfaces::Wallet is wallet work unless interface mechanics are the point."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test_runner.py solely to register wallet_keylabels.py, which tests wallet functionality.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A test that pins behavior of the wallet belongs to the wallet category."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies CWallet, WalletBatch, walletdb records, and wallet RPC commands.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because key labeling solves a clear ergonomic pain point for users distinguishing cosigners and hardware keys in multisig setups. It is a convenience feature without fund safety or consensus implications, and can reasonably be deferred while higher-priority wallet work proceeds."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds a keylabel record to the wallet database and exposes RPCs (setkeylabel, getkeylabel, listkeylabels) to label master keys by their fingerprint. It aims to improve usability for multisig and hardware wallet setups by identifying cosigners across addresses. achow101 NACKed the PR over the decision to persist labels in the database and the collision risk of 4-byte key fingerprints. Review is paused as the author placed the PR in draft until design consensus is reached."
+ },
+ "raw_text": null
+}

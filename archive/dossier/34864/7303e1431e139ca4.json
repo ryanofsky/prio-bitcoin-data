@@ -1,0 +1,142 @@
+{
+ "number": 34864,
+ "input_hash": "7303e1431e139ca4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24786,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5230
+ },
+ "cost_usd": 0.0523423,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Tightens the coins cache invariants so production code can no longer create invalid entry states (fresh-but-clean, non-dirty batch-write entries, spent-and-fresh entries).",
+    "Also fixes a real bug where repeatedly spending an already-spent cached coin could overwrite caller-owned output data."
+   ],
+   "reviewability": [
+    "Ready. All reviewer questions were addressed in subsequent pushes and the latest commit has a fresh reACK."
+   ],
+   "agreement": [
+    "Strong support: optout21 gave a detailed ACK explaining the maintainability benefit and reACKed the final commit (optout21).",
+    "andrewtoth gave a concept ACK and co-authored parts of the series (andrewtoth).",
+    "ptrinh independently fuzz-tested the changed BatchWrite invariants for 2h with no crashes (ptrinh)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR revives and splits parts of two older closed PRs to tighten the internal state machine of CCoinsCacheEntry: freshness is now threaded through SetDirty(), the standalone SetFresh() helper is removed, dirtiness is derived from linked-list membership instead of a separate flag, and BatchWrite() now asserts/throws on invalid states (non-dirty cursor entries, spent-and-fresh entries) instead of silently tolerating them. The final two commits also fix SpendCoin() so that spending an already-spent cached coin returns false without touching caller-owned output or cache accounting, and marks the return value [[nodiscard]] so callers must handle it explicitly. Tests, coinscache_sim, and coins_tests are updated to match the now-unreachable states.",
+  "problem": "The coins cache exposed and tested states (standalone FRESH entries, non-dirty BatchWrite cursor entries, spent FRESH entries) that production code should never produce, making the representation harder to reason about and hiding a real bug where repeated SpendCoin() calls on an already-spent entry could overwrite caller-owned output data. This affects anyone maintaining or reasoning about chainstate cache correctness.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth asked why a removed comment was dropped; l0rinc restored it.",
+    "andrewtoth flagged the log message losing the word 'changed'; l0rinc restored it.",
+    "andrewtoth raised a behavior-change concern about SetDirty() silently clearing FRESH; l0rinc added an Assume() to prevent that and clarified via range-diff.",
+    "andrewtoth asked why a code block was touched; l0rinc explained (symmetry with SetDirty)."
+   ],
+   "author_status": "active, last force-push 2026-08-11, addressed all review comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer comments (andrewtoth's four inline questions) were addressed in subsequent pushes, and the final commit received a fresh reACK from optout21 with no new open concerns. ptrinh's independent fuzzing found no issues with the newly-asserted invariants."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: optout21 gave a substantive ACK explaining the maintainability benefit and reACKed the latest commit; andrewtoth gave concept ACK and co-authored commits; no objections outstanding.",
+   "reason": "optout21 wrote a detailed rationale for why removing invalid state combinations is a maintainability win and reACKed the final commit; andrewtoth (co-author on several commits) gave concept ACK; ptrinh independently fuzz-tested the new hard asserts for two hours with no crashes. No reviewer has raised an unresolved objection.",
+   "evidence": [
+    "optout21: 'ACK fa9683af... This change is a code maintainability benefit... I have reimplemented part of the changes independently... found no issues.'",
+    "optout21: 'reACK f27eba862d... A net reduction in complexity around coins view flags.'",
+    "andrewtoth: 'Concept ACK. Thanks for picking this up.'",
+    "ptrinh: '2h fuzzing run on coins_view and coinscache_sim, no crashes, OOMs, sanitizer errors, or hits on the new logic_error.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Revives and completes work started in closed PRs #30673 and #33018 (removing spent-and-FRESH cache entries, removing SetFresh())."
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly and substantively changes CCoinsViewCache/CCoinsCacheEntry (coins.h, coins.cpp), the core UTXO cache representation and SpendCoin()/BatchWrite() logic, which a validation reviewer must understand to review.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Fixes a real bug in SpendCoin() where repeated spends of an already-cached-spent coin could overwrite caller-owned moveout data without changing cache accounting, per the commit message: 'a valid spent cache entry could be treated as successfully spent and overwrite moveout with an empty Coin.' It also removes several previously-representable-but-invalid cache states (spent-FRESH, non-dirty BatchWrite cursor entries), reducing the surface for future validation bugs, as optout21 explains: 'Post-change the invalid states cannot be represented... a code maintainability benefit.' This is groundwork that makes the UTXO cache safer to modify, not a consensus-rule change itself."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Labeled 'UTXO Db and Indexes' and touches CCoinsViewDB::BatchWrite in txdb.cpp, tightening the invariant that all cursor entries written to the LevelDB-backed coins database are dirty, replacing a runtime branch with an assert.",
+    "band": "P2",
+    "reason_tag": "data integrity",
+    "score": 0.52,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The txdb.cpp change asserts that CCoinsViewDB::BatchWrite only ever sees dirty entries, removing a defensive branch that silently handled cases production code should never create; this is a data-integrity tightening for the on-disk coins database rather than a new capability. Impact is real but narrow: it hardens an existing invariant rather than fixing an observed corruption or adding a new index feature."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The only mempool-touching change is a one-line update in txmempool.cpp's CTxMemPool::check() to assert the SpendCoin() return value, a mechanical follow-on from the SpendCoin() [[nodiscard]] change elsewhere; it does not alter mempool policy, acceptance, or relay behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the txmempool.cpp change is a mechanical call-site update to keep check() compiling/consistent with the new SpendCoin() contract, not a substantive mempool policy change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The changed test files (coins_tests.cpp, coinscachepair_tests.cpp, fuzz/coins_view.cpp, fuzz/coinscache_sim.cpp) all pin the behavior of the coins cache specifically, which per the category definition belongs to validation rather than the general test-infrastructure category.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per category definition: 'A test that pins the behavior of one area... belongs to that area, not here.' These tests pin coins-cache behavior, so they count toward validation, not test infrastructure."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the SpendCoin() repeated-spend bug (overwriting moveout) is reachable by any real caller today, or was purely a latent hazard; the PR description and commits don't cite a concrete production incident.",
+   "Whether reviewers consider the txdb.cpp/indexes-labeled portion significant enough on its own to warrant P2, or whether it should be scored lower as a minor consequence of the coins.h change.",
+   "No explicit maintainer (DECISION-level) sign-off beyond contributor ACKs; unclear if this needs a broader maintainer review before merge given it changes the core UTXO cache invariants."
+  ],
+  "card": "This PR (bitcoin/bitcoin#34864) revives and completes work from two older closed PRs (#30673, #33018) to eliminate invalid states from the UTXO coins cache: standalone FRESH entries, non-dirty BatchWrite cursor entries, and spent-FRESH entries can no longer be constructed, and dirtiness is now derived from linked-list membership rather than a separate flag. The final two commits fix a genuine bug in SpendCoin(): repeatedly spending an already-spent cached coin could previously overwrite caller-owned output data, which the PR now prevents and marks [[nodiscard]] to enforce caller handling. The strongest evidence of importance is this SpendCoin() correctness fix plus optout21's detailed review noting the change removes logically-invalid state combinations that 'could potentially break the conventions' if left as-is. Review state is Ready: all of andrewtoth's inline concerns were addressed across force-pushes, ptrinh independently fuzz-tested the new hard invariants for two hours with no crashes, and optout21 reACKed the final commit. No open concerns or dependencies block this PR; it stands on its own as internal hardening of the coins cache and coins database write path."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

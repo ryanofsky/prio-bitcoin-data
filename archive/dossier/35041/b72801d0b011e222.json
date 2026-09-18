@@ -1,0 +1,91 @@
+{
+ "number": 35041,
+ "input_hash": "b72801d0b011e222",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 28660,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2632
+ },
+ "cost_usd": 0.0432263,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up descriptor parsing for xpub/xpriv keys by roughly 30-37 percent",
+    "Benefits wallet loading of large multisig descriptors and speeds up fuzz targets exercising descriptor parsing"
+   ],
+   "reviewability": [
+    "Ready, only cosmetic nits remain and author has addressed prior feedback with fresh pushes",
+    "hodlinator re-ACKed the latest commit"
+   ],
+   "agreement": [
+    "Strong support: hodlinator gave a full ACK with rationale distinguishing this from previously rejected base58 optimizations, sedited gave a concept ACK, no objections raised (hodlinator, sedited)"
+   ],
+   "categories": []
+  },
+  "summary": "This PR speeds up descriptor Parse() for extended keys by avoiding a redundant base58 decode (previously both DecodeExtKey and DecodeExtPubKey ran a full DecodeBase58Check on every key) and by replacing an O(n) INPUT_CHARSET.find() with a precomputed 256-entry lookup table in DescriptorChecksum. It also switches base58/key_io interfaces from std::string to std::string_view to avoid per-key string allocations. The author measured a ~30% improvement on a large multisig tr() descriptor benchmark, and hodlinator independently confirmed ~37% less wall time.",
+  "problem": "Parsing descriptors with many xpub/xpriv keys (e.g. large multisig or fuzz-generated descriptors) does twice the necessary base58 decoding work and a slow O(n) character lookup, wasting CPU during wallet loading and especially during fuzz-target iteration, which the author says motivated the change.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "sedited's suggestion to make a table constexpr - addressed by author",
+    "hodlinator's naming/type nits on INPUT_CHARSET_POS (int8_t, drop static, unsigned char casts) - addressed by author in later pushes",
+    "maflcko's suggestion to pass string_view into internal base58 helper - addressed by author, who renamed to avoid recursion",
+    "hodlinator's remaining stylistic nits on 'Raw' vs 'Internal' naming and const end pointer - open but purely cosmetic, not material"
+   ],
+   "author_status": "active, most recently addressed review feedback with a force-push on 2026-09-02"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "hodlinator re-ACKed the latest commit ddcacd25e7 after the author addressed all substantive feedback (string_view plumbing, INPUT_CHARSET_POS type). Only trivial naming nits remain unaddressed, which do not invalidate review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: hodlinator ACKed with detailed rationale distinguishing this from previously rejected base58 rewrites, sedited gave a concept ACK, no objections from anyone.",
+   "reason": "hodlinator explicitly weighed this against prior rejected base58 optimization PRs (#29473, #21176) and concluded this one is acceptable because it is a higher-level call-combining change plus a trivial O(1) lookup swap, with lower readability cost. No reviewer raised a harm or blocking concern.",
+   "evidence": [
+    "hodlinator: 're-ACK ddcacd25e735dad4868bab7f618961a363f23239' with detailed reasoning why this differs from rejected prior attempts",
+    "sedited: 'Concept ACK'",
+    "maflcko and hodlinator gave only nit-level suggestions, all addressed or purely cosmetic"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Faster wallet-related fuzz targets that exercise descriptor parsing, per author's stated motivation"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies src/script/descriptor.cpp's Parse/ParsePubkeyInner and key_io.cpp/base58.cpp used by wallet descriptor loading; labeled Descriptors.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it delivers a measured ~30-37% speedup in descriptor parsing (author and hodlinator both benchmarked it), which helps wallets loading large multisig descriptors and speeds up wallet-related fuzz targets, per the author's stated motivation. It is not a correctness or fund-safety fix and the benefit, while real, is a secondary performance improvement rather than a core wallet feature or bug fix."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No independent evidence that descriptor parse time is a real user pain point outside of fuzzing (the author's stated motivation is fuzz-target speed, not end-user complaints)",
+   "Whether the conflict with #36133 (multipath descriptor storage) will require rework is unclear; it is a file conflict, not a design dependency"
+  ],
+  "card": "This PR speeds up descriptor Parse() for xpub/xpriv keys by avoiding a redundant base58 decode and replacing an O(n) charset lookup with a precomputed table, yielding a measured ~30-37% speedup on a large multisig descriptor benchmark (author and hodlinator independently confirmed). The author's stated motivation is that slow descriptor parsing was making wallet-related fuzz targets slow; the change benefits wallet loading of large multisig/descriptor setups as a secondary effect. Review state is Ready: hodlinator re-ACKed the latest commit after the author addressed all substantive feedback, and sedited gave a concept ACK, with no objections from anyone. It conflicts with open PR #36133 (multipath descriptor storage) but has no blocking dependency. This is a performance-only change with no correctness or fund-safety implications, making it a worthwhile but deferrable improvement rather than a critical one."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

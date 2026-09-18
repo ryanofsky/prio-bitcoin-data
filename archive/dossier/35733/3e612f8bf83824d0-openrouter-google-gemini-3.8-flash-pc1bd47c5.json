@@ -1,0 +1,348 @@
+{
+ "number": 35733,
+ "input_hash": "3e612f8bf83824d0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:39:17+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 35959,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8596
+ },
+ "cost_usd": 0.05920425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Remove the obsolete FillableSigningProvider class left behind by the legacy wallet removal",
+    "Inline remaining legacy keystore logic directly into LegacyDataSPKM for wallet migration"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "Author addressed all feedback on fuzz tests and script limits with pushed fixes"
+   ],
+   "agreement": [
+    "Concept ACK to containerize legacy wallet code and retire the outdated provider (rkrux)",
+    "Approach ACK and testing on bitcoin-tx (vicjuma, jeanpablojp)",
+    "Objections regarding P2SH script size limits and fuzz test regressions were resolved (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because this is internal cleanup of legacy wallet migration code",
+      "It consolidates the obsolete FillableSigningProvider into LegacyDataSPKM without user-facing impact"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because it adapts bitcoin-tx to use FlatSigningProvider instead of FillableSigningProvider",
+      "Behavior is unchanged aside from explicitly providing required segwit scripts"
+     ]
+    }
+   ]
+  },
+  "summary": "Removes the `FillableSigningProvider` class across the codebase, inlining its remaining functionality into `LegacyDataSPKM` where it is still needed for legacy wallet migration. Call sites in tests and `bitcoin-tx` are converted to use `FlatSigningProvider` with explicit key and script population. A small safeguard is also added to `SignStep` to avoid signing `SCRIPTHASH` redeem scripts exceeding 520 bytes.",
+  "problem": "Following the removal of the legacy wallet, `FillableSigningProvider` remained as an unnecessary and confusing abstraction in the signing subsystem.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp noted that removing the 520-byte check allowed signing P2SH redeem scripts that produce consensus-invalid transactions; achow101 added an explicit size check in SignStep",
+    "jeanpablojp pointed out a fuzz accounting mismatch in spkm_migration when LoadCScript rejected scripts over 520 bytes; fixed by checking HaveCScript",
+    "jeanpablojp noted fuzz/script_sign lost P2WPKH script resolution previously provided implicitly; fixed by explicitly populating the FlatSigningProvider"
+   ],
+   "author_status": "active, addressed reviewer comments and force-pushed updates"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has clean CI, is up to date, and the author addressed all reviewer comments in recent updates."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "vicjuma",
+     "stance": "support",
+     "note": "Tested bitcoin-tx signing paths and confirmed they work as expected"
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "objection",
+     "note": "Gave Approach ACK but identified bugs around 520-byte script signing and fuzz tests, all since addressed"
+    },
+    {
+     "login": "rkrux",
+     "stance": "support",
+     "note": "Concept ACK to containerize legacy wallet code and remove outdated signing provider"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "correctness",
+     "harm": "Signing P2SH redeemScripts over 520 bytes produces consensus-invalid transactions",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-25: 'This branch fixes P2WSH... and also signs P2SH, producing a transaction that is consensus-invalid with Push value size limit exceeded.'",
+     "resolution_evidence": "2026-08-26: 'I added a commit to enforce this in signing.' (achow101)",
+     "sources": [
+      "dossier",
+      "dossier",
+      "dossier",
+      "thread",
+      "thread",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "vicjuma",
+     "reason": "Verified key and script paths in bitcoin-tx with test cases",
+     "substantive": true
+    },
+    {
+     "reviewer": "rkrux",
+     "reason": "Containerizes the legacy wallet migration codepath and removes outdated signing provider",
+     "substantive": true
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "reason": "Approach ACK after building and running tests",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus to remove the class, all reviewer objections regarding script limits and fuzz tests resolved",
+   "reason": "Maintainer rkrux gave Concept ACK citing the architectural benefit of containerizing legacy wallet logic, vicjuma tested and ACKed the bitcoin-tx changes, and jeanpablojp's technical findings were fully addressed in subsequent commits.",
+   "evidence": [
+    "2026-08-10 vicjuma: 'ACK for the bitcoin-tx changes. Will try to review the remaining parts'",
+    "2026-08-25 jeanpablojp: 'Approach ACK. Built and ran the tests.'",
+    "2026-08-26 rkrux: 'Concept ACK... to containerise the codepath related to legacy wallets while discouraging usage of this seemingly outdated signing provider.'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (vicjuma, rkrux)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "bitcoin-tx produces consensus-invalid transactions for P2SH scripts exceeding 520 bytes due to missing push value size checks",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-25: 'AddCScript rejected scripts over 520 bytes for both P2SH and P2WSH... producing a transaction that is consensus-invalid with Push value size limit exceeded. Worth keeping the limit for the script the scriptSig pushes?'",
+      "resolution_evidence": "2026-08-26: 'I added a commit to enforce this in signing.'"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "in the scriptpubkeyman fuzz test, LoadCScript returns true without storing scripts over 520 bytes, causing added_script count tracking to desync",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-25: 'For a script over 520 bytes LoadCScript returns true without storing it, where AddCScript returned false. So added_script counts a script that was never stored, and the >= branch runs instead of the exact-equality one.'",
+      "resolution_evidence": "2026-08-26: 'Fixed'"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "script_sign fuzz test lookups fail because keys no longer implicitly insert P2WPKH scripts and provide GetPubKey lookups",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-25: 'The current script_sign corpus finds both, and with only provider.keys those lookups start failing. Could the explicit insertions bitcoin-tx does be kept here too?'",
+      "resolution_evidence": "2026-08-26: 'Done'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "rkrux",
+      "reason": "containerise the codepath related to legacy wallets while discouraging usage of this seemingly outdated signing provider",
+      "substantive": true
+     },
+     {
+      "reviewer": "vicjuma",
+      "reason": "ACK for the bitcoin-tx changes after testing key and script signing paths",
+      "substantive": true
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Approach ACK, built and ran tests",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "vicjuma",
+      "stance": "support",
+      "note": "tested key and script paths in bitcoin-tx and ACKed the bitcoin-tx changes"
+     },
+     {
+      "login": "jeanpablojp",
+      "stance": "objection",
+      "note": "gave Approach ACK but reported consensus invalidity in bitcoin-tx and two fuzz test issues"
+     },
+     {
+      "login": "rkrux",
+      "stance": "support",
+      "note": "Concept ACK to containerize legacy wallet codepaths and remove outdated signing provider"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: jeanpablojp noted issues with bitcoin-tx consensus limits and fuzz tests, which achow101 fixed; rkrux and jeanpablojp support.",
+    "usage": {
+     "input_tokens": 5995,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2386
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Signing P2SH redeemScripts over 520 bytes produces consensus-invalid transactions",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-25: 'This branch fixes P2WSH... and also signs P2SH, producing a transaction that is consensus-invalid with Push value size limit exceeded.'",
+      "resolution_evidence": "2026-08-26: 'I added a commit to enforce this in signing.' (achow101)"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Fuzz target spkm_migration counted scripts that were never stored when exceeding 520 bytes",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-25: 'For a script over 520 bytes LoadCScript returns true without storing it, where AddCScript returned false.'",
+      "resolution_evidence": "2026-08-26: 'Fixed' (achow101)"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Fuzz target script_sign fails to look up P2WPKH scripts because implicit script derivation was lost",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-25: 'The current script_sign corpus finds both, and with only provider.keys those lookups start failing.'",
+      "resolution_evidence": "2026-08-26: 'Done' (achow101)"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "vicjuma",
+      "reason": "Verified key and script paths in bitcoin-tx with test cases",
+      "substantive": true
+     },
+     {
+      "reviewer": "rkrux",
+      "reason": "Containerizes the legacy wallet migration codepath and removes outdated signing provider",
+      "substantive": true
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Approach ACK after building and running tests",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only removes an obsolete mention of FillableSigningProvider from doc/developer-notes.md as a consequence of code removal.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental documentation edit following the deletion of the class."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes across test files and fuzz targets are mechanical call site updates switching from FillableSigningProvider to FlatSigningProvider.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter test framework infrastructure; merely updates test setups to compile without FillableSigningProvider."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Modifies src/bitcoin-tx.cpp to use FlatSigningProvider instead of FillableSigningProvider and explicitly adds P2WPKH scripts.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the change to bitcoin-tx is a straightforward refactor to replace the deprecated keystore class without introducing new user-facing functionality."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Inlines FillableSigningProvider directly into LegacyDataSPKM in src/wallet/scriptpubkeyman.{cpp,h}.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.22,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because this is internal code cleanup that removes an obsolete signing provider abstraction leftover from legacy wallet code. It provides no direct user-facing benefit or fund safety change, though it helps isolate legacy migration logic."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Removes the obsolete FillableSigningProvider class left over from legacy wallet architecture and inlines its remaining logic into LegacyDataSPKM for legacy wallet migration. Bitcoin-tx and test call sites are updated to use FlatSigningProvider. While an internal cleanup with low strategic urgency, it carries solid support from reviewers and the author has resolved technical concerns regarding 520-byte P2SH script limits."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01344375
+}

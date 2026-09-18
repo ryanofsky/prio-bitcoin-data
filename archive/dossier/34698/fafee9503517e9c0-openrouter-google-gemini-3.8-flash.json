@@ -1,0 +1,107 @@
+{
+ "number": 34698,
+ "input_hash": "fafee9503517e9c0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:28+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18788,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1825
+ },
+ "cost_usd": 0.02093475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Return a clear error message instead of an internal map exception when spending unconfirmed UTXOs in an oversized mempool cluster."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Author addressed achow101's architectural suggestions and rebased cleanly."
+   ],
+   "agreement": [
+    "Positive support with addressed feedback (achow101)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it fixes an edge-case bug where spending from an unconfirmed cluster larger than 500 transactions surfaced an internal map::at exception to users.",
+      "Improves user-facing error reporting during coin selection and AvailableCoins without affecting core consensus or wallet fund safety."
+     ]
+    }
+   ]
+  },
+  "summary": "Handles MiniMiner bump fee calculation failures when unconfirmed outpoints exceed mempool cluster limits. It turns an empty bump-fee map into an explicit error and refactors AvailableCoins to return util::Result<CoinsResult>, propagating an informative error message up through wallet RPCs instead of throwing an out-of-bounds map exception.",
+  "problem": "When the mempool cluster size exceeds 500 transactions, MiniMiner's fee calculation gives up and returns an empty map; subsequent indexing via map::at leaks an internal exception to users creating transactions or running sendall.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "achow101 suggested avoiding std::optional in MiniMiner return types, which the author addressed by detecting emptiness in the wallet callers.",
+    "achow101 suggested using util::Result<CoinsResult> rather than an error out-parameter for AvailableCoins, which the author adopted in the latest push."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author implemented reviewer suggestions from achow101, CI is clean, and there are no unresolved review requests."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; author adopted all suggested changes from achow101, awaiting re-review.",
+   "reason": "achow101 provided directional review on error reporting and return types, which the author implemented.",
+   "evidence": [
+    "achow101 suggested checking !empty() instead of wrapping return in std::optional; author complied.",
+    "achow101 suggested returning util::Result<CoinsResult> from AvailableCoins; author implemented in latest rebase."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes wallet fee calculation handling in src/wallet/spend.cpp and updates wallet RPC error handling.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes issue #29711 where an unhandled map::at exception was exposed to users attempting to spend unconfirmed coins associated with a mempool cluster exceeding the 500-tx limit. While the bug causes a confusing error message, it only occurs in rare high-depth mempool topologies and does not endanger funds."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test adjustments in wallet_spend_unconfirmed.py, mini_miner fuzz target, and benchmarks test wallet logic rather than the test framework.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Modifications to tests and benchmarks directly serve the wallet bug fix."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes issue #29711 by handling MiniMiner bump fee calculation failures when an unconfirmed input belongs to an unconfirmed transaction cluster that exceeds the 500-tx limit. Instead of indexing into an empty map and throwing a map::at exception, the wallet detects calculation failure and AvailableCoins returns util::Result<CoinsResult> with a clear descriptive error. Reviewer achow101 suggested returning util::Result, which the author implemented; the PR is clean, passing CI, and ready for follow-up review."
+ },
+ "raw_text": null
+}

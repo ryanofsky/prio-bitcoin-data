@@ -1,0 +1,102 @@
+{
+ "number": 35742,
+ "input_hash": "f1339d7a08d5322c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6440,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4618
+ },
+ "cost_usd": 0.0309363,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Rejects multipath Miniscript descriptors that have duplicate keys hidden in a branch other than the first one.",
+    "Currently the wallet silently accepts such descriptors, which can later block reload or produce unsafe imports."
+   ],
+   "reviewability": [
+    "Not ready to review as-is: a maintainer requested restructuring (split commits, more test coverage) on 2026-09-08 and the author hasn't responded.",
+    "PR also needs a rebase per its label."
+   ],
+   "agreement": [
+    "Concept ACKs from two reviewers who reproduced the bug (l0rinc, vicjuma), and a third reviewer independently confirmed the fix works (Zeegaths).",
+    "l0rinc formally requested changes (commit splitting, broader test coverage, a simplification) with no author reply since."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it closes a real gap where duplicate-key sanity checking only covered multipath branch 0, letting descriptors with colluding keys in later branches be accepted and imported.",
+      "This affects descriptor safety and wallet reload behavior (a broken import can leave the wallet unreloadable), though the trigger case is a fairly narrow multipath/Miniscript configuration."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a bug where the duplicate-key sanity check for multipath Miniscript descriptors only compared the first (0th) branch, so a duplicate key present only in a later branch went undetected. The PR reruns the existing duplicate-key check across every expanded multipath branch before building the final descriptors, and adds two regression tests covering a wsh two-branch case and a tr three-branch case. A reviewer confirmed via RPC testing that master silently accepts the bad descriptor (and even allows importing it into a wallet) while the PR correctly rejects it.",
+  "problem": "Wallet and descriptor users relying on multipath (BIP389) Miniscript descriptors could unknowingly create or import descriptors with duplicate keys in a non-first branch, which pass sanity checks on master but should be rejected as unsafe. This can also silently corrupt wallet state: Zeegaths showed the bad descriptor imports successfully on master but is rejected (as intended) on the PR branch.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc (2026-09-08): requested splitting the change into focused commits (characterize old behavior, then fix) and asked for broader test coverage (mixed single/multipath keys, wildcards, hardened paths, differing origins, nested errors, valid key sharing, and a functional test for the wallet-reload impact). No author response yet.",
+    "l0rinc also suggested a code simplification reusing FindInsaneSub() results, unaddressed.",
+    "vicjuma flagged that hardcoding index 0 elsewhere in the codebase (referencing #22838) contradicts BIP389's multipath design, though this is more a note than a blocking objection.",
+    "PR needs a rebase per its label."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-09-05 force push, no reply to 2026-09-07/08 review comments"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Needs rebase, unaddressed request",
+   "reason": "The PR needs a rebase (per its label) and, more materially, l0rinc's 2026-09-08 CHANGES_REQUESTED review asking for commit restructuring and expanded test coverage has gone unanswered for over the 7-day threshold, so review effort risks being invalidated by a coming rework."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Concept ACKs from l0rinc and vicjuma who reproduced the bug, but l0rinc's formal CHANGES_REQUESTED (split commits, more tests, a simplification) has no author reply since 2026-09-08.",
+   "reason": "Two reviewers with contributor/member standing agree the underlying bug is real and the fix direction is right, but a maintainer's blocking review request is unaddressed past the waiting threshold.",
+   "evidence": [
+    "l0rinc: 'Concept ACK, I also found the same issue - please rebase.'",
+    "vicjuma: 'Concept ACK' after reproducing the error.",
+    "l0rinc CHANGES_REQUESTED: suggested splitting into commits, adding test coverage for mixed single/multipath keys, wildcards, hardened paths, and a functional test showing wallet-reload impact.",
+    "Zeegaths independently confirmed via RPC testing that the fix changes behavior as intended."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Fixes issue #35629 (duplicate-key sanity gap in multipath Miniscript descriptors)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Change is entirely within descriptor parsing (src/script/descriptor.cpp) used for wallet descriptor import/creation, labeled 'Descriptors', and demonstrated by a reviewer to affect wallet importdescriptors behavior.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Zeegaths demonstrated that master silently accepts and imports a multipath descriptor with duplicate keys hidden in a non-zero branch, which the PR correctly rejects; the issue title itself frames this as a sanity-check gap that only checks branch 0. This is a real correctness bug in descriptor safety checking that could allow unsafe wallet descriptors to be created or imported, though the affected configuration (multipath Miniscript with a duplicate key in a later branch) is narrow, keeping it at P2 rather than P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether duplicate keys in a later multipath branch pose a genuine fund-safety risk (e.g., unspendable outputs, key-reuse privacy leak) or are mainly a soundness/consistency issue; the discussion does not spell out the concrete downstream harm beyond wallet-reload breakage.",
+   "Whether the maintainer's request to split commits and add more tests reflects a substantive disagreement about correctness or purely a review-process preference, which affects how much weight to give it in Agreement.",
+   "Impact of the two conflicting open PRs (#36122, #35445) on this PR's mergeability was not discussed by any participant."
+  ],
+  "card": "This PR fixes a duplicate-key sanity check bug in multipath Miniscript descriptor parsing: the check only compared the first (0th) multipath branch, so a duplicate key present only in a later branch was silently accepted. A reviewer (Zeegaths) reproduced this on master, showing the bad descriptor is accepted and even imports into a wallet, while the PR correctly rejects it with a clear error. Two reviewers gave Concept ACK after reproducing the issue, but a maintainer (l0rinc) then requested changes on 2026-09-08, asking for the commits to be split for clarity and for broader test coverage (mixed key types, wildcards, hardened paths, a functional wallet-reload test), and the author has not yet responded; the PR also needs a rebase. Fixes open issue #35629. No hard dependency on other PRs, though it has file-level conflicts with two other open descriptor PRs (#36122, #35445)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

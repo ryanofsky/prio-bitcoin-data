@@ -1,0 +1,648 @@
+{
+ "number": 32427,
+ "input_hash": "cc23e3a0a0d9d78e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:23:55+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 109738,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12136
+ },
+ "cost_usd": 0.1278135,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace LevelDB for block tree storage with a flat-file write-ahead-log format",
+    "Allow external applications using libbitcoinkernel to read block and header indexes concurrently with bitcoind"
+   ],
+   "reviewability": [
+    "Author reworking: in draft while reworking concurrency and write performance",
+    "Also needs rebase against master with 70 days of author silence"
+   ],
+   "agreement": [
+    "Broad concept approval for replacing LevelDB block storage to unblock kernel readers (josibake, theuni, ismaelsadeeq, marcofleon)",
+    "Technical discussion around WAL design, file locking, and crash safety with fixes pushed (stickies-v, willcl-ark, stringintech)",
+    "Open architectural rework planned by author to eliminate reader contention and reduce write latency (sedited)"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it addresses a fundamental limitation in libbitcoinkernel",
+      "LevelDB prevents concurrent process access, blocking external tools from inspecting block data while the node runs"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it redesigns core on-disk block index persistence and crash recovery",
+      "Replaces CBlockTreeDB with a new WAL format and migration logic on node startup"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the LevelDB-based block tree database (CBlockTreeDB) with a custom flat-file store (BlockTreeStore) using fixed-size serialized records, a write-ahead log (WAL) for atomic updates, and CRC32C checksums for corruption detection. It also provides automatic migration of existing LevelDB block indexes on startup and introduces directory-level file locking to guard against concurrent writer processes.",
+  "problem": "LevelDB acquires an exclusive file lock that prevents any other process from opening the database. External applications building on libbitcoinkernel (such as indexers like Electrs) cannot inspect block or header data concurrently while Bitcoin Core is running, forcing users to shut down the node first.",
+  "discussion": {
+   "open_concerns": [
+    "Directory-level syncing on Windows is a no-op, which may affect atomic flag persistence across crashes.",
+    "The current WAL model applies changes immediately on the writer thread, which slows down FlushStateToDisk compared to LevelDB journaling and risks readers observing stale or contended files.",
+    "Read-only mode in libbitcoinkernel is not yet wired to guarantee readers do not observe torn state if an unapplied WAL exists."
+   ],
+   "resolved_concerns": [
+    "Added directory writer locking to fail fast if another writer attempts to access the store.",
+    "Added timeouts to StoreLock polling to avoid indefinite hangs.",
+    "Fixed memory usage during migration by using a local BlockMap rather than mutating node state.",
+    "Added CRC32C checksums and magic/version headers across all index and log files."
+   ],
+   "author_status": "converted to draft on 2026-07-09 to redesign parallel reader access and remove the write penalty; silent since"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "The author converted the pull request to draft on 2026-07-09, stating they are working on true parallel reader access and mitigating the write synchronization penalty via asynchronous log application. The branch also has merge conflicts and needs a rebase."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "Approach ACK for reducing LevelDB reliance"
+    },
+    {
+     "login": "shahsb",
+     "stance": "question",
+     "note": "asked clarifying questions regarding concurrency, corruption, and recovery"
+    },
+    {
+     "login": "josibake",
+     "stance": "support",
+     "note": "Concept ACK citing the Electrs index-building use case"
+    },
+    {
+     "login": "Sjors",
+     "stance": "neutral",
+     "note": "Suggested exploring one-block-per-file storage"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "objection",
+     "note": "raised concerns about lack of atomic updates and corruption risks"
+    },
+    {
+     "login": "mzumsande",
+     "stance": "neutral",
+     "note": "Commented on reindex causes and corruption in blk files"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "neutral",
+     "note": "Ran reindex benchmarks and posted code suggestions"
+    },
+    {
+     "login": "theuni",
+     "stance": "support",
+     "note": "Concept ACK and participated in storage design discussion"
+    },
+    {
+     "login": "sipa",
+     "stance": "neutral",
+     "note": "Suggested alternative directory sharding layout"
+    },
+    {
+     "login": "hodlinator",
+     "stance": "neutral",
+     "note": "Discussed directory sharding schemes"
+    },
+    {
+     "login": "davidgumberg",
+     "stance": "question",
+     "note": "asked about FAT32 per-directory file limits"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "Advocated for robust early corruption detection"
+    },
+    {
+     "login": "ismaelsadeeq",
+     "stance": "support",
+     "note": "Concept ACK and tested on signet"
+    },
+    {
+     "login": "marcofleon",
+     "stance": "support",
+     "note": "Concept ACK and differentially fuzzed the implementation for 5000 hours"
+    },
+    {
+     "login": "stickies-v",
+     "stance": "objection",
+     "note": "Extensive review; noted Windows fsync issues and synchronization edge cases"
+    },
+    {
+     "login": "HowHsu",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "craigraw",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "willcl-ark",
+     "stance": "objection",
+     "note": "Reviewed WAL architecture and multi-process lock semantics"
+    },
+    {
+     "login": "janb84",
+     "stance": "support",
+     "note": "Stale ACK"
+    },
+    {
+     "login": "alexanderwiederin",
+     "stance": "support",
+     "note": "Stale ACK"
+    },
+    {
+     "login": "yuvicc",
+     "stance": "support",
+     "note": "Stale ACK"
+    },
+    {
+     "login": "edilmedeiros",
+     "stance": "support",
+     "note": "Approach ACK"
+    },
+    {
+     "login": "stringintech",
+     "stance": "support",
+     "note": "Contributed exclusive writer lock and functional test"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "stickies-v",
+     "kind": "correctness",
+     "harm": "Directory committing is a no-op on Windows, potentially breaking flag file atomicity on power loss",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-07-02: 'This is a no-op on Windows. I think this can lead to several edge case issues, like the block tree being marked as unpruned when blocks have already been removed, or the WAL not being applied atomically.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "willcl-ark",
+     "kind": "approach",
+     "harm": "READ mode readers could observe stale or incomplete data if a writer crashed leaving an unapplied WAL",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-07-07: 'since READ-mode methods then read the data files directly, a reader could observe stale or partially applied data if log_flag.dat is present from a failed writer.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "correctness",
+     "harm": "interrupted writes could corrupt data files without atomic updates or checksum detection",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-05-07: 'How worried are we about file corruption here? I thought the main reason we use leveldb and sqlite databases in places like this where we don't need indexing is that they support atomic updates'",
+     "resolution_evidence": "2025-06-10: 'The latest push updates the block tree store to use a write ahead log for atomic writes, and crc32c checksums to detect data corruption.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "josibake",
+     "reason": "Unblocks out-of-process index building in Electrs and Esplora via libbitcoinkernel without requiring Bitcoin Core to be stopped",
+     "substantive": true
+    },
+    {
+     "reviewer": "marcofleon",
+     "reason": "Differentially fuzzed BlockTreeDB vs BlockTreeStore for ~5000 CPU hours with no discrepancies",
+     "substantive": true
+    },
+    {
+     "reviewer": "theuni",
+     "reason": "Strong interest in removing the LevelDB dependency for block and header metadata",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "The codebase changes seem surprisingly small and reducing the LevelDB dependency sounds good",
+     "substantive": true
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "reason": "Excited about replacing LevelDB dependency in kernel",
+     "substantive": false
+    },
+    {
+     "reviewer": "stringintech",
+     "reason": "Supportive of the lock architecture improvements and contributed writer-lock testing",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Strong concept support for moving away from LevelDB, but paused while author reworks WAL and reader concurrency to address feedback from willcl-ark and stickies-v",
+   "reason": "There is widespread agreement across kernel and validation contributors on the goal of decoupling block tree indexing from LevelDB exclusivity. Reviewers raised substantive concerns regarding WAL design and cross-platform atomic guarantees, prompting the author to put the PR in draft for architectural reworking.",
+   "evidence": [
+    "josibake: 'Waiting for Bitcoin Core to finish IBD... made this approach clunky. I'll revive this PoC as a means of testing this PR'",
+    "marcofleon: 'I've differentially fuzzed BlockTreeDB and BlockTreeStore for ~5000 cpu hours so far and no issues.'",
+    "willcl-ark: 'I still feel like the storage model is slightly in-between two WAL designs... Sticking with the current design then, are we happy with OpenMode::READ returning without checking for a pending committed WAL?'",
+    "sedited: 'Going to convert this to draft for now... I also think that we should implement true parallel reader access without readers blocking each other, and I'd like to mitigate the write penalty...'"
+   ],
+   "model_state": "Positive w/ caveats",
+   "derivation": "nonblocking objection open (stickies-v, willcl-ark)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "ryanofsky",
+      "kind": "correctness",
+      "harm": "interrupted writes could corrupt data files without atomic updates or checksum detection",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-05-07: 'How worried are we about file corruption here? I thought the main reason we use leveldb and sqlite databases in places like this where we don't need indexing is that they support atomic updates'",
+      "resolution_evidence": "2025-06-10: 'The latest push updates the block tree store to use a write ahead log for atomic writes, and crc32c checksums to detect data corruption.'"
+     },
+     {
+      "reviewer": "willcl-ark",
+      "kind": "correctness",
+      "harm": "READ-mode readers directly reading data files could observe stale or partially applied state if a writer crashed leaving a committed but unapplied WAL",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-07: 'since READ-mode methods then read the data files directly, a reader could observe stale or partially applied data if log_flag.dat is present from a failed writer.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "stickies-v",
+      "kind": "correctness",
+      "harm": "Directory flushing is a no-op on Windows, potentially breaking atomicity of WAL flag persistence and flag file state",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-02: 'This is a no-op on Windows. I think this can lead to several edge case issues, like the block tree being marked as unpruned when blocks have already been removed, or the WAL not being applied atomically.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "The codebase changes seem surprisingly small and reducing the LevelDB dependency sounds good",
+      "substantive": true
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Enables external applications such as electrs to build indexes concurrently using libbitcoinkernel",
+      "substantive": true
+     },
+     {
+      "reviewer": "theuni",
+      "reason": "Supportive of a new implementation outside of LevelDB",
+      "substantive": false
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "Excited about replacing LevelDB dependency in kernel",
+      "substantive": false
+     },
+     {
+      "reviewer": "marcofleon",
+      "reason": "Concept ACK after differentially fuzzing the store against BlockTreeDB for 5000 CPU hours without issue",
+      "substantive": true
+     },
+     {
+      "reviewer": "stringintech",
+      "reason": "Supportive of the lock architecture improvements and contributed writer-lock testing",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "Approach ACK, praised small diff to reduce LevelDB dependency"
+     },
+     {
+      "login": "shahsb",
+      "stance": "question",
+      "note": "asked clarifying questions regarding concurrency, corruption, and recovery"
+     },
+     {
+      "login": "josibake",
+      "stance": "support",
+      "note": "Concept ACK, cited libbitcoinkernel index building use case"
+     },
+     {
+      "login": "Sjors",
+      "stance": "neutral",
+      "note": "suggested storing one block per file instead"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "objection",
+      "note": "raised concerns about lack of atomic updates and corruption risks"
+     },
+     {
+      "login": "mzumsande",
+      "stance": "neutral",
+      "note": "noted -reindex is still needed for corrupted blk files"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "neutral",
+      "note": "benchmarked reindexing performance and provided inline code review"
+     },
+     {
+      "login": "theuni",
+      "stance": "support",
+      "note": "Concept ACK for an implementation outside LevelDB"
+     },
+     {
+      "login": "sipa",
+      "stance": "neutral",
+      "note": "discussed file directory structure for block storage"
+     },
+     {
+      "login": "hodlinator",
+      "stance": "neutral",
+      "note": "discussed sharding block files by hash suffix"
+     },
+     {
+      "login": "davidgumberg",
+      "stance": "question",
+      "note": "asked about FAT32 per-directory file limits"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "noted benefits of early corruption detection"
+     },
+     {
+      "login": "ismaelsadeeq",
+      "stance": "support",
+      "note": "Concept ACK, tested branch on signet"
+     },
+     {
+      "login": "marcofleon",
+      "stance": "support",
+      "note": "Concept ACK, ran differential fuzzing against LevelDB"
+     },
+     {
+      "login": "stickies-v",
+      "stance": "objection",
+      "note": "extensive code review; noted Windows directory flush no-op could undermine atomicity"
+     },
+     {
+      "login": "HowHsu",
+      "stance": "neutral",
+      "note": "comments omitted in excerpt"
+     },
+     {
+      "login": "craigraw",
+      "stance": "neutral",
+      "note": "comments omitted in excerpt"
+     },
+     {
+      "login": "willcl-ark",
+      "stance": "objection",
+      "note": "questioned WAL design and readers potentially observing unapplied WAL state"
+     },
+     {
+      "login": "janb84",
+      "stance": "neutral",
+      "note": "comments omitted in excerpt"
+     },
+     {
+      "login": "alexanderwiederin",
+      "stance": "neutral",
+      "note": "comments omitted in excerpt"
+     },
+     {
+      "login": "yuvicc",
+      "stance": "neutral",
+      "note": "comments omitted in excerpt"
+     },
+     {
+      "login": "edilmedeiros",
+      "stance": "neutral",
+      "note": "comments omitted in excerpt"
+     },
+     {
+      "login": "stringintech",
+      "stance": "support",
+      "note": "suggested dedicated writer lock and provided chainstate test"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: willcl-ark raised concerns about read-only instances observing unapplied WAL state, and stickies-v noted Windows directory flush limitations; author drafted PR to rework WAL and concurrency.",
+    "usage": {
+     "input_tokens": 42923,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 7100
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Positive w/ caveats",
+    "objections": [
+     {
+      "reviewer": "stickies-v",
+      "kind": "correctness",
+      "harm": "Directory committing is a no-op on Windows, potentially breaking flag file atomicity on power loss",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-02: 'This is a no-op on Windows. I think this can lead to several edge case issues, like the block tree being marked as unpruned when blocks have already been removed, or the WAL not being applied atomically.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "willcl-ark",
+      "kind": "approach",
+      "harm": "READ mode readers could observe stale or incomplete data if a writer crashed leaving an unapplied WAL",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-07: 'since READ-mode methods then read the data files directly, a reader could observe stale or partially applied data if log_flag.dat is present from a failed writer.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "josibake",
+      "reason": "Unblocks out-of-process index building in Electrs and Esplora via libbitcoinkernel without requiring Bitcoin Core to be stopped",
+      "substantive": true
+     },
+     {
+      "reviewer": "marcofleon",
+      "reason": "Differentially fuzzed BlockTreeDB vs BlockTreeStore for ~5000 CPU hours with no discrepancies",
+      "substantive": true
+     },
+     {
+      "reviewer": "theuni",
+      "reason": "Strong interest in removing the LevelDB dependency for block and header metadata",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Parallel block data reading for external libbitcoinkernel consumers"
+   ]
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches doc/files.md only to document the path change for blocks/index/.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Does not touch src/index/ or optional index logic; only adjusts a coinstats functional test initialization.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Explicitly motivated by libbitcoinkernel multi-process support and adds kernel storage modules under src/kernel/.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because LevelDB's exclusive file lock is a major architectural roadblock for libbitcoinkernel, preventing any external application from reading chain data concurrently with a running bitcoind instance. Resolving this unlocks major downstream integrations (e.g. electrs indexing)."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not affect mempool structure, eviction, or transaction relay policy.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Includes benchmarks, unit tests, and fuzz tests specifically testing the new BlockTreeStore, but does not modify test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Does not touch shared utility libraries, logging, or cryptographic primitives.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Replaces CBlockTreeDB in src/node/blockstorage.cpp and src/chain.h, changing how the node persists and loads CBlockIndex chain metadata.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because replacing the block index storage mechanism changes critical on-disk state management, crash recovery, and LevelDB memory allocations in validation. While LevelDB works today for bitcoind, eliminating it for block headers reduces startup cache allocations and simplifies block index deserialization."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #32427 replaces the LevelDB-based block tree database with a flat-file store backed by a write-ahead log and CRC32C checksums. The change solves a major limitation in libbitcoinkernel where LevelDB's exclusive process lock prevents secondary tools (like Electrs) from reading block and header indexes while bitcoind is running. Concept support is broad, but the PR is currently paused in draft while the author addresses WAL synchronization overhead and true parallel reader access raised by willcl-ark and stickies-v."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.05881725
+}

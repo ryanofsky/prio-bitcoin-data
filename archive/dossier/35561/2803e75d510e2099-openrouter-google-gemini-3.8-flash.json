@@ -1,0 +1,125 @@
+{
+ "number": 35561,
+ "input_hash": "2803e75d510e2099",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:31+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17982,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3078
+ },
+ "cost_usd": 0.025029,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reduce cs_main lock contention in P2P message processing",
+    "Consolidate peer state tracking by moving fields from CNodeState to Peer"
+   ],
+   "reviewability": [
+    "Needs rebase against current master"
+   ],
+   "agreement": [
+    "Strong support for moving peer fields out of CNodeState and removing cs_main locks (davidgumberg, dergoegge, mzumsande, w0xlt)"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it eliminates cs_main locking on several peer flags and simplifies state management",
+      "Provides minor lock contention relief during block announcements and sync without resolving a critical bottleneck"
+     ]
+    }
+   ]
+  },
+  "summary": "Moves `m_requested_hb_cmpctblocks`, `m_provides_cmpctblocks`, and `fPreferredDownload` (renamed `m_preferred_download`) from `CNodeState` to `Peer` as atomic variables. Also makes `m_num_preferred_download_peers` an atomic integer, allowing several call sites in `net_processing.cpp` to drop `cs_main` locking.",
+  "problem": "Protecting peer download and compact block negotiation flags with `cs_main` introduces unnecessary lock contention, thread safety annotations, and split state across `CNodeState` and `Peer`.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "dergoegge noted that reasoning about `m_num_preferred_download_peers` without a shared lock was harder, but agreed the atomics are correct; mzumsande noted precedent with `m_wtxid_relay_peers`.",
+    "mzumsande suggested adding a negative lock annotation `!m_peer_mutex` to `NewPoWValidBlock`, which the author added."
+   ],
+   "author_status": "active; last push addressed review feedback and rebased, but currently silent for 22 days while conflicting with master"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts against master and is marked with the 'Needs rebase' label."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support for dropping cs_main and migrating state to Peer; all reviewer questions resolved",
+   "reason": "Reviewers agreed with the direction to reduce cs_main locking scope and approved the atomic implementation across iterations without objections.",
+   "evidence": [
+    "davidgumberg Concept ACKed: 'Less cs_main is good, locks are scary, and can hurt performance, and are unnecessary for all of these fields.'",
+    "dergoegge reviewed and ACKed an earlier revision, confirming the changes look fine and safe.",
+    "mzumsande Concept ACKed, pointing out consistency with existing atomic patterns in net_processing.",
+    "w0xlt ACKed the latest head commit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies peer state structures and lock usage inside src/net_processing.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Reduces cs_main locking scope in net_processing by moving three peer state booleans and an integer counter to atomics. While it serves the ongoing goal of decoupling net_processing from cs_main, it addresses no active bug or major performance bottleneck."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Only updates variable names in comments within test_framework.py via scripted-diff.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The changes in test files are purely comment adjustments resulting from the scripted rename of fPreferredDownload."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches test/functional/wallet_listsinceblock.py solely to update a comment referencing fPreferredDownload.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not touch any wallet logic or wallet interface code."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35561 moves compact block relay flags and preferred download status from CNodeState to Peer as atomic variables, and converts m_num_preferred_download_peers into an atomic integer. This removes the need for cs_main locking across several peer processing paths in net_processing.cpp. The change is internal cleanup that incrementally reduces cs_main lock contention and simplifies peer state tracking. The PR has strong review support with an ACK on the latest push, but is currently stale pending a rebase."
+ },
+ "raw_text": null
+}

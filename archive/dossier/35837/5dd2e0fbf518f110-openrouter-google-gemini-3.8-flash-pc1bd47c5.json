@@ -1,0 +1,202 @@
+{
+ "number": 35837,
+ "input_hash": "5dd2e0fbf518f110",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:42:29+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21219,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4537
+ },
+ "cost_usd": 0.032928,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent scanblocks from silently omitting blocks when filter ranges cannot be read",
+    "Return an informative error instead of falsely reporting completed: true"
+   ],
+   "reviewability": [
+    "Ready for review",
+    "Author addressed initial review feedback with an updated push"
+   ],
+   "agreement": [
+    "Concept approval for fixing the silent gap (maflcko)",
+    "Initial objection on matching getblockfilter behavior was addressed in code (fjahr)"
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it fixes a silent data omission bug in an RPC response",
+      "Applications relying on scanblocks during index rebuilding would miss relevant transactions without knowing it"
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes `scanblocks` so that failures during `LookupFilterRange` are surfaced as RPC errors rather than silently skipped. It mirrors `getblockfilter` error handling by distinguishing between unindexed blocks while the index is catching up (`RPC_MISC_ERROR`) and unexpected read failures once synced (`RPC_INTERNAL_ERROR`), while adding functional test coverage.",
+  "problem": "When the block filter index is behind the active chain or rebuilding, `scanblocks` skipped unreadable filter chunks without throwing an error and still returned `completed: true`. Downstream callers had no way of knowing blocks were omitted from the scan results.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "fjahr noted that getblockfilter does not fail unconditionally when the index is unsynced, only when the requested range is unavailable; author adjusted the implementation to allow scans of already-indexed ranges while the index catches up"
+   ],
+   "author_status": "active, addressed reviewer feedback and force-pushed changes on 2026-08-05"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, passes CI, and addresses the initial review feedback."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "maflcko",
+     "stance": "support",
+     "note": "Concept ACK and confirmed the bug using local AI tooling"
+    },
+    {
+     "login": "fjahr",
+     "stance": "objection",
+     "note": "objected to failing unconditionally when unsynced, resolved after author adapted logic to match getblockfilter"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "fjahr",
+     "kind": "approach",
+     "harm": "Failing scans unconditionally when the index is behind tip would break valid scans of already-indexed block ranges",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-30: 'There we don't fail unconditionally if the index isn't synced. We only fail if the range isn't available.'",
+     "resolution_evidence": "2026-08-04 MicSm: 'You're right - thanks... So, I updated to match this: BlockUntilSyncedToCurrentChain() is only used as an index_ready flag and a failed LookupFilterRange is classified the same way.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "maflcko",
+     "reason": "Agreed with fixing the silent ignore of LookupFilterRange failures and gave Concept ACK",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Positive: Concept ACK from maflcko; fjahr's concern on handling already-indexed ranges was addressed in an updated push",
+   "reason": "Reviewers agree the silent skipping of unindexed ranges is a bug. The only criticism regarding error behavior alignment with getblockfilter has been fixed.",
+   "evidence": [
+    "2026-07-30 maflcko: 'Concept ACK.'",
+    "2026-07-30 fjahr: 'What this is doing here is different from what getblockfilter does...'",
+    "2026-08-04 MicSm: 'I updated to match this...'"
+   ],
+   "model_state": "Positive",
+   "derivation": "substantive support, no open objection (maflcko)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Positive",
+    "objections": [
+     {
+      "reviewer": "fjahr",
+      "kind": "correctness",
+      "harm": "unconditionally failing when the index is behind the tip rejects scans whose requested range is already indexed and available",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-30: \"What this is doing here is different from what `getblockfilter` does. There we don't fail unconditionally if the index isn't synced. We only fail if we the range isn't available.\"",
+      "resolution_evidence": "2026-08-04: \"You're right - thanks... So, I updated to match this: `BlockUntilSyncedToCurrentChain()` is only used as an `index_ready` flag and a failed `LookupFilterRange` is classified the same way.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "maflcko",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "maflcko",
+      "stance": "support",
+      "note": "Concept ACK and commented on the PR's AI policy note"
+     },
+     {
+      "login": "fjahr",
+      "stance": "objection",
+      "note": "noted that failing unconditionally when the index is not synced differs from getblockfilter and unnecessarily rejects scans for ranges that are already indexed"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive: maflcko Concept ACKed; fjahr's concern about unconditionally failing while syncing was addressed in an update.",
+    "usage": {
+     "input_tokens": 4641,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 1497
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Positive",
+    "objections": [
+     {
+      "reviewer": "fjahr",
+      "kind": "approach",
+      "harm": "Failing scans unconditionally when the index is behind tip would break valid scans of already-indexed block ranges",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-30: 'There we don't fail unconditionally if the index isn't synced. We only fail if the range isn't available.'",
+      "resolution_evidence": "2026-08-04 MicSm: 'You're right - thanks... So, I updated to match this: BlockUntilSyncedToCurrentChain() is only used as an index_ready flag and a failed LookupFilterRange is classified the same way.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "maflcko",
+      "reason": "Agreed with fixing the silent ignore of LookupFilterRange failures and gave Concept ACK",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes the error reporting and return behavior of the scanblocks RPC in src/rpc/blockchain.cpp",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Fixes a correctness defect where an RPC returns successful status (`completed: true`) while silently omitting data due to unreadable filter chunks. Callers querying filters during background index syncing would receive false negatives."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #35837 fixes a silent data omission bug in the scanblocks RPC. When the block filter index is behind the chain tip or rebuilding, failed filter range lookups were previously ignored while still returning completed: true. The PR updates scanblocks to report an error when a requested range cannot be read, mirroring getblockfilter's error handling. Initial review feedback from fjahr regarding scans of already-indexed prefixes was resolved in a follow-up push, and maflcko gave Concept ACK."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0090945
+}

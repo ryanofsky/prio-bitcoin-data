@@ -1,0 +1,94 @@
+{
+ "number": 35763,
+ "input_hash": "754b293a0d09f99f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:27+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16944,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2302
+ },
+ "cost_usd": 0.0213405,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent settings and banlist files from being left truncated or corrupted if the node crashes or is killed during a write"
+   ],
+   "reviewability": [
+    "Ready",
+    "Author resolved discussion on naming and temporary file handling in the latest push"
+   ],
+   "agreement": [
+    "Strong support for enforcing atomic writes inside WriteSettings (winterrdog, Herb-ops)",
+    "Open discussion on helper naming was resolved by retaining WriteSettings for now (winterrdog)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it hardens settings and banlist persistence against file corruption during sudden crashes or power loss",
+      "Consolidates the temporary file and atomic rename logic so callers cannot accidentally write directly to live files"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR moves atomic file replacement logic into common::WriteSettings by writing to a .tmp file and invoking RenameOver(). As a result, both settings.json and banlist.json are written atomically, preventing truncated files on write interruption, and ArgsManager no longer requires custom temp-path handling.",
+  "problem": "Previously, CBanDB::Write wrote banlist.json directly in place, risking an empty or corrupt banlist if the process was killed during serialization. Additionally, atomic write guarantees existed only in ArgsManager callers rather than in the shared file-writing utility.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "winterrdog and Herb-ops noted test verification deficiencies and suggested making atomic rename the default rather than exposing an unsafe direct-write API.",
+    "winterrdog raised potential temporary file accumulation; author showed that the fixed .tmp path overwrites cleanly rather than proliferating, adding a unit test to verify.",
+    "winterrdog raised an API asymmetry between ReadSettings and WriteJson; author agreed to revert the helper name to WriteSettings to keep symmetry with ReadSettings."
+   ],
+   "author_status": "active; addressed review feedback with push on 2026-09-10"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer questions regarding error cleanup, test assertions, and API naming have been addressed in the latest push."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: winterrdog and Herb-ops support atomic writes in WriteSettings; naming concerns resolved",
+   "reason": "Reviewers agreed with encapsulating the atomic rename pattern inside WriteSettings so callers cannot bypass it. The author adopted suggested changes and resolved all open questions.",
+   "evidence": [
+    "Herb-ops ACKed 07ec5af with comments on test coverage and error log wording.",
+    "winterrdog suggested Approach B (always write atomically inside helper) and gave approach ACK.",
+    "winterrdog noted naming mismatch (WriteJson vs ReadSettings); author adopted Option A to retain WriteSettings."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies shared settings file writing and path management in src/common/settings.* and src/common/args.*.",
+    "band": "P3",
+    "reason_tag": "crash safety",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it improves crash safety and persistence robustness for the node's configuration and banlist. Making WriteSettings write to a temporary file before renaming prevents truncated files if the node crashes during writing, addressing a real file integrity hazard with clean internal consolidation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves atomic file creation into common::WriteSettings so that files like settings.json and banlist.json are written to a .tmp path and atomically renamed into place. This prevents partially written or corrupted JSON files if bitcoind crashes or is interrupted during a write. Reviewers supported making the safe atomic path the default, and recent pushes addressed temporary file cleanup concerns and API naming symmetry. The PR is clean, well-tested, and ready for final review."
+ },
+ "raw_text": null
+}

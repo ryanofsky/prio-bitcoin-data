@@ -1,0 +1,161 @@
+{
+ "number": 35229,
+ "input_hash": "0d3790ccfb3e2819",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:08+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22679,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 6308
+ },
+ "cost_usd": 0.04066425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enforce non-null invariants at compile time by passing CBlockIndex by reference instead of pointer across chain, index, and p2p helpers."
+   ],
+   "reviewability": [
+    "Review is not recommended now because the PR is stale after 113 days of author inactivity."
+   ],
+   "agreement": [
+    "Strong conceptual support for making non-null pointer invariants explicit in function signatures (musaHaruna, stickies-v, w0xlt).",
+    "No open objections or controversies were raised on the proposed changes."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P4 because it is an internal janitorial refactoring of CChain storage and helper parameter types with no user-facing or consensus payoff."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P4 because it only adjusts BaseIndex and BlockFilterIndex method signatures from pointers to references without fixing bugs or improving index performance."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors several functions across chain management, block filter indexes, and peer processing to accept `const CBlockIndex&` rather than `const CBlockIndex*` where null pointers are invalid. It also alters `CChain::vChain` to store elements as `std::reference_wrapper<CBlockIndex>` instead of raw pointers. Call sites and unit tests are adjusted accordingly.",
+  "problem": "Functions taking `CBlockIndex*` parameters often rely on implicit or runtime-checked non-null invariants, leaving open the risk of null dereferences if misused in future code changes.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko asked about using `std::reference_wrapper` in `CChain` rather than raw pointers with comments, which the author subsequently implemented.",
+    "Inline nits on naming conventions and assertion checks were addressed by the author."
+   ],
+   "author_status": "silent since 2026-05-27"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent",
+   "reason": "The author has been silent for 113 days, which exceeds the stale author inactivity threshold of 60 days."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept approved with rationale by musaHaruna, stickies-v, and w0xlt; no objections raised",
+   "reason": "Reviewers supported the refactor to make non-null invariants explicit at compile time, and author addressed all review feedback.",
+   "evidence": [
+    "musaHaruna gave Concept ACK noting it improves clarity and provides compile-time guarantees around non-nullability",
+    "stickies-v and w0xlt gave Concept ACKs",
+    "maflcko suggested using std::reference_wrapper, which the author adopted"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes CBlockIndex helper signatures such as LastCommonAncestor and the internal storage of CChain::vChain in src/chain.cpp and src/chain.h",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is a minor janitorial cleanup changing pointer types to references and adjusting internal CChain representation. It does not fix any consensus bugs or improve performance."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Modifies public and protected method signatures in BaseIndex and BlockFilterIndex to take CBlockIndex references",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because changing BaseIndex::ProcessBlock and BlockFilterIndex lookup methods to take references is a purely cosmetic signature refactor with no impact on index correctness or sync speed."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not touch mempool data structures, transaction validation, or relay policy",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Only touches internal block download helper arguments in net_processing.cpp as part of the mechanical pointer-to-reference refactoring",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; changing internal helper parameter types in net_processing.cpp without altering network protocol behavior or relay architecture is noise for P2P reviewers."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only adapts a single call site in scanblocks to pass a dereferenced pointer to BlockFilterIndex",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; the call site update in src/rpc/blockchain.cpp is purely mechanical to match the updated index method signature."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors functions in chain management, block filter indexing, and peer processing to pass CBlockIndex by reference instead of pointer where nullptr is invalid. It also changes CChain to store elements using std::reference_wrapper. The goal is to document and enforce non-null invariants at compile time, but it offers no functional or performance change. The approach has received multiple Concept ACKs with no objections, but the PR has been inactive for over 100 days."
+ },
+ "raw_text": null
+}

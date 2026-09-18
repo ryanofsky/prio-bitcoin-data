@@ -1,0 +1,102 @@
+{
+ "number": 36276,
+ "input_hash": "46a8bd982fa6967d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6796,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2725
+ },
+ "cost_usd": 0.0218273,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Closes a small gap in the HTTP server's read throttle that let up to 65kB of extra data leak past backpressure while a request was in flight.",
+    "Also fixes a macOS-specific hang in the functional test that exercises this throttle."
+   ],
+   "reviewability": [
+    "Not ready right now: the author converted the PR to draft after finding CI still red and suspecting a regression adding latency to every RPC call.",
+    "Wait for the author's next push before reviewing."
+   ],
+   "agreement": [
+    "Concept ACK on the core fix with a naming nit, no objections (hodlinator).",
+    "Detailed independent confirmation of the root cause and fix, effectively affirming the approach (davidgumberg)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it tightens an HTTP server throttle bug the author explicitly calls non-critical, capped at about 65kB per connection.",
+      "It also fixes a flaky functional test, which helps CI signal but is a secondary benefit."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR closes a small timing gap in the HTTP server's read throttle (added in #36123) that allowed up to 65kB of additional data to be read from a client socket while a request was already busy in a worker thread. It also adds a second commit fixing a macOS-specific test hang, using select() before send() to reliably detect TCP backpressure without blocking inside a non-blocking socket call. The PR closes issue #36216, an intermittent failure in interface_http.py.",
+  "problem": "The existing throttle logic in httpserver.cpp had a narrow race that let a small amount of extra data (bounded at ~65kB) into the receive buffer while a worker thread was still processing a prior request, which a macOS CI test could detect due to platform-specific TCP zero-window probe timing (5s on macOS vs 200ms on Linux). This intermittently failed CI for contributors and masked whether the throttle actually works.",
+  "discussion": {
+   "open_concerns": [
+    "Author suspects a regression where 50ms is added to every RPC call, motivating the switch to draft; not yet resolved.",
+    "hodlinator suggested renaming IsRequestBusy to WorkerHasRequest for clarity (style nit, not substantive)."
+   ],
+   "resolved_concerns": [
+    "davidgumberg's detailed walkthrough of the bug mechanism was effectively confirmed as correct understanding by the author's description, no disagreement raised."
+   ],
+   "author_status": "active, reworking after discovering a possible RPC latency regression, PR marked draft on 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "Author converted the PR to draft on 2026-09-16 saying 'i think i have this issue again where 50ms is being added to every RPC call', indicating the current code is being reworked and CI is still failing. Review of the current diff risks being invalidated by the next push."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: hodlinator gave a Concept ACK with only a naming nit, and davidgumberg independently confirmed the root-cause analysis; no objections raised.",
+   "reason": "One reviewer explicitly wants the change (Concept ACK) and a second reviewer's detailed technical walkthrough affirms the fix is correct, with no pushback from anyone.",
+   "evidence": [
+    "hodlinator: 'Concept ACK 0066120e... Will have a closer look soon.'",
+    "hodlinator nit: suggested renaming IsRequestBusy to WorkerHasRequest, stylistic only.",
+    "davidgumberg: lengthy comment confirming the bug mechanism matches the PR's description, no objection raised."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #36216 (intermittent interface_http.py failure)",
+    "Completes the throttle work started in #36123"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies src/httpserver.cpp and httpserver.h, the HTTP server request-handling machinery covered by the RPC/REST/ZMQ label, plus its functional test.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The author states plainly: 'this is not a critical OOM fix' and the worst case is 65kB of extra buffered data, so the direct correctness/security impact is minor. It does close a genuine logic gap in a previously-merged throttle (#36123) and fixes an intermittent CI failure (#36216), giving it some leverage for test reliability, but the narrow scope and admitted low severity keep it out of P1/P2."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the suspected 50ms-per-RPC-call regression the author mentions is real and how it will change the diff once addressed.",
+   "Whether the select()-based test fix introduces its own flakiness on other platforms; not yet exercised by a green CI run.",
+   "No maintainer beyond hodlinator has weighed in substantively; davidgumberg's comment is analysis, not an explicit ACK/NACK."
+  ],
+  "card": "This PR closes a small gap in the HTTP server's TCP-based read throttle (introduced in #36123) that let up to 65kB of extra data leak from a client while a request was already busy in a worker thread, and separately fixes a macOS-specific hang in the functional test that exercises this throttle by using select() before send(). The author explicitly notes 'this is not a critical OOM fix', bounding the real-world impact, but it does close open issue #36216, an intermittent CI failure. The PR is currently draft: the author converted it back after suspecting a new regression adding 50ms latency to every RPC call, and CI is still failing, so a review right now risks being invalidated by the next push. Review so far is positive: hodlinator gave a Concept ACK with only a naming nit, and davidgumberg independently verified the root-cause analysis with no objections raised. No dependencies block it other than the author's own rework."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

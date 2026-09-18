@@ -1,0 +1,123 @@
+{
+ "number": 34489,
+ "input_hash": "37fbca92412652a4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:41+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 37965,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2516
+ },
+ "cost_usd": 0.032400075,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Batch database writes during index initial sync instead of writing per block.",
+    "Reduce cs_main lock contention and disk I/O while building optional indexes."
+   ],
+   "reviewability": [
+    "Needs rebase due to merge conflicts and recent index refactors.",
+    "Review is best paused until author rebases and resolves crash-recovery concerns."
+   ],
+   "agreement": [
+    "Broad concept support for batching and parallelization groundwork (arejula27, polespinasa, l0rinc).",
+    "Blocking review from l0rinc alleging state corruption on interrupted coinstatsindex sync (l0rinc).",
+    "Author engaged on edge cases and is collaborating with arejula27 on the rebase (furszy, arejula27)."
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it brings substantial sync-time speedups on HDDs (11% on txindex, 27% on txospenderindex) and reduces LDB file fragmentation.",
+      "Unblocks parallel block processing in PR 26966 while reducing node-wide lock contention during initial sync."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Unranked because this PR strictly modifies optional secondary indexes and does not touch validation code or consensus rules."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request refactors BaseIndex initial synchronization to process blocks in ranges and batch database writes with CDBBatch, rather than writing to disk for every individual block. It also reduces cs_main lock acquisitions by querying block index ranges in advance and lays foundational data structures for parallel index processing.",
+  "problem": "During initial synchronization, optional indexes write to LevelDB on every block, creating heavy I/O overhead on spinning disks, producing high LDB file counts, and repeatedly taking cs_main, which degrades overall node responsiveness.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc raised a change request concerning shutdown and interrupt invariants: in-memory state (such as MuHash in coinstatsindex) can advance past the persisted locator, potentially causing corruption or validation failure on restart.",
+    "Tuning batch size across different index workloads and measuring peak memory consumption.",
+    "Rebase conflicts and interaction with recent merged PRs (#34897, #35531, #35847)."
+   ],
+   "resolved_concerns": [
+    "Early returns bypassing interrupt handling in ProcessBlocks were identified by arejula27 and fixed with test coverage.",
+    "Subclass derivation issues in unit tests due to final specifiers on BlockFilterIndex were resolved by testing against BaseIndex."
+   ],
+   "author_status": "Active; indicated intent in late August 2026 to rebase and address remaining race conditions in coordination with arejula27."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The branch has merge conflicts against master and requires adaptation to recent index architectural changes (#34897, #35531, #35847)."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept supported, but l0rinc raised blocking concerns over crash recovery and stale locators in index subclasses.",
+   "reason": "Reviewers strongly agree with the goal and verified benchmark gains, but l0rinc submitted a formal Changes Requested review regarding in-memory state advancing ahead of persisted locators upon interruption.",
+   "evidence": [
+    "arejula27, polespinasa, and l0rinc gave Concept ACKs for batching and preparing parallelization (#26966).",
+    "l0rinc requested changes arguing that Commit() during an interrupt can persist advanced m_muhash alongside a stale locator, breaking CoinStatsIndex restart.",
+    "furszy acknowledged the race conditions and agreed to work through the rebase and fixes."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#26966"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Modifies BaseIndex, TxIndex, and BlockFilterIndex under src/index/ to batch database writes and compute block sync ranges.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because initial sync time and resource usage of optional indexes directly affect users who enable them. Benchmarks confirm an 11% speedup for txindex and 27% for txospenderindex on spinning disks, while reducing coinstatsindex LevelDB file counts from 145 to 10. It also provides key foundational abstractions for the parallel indexing project (#26966)."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Although tagged with 'UTXO Db and Indexes', the changes are confined to src/index/ and optional index sync loops, without touching consensus or core validation logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member of validation because optional index synchronization does not alter chainstate validation, consensus rules, or mandatory block databases."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR modifies BaseIndex to process blocks in ranges and batch database writes during initial sync instead of writing per block. This addresses severe disk write amplification and cs_main lock contention while indexes sync, yielding up to a 27% speedup on HDDs and fixing excessive LevelDB file creation. The changes also lay groundwork for parallel index processing in #26966. Concept approval is solid, but the PR is currently marked dirty and has an open Changes Requested review from l0rinc regarding crash recovery and state consistency on interrupted sync."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,128 @@
+{
+ "number": 36015,
+ "input_hash": "d96c7530e2091f77",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:56:50+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25842,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4625
+ },
+ "cost_usd": 0.03672525,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent memory exhaustion in the transaction orphanage from witness-heavy transactions",
+    "Bound orphan memory usage strictly by transaction weight by storing orphans serialized"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Recent push addressed 1P1C candidate materialization performance and CI is green"
+   ],
+   "agreement": [
+    "Strong support for the serialized storage approach (instagibbs, w0xlt, l0rinc, Crypt-iQ)",
+    "Detailed review and benchmarks on memory usage and 1P1C package lookup (jeanpablojp, instagibbs)",
+    "Previous review comments on lazy deserialization were addressed"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P1 because it fixes an unauthenticated remote DoS memory amplification hazard in P2P transaction relay",
+      "Peers could previously consume 11MB of memory per peer with a standard transaction accounting for only 400kWU",
+      "Protects low-memory nodes from out-of-memory crashes while preserving 1P1C package relay for complex witnesses"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes `TxOrphanage` to store orphan transactions in their serialized form rather than as deserialized `CTransactionRef` objects, deserializing them lazily only when handing them back out for reconsidering or validation. It also refactors orphan announcement and 1P1C child candidate selection to inspect metadata and wtxids without deserializing candidates.",
+  "problem": "The orphanage bounds per-peer and global memory usage using transaction weight under the assumption that weight exceeds heap usage. For transactions with hundreds of thousands of small witness stack elements (such as BitVM-style transactions), individual vector allocations cause memory usage to exceed accounted weight by up to 28x (11.1MB allocated vs ~400kWU accounted), allowing connected peers to cause excessive memory consumption without exceeding limits.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Potential breakage of BitVM-style transactions if usage metrics were changed directly was resolved by adopting instagibbs's suggestion to keep weight accounting and store transactions serialized instead.",
+    "A performance hazard in `Find1P1CPackage` that deserialized all orphan children for a parent before checking reject filters (costing up to ~1s CPU and ~1GB RAM) was resolved by querying child IDs first and only deserializing the selected child."
+   ],
+   "author_status": "Active; adopted instagibbs's serialized storage design and integrated subsequent performance fixes."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch merges cleanly against master, CI is passing, and the author addressed all comments regarding 1P1C candidate selection overhead."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on serialized approach proposed by instagibbs; multiple concept ACKs and thorough testing by jeanpablojp.",
+   "reason": "Reviewers agreed on both the severity of the DoS vector and the serialized-storage solution over the previous metric rewrite. Reviewers actively contributed code and benchmarks.",
+   "evidence": [
+    "instagibbs proposed the serialized storage approach and provided code for 1P1C package selection optimization",
+    "w0xlt, l0rinc, and Crypt-iQ gave Concept ACKs",
+    "jeanpablojp benchmarked memory and CPU impacts and verified test failure/success across pushes"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies `TxOrphanage` and `TxDownloadManagerImpl`, which govern P2P orphan transaction storage, eviction, and DoS limits.",
+    "band": "P1",
+    "reason_tag": "DoS protection",
+    "score": 0.78,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P1 because it eliminates a significant memory DoS amplification vector in P2P transaction relay. As noted in the description, 'A transaction of 199,000 1-byte witness elements weighs 398,247WU... but uses 11.1MB of memory: 28 times what is accounted for it, and one such orphan can be retained per peer', allowing peers to exceed intended memory bounds and potentially OOM resource-constrained nodes."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Although it adds `GetPackageHashFromWtxids` in `src/policy/packages.cpp`, this is an auxiliary helper function for P2P 1P1C orphan lookup; mempool validation rules, limits, and structures are unaffected.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a mempool change. The orphanage is part of P2P transaction download, and package policy rules are unchanged."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches `src/bench/txorphanage.cpp` and `src/test/fuzz/txorphan.cpp`, but only to adapt tests of the P2P orphanage rather than the test framework or testing harnesses themselves.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test modifications are specific to the P2P orphanage subsystem and do not alter general test infrastructure."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #36015 modifies the transaction orphanage to store orphan transactions serialized rather than as deserialized CTransactionRef objects, deserializing them only when retrieved for validation. This fixes a 28x memory DoS amplification vector where standard transactions containing numerous small witness elements bypass weight-based memory limits and consume 11MB+ per peer. The change preserves weight accounting and standardness checks while strictly bounding heap usage. Review is ready and support is strong, with the approach originally suggested by instagibbs and benchmarked by jeanpablojp."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,152 @@
+{
+ "number": 35780,
+ "input_hash": "c5e68ea0878bb8c4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10830,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4742
+ },
+ "cost_usd": 0.0359463,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make the HTTP server keep the client's TCP receive buffer open after a parse error until an error reply is delivered.",
+    "Fixes a Windows-only bug where 400/413 error replies are lost because the socket close races with unread client data and triggers a TCP RST."
+   ],
+   "reviewability": [
+    "Not ready right now: PR is a draft, marked needs rebase, and conflicts with an already-open PR (#35829).",
+    "Author was told to rebase onto #35735 (now merged) and a reviewer just posted a rebase suggestion; current diff will change before further review is useful."
+   ],
+   "agreement": [
+    "Concept ACKs from four reviewers (pinheadmz, frankomosh, winterrdog, hodlinator) that lost error replies are worth fixing.",
+    "pinheadmz raised a real design objection about the approach and suggested a simpler mechanism after #35735 lands (pinheadmz).",
+    "Author accepted several review nits (naming, ms vs sec, guard removal) and agreed to update (b-l-u-e).",
+    "hodlinator suggests an alternative half-close ordering that is still open (hodlinator)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it fixes a real client-visible bug: Windows clients silently lose their 400/413 error response due to a TCP RST race, per the linked issue #35632.",
+      "Also removes a source of flaky functional-test failures (interface_http.py) that hides real signal in CI."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because it only adds a thin Sock::ShutdownSend() wrapper used by this one caller, with no independent utility payoff.",
+      "Correct and safe but narrow; nothing else in the codebase currently needs it."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the fuzz/unit mock-socket overrides are mechanical additions required to keep the new virtual method compiling, not new test coverage or framework capability."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a Sock::ShutdownSend() wrapper and uses it in the HTTP server so that after a parse error (malformed header or oversized body) the server flushes the 400/413 reply, half-closes only the write side, drains remaining client input until EOF or a 1s fallback timeout, and only then tears down the connection. This avoids the current behavior of closing immediately, which on Windows can trigger a TCP RST that discards the queued error reply before the client reads it.",
+  "problem": "On Windows, closing a socket with unread inbound data can send a TCP RST that discards a just-queued reply, so clients rejected for a bad or oversized HTTP request never see the 400/413 response and instead see a connection reset; this also causes an intermittent CI failure (#35632) in interface_http.py.",
+  "discussion": {
+   "open_concerns": [
+    "pinheadmz is not convinced about the specific approach and outlined an alternative built on request state transitions, suggested easier after #35735 lands",
+    "hodlinator asks inline why not shut down differently, suggesting the other side close on us instead, unresolved",
+    "PR conflicts with the newly opened #35829 (HTTPResponse struct refactor) and needs a rebase"
+   ],
+   "resolved_concerns": [
+    "pinheadmz questioned the need for a separate force_close flag versus m_disconnect; author explained the ordering requirement and pinheadmz did not push back further",
+    "pinheadmz suggested collapsing seconds/ms counters and removing an unnecessary guard; author agreed to update these",
+    "author agreed to wait for #35735 before continuing; #35735 has since merged"
+   ],
+   "author_status": "silent since 2026-08-24 (last force-push); reviewer hodlinator posted a rebase suggestion on 2026-08-27 with no response yet"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "PR is marked needs rebase, is in draft, and conflicts with the newly opened #35829; a maintainer already moved it to draft and suggested rebasing onto #35735, which has since merged, so the diff is expected to change before it is worth reviewing in its current form."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Multiple concept ACKs (pinheadmz, frankomosh, winterrdog, hodlinator) on the goal, but pinheadmz has an unresolved approach objection and a rebase-first alternative is still pending.",
+   "reason": "Everyone who commented agrees the underlying problem (lost error replies on Windows) is worth fixing, making this at least Positive, but pinheadmz explicitly said he is 'not convinced about the approach' and proposed a different, simpler mechanism once #35735 lands; that #35735 has since merged and no updated approach has landed keeps this short of Strong.",
+   "evidence": [
+    "pinheadmz: 'Concept ACK on lingering close ... However I am not convinced about the approach. I also think this is a feature that would be easier to implement after #35735'",
+    "frankomosh and winterrdog: concept ACK",
+    "hodlinator: 'Concept ACK' plus an inline question about an alternative shutdown ordering and a rebase suggestion",
+    "author (b-l-u-e): 'i will wait for your PR to be merged first', agreed to several nits"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "fixes the intermittent Windows CI flake tracked in #35632 (interface_http.py ConnectionAbortedError)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Core change is entirely within src/httpserver.cpp/.h, carries the RPC/REST/ZMQ label, and changes how the HTTP server closes connections after parse/size errors.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a real, reported bug where Windows clients never see their 400/413 error response due to a TCP RST race, corroborated by the linked issue #35632 and echoed by five reviewers' concept ACKs. It also removes a source of flaky CI signal in interface_http.py, but it is scoped to error paths only, not core RPC correctness or security."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The fuzz/util/net.cpp, net.h and test/util/net.cpp, net.h changes only add a no-op ShutdownSend() override to mock Sock classes so the build keeps compiling against the new virtual method; they add no new coverage or framework capability.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical follow-on edits required by the new Sock::ShutdownSend() virtual method, not a change to test infrastructure itself."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds Sock::ShutdownSend() to src/util/sock.h/.cpp, a generic wrapper over shutdown(2)/SD_SEND intended to be mockable and reusable, though currently only consumed by the http server.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because the wrapper is small, correct, and mockable, but it exists solely to serve this one http-server caller with no other current consumer or stated broader need."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether pinheadmz's alternative design (built around HTTPRequest::State::Error after #35735) will replace this approach entirely, which would make the current diff moot for review.",
+   "Exact resolution status of hodlinator's inline suggestion about the shutdown ordering is unclear since the author has not yet responded.",
+   "How the conflict with #35829 (HTTPResponse struct refactor) will be resolved is unknown; it may require significant rework of this PR's httpserver.h changes."
+  ],
+  "card": "This draft PR changes how the Bitcoin Core HTTP server closes connections after a parse error (bad header, oversized body): instead of closing immediately, it flushes the 400/413 reply, half-closes the write side via a new Sock::ShutdownSend(), and drains remaining client input until EOF or a 1s timeout. The problem is real: on Windows, closing with unread data can trigger a TCP RST that discards the queued error reply before the client reads it, which also causes an intermittent CI flake tracked in #35632. Four reviewers gave concept ACKs, but pinheadmz is not convinced by the specific mechanism and proposed a simpler approach once #35735 (now merged) lands; hodlinator has an open question about the shutdown ordering and just offered a rebase suggestion. The PR is currently draft, marked needs rebase, and conflicts with the newly opened #35829, so the present diff is expected to change before it merits full review. No hard dependency blocks it now that #35735 has merged, but a rebase and possibly a design change are pending."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

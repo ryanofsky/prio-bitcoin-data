@@ -1,0 +1,387 @@
+{
+ "number": 29491,
+ "input_hash": "c33a72850bec43aa",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:21:11+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 49889,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 13620
+ },
+ "cost_usd": 0.08849175000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Accelerate block validation and initial sync by batch verifying Schnorr signatures.",
+    "Integrate parallel batch verification into the script check queue."
+   ],
+   "reviewability": [
+    "Ready to review for check queue architecture and validation logic.",
+    "Final merge remains dependent on upstream secp256k1 batch module PRs."
+   ],
+   "agreement": [
+    "Strong support and active benchmarking for Taproot validation speedups (Eunovo, andrewtoth, Sjors).",
+    "Early performance regression reports prompted redesign from global locking to per-thread batches (0xB10C, andrewtoth).",
+    "Lock contention and pubkey handling concerns have been resolved with measured speedups (Eunovo, fjahr)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because signature checking is a primary CPU bottleneck during block connection and IBD on Taproot-heavy chains.",
+      "Batch verification was a foundational design goal of BIP 340 and delivers measurable throughput gains."
+     ]
+    }
+   ]
+  },
+  "summary": "Implements Schnorr signature batch verification for block validation in Bitcoin Core. Caching script checkers collect Schnorr signatures during script execution, which worker threads in CCheckQueue then batch verify in parallel per thread before completing block processing. The PR also includes an experimental vendored snapshot of the secp256k1 batch verification module.",
+  "problem": "Every Schnorr signature in a Taproot spend is currently verified independently using scalar point multiplications. Node operators running initial block download or validating new Taproot-heavy blocks pay full CPU cost for each signature rather than taking advantage of BIP 340 batch verification speedups.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Initial benchmark by 0xB10C and willcl-ark showed batch validation was slower than master across IBD due to lock contention.",
+    "andrewtoth noted a single shared batch mutex blocked worker threads and forced master-thread verification, negating multithreading benefits.",
+    "Eunovo identified high pubkey parsing overhead and verification inside critical sections, resolving both via per-thread batches verified outside locks.",
+    "Discarding the return value of xonly pubkey parsing was fixed in a recent push."
+   ],
+   "author_status": "active, frequently rebasing and incorporating upstream secp256k1 API changes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The check queue refactoring and script checker changes are stable for review, although final integration depends on secp256k1 upstream PR #1134."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Sjors",
+     "stance": "support",
+     "note": "Suggested testing on recent mainnet blocks and adding a startup configuration flag."
+    },
+    {
+     "login": "0xB10C",
+     "stance": "objection",
+     "note": "Provided bpftrace IBD benchmark data showing master was faster than the initial PR implementation."
+    },
+    {
+     "login": "willcl-ark",
+     "stance": "objection",
+     "note": "Echoed 0xB10C benchmark findings and noted always-on batch checker behavior."
+    },
+    {
+     "login": "andrewtoth",
+     "stance": "objection",
+     "note": "Warned that batch mutex contention and master-thread verification would eliminate parallel speedup."
+    },
+    {
+     "login": "Eunovo",
+     "stance": "objection",
+     "note": "pointed out lock contention, performance degradation with higher thread counts, and an unchecked pubkey parse return value"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "0xB10C",
+     "kind": "approach",
+     "harm": "Early implementation suffered severe performance regression during IBD compared to master.",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2024-05-13: 'master is currently faster... after taproot activation, batch validation is significantly slower than non-batch validation'",
+     "resolution_evidence": "2025-05-18: fjahr showed ConnectBlockAllSchnorr microbenchmarks reaching 125 block/s vs master 52 block/s after checkqueue rework.",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "andrewtoth",
+     "kind": "approach",
+     "harm": "Holding a shared batch mutex during addition caused severe thread contention and single-threaded verification bottleneck.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2024-12-07: 'm_batch_mutex is held for the entirety of adding, which will cause lock contention. Verify is then a blocking call on the main thread, which negates the multithreading.'",
+     "resolution_evidence": "2025-03-23: fjahr: 'I have now implemented it with a batch per thread using a flag set in complete as you suggested.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "Eunovo",
+     "kind": "correctness",
+     "harm": "Discarding the return value of secp256k1_xonly_pubkey_parse risked ignoring malformed keys.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-06-15: 'why discard the return value of secp256k1_xonly_pubkey_parse()?'",
+     "resolution_evidence": "2026-01-26: fjahr: 'Not discarding it anymore in the latest push.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "Eunovo",
+     "reason": "Showed significant validation speedups and co-developed the multithreaded batch architecture.",
+     "substantive": true
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "Anticipated strong performance gains for recent Taproot-dense transaction volume.",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong collaborative support and benchmarking; all initial architectural bottlenecks have been resolved with demonstrable speedups.",
+   "reason": "Multiple contributors actively tested and redesigned the batching mechanism to ensure real performance gains, resolving all performance regressions.",
+   "evidence": [
+    "Eunovo co-authored commits and confirmed throughput gains over master.",
+    "andrewtoth guided the successful per-thread batch architecture.",
+    "0xB10C provided early empirical benchmark scripts that steered the redesign."
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (Eunovo, Sjors)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "0xB10C",
+      "kind": "approach",
+      "harm": "IBD connect_block duration is significantly slower than master",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-05-13: \"In the current draft implementation: - master is currently faster - batch validation is attempted and decreases performance even before taproot activated - after taproot activation, batch validation is significantly slower than non-batch validation\"",
+      "resolution_evidence": "2025-05-18: \"I have implemented this and see a performance boost from it for the case with 15 worker threads\""
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "m_batch_mutex held across threads causes lock contention and single-threaded verification negates multithreading benefits",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-12-07: \"It seems in this approach the `m_batch_mutex` is held for the entirety of adding, which will cause lock contention. `Verify` is then a blocking call on the main thread, which negates the multithreading.\"",
+      "resolution_evidence": "2025-03-23: \"So, long story short, I have now implemented it with a batch per thread using a flag set in complete as you suggested.\""
+     },
+     {
+      "reviewer": "Eunovo",
+      "kind": "correctness",
+      "harm": "Discarding return value of secp256k1_xonly_pubkey_parse could ignore parsing failures",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-06-15: \"why discard the return value of `secp256k1_xonly_pubkey_parse()`?\"",
+      "resolution_evidence": "2026-01-26: \"Not discarding it anymore in the latest push.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "Eunovo",
+      "reason": "appreciated signature collection design as it enables future batch taproot tweak verification",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "Sjors",
+      "stance": "question",
+      "note": "asked how batching works in validation and suggested testing via assumeutxo"
+     },
+     {
+      "login": "0xB10C",
+      "stance": "objection",
+      "note": "reported IBD benchmark showing batch verification significantly slower than master"
+     },
+     {
+      "login": "willcl-ark",
+      "stance": "neutral",
+      "note": "commented on 0xB10C's benchmark observation regarding signature checker usage"
+     },
+     {
+      "login": "andrewtoth",
+      "stance": "objection",
+      "note": "criticized global batch mutex contention and verification blocking the master thread"
+     },
+     {
+      "login": "Eunovo",
+      "stance": "objection",
+      "note": "pointed out lock contention, performance degradation with higher thread counts, and an unchecked pubkey parse return value"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive: multithreading bottlenecks and performance concerns were resolved through collaborative benchmarking and architectural rework",
+    "usage": {
+     "input_tokens": 10399,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 4441
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "0xB10C",
+      "kind": "approach",
+      "harm": "Early implementation suffered severe performance regression during IBD compared to master.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-05-13: 'master is currently faster... after taproot activation, batch validation is significantly slower than non-batch validation'",
+      "resolution_evidence": "2025-05-18: fjahr showed ConnectBlockAllSchnorr microbenchmarks reaching 125 block/s vs master 52 block/s after checkqueue rework."
+     },
+     {
+      "reviewer": "andrewtoth",
+      "kind": "approach",
+      "harm": "Holding a shared batch mutex during addition caused severe thread contention and single-threaded verification bottleneck.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2024-12-07: 'm_batch_mutex is held for the entirety of adding, which will cause lock contention. Verify is then a blocking call on the main thread, which negates the multithreading.'",
+      "resolution_evidence": "2025-03-23: fjahr: 'I have now implemented it with a batch per thread using a flag set in complete as you suggested.'"
+     },
+     {
+      "reviewer": "Eunovo",
+      "kind": "correctness",
+      "harm": "Discarding the return value of secp256k1_xonly_pubkey_parse risked ignoring malformed keys.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-06-15: 'why discard the return value of secp256k1_xonly_pubkey_parse()?'",
+      "resolution_evidence": "2026-01-26: fjahr: 'Not discarding it anymore in the latest push.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "Eunovo",
+      "reason": "Showed significant validation speedups and co-developed the multithreaded batch architecture.",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Anticipated strong performance gains for recent Taproot-dense transaction volume.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Batch taproot tweak verification",
+    "Substantial initial sync and block connection speedups for Taproot blocks"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Only updates src/kernel/CMakeLists.txt to add batchverify.cpp for compilation without altering kernel interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical CMake file adjustments to compile validation code inside libbitcoinkernel do not constitute a kernel PR."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Does not alter mempool acceptance, replacement, or eviction policies.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Batch verification is restricted to block validation in ConnectBlock and does not change mempool verification logic."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Includes fuzz and unit tests specifically designed to validate the Schnorr batch verification logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unit tests and fuzz targets covering a validation feature belong to validation rather than general test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Vendors an experimental branch of secp256k1 directly for testing rather than performing an upstream subtree sync.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The vendored crypto code represents an in-progress upstream draft under review in secp256k1 rather than a Bitcoin Core utility maintenance task."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly alters block script validation in ConnectBlock, CScriptCheck, and CCheckQueue to batch verify Schnorr signatures.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because Schnorr batch verification delivers a major algorithmic and practical speedup for block validation and initial block download on Taproot-heavy blocks. Enabling batch validation was a core design goal of BIP 340, and benchmarks in this thread showed parallel block connection throughput jumping to over 120 blocks/sec compared to around 50 blocks/sec on master."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Implements Schnorr signature batch verification for block validation by collecting signatures during script evaluation and verifying them in per-thread batches in CCheckQueue. Resolves the single-signature CPU verification burden during IBD and block connection for Taproot transactions. Benchmarks by contributors show more than a 2x throughput speedup on Taproot-heavy blocks once multithreaded batching was implemented. The CCheckQueue and validation architecture has seen deep collaborative review, though merging into Bitcoin Core is pending upstream merge of the batch module in secp256k1."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.024453
+}

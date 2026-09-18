@@ -1,0 +1,95 @@
+{
+ "number": 27865,
+ "input_hash": "6470e72036d149e3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:58:18+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 39073,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2175
+ },
+ "cost_usd": 0.037461,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up balance calculations and coin selection for wallets with large transaction histories by separating spent and unusable outputs from spendable ones."
+   ],
+   "reviewability": [
+    "Ready to review. Recent force pushes updated the branch following the latest round of review comments."
+   ],
+   "agreement": [
+    "Broad support for the performance goal with substantive testing across revisions (remyers, w0xlt, jeanpablojp, murchandamus, jonatack, rkrux).",
+    "Multiple subtle edge cases in TXO cache synchronization were uncovered and addressed during review (w0xlt, jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it yields up to a 500x speedup for balance checks and coin selection on large wallets.",
+      "High-volume wallets suffer noticeable latency when iterating thousands of historic spent outputs.",
+      "The separation removes this recurring burden without changing external behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "Separates definitely unusable transaction outputs (those spent in confirmed transactions or invalidated by reorgs) into a dedicated internal wallet container (`m_unusable_txos`). This prevents balance checks and coin selection preparation from iterating over the wallet's entire output history.",
+  "problem": "Wallets with extensive transaction histories experience significant slowdowns during balance queries and coin selection preparation because every historical transaction output is kept in a single container and traversed repeatedly.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Multiple cache consistency bugs where spent outputs could be incorrectly revived or desynced were identified, tested, and resolved (w0xlt, jeanpablojp).",
+    "Handling of uninitialized `m_from_me` optional causing fuzz test crashes and UBSan warnings was addressed (jeanpablojp)."
+   ],
+   "author_status": "Active; recently pushed updates addressing reviewer feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, CI is passing, and the author recently pushed updates addressing reviewer concerns."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support backed by performance benchmarks; multiple edge cases in state handling have been identified and patched.",
+   "reason": "Reviewers have confirmed massive benchmark improvements (up to 500x) and actively engaged in catching and fixing state synchronization edge cases.",
+   "evidence": [
+    "remyers reported a 250x speedup on a synthetic large test wallet using `fundrawtransaction`",
+    "w0xlt reported a ~508x speedup on benchmark #34360 and verified several bug fixes",
+    "jeanpablojp and w0xlt contributed detailed reproduction scripts for state invalidation edge cases that the author fixed"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#34360"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies internal wallet output tracking and transactions in src/wallet/.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Massive performance gain for active wallets with deep histories. Independent benchmarks by remyers and w0xlt showed speedups between 250x and 508x on large wallets by avoiding iteration over historical spent outputs."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves confirmed-spent and permanently unspendable transaction outputs into a separate internal container, pruning them from balance calculation and coin selection iteration. This resolves a known wallet bottleneck where operations like `listunspent`, `getbalance`, and `fundrawtransaction` become noticeably slow on wallets with thousands of historical transactions. Reviewers demonstrated speedups between 250x and 508x in synthetic high-history benchmarks. Multiple state-tracking and edge-case bugs have been caught and patched through extensive review, and the PR is ready for final verification."
+ },
+ "raw_text": null
+}

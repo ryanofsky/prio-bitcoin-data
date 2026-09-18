@@ -1,0 +1,131 @@
+{
+ "number": 34132,
+ "input_hash": "cba73ce7796d1a35",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22582,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6876
+ },
+ "cost_usd": 0.058368300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make corrupt or unreadable database entries in the coins database and indexes cause a fatal abort instead of silently being treated as missing data.",
+    "Removes an internal error-catcher layer that only existed to trigger this handling, so the fix propagates through validation and index reads consistently."
+   ],
+   "reviewability": [
+    "Ready. Clean, mergeable, actively force-pushed and reviewed through September, with a fresh reACK from optout21 after the latest rebase."
+   ],
+   "agreement": [
+    "Multiple concept ACKs and a code-review ACK plus reACK support the direction (andrewtoth, sedited, optout21).",
+    "ajtowns raised an unresolved, nonblocking concern that aborting the whole node on a corrupt optional index (txindex, filter index) is too harsh compared to just disabling that index; author agrees it deserves discussion but has not changed the behavior (ajtowns, l0rinc).",
+    "maflcko's earlier substantive concerns about commit granularity and behavior changes were addressed through rewrites (maflcko)."
+   ],
+   "categories": []
+  },
+  "summary": "This PR makes CDBWrapper's point-read path treat LevelDB read failures and deserialization failures as fatal (log, invoke a read-error callback, abort) instead of silently returning false/missing, closing a gap left by an earlier PR (#34931) that only handled unreadable coins. It threads a fatal-read callback into chainstate, block-index, and optional index (txindex, blockfilter, coinstats) database construction, removes the now-redundant CCoinsViewErrorCatcher wrapper, and moves HaveCoin() so it only exists on the cache view. It adds tests characterizing the previously-swallowed corruption behavior across 32-bit and Windows CI quirks.",
+  "problem": "Currently a corrupted LevelDB entry for a coin or an index is indistinguishable from a missing key: CDBWrapper::Read() catches the deserialization exception and returns false, so a corrupt txindex entry silently fails one RPC while the node keeps running, and in the coins/UTXO path this can cause valid transactions to be treated as having missing inputs. Node operators and downstream consumers of RPC data feel this as a masked, hard-to-diagnose failure rather than a clear crash pointing at the real cause.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns: aborting the entire node on a corrupt optional index (txindex/filter/coinstats) may be too harsh versus disabling just that index and continuing; author agrees this is worth discussing further but has kept the current all-abort behavior and asked to raise it on IRC.",
+    "ajtowns also questioned the convoluted callback chain (CDBWrapper::FatalReadError -> ... -> ThreadSafeMessageBox) and whether a locally logged abort at the call site would be clearer; not resolved with code changes."
+   ],
+   "resolved_concerns": [
+    "maflcko's concerns about commit granularity, unexplained behavior changes in individual commits, and wildcard exception handling in the test were addressed through commit message rewrites and test changes.",
+    "andrewtoth's and maflcko's platform-specific test failures (32-bit mmap disabled, Windows connection resets) were investigated and fixed by the author.",
+    "The originally-bundled removal of HaveCoin from the backing-view interface was split out (#34320) and later folded back in cleanly after discussion with optout21."
+   ],
+   "author_status": "active, most recently rebased 2026-09-12 and asked for further IRC discussion on the optional-index abort question; reviewer reACK'd 2026-09-14"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, the branch is clean and mergeable, and the author has iterated through nine months of review comments, with the latest push (2026-09-12) reACK'd by optout21 on 2026-09-14. An open design question about whether optional-index corruption should abort the whole node (raised by ajtowns) remains, but the author has explicitly kept the current behavior and deferred further discussion rather than pausing the PR, so review of the current code is not wasted effort."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive overall with ACK/reACK from optout21 and concept ACKs from andrewtoth and sedited, but ajtowns's concern that fatal-aborting on optional index corruption may be too harsh remains open and nonblocking.",
+   "reason": "Several reviewers substantively support the change and its direction; the one standing criticism about scope (whether index corruption should abort the whole node vs. just disable the index) is real but the critic did not frame it as blocking, and the author has committed to further discussion rather than resolving it now.",
+   "evidence": [
+    "andrewtoth: 'Concept ACK... I think getting rid of this indirection is great' and later 'ACK 4ae1f793...'",
+    "sedited: 'Concept ACK'",
+    "optout21: 'ACK 5f8024e1...' and later 'reACK 6c07101f...'",
+    "ajtowns: aborting the node for a corrupt optional index 'seems a bit more questionable' since indexes are optional; author (l0rinc) agrees it's worth discussing but keeps current behavior and asks 'should we discuss this at the next IRC?'",
+    "maflcko raised multiple commit-hygiene and behavior-explanation concerns, all addressed via rewrites."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34931
+   ],
+   "enables": [
+    "Removes the need for callers to individually try/catch LevelDB read errors, simplifying future index and coins-view work.",
+    "Referenced by #34320 (HaveCoin removal, now folded in) and interacts with several open PRs touching the same files (#36002, #35911, #35676, #35474, #34844, #33324)."
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Directly changes how txindex, blockfilterindex, and coinstatsindex database read failures are surfaced (via the read_error_cb threaded through DBParams), and removes ambiguity between a missing key and a corrupt one for these optional indexes.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The category cares most about an index that 'silently returns wrong answers... is worse than no index'; this PR closes exactly that gap for optional indexes by making corrupt point reads fatal instead of masquerading as missing keys. ajtowns's open objection is about whether the fix (abort the node) is the right shape for an optional subsystem, not whether the underlying silent-corruption problem matters, so the problem itself is substantial but the specific approach is still contested, keeping it at P2 rather than P1."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Changes CCoinsViewDB/CCoinsViewCache read paths so UTXO database read failures abort instead of being treated as missing coins, and removes CCoinsViewErrorCatcher from the chainstate view stack, directly altering chainstate read-failure behavior.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Maflcko demonstrated via an injected fault that on current master a corrupt coins-database read can be silently swallowed and RPC calls (gettxoutsetinfo, getrawtransaction) return a confusing error while the node keeps running with corrupted state, which is precisely the 'accept an invalid... or reject a valid one' risk this category ranks highest. The scenario requires actual on-disk corruption, which is rare, and the surrounding design (abort scope) is still being discussed, so P2 rather than P1."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The PR threads a fatal read-error callback through KernelNotifications and init.cpp construction of DBParams, but this plumbing exists only to serve the coins/index read-failure fix; it is not a change to logging, argument handling, or general utility infrastructure for its own sake.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the category excludes changes 'whose point is one area's behavior,' and here the callback plumbing exists purely to support the validation/indexes fix, not as a change to utils infrastructure in its own right."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will settle on 'abort the whole node on any DB corruption' or 'disable just the affected optional index' is unresolved (ajtowns vs. author); this could still change the shape of the indexes-facing part of the PR even though it does not currently pause review.",
+   "The severity of the underlying masked bug in production (how often disk corruption actually manifests this way) is not quantified in the discussion beyond the author's own experience with failing benchmark hardware."
+  ],
+  "card": "This PR makes CDBWrapper's point-read path abort the node on LevelDB or deserialization failures instead of silently returning 'missing', closing a gap where corrupt coins or index entries were previously indistinguishable from absent ones; maflcko demonstrated with an injected fault that on current master this can cause confusing but non-fatal errors while the node keeps running with corrupted state. It touches both the UTXO/chainstate read path (validation) and the optional index databases (txindex, blockfilterindex, coinstatsindex), and removes the CCoinsViewErrorCatcher wrapper that existed only to trigger this handling. Support is broadly positive (ACKs and concept ACKs from andrewtoth, sedited, optout21 including a reACK), but ajtowns raised an unresolved, nonblocking concern that fatal-aborting the entire node for a corrupt optional index may be too harsh versus disabling just that index, which the author has deferred to further discussion rather than resolved. The code is stable, clean, and CI-passing after nine months of iteration, so it is reviewable now despite that open design question. It builds on #34931 and had a sibling PR (#34320) folded back into it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

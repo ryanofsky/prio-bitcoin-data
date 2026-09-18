@@ -1,0 +1,140 @@
+{
+ "number": 35578,
+ "input_hash": "1935e56eb141fc10",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:44+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18110,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2803
+ },
+ "cost_usd": 0.02409375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop outbound proxied connections from self-advertising proxy IP addresses",
+    "Prevent unreachable Tor exit node IPs from polluting address managers across the network"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Recent push addressed feedback with unit tests and release notes"
+   ],
+   "agreement": [
+    "Strong support from multiple reviewers with data verifying exit node pollution (0xB10C, naiyoma, mzumsande)",
+    "Suggested test cases and code comments were adopted by author"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it eliminates addrman pollution and wasted connection attempts to unreachable Tor exit IPs",
+      "The fix improves network hygiene when nodes override proxy settings but does not fix transparent torification"
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Not a member because documentation changes are secondary release notes and documentation updates accompanying a P2P fix"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "Not a member because argument setup and helper functions are dedicated to network proxy handling"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request prevents nodes from self-advertising proxy IP addresses (such as Tor exit nodes) on outbound connections. In `GetLocalAddrForPeer`, the node now avoids replacing its known local address with the address reported by an outbound peer whenever a proxy is configured for that network. It also adds unit test coverage, a documentation fix for Tor configuration parameters, and a release note.",
+  "problem": "When a node establishes outbound connections via a SOCKS5 proxy such as Tor, outbound peers report seeing the proxy exit IP rather than the node's true reachable address. If discovery is active, the node can gossip this unreachable proxy address across the network, leading to significant addrman pollution where up to three quarters of all Tor exit nodes appear in network address tables and trigger failed connection attempts.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Clarified parameter interaction where discover=1 or listen=1 overrides soft-set defaults",
+    "Acknowledged that transparent torification (e.g. Whonix) will not be prevented by this change",
+    "Added inline comments and test coverage using a newly added ResetProxy test helper",
+    "Added release note warning operators of reachable proxies that -externalip is now required to advertise them"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing tests, clean mergeability, and the author addressed all reviewer feedback in the latest push."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Multiple Concept ACKs with empirical data supporting the problem, and all review suggestions implemented.",
+   "reason": "Reviewers agreed that self-announcing unreachable proxy exit IPs is detrimental. 0xB10C provided empirical connection failure metrics, and naiyoma tested the behavior and proposed test cases that were integrated.",
+   "evidence": [
+    "0xB10C Concept ACKed and noted that nodes make 7.5 to 12.5 failed connection attempts daily to exit nodes",
+    "naiyoma Concept ACKed, verified behavior locally, and provided test code",
+    "mzumsande Concept ACKed and noted limitations around transparent torification"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches doc/tor.md and doc/release-notes-35578.md only as minor updates accompanying the P2P networking change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation changes in this PR are ancillary to the P2P bug fix and do not constitute a standalone docs improvement."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies peer address self-advertisement logic in src/net.cpp and network address options in src/netbase.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Self-advertising unreachable exit addresses pollutes peer address managers across the network, causing nodes to repeatedly attempt doomed outbound connections. Author and reviewer telemetry confirmed high prevalence of Tor exit nodes in addrman snapshots, making this a worthwhile hygiene and bug fix."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/init.cpp and src/netbase.cpp strictly for network proxy settings and test helpers.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The changes to initialization and proxy structs belong to P2P networking configuration rather than general-purpose node utilities."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35578 prevents nodes connecting over a proxy (such as Tor) from self-advertising the proxy's IP address on outbound connections. This stops nodes from gossiping unreachable Tor exit node IPs into global address managers, saving peers from making repeated failed connection attempts. Telemetry from reviewers shows nodes currently attempt multiple connections to dead exit IPs per day. The PR has strong support from several reviewers and includes unit tests and release notes."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,97 @@
+{
+ "number": 32895,
+ "input_hash": "77108ef85bba2b24",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:49:29+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20521,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2269
+ },
+ "cost_usd": 0.0238995,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Record wallet client capabilities on open and unlock to safely handle upgrade-downgrade-upgrade cycles."
+   ],
+   "reviewability": [
+    "Ready for review, with CI passing and latest review suggestions addressed."
+   ],
+   "agreement": [
+    "Strong support across multiple wallet contributors (ryanofsky, ajtowns, Eunovo, Bortlesboat, w0xlt).",
+    "All technical feedback on version masks, locking, and record cleanup on downgrade was incorporated."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it provides foundational metadata required before future automatic wallet upgrades can land safely.",
+      "Delaying this change delays the release cycle where future upgrades can safely detect past downgrades."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR decouples the wallet database version record from the node client version and introduces two new database records: `LAST_OPENED_FEATURES` and `LAST_DECRYPTED_FEATURES`. These feature bitflags record the capabilities of the client that last opened and decrypted the wallet, allowing future software versions to detect when a wallet has been used with an older release and re-run automatic upgrades if necessary.",
+  "problem": "When a wallet is opened in an older release after being upgraded and then returned to a newer release, it can accumulate mixed upgraded and un-upgraded data. Without tracking the capabilities of the client that last accessed or decrypted the wallet, future versions cannot reliably detect this condition without costly full-wallet rescans on every load.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Decoupling wallet client version from the node CLIENT_VERSION to avoid false downgrade detection (raised by maflcko and ryanofsky, implemented via independent enum).",
+    "Handling bit allocation and room for more than 64 future features (raised by ajtowns, resolved by adjusting minimum version and clarifying extension strategy).",
+    "Thread safety locking annotations for last decrypted features (raised by ajtowns, resolved with AssertLockHeld).",
+    "Erasing stale LAST_DECRYPTED_FEATURES when loading under an older client version that does not support the record (suggested by w0xlt, adopted by author)."
+   ],
+   "author_status": "Active and responsive; quickly incorporated suggestions and pushed fixes."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is clean, rebased, CI is green, and the latest review suggestion from w0xlt has already been integrated."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus among wallet contributors, with several ACKs and all review threads resolved.",
+   "reason": "Reviewers agreed on the concept of tracking client capability flags in the wallet db. All structural, architectural, and edge-case concerns raised by reviewers were resolved and followed by ACKs.",
+   "evidence": [
+    "ryanofsky gave Concept ACK for adding metadata to detect un-upgraded material after downgrade-upgrade cycles.",
+    "ajtowns Concept ACKed and later ACKed the updated versioning and locking semantics.",
+    "Eunovo and Bortlesboat provided ACKs after validating range-diffs and running test suites across multiple releases.",
+    "w0xlt ACKed the latest push after their suggestion to erase stale decrypted features on legacy reload was adopted."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future PRs introducing backwards-compatible automatic wallet upgrades that need downgrade detection."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies core wallet database serialization, wallet loading, and decryption lifecycle in src/wallet/.",
+    "band": "P2",
+    "reason_tag": "migration",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because recording client capabilities must be deployed in an earlier release before subsequent releases can safely rely on them for automatic wallet upgrades. The author noted that 'in order for this to work, we need to have implemented writing such information into versions prior to the ones which introduce new automatic upgrades,' making early merge strategically important for wallet roadmap features."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR records the feature capabilities of the last client that opened and decrypted a wallet database, decoupling this tracking from the node client version. It prevents inconsistent wallet state when users switch between software versions (upgrade-downgrade-upgrade cycles) by enabling newer releases to reliably detect when automatic upgrades must be reapplied. Because this tracking must ship in releases before any new automatic upgrades can depend on it, delaying it holds up future wallet upgrade workflows. The PR is mature, has multiple ACKs from active wallet developers, and has addressed all feedback."
+ },
+ "raw_text": null
+}

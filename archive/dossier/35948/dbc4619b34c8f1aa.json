@@ -1,0 +1,126 @@
+{
+ "number": 35948,
+ "input_hash": "dbc4619b34c8f1aa",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 3458,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4214
+ },
+ "cost_usd": 0.0259343,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix the first-run disk-space warning so it labels sizes as GiB (not GB) and shows the actual estimate used by the check, including for pruned nodes."
+   ],
+   "reviewability": [
+    "Ready to review, code change is small and self-contained.",
+    "hebasto raised a fresh question about prune-size granularity mismatch, but it's too recent to have paused the PR."
+   ],
+   "agreement": [
+    "Multiple ACKs including achow101 and murchandamus support the unit fix (achow101, murchandamus, jeanpablojp).",
+    "hebasto flags a related but unaddressed inconsistency between MiB prune granularity and the GiB estimate shown, unresolved and nonblocking (hebasto).",
+    "A process concern about string/translation freeze was noted but not a code objection (fanquake)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it corrects a user-facing startup message that mislabels units and shows a misleading disk-space figure for pruned nodes, a real but narrow confusion.",
+      "mercie-ux traced a 63 GB discrepancy between the check and the displayed warning, confirming the bug is real but low severity."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because the only kernel-adjacent change is a doc-comment fix clarifying that AssumedBlockchainSize/AssumedChainStateSize are in GiB, not GB.",
+      "No API, ABI, or behavior change to libbitcoinkernel itself."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR fixes the first-run disk-space warning shown by bitcoind/bitcoin-qt on startup: it relabels the assumed blockchain size as GiB instead of the incorrect GB, and for pruned nodes it now displays the same rounded byte estimate that CheckDiskSpace actually uses rather than the full-chain estimate. It also corrects the doc comments in kernel/chainparams.h describing the assumed sizes' units. This revives a fix originally attempted in #29678.",
+  "problem": "Users setting up a node for the first time see a disk-space warning that mislabels units (GB vs GiB) and, when pruning, shows a full-chain estimate unrelated to the actual (lower) prune-based check, which can misinform storage planning. A reviewer (mercie-ux) traced a real 63 GB gap between what the check required and what was displayed.",
+  "discussion": {
+   "open_concerns": [
+    "hebasto notes an inconsistency: -prune has MiB granularity but the warning now shows a GiB-rounded figure, which can look odd for small prune targets (e.g. -prune=550 showing '1 GiB')",
+    "fanquake raised that changing displayed strings post-freeze may block merge timing, unrelated to code correctness"
+   ],
+   "resolved_concerns": [
+    "achow101 preferred keeping units as GiB internally rather than converting at display time; author agreed and simplified the patch accordingly",
+    "murchandamus questioned the added co-authorship credit; addressed by author's explanation, no pushback"
+   ],
+   "author_status": "active as of 2026-08-17, no reply yet to hebasto's 2026-09-14 comment but within the waiting window"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code change is small, self-contained, and CI-clean. hebasto raised a design question about prune-size granularity mismatch on 2026-09-14, but it is only 2 days old (waiting_on_author_days=2), below the threshold that would mark this Paused."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Positive with ACKs from murchandamus, jeanpablojp, achow101, but hebasto flags an unresolved granularity mismatch between -prune (MiB) and the displayed GiB estimate as a real, nonblocking wart.",
+   "reason": "Multiple substantive ACKs support the fix; achow101 explicitly wanted a UI person's input before merge, and hebasto (a UI-adjacent maintainer) surfaced a real but nonblocking inconsistency that remains open without an author reply yet.",
+   "evidence": [
+    "murchandamus: 'ACK 42215b8...'",
+    "jeanpablojp: tACK confirming pruned-case behavior on a 585 MiB volume",
+    "achow101: 'ACK ... Going to wait for a UI person's opinion before merging though.'",
+    "hebasto: '-prune option has MiB granularity. It seems weird to specify -prune=550 and then see... 1 GiB.'",
+    "fanquake: notes string freeze may delay merge, a process point not a code objection"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "a possible follow-up GUI fix in src/qt/intro.cpp noted by hebasto, where GiB values are treated as GB"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Touches src/kernel/chainparams.h but only to fix doc-comment wording from GB to GiB; no API or behavior change.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is a doc-comment correction on AssumedBlockchainSize/AssumedChainStateSize, with no change to the kernel API, ABI, or boundary behavior."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Primary change is in src/init.cpp: corrects the units and computed value used in the first-run disk-space startup warning, a startup/logging message per the utils category scope.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes a real but narrow user-facing confusion in a startup message: mercie-ux confirmed a 63 GB gap between the actual disk-space check and what was displayed, and jeanpablojp confirmed the pruned case now reports consistently. It has clear value for anyone reading node startup messages but is not a functional or security issue."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the pending string/translation freeze will delay merge independent of code readiness, per fanquake's comment.",
+   "Whether hebasto's granularity concern will grow into a blocking request once the author responds, which could shift Agreement or Reviewability."
+  ],
+  "card": "This PR fixes the first-run disk-space warning in bitcoind/bitcoin-qt to correctly label sizes as GiB and to show the same (pruned-aware) estimate that the underlying disk-space check uses, rather than a mismatched full-chain figure. It revives a fix from the closed #29678 and touches only src/init.cpp and a doc comment in kernel/chainparams.h. Reviewer mercie-ux confirmed a real 63 GB discrepancy between the old warning and the actual check, and jeanpablojp verified correct pruned-case behavior; achow101 and murchandamus gave ACKs. hebasto raised an unresolved, nonblocking concern that -prune's MiB granularity can look odd next to a GiB-rounded warning, and fanquake noted the change may be affected by the project's string/translation freeze. The PR is small, self-contained, and currently reviewable, with no dependency blocking it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

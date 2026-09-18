@@ -1,0 +1,148 @@
+{
+ "number": 35733,
+ "input_hash": "3e612f8bf83824d0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:37+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27778,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3638
+ },
+ "cost_usd": 0.034476,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Remove the obsolete FillableSigningProvider class now that the legacy wallet is gone.",
+    "Isolate legacy signing state entirely inside legacy wallet migration code and migrate callers to FlatSigningProvider."
+   ],
+   "reviewability": [
+    "Ready for review. All reviewer feedback on script size limits and fuzzing has been addressed."
+   ],
+   "agreement": [
+    "Strong support for isolating legacy wallet code paths and removing outdated signing abstractions (rkrux).",
+    "Approach ACK and testing on bitcoin-tx and fuzz targets (jeanpablojp, vicjuma)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it consolidates legacy keystore logic inside the legacy migration manager.",
+      "It removes dead architectural baggage from the general signing interface following the removal of the legacy wallet."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it modernizes bitcoin-tx signing to use FlatSigningProvider directly.",
+      "It also ensures P2WSH scripts are not artificially subject to P2SH push-size limits during signing."
+     ]
+    }
+   ]
+  },
+  "summary": "Removes the `FillableSigningProvider` class from `src/script/signingprovider.{h,cpp}` and inlines its functionality directly into `LegacyDataSPKM` where legacy migration logic still requires it. Converts remaining call sites in `bitcoin-tx`, unit tests, fuzz tests, and benchmarks to use `FlatSigningProvider`. Also adds a guard in `src/script/sign.cpp` to prevent signing P2SH redeemScripts exceeding the 520-byte limit.",
+  "problem": "Following the removal of the legacy wallet, `FillableSigningProvider` remained in the signing interface as an outdated abstraction primarily needed only for legacy wallet migration data. External call sites like `bitcoin-tx` and test suites still relied on it unnecessarily.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp identified that removing `FillableSigningProvider` allowed `bitcoin-tx` to sign invalid P2SH redeemScripts over 520 bytes; achow101 added a commit enforcing this limit in `SignStep`.",
+    "jeanpablojp noted missed pubkey and P2WPKH script insertions in fuzz targets, which achow101 fixed."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is clean, passes CI, and feedback on script length limits and fuzz coverage has been incorporated."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK and Approach ACK with positive reviews and testing; concerns were resolved.",
+   "reason": "rkrux provided a Concept ACK noting the PR properly containerizes legacy wallet code paths, and both vicjuma and jeanpablojp tested and reviewed the tool and test changes.",
+   "evidence": [
+    "rkrux Concept ACK: 'to containerise the codepath related to legacy wallets while discouraging usage of this seemingly outdated signing provider.'",
+    "jeanpablojp Approach ACK after verifying tests and highlighting edge cases on script size limits.",
+    "vicjuma reviewed and tested bitcoin-tx commands successfully."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Inlines FillableSigningProvider logic into LegacyDataSPKM in src/wallet/scriptpubkeyman.{h,cpp}.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Consolidates legacy wallet signing state into LegacyDataSPKM so general signing interfaces no longer maintain legacy keystore baggage. This is worthwhile architectural cleanup enabled by the prior legacy wallet removal."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Changes signing and keystore logic in src/bitcoin-tx.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Converts bitcoin-tx to use FlatSigningProvider and explicitly register required scripts, fixing unintended P2SH length constraints on P2WSH scripts."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to test helpers and fuzz harnesses are mechanical call-site updates resulting from the removal of FillableSigningProvider.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Call-site updates in unit and fuzz tests to accommodate the removal of FillableSigningProvider do not constitute test framework work."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches doc/developer-notes.md only to remove a reference to the deleted class.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical documentation update accompanying code removal."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR removes the FillableSigningProvider class and inlines its remaining functionality into LegacyDataSPKM for legacy wallet migration, migrating bitcoin-tx and tests to FlatSigningProvider. It also prevents signing P2SH redeemScripts longer than the 520-byte MAX_SCRIPT_ELEMENT_SIZE limit. The change cleans up obsolete keystore architecture left behind after the legacy wallet removal. Reviewers have ACKed the approach and confirmed fixes for script size edge cases and fuzz test coverage. The PR is ready for review with no open dependencies."
+ },
+ "raw_text": null
+}

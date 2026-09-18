@@ -1,0 +1,213 @@
+{
+ "number": 35322,
+ "input_hash": "c71a3367713be25e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 31018,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6074
+ },
+ "cost_usd": 0.0627943,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Simplify the Logger class's internal state (drop redundant fields/methods) without changing user-visible logging behavior, with one narrow documented exception for runtime category enabling."
+   ],
+   "reviewability": [
+    "Ready. Author split the single commit into many focused commits and addressed the reviewer's structural and behavioral concerns; no open blocking question remains."
+   ],
+   "agreement": [
+    "Positive. l0rinc raised substantial concerns about commit structure, behavior-change risk, and API clarity across two rounds of CHANGES_REQUESTED, and the author split commits, fixed two unintended behavior regressions, and added tests in response (l0rinc, ryanofsky). No follow-up objection since the fixes landed."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it removes a mutex, hash map, and duplicated global/per-category level state from core logging infrastructure that every other area logs through, reducing a burden the whole codebase carries.",
+      "Behavior-preserving for startup config; the one intentional runtime-behavior change is documented in release notes."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it changes the internal semantics and build visibility of the btck_logging_* boundary functions, including a CMake fix for link errors on Windows/shared builds surfaced during CI.",
+      "No API signature change and the affected trace/debug runtime-enable behavior is called out by the author as low-impact given how little trace logging exists today."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the `logging` RPC's implementation is swapped to the new API with a minor, documented edge-case behavior change (no longer restores a previously-assigned -loglevel level when re-enabled), affecting only setups that mix logging RPC with -loglevel."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P3 because the added release note is the only user-facing documentation of an actual behavior change (RPC re-enable no longer preserves prior -loglevel level), which operators relying on that combination need to know about."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "Not a member: the interfaces::Node method rename (getLogCategories -> isAnyDebugLoggingEnabled) is a mechanical call-site follow-on to the logging refactor, not a change to IPC mechanics."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the test changes (logging_tests.cpp, test_kernel.cpp, bench/logging.cpp) pin the behavior of the logging (utils) and kernel areas specifically, so per the category rule they belong to those areas rather than to test infrastructure."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR replaces the Logger class's three separate fields (a category bitmask, a global log level, and a hash map of per-category level overrides) with a single small array of atomic per-level category bitmasks, dropping seven now-redundant methods (EnableCategory, DisableCategory, WillLogCategory, LogLevel, SetLogLevel, GetCategoryMask, AddCategoryLogLevel). It touches call sites in RPC, kernel, GUI, and interfaces::Node that used the old API, and adds tests documenting the change. One intentional, documented behavior change remains: categories enabled at runtime via the logging RPC or the kernel API are now always enabled at Debug level rather than preserving a previously-set Trace level from -loglevel.",
+  "problem": "The Logger class's redundant, multi-field representation (bitmask + global level + mutex-protected hash map) makes the logging code harder to follow and makes simple operations like changing a category's level require coordinating several fields and methods, a burden felt by anyone maintaining or extending logging.",
+  "discussion": {
+   "open_concerns": [
+    "l0rinc questioned whether Trace/Debug-only conditional levels mixed with unconditional Info+ levels is the right long-term model; author responded but left the design question open as a matter of preference, not blocking.",
+    "No reviewer has re-reviewed since 2026-05-22 despite six months of subsequent pushes addressing earlier feedback."
+   ],
+   "resolved_concerns": [
+    "l0rinc's request to split the single large commit into focused, reviewable commits \u2014 author restructured into ~14 commits.",
+    "l0rinc's finding of an unintended behavior change (-loglevel:category alone enabling a category) \u2014 author fixed by only updating levels of already-enabled categories.",
+    "l0rinc's finding of a similar unintended kernel-side behavior change and request for a test \u2014 author implemented and documented it.",
+    "Dead SetCategoryLogLevel(string,string) overload with no remaining callers \u2014 dropped per suggestion.",
+    "CI/link failures on Windows and shared-lib kernel builds \u2014 fixed via CMake visibility/export changes across several pushes."
+   ],
+   "author_status": "active, still force-pushing as recently as 2026-08-15 to fix CI/rebase conflicts with other in-flight logging PRs"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is clean and no rebase is needed. The only reviewer's substantive concerns (commit granularity, unintended behavior changes, dead code) were addressed through multiple pushes with tests added; no material request remains open."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: l0rinc's structural and behavioral concerns were substantive but the author addressed each with commit splits, fixes, and tests, and l0rinc has not objected since.",
+   "reason": "Only one reviewer engaged, initially with two rounds of CHANGES_REQUESTED, but every concrete objection (commit structure, two unintended behavior regressions, a dead API overload) was met with a concrete fix or accepted rationale, and there has been no further pushback in the following three months of pushes.",
+   "evidence": [
+    "l0rinc (2026-05-20, 2026-05-22): CHANGES_REQUESTED, asked for smaller commits and found two unintended behavior changes.",
+    "ryanofsky: split into ~14 commits, fixed both flagged behavior changes, added tests, dropped a dead overload per suggestion.",
+    "No reviewer response after the 2026-05-27 update despite six later pushes."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Likely groundwork for #35387 (logging: make trace logging easily usable), which the author cites as reworking the runtime trace/debug behavior touched here, though no PR explicitly states a hard dependency."
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Directly rewrites src/logging.h/.cpp, the shared Logger class used by every area for log filtering; the Utils label criteria (logging) apply squarely.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Description states the goal is removing 'confusing and redundant' state (three fields, a mutex-protected hash map, a bitset) that makes 'basic operations like setting a category's level require coordinating multiple fields and method calls'; this is the kind of internal-infrastructure improvement judged on its own terms in utils. It also drops mutex locking and hash lookups from the hot log-filter check path, a minor performance/lock-contention benefit, and simplifies the API other logging work (#35387) is expected to build on."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Modifies src/kernel/bitcoinkernel.cpp (btck_logging_set_level_category/enable_category/disable_category semantics) and src/kernel/CMakeLists.txt (symbol visibility/export fixes needed to keep test_kernel building on Windows and shared-lib configurations), plus test_kernel.cpp assertions of the new behavior.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The CMake changes exist specifically to fix CI link failures ('Windows cross CI... use .def file to export logging symbols from DLL') so the kernel library keeps building on supported platforms, and the btck_logging_* semantics change (documented and tested per l0rinc's request) affects the kernel logging API boundary though not its signatures."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "src/rpc/node.cpp's EnableOrDisableLogCategories is rewritten to call the new SetCategoryLogLevel API, and the release notes document a resulting behavior change specific to the logging RPC.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release notes: 'The logging RPC no longer restores log levels previously assigned via -loglevel when re-enabling categories... This only affects setups that combine logging RPC calls with -loglevel configuration' \u2014 a narrow, low-impact behavior edge case rather than a functional RPC improvement."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds doc/release-notes-35322.md as the sole documentation of the RPC/-loglevel interaction change.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The release note is the only place operators combining -loglevel with the logging RPC would learn that behavior changed, which matters for release-notes completeness though the underlying behavior change itself is minor."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "logging_tests.cpp, test_kernel.cpp, and bench/logging.cpp are all tests/benchmarks that pin the behavior of a specific area (logging/utils, kernel) rather than changes to test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the category file, 'a test that pins the behavior of one area belongs to that area, not here'; these tests belong to utils and kernel, already captured there."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "src/interfaces/node.h's getLogCategories -> isAnyDebugLoggingEnabled rename is a mechanical follow-on call-site update for the logging refactor.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change is not about interface mechanics (serialization, connection handling, capnp) but a straightforward rename tracking the underlying logging API change, which the rules exclude from membership."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether l0rinc or another maintainer will re-review after the extensive rework; no review has occurred since 2026-05-22 despite six subsequent pushes, so the current Agreement read on silence-as-consent could change quickly.",
+   "Whether this PR is a hard prerequisite for #35387 (trace logging usability) is inferred from author commentary and the same-author conflict list, not an explicit stated dependency.",
+   "Exact current CI/merge status beyond the provided 'clean' mergeable_state and no reported CI failure."
+  ],
+  "card": "This PR replaces Bitcoin Core's Logger internal state (a category bitmask, a global log level, and a mutex-guarded per-category level map) with a single small array of atomic bitmasks, dropping seven redundant methods, and is described by the author as behavior-preserving except that runtime category enabling via the logging RPC or kernel API now always uses Debug level instead of a previously-set Trace level. It is a maintainability improvement to shared logging infrastructure used by every area, plus small follow-on changes to the RPC, kernel API semantics, and kernel build (CMake export fixes for CI link failures on Windows/shared builds). The sole reviewer (l0rinc) raised substantial concerns across two CHANGES_REQUESTED rounds about commit granularity and two unintended behavior regressions, all of which the author addressed with commit splitting, fixes, and new tests, though no re-review has occurred since May 2026 despite continued rebases through August. No stated hard dependency exists, but the author's own conflict list and commentary suggest this is groundwork for the related #35387 trace-logging PR."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

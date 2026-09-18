@@ -1,0 +1,319 @@
+{
+ "number": 35354,
+ "input_hash": "70aa1624b591797f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:33:02+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 38803,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10325
+ },
+ "cost_usd": 0.067821,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent spurious peer disconnects and bans when BIP 157 light clients request compact filters for recently announced blocks before the index finishes constructing them."
+   ],
+   "reviewability": [
+    "Ready for review following the author's adoption of the peer-pausing design suggested by reviewers."
+   ],
+   "agreement": [
+    "Strong support for the peer-pausing approach (ajtowns).",
+    "Earlier objections regarding index decoupling have been addressed and resolved (sedited, mzumsande)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it resolves an interoperability bug where Core advertises a block before computing its compact filter, prompting light clients to disconnect or ban the node.",
+      "Affects external BIP 157 clients such as Neutrino and Kyoto during new block announcements, while preserving full node message ordering."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "Unranked because the PR does not modify index internals, interfaces, or storage.",
+      "All race handling is confined to net_processing."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a race condition where BIP 157 compact filter requests (`getcfilters`, `getcfheaders`, `getcfcheckpt`) arrive for a newly connected block before the validation-interface callback finishes constructing the corresponding filter. Rather than ignoring the request and provoking peer disconnects, `net_processing` detects that the index is racing the chain tip and parks the request, pausing message processing for that peer until the filter is written or the request resolves.",
+  "problem": "When a new block is connected, Bitcoin Core announces it before the background validation queue builds its compact filter. BIP 157 light clients requesting the filter during this race window receive no response, treating the silence as protocol misbehavior and disconnecting or banning the Core node (#29655).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "sedited objected to handling the race and syncing validation queues inside `BaseIndex` rather than in `net_processing`.",
+    "mzumsande objected to modifying index code in `src/index/base.h`, requesting that `net_processing` rely only on existing `GetSummary()` data.",
+    "ajtowns noted that `getcfheaders` was responsible for more real-world disconnects than `getcfilters`, suggesting that all three BIP 157 message types be deferred, and recommended pausing the peer entirely to preserve message ordering."
+   ],
+   "author_status": "active, implemented the suggested peer-pausing approach, benchmarked cs_main acquisition overhead, and force-pushed on 2026-08-27"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author has incorporated all reviewer recommendations (handling all three message types, pausing message processing on the peer, and keeping index code untouched) and CI is green."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "sedited",
+     "stance": "objection",
+     "note": "Preferred handling the race in net_processing rather than modifying index logic"
+    },
+    {
+     "login": "mzumsande",
+     "stance": "objection",
+     "note": "Noted index code should remain untouched and net_processing should determine racing status via GetSummary()"
+    },
+    {
+     "login": "ajtowns",
+     "stance": "objection",
+     "note": "supported solving the race, objected to omitting getcfheaders and proposed pausing the peer rather than out-of-order queueing"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "sedited",
+     "kind": "approach",
+     "harm": "Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-06-21: 'Reading through this, I don't think this should be handled on the index level.'",
+     "resolution_evidence": "2026-08-05: author moved logic to net_processing and rewrote the implementation",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "mzumsande",
+     "kind": "approach",
+     "harm": "Touching index internals violates separation of concerns when GetSummary already exposes sufficient state.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-11: 'Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all'",
+     "resolution_evidence": "2026-08-14: author removed index changes and used GetSummary()",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ajtowns",
+     "kind": "scope",
+     "harm": "Handling only getcfilters leaves getcfheaders and getcfcheckpt unhandled, which are responsible for most disconnects in practice.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-16: 'Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?'",
+     "resolution_evidence": "2026-08-26: author updated the PR to handle all three compact filter message types via std::variant",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ajtowns",
+     "reason": "Compact filter calculations are slow enough that races occur for light clients reacting to headers announcements, making the fix worthwhile, and the peer-pausing design keeps message processing in order.",
+     "substantive": true
+    },
+    {
+     "reviewer": "mzumsande",
+     "reason": "agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: ajtowns supported the fix and provided the peer-pausing prototype; earlier objections from sedited and mzumsande were fully resolved.",
+   "reason": "All reviewers agree the bug should be resolved in net_processing. Objections regarding index encapsulation and message coverage have been implemented, and ajtowns advocated for the current peer-pausing approach.",
+   "evidence": [
+    "ajtowns: 'I think those calcs are slow enough that this is likely to occur occasionally... so is worth handling'",
+    "ajtowns provided prototype branch: 'The idea is that you add a single \"hey, I'm working on an answer to this request\" queued item for the peer, and refrain from processing any further messages from that peer'",
+    "randomlogin adopted the suggested pattern and benchmarks show negligible overhead"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (ajtowns, mzumsande)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "sedited",
+      "kind": "approach",
+      "harm": "handling the race at the index level violates separation of concerns; net_processing should handle it",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-21: \"Reading through this, I don't think this should be handled on the index level. While I'm still not sold that this is not something that is just a bit flawed in the spec, I would prefer an approach where net_processing dealt with this directly\"",
+      "resolution_evidence": "2026-08-05: \"Added deferring of a response, we store the racing request in a PendingCFilterRequest struct in a Peer and then check it in SendMessages.\""
+     },
+     {
+      "reviewer": "mzumsande",
+      "kind": "approach",
+      "harm": "adding IsRacing to BaseIndex entangles index code with net_processing concerns when GetSummary already has sufficient info",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-11: \"Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info (or we could add more if not), so I'd prefer if the index code was not touched at all for this and the net_processing code would decide whether there is a possible race.\"",
+      "resolution_evidence": "2026-08-14: \"Removed IsRacing, now using GetSummary. No changes in GetSummary were required.\""
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "deferring only getcfilters leaves getcfheaders disconnects unaddressed, and queueing without pausing breaks peer message ordering",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-16: \"there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?... I wonder if it wouldn't be better to adopt the 'pause this peer' approach, rather than queueing messages but continuing.\"",
+      "resolution_evidence": "2026-08-26: \"I took some time to gain more understanding on how net_processing works and your comments make a perfect sense. Some suggestions on top of your commit...\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "mzumsande",
+      "reason": "agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects",
+      "substantive": true
+     },
+     {
+      "reviewer": "ajtowns",
+      "reason": "agrees the race should be handled without further blocking the message handling thread, favoring pausing the peer",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "sedited",
+      "stance": "objection",
+      "note": "objected to index-level handling of the race condition, suggesting net_processing handle it directly"
+     },
+     {
+      "login": "mzumsande",
+      "stance": "objection",
+      "note": "supported addressing the race in net_processing but objected to modifying index code with IsRacing"
+     },
+     {
+      "login": "ajtowns",
+      "stance": "objection",
+      "note": "supported solving the race, objected to omitting getcfheaders and proposed pausing the peer rather than out-of-order queueing"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive: reviewers wanted the race resolved in net_processing; author adopted ajtowns' peer-pause approach and pushed fixes.",
+    "usage": {
+     "input_tokens": 9353,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3951
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "sedited",
+      "kind": "approach",
+      "harm": "Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-06-21: 'Reading through this, I don't think this should be handled on the index level.'",
+      "resolution_evidence": "2026-08-05: author moved logic to net_processing and rewrote the implementation"
+     },
+     {
+      "reviewer": "mzumsande",
+      "kind": "approach",
+      "harm": "Touching index internals violates separation of concerns when GetSummary already exposes sufficient state.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-11: 'Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all'",
+      "resolution_evidence": "2026-08-14: author removed index changes and used GetSummary()"
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "scope",
+      "harm": "Handling only getcfilters leaves getcfheaders and getcfcheckpt unhandled, which are responsible for most disconnects in practice.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-16: 'Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?'",
+      "resolution_evidence": "2026-08-26: author updated the PR to handle all three compact filter message types via std::variant"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ajtowns",
+      "reason": "Compact filter calculations are slow enough that races occur for light clients reacting to headers announcements, making the fix worthwhile, and the peer-pausing design keeps message processing in order.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies net_processing.cpp to defer and serve compact filter messages across the P2P connection.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes an intermittent protocol-level race bug reported in #29655 and #27085 where BIP 157 clients disconnect or ban Bitcoin Core nodes because newly announced block filters have not yet landed in the index. ajtowns noted the race is slow enough to occur intermittently in practice and worth handling. It also exercises the paused-peer message processing pattern that could benefit future decoupled block validation work."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "The PR does not touch any files in src/index/ or change index interfaces or storage; all logic was intentionally kept in net_processing per reviewer feedback.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Following review from mzumsande and sedited, changes to BaseIndex were discarded in favor of inspecting IndexSummary from net_processing."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a race condition where BIP 157 light clients request compact filters or headers for a newly announced block before the validation interface finishes writing the filter to disk. Currently, Bitcoin Core drops the request without responding, causing peers like Neutrino or Kyoto to disconnect or ban the node. The patch addresses this in net_processing by pausing message processing for the requesting peer until the filter index catches up or the request can be answered. The PR is in a clean state and ready for review after adopting an approach prototyped by ajtowns."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.021831
+}

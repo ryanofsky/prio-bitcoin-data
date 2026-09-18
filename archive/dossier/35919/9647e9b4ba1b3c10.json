@@ -1,0 +1,107 @@
+{
+ "number": 35919,
+ "input_hash": "9647e9b4ba1b3c10",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9218,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2224
+ },
+ "cost_usd": 0.021744299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a node crash when the orphanage has more than 3000 peers with orphan announcements, which causes an integer-division-by-zero assertion abort.",
+    "Floors the per-peer latency share at one so trimming can still bring the orphanage back under its global limit."
+   ],
+   "reviewability": [
+    "Ready. Author actively addressed multiple rounds of reviewer feedback and pushed updates same day."
+   ],
+   "agreement": [
+    "Strong support: jeanpablojp reproduced the abort and re-ACKed after fixes (jeanpablojp)",
+    "code review ACK after requesting fuzz coverage, which was added (brunoerg)",
+    "light ACK with only nonblocking doc nits, all addressed (danielabrozzoni)"
+   ],
+   "categories": []
+  },
+  "summary": "This PR fixes a crash in the transaction orphanage where dividing a global latency score among more than 3000 peers with orphan announcements produces a zero per-peer allowance, triggering an assertion abort during trimming. It floors the per-peer latency share at one and makes peers at that minimum eligible for eviction, restoring the orphanage's ability to return to its global limit. The change includes a regression unit test, expanded fuzz coverage for the zero-share case, and documentation updates clarifying the actual eviction guarantees.",
+  "problem": "Nodes configured with very high peer counts (achievable on stock Linux via raised file descriptor limits, though capped below this on select()-based builds like macOS) can trigger an integer-division-by-zero condition in orphanage trimming that aborts the node, a denial-of-service and stability risk for operators running high-connection nodes.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp's stale doc comment and unused include nits, addressed via force-push",
+    "brunoerg's request to actually exercise the zero-share path in fuzzing, implemented",
+    "danielabrozzoni's whitespace nit and missing SanityCheck() call, both addressed",
+    "danielabrozzoni's request to clarify why DoS score can be exactly 1, addressed with doc commit",
+    "header doc correction that peers at their limit are no longer protected from eviction, fixed"
+   ],
+   "author_status": "active, addressing review same day as comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All reviewer feedback (jeanpablojp, brunoerg, danielabrozzoni) has been incorporated via force-pushes, with the author responding same-day. No open material requests remain."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: jeanpablojp reproduced the abort and re-ACKed, brunoerg gave a code review ACK after requesting and receiving fuzz coverage, danielabrozzoni gave a light ACK with only nonblocking nits, all addressed.",
+   "reason": "Three reviewers engaged substantively, one reproduced the underlying bug, and all requested changes were incorporated with no standing objections.",
+   "evidence": [
+    "jeanpablojp: 'Reproduced the abort on master... re-ACK 5f4429c'",
+    "brunoerg: 'code review ACK 5f4429c' after requesting fuzz coverage which was added",
+    "danielabrozzoni: 'light ACK... Code looks good, I left a couple of non-blocking ideas'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies src/node/txorphanage.cpp/h, the peer-facing orphan transaction handling and DoS-limiting logic, labeled P2P.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Fixes a node-crashing assertion abort reachable at high peer counts, described in the PR as occurring 'well above the default connection limit of 200' but reachable on stock Linux nodes with raised file descriptor limits. This is a stability/DoS-adjacent fix: an attacker or operator misconfiguration could crash the node, and jeanpablojp confirmed reproducing the abort on master. Not P1 because the threshold (3000 peers) is far above default and typical configurations, limiting how many nodes are actually exposed."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds and modifies unit tests (orphanage_tests.cpp) and fuzz harness (txorphan.cpp) specifically to characterize and cover the zero-share regression.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The test changes exist to pin a real regression (the orphanage abort) and, per brunoerg's request, were expanded so the fuzz harness actually reaches the zero-share path ('It's worthing changing the fuzz targets to reach the zero-share path'). This is coverage of a realistic hazard rather than tests for their own sake, but the tests are secondary to the p2p fix itself, which is the primary subject."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Exact real-world exposure of the 3000-peer threshold is unclear; description says it's above default limits, so actual attack surface for typical nodes may be narrow.",
+   "No linked GitHub issue confirming this was hit in production, though jeanpablojp reproduced it locally."
+  ],
+  "card": "This PR fixes a node-crashing assertion abort in the transaction orphanage that occurs when more than 3000 peers have orphan announcements, causing integer division to produce a zero per-peer latency allowance during trimming. The fix floors the per-peer share at one and makes peers at that floor eligible for eviction, restoring correct trimming behavior; jeanpablojp independently reproduced the crash on master with a small repro (global limit 2, three peers) confirming the bug is real and the two-part fix (floor plus inclusive comparison) is necessary together. Review involved three members (jeanpablojp, brunoerg, danielabrozzoni) who requested doc clarifications, added fuzz coverage of the zero-share path, and a missing sanity check, all of which the author addressed via force-pushes on the same day, leaving the PR at Strong agreement and Ready for review. No dependencies; two unrelated open PRs touch overlapping files but are not blocking. Impact is a stability/DoS fix for nodes reachable at unusually high peer counts (above default limits, achievable on Linux with raised file descriptor limits), which caps this as P2 rather than P1 in p2p."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

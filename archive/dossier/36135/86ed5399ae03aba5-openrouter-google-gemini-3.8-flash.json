@@ -1,0 +1,94 @@
+{
+ "number": 36135,
+ "input_hash": "86ed5399ae03aba5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:02+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18205,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2032
+ },
+ "cost_usd": 0.02127375,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fuzz-test the HTTP request parser state machine across stream segmentation boundaries",
+    "Ensure parsing yields identical requests whether bytes arrive in a single cycle or in arbitrary chunks"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "No blockers or open reviewer questions remaining"
+   ],
+   "agreement": [
+    "Strong support from reviewers who confirmed test coverage improvements (hodlinator, jeanpablojp)",
+    "Tested ACK with mutation testing confirming resume-path failures are caught (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it adds valuable differential fuzz coverage for HTTP parsing across segmented TCP reads",
+      "It catches parser resumption bugs and request-framing discrepancies without blocking critical subsystems"
+     ]
+    }
+   ]
+  },
+  "summary": "Expands the http_request fuzz harness to feed byte streams both all at once and in arbitrary slices, asserting that parsing produces identical requests regardless of I/O segmentation. It also doubles the buffer cap so the fuzzer can reach the maximum HTTP header size limit.",
+  "problem": "The existing http_request fuzz target processed inputs in a single pass, leaving the resumable parsing paths in the HTTPRequest state machine unreached and unverified against request-framing desynchronization.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "GCC hidden overloaded virtual warning on custom socket mock resolved by switching to ZeroSock",
+    "Missing header verification resolved by checking the Host header across runs",
+    "Fuzzer input size constraint resolved by increasing buffer limit to 2 * MAX_HEADERS_SIZE and coordinating seed additions in qa-assets"
+   ],
+   "author_status": "active, addressed all review suggestions and pushed clean update"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, passes CI, and addresses all comments from previous review rounds."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support with ACKs from hodlinator and jeanpablojp following mutation testing",
+   "reason": "Reviewers tested the harness with ASan/UBSan and verified that artificial mutations in the HTTP parser resume logic trigger assertion failures in the new harness.",
+   "evidence": [
+    "hodlinator approved (ACK fca8fef8f9): 'Should provide more coverage of HTTPRemoteClient as well as adding comparison of the resulting requests when the input is sliced up and when it's not'",
+    "jeanpablojp approved (tACK fca8fef8f9): 'Rebuilt with ASan and UBSan, replayed the corpus and fuzzed on top of it without a failure. Mutating the resume paths trips the new assertions.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies the fuzz target src/test/fuzz/http_request.cpp to extend coverage over the HTTP request parser state machine.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it exercises previously unreachable resumable parse logic in the HTTP server, protecting against parsing and framing divergence bugs. Reviewers verified through mutation testing that injecting faults into the resume paths now consistently trips assertions."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request updates the http_request fuzz harness to feed data both in a single shot and piecemeal in randomized slices, asserting differential equality of parsed HTTP requests. This exercises the resumable HTTPRequest state machine paths that were unreachable when parsing whole buffers at once. Reviewers confirmed through mutation testing that the added checks detect resume bugs, and the PR has two substantive ACKs with no objections. It has no open dependencies and is ready to merge."
+ },
+ "raw_text": null
+}

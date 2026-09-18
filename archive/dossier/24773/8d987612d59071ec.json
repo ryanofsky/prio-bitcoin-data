@@ -1,0 +1,125 @@
+{
+ "number": 24773,
+ "input_hash": "8d987612d59071ec",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15206,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4300
+ },
+ "cost_usd": 0.0381123,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enable AVX2, SSE4.1, and SHA-NI hardware-accelerated SHA256 implementations when building with MSVC on Windows, matching speedups already available on GCC/Clang builds."
+   ],
+   "reviewability": [
+    "Paused: maintainers indicated in August 2026 the outcome was to close this PR in favor of #31507, which drops MSVC support instead of extending it."
+   ],
+   "agreement": [
+    "Historically positive with concept ACKs and tested ACKs showing large speedups (laanwj, theuni, sipsorcery, m3dwards, achow101), but now Blocked by a maintainer decision to go the opposite direction with #31507 (fanquake, maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it meaningfully speeds up SHA256 on Windows/MSVC builds (up to 10x with SHA-NI per achow101 and sipsorcery benchmarks), but the project's stated direction (#31507) is to drop MSVC support entirely, undermining the durability of this work."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it adds real hardware-accelerated crypto code paths (cpuid detection, AVXEnabled intrinsics) that noticeably speed up a core primitive used everywhere, though its value is now contingent on whether MSVC remains a supported toolchain."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR enables hardware-accelerated SHA256 implementations (SSE4.1, AVX2, x86 SHA-NI) for MSVC builds on Windows, mirroring optimizations already available for GCC/Clang. It adds an MSVC implementation of GetCPUID and AVXEnabled using intrinsics (since MSVC lacks inline assembly on x64), and updates the CMake introspection checks to probe for these instruction sets under MSVC. Benchmarks show dramatic speedups, e.g. SHA256D64 dropping from ~11ns/byte to ~0.7-1.3ns/byte with SHA-NI on capable hardware.",
+  "problem": "Before this PR, MSVC builds of Bitcoin Core used only the generic 'standard' SHA256 implementation, missing out on 5-10x speedups that GCC/Clang builds already get from SIMD and SHA extensions. Windows users and developers building with MSVC feel slower hashing performance across the node (block validation, mempool, PoW checks all use SHA256 heavily).",
+  "discussion": {
+   "open_concerns": [
+    "Project direction conflict: #31507 proposes moving away from MSVC support (using clang-cl instead), which runs counter to this PR's investment in MSVC-specific code (fanquake, 2026-08-12).",
+    "Maintainers (fanquake, maflcko) stated in August 2026 that the outcome of discussion (an IRC meeting referenced by hebasto) was to close this PR."
+   ],
+   "resolved_concerns": [
+    "theuni's request to split out the ALWAYS_INLINE/inline-attribute refactor was addressed by extracting it into PR #27575, which merged.",
+    "fanquake's question about why GetCPUID was skipped for rdrand/rdseed on MSVC was clarified by sipa: rdrand/rdseed still need their own intrinsics implementation, unrelated to this PR's scope.",
+    "theuni's confusion about compat/cpuid.h double-definition and MSVC inline asm limitations was clarified by hebasto with compiler error evidence.",
+    "m3dwards's naming nit on a config symbol was acknowledged as non-blocking."
+   ],
+   "author_status": "silent since 2026-08-13, said the direction is being clarified at an IRC meeting; maintainers since indicated the outcome favors closing this PR"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Likely closing, see #31507",
+   "reason": "Maintainers fanquake and maflcko stated in August 2026 that the discussed outcome was to close this PR, since the project's direction now favors #31507 (dropping MSVC support via clang-cl) rather than extending MSVC-specific optimization code. Reviewing the current code is likely wasted effort pending that resolution."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Previously Strong with tested ACKs and large benchmarked speedups (sipsorcery, theuni, achow101), now Blocked by a maintainer-level direction decision favoring #31507 instead (fanquake, maflcko).",
+   "reason": "The PR accumulated substantive support over years (concept ACKs from laanwj and theuni, tested ACKs from sipsorcery, benchmarks from achow101 confirming large gains) with only minor unresolved nits, but recent maintainer comments in August 2026 indicate the project intends to close this PR in favor of a conflicting approach (#31507) that drops MSVC support entirely.",
+   "evidence": [
+    "laanwj: 'Concept ACK' (2022-04-06)",
+    "theuni: 'Concept ACK... changes here look pretty uncontroversial' (2023-05-04)",
+    "sipsorcery: 'tACK ... Looks up 5 to 10x faster' (2023-10-04)",
+    "achow101 posted benchmarks confirming large SHA-NI speedup on AMD 5950x (2026-06-08)",
+    "fanquake: 'seems to go in the opposite direction of your other PRs... such as #31507' (2026-08-12)",
+    "maflcko: 'The outcome was to close this?' (2026-08-18)",
+    "fanquake: 'I think so, and it seems like the plan is to go ahead with #31507' (2026-08-19)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Nothing directly; historically depended on #24772, #27575 (merged) and #27598 (merged), all now resolved."
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Labeled 'Build system'; changes cmake/introspection.cmake to add MSVC-specific compile checks for SSE4.1/AVX2/SHA-NI support.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it delivers a large, benchmarked performance improvement for MSVC/Windows builds (SHA256D64 dropping from ~11ns/byte to under 1ns/byte with SHA-NI per achow101's and sipsorcery's benchmarks), a clear and durable win for that platform. However, its leverage is now undercut by the project's apparent shift toward reducing MSVC-specific investment via #31507, per fanquake's observation that this PR 'seems to go in the opposite direction' of that plan."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Labeled 'Utils/log/libs'; adds MSVC intrinsics-based GetCPUID (src/compat/cpuid.h) and AVXEnabled (src/crypto/sha256.cpp), core low-level primitives.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it correctly extends a core cryptographic primitive (SHA256) with hardware detection and acceleration on a platform that previously fell back to the slow generic path, a real and measured performance gain (sipa confirmed the intrinsics approach is necessary since 'MSVC does not support inline asm at all'). Priority is tempered because the value is contingent on MSVC remaining supported, an open question per the ongoing #31507 discussion."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will formally close this PR or merge it depends on an outcome from an IRC meeting not fully captured in the visible discussion.",
+   "Whether #31507 will actually remove MSVC support, which would make this PR's premise moot, is itself undecided as of the latest comments."
+  ],
+  "card": "This PR enables hardware-accelerated SHA256 (SSE4.1, AVX2, SHA-NI) for MSVC/Windows builds, closing a long-standing gap where MSVC builds used only the slow generic SHA256 path while GCC/Clang builds already benefited from SIMD. Benchmarks from multiple reviewers (sipsorcery, achow101) show speedups of 5-10x, with SHA256D64 dropping from ~11ns/byte to under 1ns/byte on SHA-NI hardware, a substantial, real-world performance win for Windows users. The PR had strong technical support over its multi-year life (concept ACKs from laanwj and theuni, tested ACKs from sipsorcery) with only minor naming nits, but its future is now in doubt: maintainers fanquake and maflcko indicated in August 2026 that the discussed outcome favors closing this PR in favor of #31507, which moves toward dropping MSVC support entirely via clang-cl rather than extending MSVC-specific code. Review of the current code is likely moot until that direction is settled."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

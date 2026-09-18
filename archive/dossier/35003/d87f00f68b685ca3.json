@@ -1,0 +1,178 @@
+{
+ "number": 35003,
+ "input_hash": "d87f00f68b685ca3",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 64086,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8654
+ },
+ "cost_usd": 0.1087623,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make block I/O errors (inaccessible blocks directory or files) fail consistently instead of being silently swallowed or crashing.",
+    "Stops the node from looking alive while being silently stuck unable to advance the chain, and makes P2P and RPC paths handle disk errors predictably."
+   ],
+   "reviewability": [
+    "Paused: a fundamental Approach NACK about the error-handling design (nullptr vs exception-based translation) is unresolved and nobody has replied in 69 days.",
+    "Reviewing the current code risks being wasted if the project decides on a different error-handling strategy (raised as a meta-question by maflcko)."
+   ],
+   "agreement": [
+    "Disputed: josibake gave a formal Approach NACK arguing FlatFileSeq should preserve exceptions and translate them at the BlockManager boundary rather than collapsing into nullptr (josibake).",
+    "Author defends the consistency of the current minimal fix and disagrees this is the wrong direction (furszy).",
+    "Several reviewers gave positive/ACK reviews on the code and tests before the NACK (l0rinc, maflcko, rkrux, w0xlt, frankomosh, sedited).",
+    "maflcko posed an unanswered meta-question about whether the project even wants fatal-shutdown handling for these rare errors, suggesting the PR may need rework or closure."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P1 because a swallowed exception in ActivateBestChain previously left the node alive but permanently stuck, unable to process new blocks, without any visible error.",
+      "Fixing this closes a serious reliability gap in a validation invariant (chain must keep advancing), independent of the approach dispute over how errors should be modeled."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because GETDATA, GETBLOCKTXN and GETCFILTERS previously swallowed disk errors and left peers or the node in inconsistent states (unresponsive peer, inconsistent assert-vs-silent-catch behavior).",
+      "Making GETBLOCKTXN fatal and GETDATA disconnect-on-error improves message-handling correctness and liveness, though the benefit is narrower than the validation-side stuck-node fix."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P3 because it converts an index code crash on an unexpected OpenFile exception into a silently ignored error, avoiding one crash class but not adding real index error handling.",
+      "Discussion flagged this as an incomplete, non-ideal interim fix with follow-up work explicitly deferred (index handling of file exceptions, RPC leaking filesystem errors)."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because the PR adds a reusable SimulateFileSystemError test utility that could be generalized for future fault-injection tests (noted by rkrux and l0rinc), beyond the area-specific tests it primarily contains.",
+      "Most of the added tests pin validation/p2p/indexes behavior rather than exercising general framework capability, so the leverage here is narrow."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes block I/O error handling consistent across validation, P2P message handling, and indexes: GETDATA now disconnects the peer on disk error, GETBLOCKTXN triggers a fatal shutdown instead of an assert, ActivateBestChain triggers a fatal shutdown instead of silently swallowing an exception (previously leaving the node alive but stuck), GETCFILTERS logs through the expected error path, and index code no longer crashes on an unexpected filesystem exception. The vast majority of the diff (97% per the author) is new unit and functional test coverage reproducing each previously-mishandled scenario, plus a new SimulateFileSystemError test helper.",
+  "problem": "Different code paths handled the same root cause (an inaccessible blocks directory or file) inconsistently: some correctly triggered a fatal shutdown, some silently swallowed the exception via a broad P2P catch-all leaving the node alive but permanently stuck reprocessing a failing block, some silently dropped P2P requests, and some crashed the node via assertions. This makes disk-related failures hard to diagnose and, in the worst case, leaves the node appearing healthy while it can no longer advance the chain.",
+  "discussion": {
+   "open_concerns": [
+    "josibake's Approach NACK: FlatFileSeq::Open should preserve the fs::filesystem_error exception and let BlockManager translate it at the right boundary, rather than collapsing it into the existing nullptr return used for all other Open() failures; author disagrees, arguing this would create two inconsistent error-signaling paths for the same failure class.",
+    "maflcko's unanswered meta-question: does the project actually want fatal-shutdown handling for these rare disk errors at all, and if so should it be done piecemeal or in one large coordinated PR (referencing overlapping PR #35676)?",
+    "w0xlt's concern about SimulateFileSystemError silently no-op'ing (false test coverage) on unsupported environments was partially addressed then reverted/reworked, and maflcko separately objected to the final ordering of rename-vs-chmod in the test helper as potentially masking failures."
+   ],
+   "resolved_concerns": [
+    "Numerous test-nits and API cleanups (function naming, magic numbers, lock ordering under DEBUG_LOCKORDER, [[nodiscard]] on flatfile functions) were raised and fixed across many rounds by maflcko, l0rinc, rkrux, and w0xlt.",
+    "Whether ActivateBestChain's reorg path truly gets 'stuck' was questioned by sedited/rkrux; author clarified and adjusted description/tests accordingly.",
+    "Debate about whether to add [[nodiscard]] broadly was resolved by dropping that commit."
+   ],
+   "author_status": "active until 2026-07-09, replied same-day to josibake's Approach NACK, but no activity since (69 days silent per signals) while maflcko's follow-up meta-question remains unanswered"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Approach dispute unresolved",
+   "reason": "josibake issued a formal Approach NACK on 2026-07-09 arguing the core FlatFileSeq change uses the wrong error-handling abstraction, and maflcko followed with an unanswered meta-question about whether the project wants this kind of fatal-shutdown handling at all or should coordinate it in a single larger PR. Neither has been addressed in the 69 days since, so further code review risks being invalidated by a change in direction.'"
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: josibake's Approach NACK on the error-handling design is unresolved despite the author's rebuttal; multiple other reviewers had already given positive ACKs on the code and tests before this NACK.",
+   "reason": "A blocking-style objection (Approach NACK) from a reviewer with a substantive rationale remains unresolved: the author engaged and defended the design but did not change it, and the critic did not withdraw the objection. Six other reviewers (l0rinc, maflcko, rkrux, w0xlt, frankomosh, sedited) had reviewed favorably on earlier revisions, but the later formal NACK supersedes prior informal consensus for merge-readiness purposes.",
+   "evidence": [
+    "josibake (2026-07-09): 'Approach NACK... I am convinced removing exceptions from the low level file primitive and folding it into a nullptr is the wrong direction.'",
+    "furszy (2026-07-09): defends the current approach, calls the alternative an inconsistency, but does not change the code.",
+    "maflcko (2026-07-09): poses an unanswered meta-question on whether this class of fix should even be pursued.",
+    "l0rinc (2026-07-02): 'reACK 768014068b8ccdb205b4ad8e666eed07db247221'.",
+    "maflcko (2026-07-02): 'test-doc-only re-ACK ... \ud83c\udf4f'."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced as groundwork/context for further work on #34176 (wallet crash fix), #34489 (index batch writes), #26966 (index sync speedup), and #34897 (index flush invariant), though none are strict blockers.",
+    "Overlaps conceptually with #35676 (abort in CheckDiskSpace/FlatFileSeq::Open), which maflcko suggests may need to be reconciled with this PR's direction."
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Changes how index-related functions (txindex, txospenderindex, blockfilterindex) behave when OpenFile throws, converting a crash into a silently ignored/logged error; adds test coverage for txindex/txospenderindex RPC paths under simulated I/O failure.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it removes one crash scenario for indexes ('the index-related functions now ignore the error instead of crashing the node') but the author and sedited both note this is an incomplete interim fix, with sedited noting 'this may go from crashing to ignoring the error on non-p2p paths' and both agreeing proper index error handling is a follow-up."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes ProcessMessage handling for GETDATA, GETBLOCKTXN, and GETCFILTERS to fix inconsistent, silent, or crashing behavior on block I/O errors; adds a dedicated functional test p2p_handle_io_errors.py.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes real inconsistencies in P2P request handling: 'GETDATA now... logs the error + disconnect the remote peer' and 'GETBLOCKTXN now triggers a fatal error' instead of an assert or silent swallow, per the PR description's enumerated cases 3 and 4."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a new functional test suite and reusable SimulateFileSystemError test utility, though most individual tests pin behavior of validation, p2p, and indexes rather than framework capability itself.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because the SimulateFileSystemError helper is a generalizable fault-injection capability rkrux suggested 'might be generalised in the future and made as a utility,' but most of the ~500 lines of tests pin area-specific behavior (validation/p2p/indexes) rather than extending the test framework itself."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Labeled Validation; changes ActivateBestChain's fatal-error handling for block/undo read failures during ConnectTip and DisconnectTip, fixing a scenario where the node stays alive but stuck unable to advance the chain.",
+    "band": "P1",
+    "reason_tag": "bug fix",
+    "score": 0.8,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 3,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P1 because the description states the bug leaves a node 'alive but stuck, as subsequent block connections repeatedly attempt to process the failing block, throw the exception again, and get silently swallowed' with only a net-debug-level log most users never see, which is a serious reliability failure independent of the unresolved implementation-approach dispute."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the unresolved Approach NACK and maflcko's meta-question will lead to a rework, a split into a narrower PR, or closure in favor of an alternative design (e.g. #35676 or josibake's exception-preserving proposal).",
+   "Whether 'tests' category membership is appropriate given most added tests pin area-specific behavior rather than extending shared test infrastructure; included per inclusive-membership rule given the new reusable helper.",
+   "Exact current line/commit state after the last force-push (2026-07-02) relative to the discussion snapshot, since several nits were fixed across many force-pushes."
+  ],
+  "card": "This PR (furszy) makes block I/O error handling consistent across validation, P2P, and indexes: it fixes a scenario where ActivateBestChain silently swallows an exception and leaves the node 'alive but stuck' unable to advance the chain, makes GETDATA disconnect on disk error instead of silently dropping the request, replaces a GETBLOCKTXN assert with a graceful fatal shutdown, and stops index code from crashing on an unexpected filesystem exception. ~97% of the diff is new unit and functional test coverage reproducing each previously mishandled case. The problem is real and serious for validation (a node that looks healthy but can't process new blocks), but the PR is currently Paused: reviewer josibake issued a formal Approach NACK arguing the core fix (folding a filesystem exception into FlatFileSeq::Open's existing nullptr contract) is the wrong abstraction and should instead preserve the exception for translation at the BlockManager boundary, and maflcko's follow-up meta-question about whether the project wants this kind of fix at all has gone unanswered for over two months despite six earlier positive reviews (l0rinc, maflcko, rkrux, w0xlt, frankomosh, sedited). No hard PR dependencies block it, though it overlaps conceptually with #35676."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

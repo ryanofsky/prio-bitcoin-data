@@ -1,0 +1,99 @@
+{
+ "number": 34400,
+ "input_hash": "bd733c79e56c510c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18239,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3947
+ },
+ "cost_usd": 0.0393803,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Parallelizes wallet fast-rescan filter checking to speed up rescanblockchain",
+    "Benchmarks show up to 6-8x speedup on multi-core systems with block filters enabled"
+   ],
+   "reviewability": [
+    "Needs rebase onto now-merged prerequisite #34681 and is marked Needs rebase",
+    "Draft status reflects author waiting on prerequisites, one of which has since merged"
+   ],
+   "agreement": [
+    "Strong concept support from multiple reviewers with reproduced benchmarks (w0xlt, ismaelsadeeq, rkrux)",
+    "Early architectural objections about thread-pool contention were resolved by author redesigning to a scan-local thread pool (bvbfan, rkrux)",
+    "furszy wanted refactor split off first, which the author did via separate merged PRs"
+   ],
+   "categories": []
+  },
+  "summary": "This PR parallelizes the block-filter-matching step of wallet fast-rescan so that rescanblockchain and wallet loading rescans run up to ~6-8x faster on multi-core machines with a synced block filter index. It introduces a ChainScanner abstraction, a scan-local thread pool, and logic to keep filter verdicts valid as the wallet's script filter set grows during the scan (keypool top-ups). It is split from a larger refactor (#34681) that has since merged, and the PR needs rebasing onto it.",
+  "problem": "Fast rescan is single-threaded today, so users with large wallets or long scan ranges wait a long time (hundreds of seconds in benchmarks) for rescanblockchain or a wallet load that needs to catch up to the tip. This is a common, felt pain point for wallet users and integrators, especially descriptor wallets with block filter indexes.",
+  "discussion": {
+   "open_concerns": [
+    "Design concern from bvbfan/rkrux about using the shared thread pool and having the main thread process tasks (ProcessTask) causing contention with other RPCs \u2014 addressed by moving to a scan-local thread pool per author's April update",
+    "furszy's suggestion to land the refactor as separate building-block PRs first, which the author did (#34667, #34681)"
+   ],
+   "resolved_concerns": [
+    "Concerns about shared-threadpool contention resolved by architectural change to a dedicated per-scan thread pool",
+    "rkrux's redundant-condition and Submit-range-overload nits addressed with 'Fixed' replies and later force-pushes"
+   ],
+   "author_status": "active until 2026-07-22, then silent for ~56 days as of latest reviewer activity; PR is draft pending rebase onto the now-merged prerequisite #34681"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries the 'Needs rebase' label and mergeable_state is dirty; its prerequisite #34681 has since merged, so the branch needs to be rebased before further review of the current diff is productive. Author has also been silent for ~56 days.'"
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support from w0xlt, ismaelsadeeq (with independently reproduced benchmarks), and rkrux; no unresolved blocking objections remain.",
+   "reason": "Multiple reviewers gave Concept ACKs with substantive rationale (performance benchmarks reproduced independently by ismaelsadeeq and l0rinc), and the one architectural objection (bvbfan/rkrux on thread-pool contention) was resolved when the author redesigned to a scan-local pool.",
+   "evidence": [
+    "w0xlt: 'Concept ACK'",
+    "ismaelsadeeq: 'Concept ACK' plus independently reproduced ~4.5-6.5x speedup benchmarks on two occasions",
+    "rkrux: 'Strong Concept ACK ae888e0'",
+    "bvbfan/rkrux raised thread-pool contention concerns; author redesigned to a dedicated scan-local pool in response",
+    "furszy: 'I like the PR conceptually' but wanted the refactor split off first, which happened via #34667 and #34681"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34681
+   ],
+   "enables": [
+    "Faster rescanblockchain and wallet-load catch-up scans for all wallet users with block filter indexes enabled"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "PR is labeled Wallet and its entire change is within src/wallet/scan.cpp and related wallet scanning code, directly affecting rescan behavior and correctness.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P2 because slow rescans are an explicitly named wallet pain point ('user-visible reliability: hangs, slow rescans') and this PR delivers a substantial, independently reproduced speedup (ismaelsadeeq measured 4.5-6.5x, l0rinc and the author measured up to 8x). It is not P1 because it is a performance improvement rather than a fund-safety or consensus fix, though correctness of filter-matching under concurrent top-ups (discussed at length in review, e.g. worst-case scenario analysis) carries some risk if implemented incorrectly, which keeps review attention warranted."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the prerequisite #34681 merge fully resolves the architectural questions raised by furszy, or whether further restructuring is still expected before this PR is ready to advance from draft",
+   "Exact current mergeable state after the long silence since 2026-07-22; the Needs rebase label may understate how much rework is needed post-merge of #34681",
+   "Whether the correctness of filter-verdict patching under keypool top-ups has been independently verified beyond the author's own reasoning and tests"
+  ],
+  "card": "This PR parallelizes wallet fast-rescan's block-filter checking, giving a well-corroborated 6-8x speedup on multi-core hardware for rescanblockchain and wallet-load catch-up scans, a pain point users of large or old wallets feel directly. Concept support is strong: w0xlt, ismaelsadeeq (who independently reproduced ~4.5-6.5x speedups), and rkrux (Strong Concept ACK) all back the direction, and the main architectural objection about thread-pool contention was resolved when the author switched to a scan-local thread pool. It depends on the now-merged refactor PR #34681 and currently needs a rebase, is marked Needs rebase, and is still in draft with the author silent for roughly two months as of the latest review activity. Priority is P2 in wallet: a real, measured performance win for a named pain point, tempered by it being a performance rather than fund-safety change and by some residual correctness risk in the parallel filter-verdict logic that reviewers have been probing."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

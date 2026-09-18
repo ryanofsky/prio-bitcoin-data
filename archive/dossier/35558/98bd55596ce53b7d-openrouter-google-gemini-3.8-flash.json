@@ -1,0 +1,152 @@
+{
+ "number": 35558,
+ "input_hash": "98bd55596ce53b7d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:48+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34427,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4636
+ },
+ "cost_usd": 0.04320525,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up block propagation across the network by prefilling missing transactions in compact blocks without extra network round trips."
+   ],
+   "reviewability": [
+    "Ready to review. Stacked on pull 35724 for logging cleanups, which reviewers can check first."
+   ],
+   "agreement": [
+    "Broad support for the concept and approach due to backwards compatibility and measured propagation gains (josibake, 0xB10C, murchandamus).",
+    "Tested on test networks with positive reconstruction results (m4ycon, s00ly).",
+    "Prior code comments on locking and future serialization were resolved by the author (andrewtoth)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it substantially improves block propagation speed across the network.",
+      "Node measurements show reconstruction without extra round trips jumps from 57% to 90%, cutting stale block risk without protocol changes."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it adds reusable cross-platform socket helpers to query TCP window sizes and in-flight bytes across Linux, macOS, BSD, and Windows.",
+      "The utility is self-contained but primarily serves the compact block prefill mechanism."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements predictive prefilling of compact blocks (BIP 152) using transactions reconstructed from previous blocks or extrapools. To prevent redundant round trips at the transport layer, prefilled transactions are capped by the peer connection's available TCP window size. It also adds a cross-platform TCPInfo socket utility to query socket send buffers and window sizes across supported operating systems.",
+  "problem": "Compact block relay currently only prefills coinbase transactions, requiring peers to request missing transactions via a GETBLOCKTXN round trip in roughly 43% of blocks. These round trips slow block propagation network-wide, increasing stale block rates and orphan risk.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "andrewtoth requested avoiding unnecessary background thread serialization and fine-tuning mutex scopes, which the author addressed.",
+    "m4ycon noticed zero-valued size counters in debug logs, which prompted extracting logging improvements into PR 35724."
+   ],
+   "author_status": "Active, rebased onto PR 35724 on 2026-08-04."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35724 first",
+   "reason": "The branch is clean and passing CI, but the author split out logging changes into #35724 and rebased on top of it, so reviewing #35724 first is recommended."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept support and multiple tested ACKs with no objections.",
+   "reason": "Multiple contributors and maintainers strongly support the approach because it speeds up block relay while remaining fully backwards compatible with existing BIP 152 implementations. Initial code feedback on locking and serialization was resolved.",
+   "evidence": [
+    "josibake: Concept ACK, strongly agree that the simplicity and backwards compatibility make this a very strong proposal",
+    "0xB10C: Concept ACK, thanks for picking this idea up and moving it closer to the finish line",
+    "murchandamus: Concept ACK, very excited to see this PR",
+    "m4ycon: tACK with data gathered on test nodes",
+    "s00ly: tACK on Linux with test suite and python functional tests passing"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35724
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies compact block creation and transmission logic in net_processing.cpp and blockencodings.cpp.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.68,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 3,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "In author benchmarks, prefilling compact blocks within TCP window boundaries improved roundtrip-free block reconstruction from 56.9% to 89.7%. This noticeably reduces block propagation latency across the network and lowers stale block rates without requiring consensus or P2P protocol changes."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds a TCPInfo wrapper and OS send queue querying to src/util/sock.h and src/util/sock.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Introduces platform-specific socket inspection logic (getsockopt, ioctl, and WSAIoctl) across Linux, macOS, BSD, and Windows into the Sock class hierarchy. While well-encapsulated, its value is tied directly to the P2P prefill feature rather than general node infrastructure."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "The one-line CMakeLists.txt update to set NTDDI_VERSION for Windows 10 is purely incidental to supporting SIO_TCP_INFO.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical platform target flag update following from socket code changes."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test adjustments in blockencodings_tests.cpp, sock_tests.cpp, and fuzz harnesses verify P2P and socket features rather than test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Domain-specific test coverage belongs to p2p and utils."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR improves compact block relay by predictively prefilling transactions that the node needed during its own block reconstruction, while constraining prefill size to the peer's TCP window to avoid extra transport round trips. Empirical testing shows immediate reconstruction without GETBLOCKTXN round trips jumping from 56.9% to 89.7%, substantially speeding up block propagation network-wide without requiring protocol upgrades. The change also adds a cross-platform TCPInfo wrapper in src/util/sock. There is strong concept agreement and positive test reports, with the branch currently rebased on logging dependency PR 35724."
+ },
+ "raw_text": null
+}

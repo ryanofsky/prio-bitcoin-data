@@ -1,0 +1,144 @@
+{
+ "number": 35813,
+ "input_hash": "0f2d354c4af05f4c",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 34786,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3529
+ },
+ "cost_usd": 0.053837300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add a listrawtransactions RPC that lists every wallet transaction exactly once, including consolidations and self-transfers that listtransactions hides.",
+    "Solves a documented gap where users cannot see internal wallet movements through the existing API."
+   ],
+   "reviewability": [
+    "Needs rebase before further review since the branch is dirty against master.",
+    "Discussion itself is essentially finished with the design and code settled after many rounds of feedback."
+   ],
+   "agreement": [
+    "Strong support from multiple reviewers who tested the RPC and found it worked as intended (achow101, Bicaru20, w0xlt, polespinasa, BrandonOdiwuor).",
+    "No unresolved objections, all raised concerns like verbosity naming, parent_descs, and code duplication were addressed or explained away by the author.",
+    "Latest commit carries a fresh full ACK (polespinasa)."
+   ],
+   "categories": []
+  },
+  "summary": "Adds a new listrawtransactions wallet RPC that returns every wallet transaction exactly once with its net balance change and optional fee, without the economic-category interpretation that listtransactions applies. It supports count/skip pagination and a verbose flag to include a decoded transaction. The change extracts shared amount/fee and decoded-transaction helpers out of gettransaction for reuse, and adds a functional test and release notes.",
+  "problem": "listtransactions only shows transactions with an assigned economic category (send/receive), so consolidations and pure self-transfers are invisible to users inspecting their wallet history, as reported in issue #34632. A prior attempt (#35009) to patch listtransactions itself was rejected in favor of a dedicated RPC.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Bicaru20's suggestion to dedupe listtransactions/listrawtransactions via a shared helper \u2014 author declined, explaining the two RPCs have fundamentally different per-output vs per-tx semantics.",
+    "achow101's request for a verbose/decoded field and RPC::Arg/snake_case naming \u2014 implemented.",
+    "w0xlt's bug report that count=0 incorrectly returned one entry \u2014 fixed to return an empty list.",
+    "polespinasa's request to avoid documenting an unreachable parent_descs field and to dedupe gettransaction/listrawtransactions logic via PushTxAmountAndFee/PushTxDecoded helpers \u2014 implemented as prep commits.",
+    "polespinasa's nit on move-iterator to avoid a copy \u2014 applied in the final push."
+   ],
+   "author_status": "active, addressed every review round through 2026-08-28"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked Needs rebase and mergeable_state is dirty; discussion otherwise concluded with an ACK on the latest commit, so the code is settled but needs a rebase before merge or further review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Multiple substantive ACKs (achow101, Bicaru20, w0xlt, polespinasa) with one reviewer (BrandonOdiwuor) manually testing the RPC on regtest; no unresolved objections remain.",
+   "reason": "All raised concerns (verbosity naming, count=0 bug, documentation of an unreachable field, code duplication) were fixed or explained and reviewers did not push back further; the final commit has a fresh ACK from polespinasa.",
+   "evidence": [
+    "achow101: 'ACK 7940906b3fdcbe8defdd78dcc153da4ec0bda1b6'",
+    "Bicaru20: 'ACK 7940906b3f... I really like the verbose parameter'",
+    "BrandonOdiwuor: tested on regtest and confirmed behavior matches description",
+    "polespinasa: 'ACK 0e539c51e096db9c6787f00957b20d418f46bb04'",
+    "w0xlt: 'reACK 1a03da3ade34455818c0da09bacf337edba8f921'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes issue #34632 (listtransactions missing self-transfer/change-only transactions)",
+    "Description notes a possible future filter parameter and cleanup of TransactionDescriptionString once this lands"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "New wallet RPC (listrawtransactions) added under src/wallet/rpc/, with wallet label and a dedicated functional test.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Solves a real, previously reported gap (issue #34632) where consolidation and self-transfer transactions are invisible in listtransactions, per the description: 'this RPC returns every transaction the wallet knows about \u2014 including consolidations and self-transfers that would otherwise be invisible.' It does not touch fund safety, key handling, or existing behavior, so it is a worthwhile but deferrable addition rather than category-critical."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds a new top-level RPC method and updates src/rpc/client.cpp param conversion table.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "A new read-only RPC with a clear stated use case and a previous closed PR (#35009) motivating the approach, but no explicit external consumer demand is cited beyond the linked issue; per the rpc rubric 'new methods without an external consumer asking rank low', keeping it mid-P3."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Adds doc/release-notes-35813.md describing the new RPC's fields.",
+    "band": "P4",
+    "reason_tag": "release notes",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Standard release-note addition for a new RPC, refined during review to correctly describe amount/fee semantics (polespinasa: 'The release note misdescribe amount and fee'), but it is incidental to the RPC change rather than a standalone documentation improvement."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The new functional test (wallet_listrawtransactions.py) pins the behavior of the new wallet RPC specifically, so per the tests category definition it belongs to wallet, not test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: this is an area-specific test, not a change to test framework, fuzzing, or CI machinery."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the project maintainers ultimately want a whole new RPC vs. an option on listtransactions is not fully re-litigated in this PR (achow101 suggested the separate-RPC approach in the prior #35009 discussion, but no maintainer has given a strong concept ACK on this thread beyond achow101's code-level ACK)."
+  ],
+  "card": "This PR adds a new listrawtransactions wallet RPC that lists every wallet transaction exactly once with its net balance change, exposing consolidations and self-transfers that the existing listtransactions RPC hides due to its category-based filtering. It closes issue #34632 and follows a prior closed attempt (#35009) that patched listtransactions directly before achow101 suggested a separate RPC instead. The PR underwent extensive review across many rounds (naming, dedup helpers, verbose flag, a count=0 bug, unreachable parent_descs field) and now carries multiple substantive ACKs including a fresh one on the final commit from polespinasa, with no open objections. It currently needs a rebase (dirty mergeable state, 'Needs rebase' label) before it can be merged, but the code and design are otherwise settled. It is a moderate, non-critical wallet/RPC feature: no fund-safety or consensus impact, just improved visibility into wallet transaction history."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

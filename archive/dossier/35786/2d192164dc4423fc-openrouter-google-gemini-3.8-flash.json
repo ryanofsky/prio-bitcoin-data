@@ -1,0 +1,95 @@
+{
+ "number": 35786,
+ "input_hash": "2d192164dc4423fc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:20:48+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18372,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2837
+ },
+ "cost_usd": 0.02441775,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Eliminate unnecessary cache invalidations and GUI notifications for parent transactions when the wallet spends their outputs."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "An edge case regarding keypool expansion was recently raised and awaits author consideration."
+   ],
+   "agreement": [
+    "Concept supported with multiple approvals (pablomartin4btc, Bicaru20, rkrux).",
+    "Nonblocking concern: w0xlt noted a narrow edge case where spending expands the keypool and causes a parent to recognize a previously unowned output without invalidating its cached amount."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it removes dead cache invalidation and notification code leftover from pre-27286 wallet architecture.",
+      "It simplifies transaction caching logic but offers minimal user-facing performance benefit."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes `MarkInputsDirty` calls across several wallet paths (`AddToWallet`, `SyncTransaction`, `RecursiveUpdateTxState`, and `CommitTransaction`) and eliminates parent transaction GUI change notifications during `CommitTransaction`. Following #27286, `CWalletTx` caches only its own incoming/outgoing amounts and origin rather than available wallet balance, so spending an output does not change the parent transaction's cached data.",
+  "problem": "Before #27286, `CWalletTx` cached available balance, requiring parent transactions to be invalidated whenever their outputs were spent. After that refactor, available balance is tracked separately in `m_txos` and `mapTxSpends`, leaving the parent cache invalidation and UI notification loops redundant.",
+  "discussion": {
+   "open_concerns": [
+    "w0xlt identified a narrow edge case where spending an output expands the keypool, causing another output of the parent transaction to become recognized as wallet-owned; without the invalidation, `gettransaction` continues reporting the outdated cached amount."
+   ],
+   "resolved_concerns": [
+    "pablomartin4btc raised minor nits on comments and test naming, which the author addressed or clarified."
+   ],
+   "author_status": "active; last pushed 2026-09-14, awaiting response to w0xlt's 2026-09-15 edge-case report"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has passing CI, clean mergeability, and recent review activity. The author has only had two days to evaluate w0xlt's reproduction test."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Supported by multiple reviewers, but w0xlt showed an edge case where stale cached amounts persist after keypool expansion.",
+   "reason": "w0xlt demonstrated with a functional test that keypool expansion during a spend can cause a parent's newly owned output to be missed if the cache is not invalidated. While acknowledged as a narrow edge case, it remains unaddressed by the author.",
+   "evidence": [
+    "pablomartin4btc gave Concept ACK and full ACK after reviewing code and tests",
+    "Bicaru20 ACKed verifying cache semantics and tests",
+    "rkrux Concept ACKed noting the removal cleans up confusing mark-dirty calls",
+    "w0xlt provided a reproduction test where gettransaction reports an outdated amount when keypool expansion uncovers another parent output"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies core wallet transaction caching and notification in src/wallet/wallet.cpp and transaction.h.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because this is an internal cleanup removing dead invalidation logic left behind after #27286. While it simplifies code readability and removes unnecessary recomputations, the operational overhead removed is minor and does not fix a major bug or add new capabilities."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR removes redundant cache invalidation calls and GUI notifications for parent transactions when their outputs are spent. Since #27286, `CWalletTx` only caches static per-transaction debit/credit values rather than wallet spendable balances, making repeated recomputations on spend obsolete. The change is supported by several wallet contributors, though an edge case was recently surfaced by w0xlt showing that keypool expansions triggered by a spend could leave parent cached amounts stale."
+ },
+ "raw_text": null
+}

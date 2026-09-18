@@ -1,0 +1,151 @@
+{
+ "number": 34374,
+ "input_hash": "98935482836a5392",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17234,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2982
+ },
+ "cost_usd": 0.033550300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Give the bitcoinkernel C API structured log entries instead of formatted strings and simplify its logging configuration.",
+    "Lets library consumers avoid parsing log text and drops kernel-only cruft (buffering, disable, per-category filtering) node logging doesn't need."
+   ],
+   "reviewability": [
+    "Ready: active author, addressing review comments in real time, latest force-push fixed a mutex deadlock bug just raised.",
+    "No open unaddressed material request as of the last exchange."
+   ],
+   "agreement": [
+    "Strong support: ryanofsky gave a detailed major concept and approach ACK calling the change thoughtfully implemented (ryanofsky).",
+    "Design debates over Dispatcher's shape and side-effect evaluation were resolved by rework or agreeing the concern no longer applies (ajtowns, stickies-v).",
+    "w0xlt found and stickies-v fixed a real deadlock bug, now addressed (w0xlt)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it directly improves the libbitcoinkernel logging API, a documented pain point (issue #34062) that blocks consumers from using structured log data without string-parsing.",
+      "Reviewer ryanofsky says he wants to merge it and rebase his own kernel PR (#30342) on top, and it removes logging.cpp from the kernel build, reducing node coupling."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it touches shared log-generation infrastructure (util/log.h) but the PR author states node logging itself is unchanged apart from a doc note.",
+      "The main value here is kernel-side, not a change to how logging works for node/wallet/etc."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "Unranked because the Validation label appears to be a mislabel: nothing in the diff or discussion touches validation logic, chainstate, or consensus rules."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes the bitcoinkernel C API so log entries are delivered as a struct (timestamp, thread, level, category, file/line, message) instead of a pre-formatted string, and simplifies the kernel's logging configuration to a single min-level filter. It removes logging.cpp from the kernel build by giving the kernel its own KernelLogger backend implementing the util::log hooks, and drops buffering, disable, and per-category enable/disable functions that no longer make sense for a library consumer. Node (bitcoind) logging behavior is unchanged except for a developer-notes update.",
+  "problem": "Kernel library consumers currently must parse formatted log strings to recover structured fields, and the level/category filtering interface designed for the node's many log categories is unintuitive and unnecessary overhead for a library where consumers can filter themselves. This affects anyone building against libbitcoinkernel (issue #34062, part of the kernel library project #27587).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ajtowns' concern about std::function indirection and Dispatcher overhead resolved by reworking to a direct Log/ShouldLog interface with no indirection (author: 'the indirection is gone').",
+    "ajtowns' concern about conditional argument evaluation for Info+ levels reverted and pinned with a unit test.",
+    "ryanofsky's suggestion to split out move-only changes was implemented via separate merged PR #34465.",
+    "w0xlt's RAII/exception-safety concerns addressed via UserData/CallbackHandle RAII wrappers.",
+    "w0xlt's mutex-deadlock finding on 2026-09-16 fixed in the 2026-09-17 force-push."
+   ],
+   "author_status": "active, addressing review, last force-push and reply 2026-09-17"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Author is actively engaging with review, having just fixed a real deadlock bug flagged by w0xlt in the latest force-push. No material request remains open and unanswered; ryanofsky has stated he wants to merge this and build on it."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: ryanofsky gave a detailed concept/approach ACK and wants to build follow-up work on it, and design objections from ajtowns and bugs from w0xlt were resolved through rework and fixes.",
+   "reason": "ryanofsky's approach_ack plus explicit statement 'I'd really like to review and be able to merge this change' constitutes clear, substantive support with no outstanding objector.",
+   "evidence": [
+    "ryanofsky (2026-01-28): 'Major concept and approach ACK... thoughtfully implemented'",
+    "ryanofsky (2026-06-08): 'I'd really like to review and be able to merge this change because it makes the kernel logging API simpler and more usable'",
+    "ajtowns' Dispatcher/side-effect concerns resolved by rework, marked resolved by author 2026-09-10",
+    "w0xlt's deadlock and RAII findings fixed by author in subsequent force-pushes"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "kernel PR #30342 (ryanofsky plans to rebase it on top)",
+    "closes issue #34062",
+    "complements #34865 (already merged) which was split out of this work"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "PR is squarely about the bitcoinkernel C API (btck_LogEntry, btck_logging_connection_create, KernelLogger) and the kernel build's dependency on logging.cpp.",
+    "band": "P2",
+    "reason_tag": "API improvement",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it substantially improves API usability for external kernel consumers, per the linked RFC issue #34062 and ryanofsky's endorsement that it 'makes the kernel logging API simpler and more usable' and that he plans to rebase #30342 on top of it. Not P1 because there is no crash or fund-safety consequence of the current interface; it is a usability and maintenance improvement rather than a correctness emergency."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Touches src/util/log.h shared log-generation infrastructure and the Dispatcher/hook mechanism, though ultimately node logging behavior is stated unchanged.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because the shared utility changes exist mainly to support the kernel-specific goal; author states 'Node logging is unchanged' and the util/log.h changes are infrastructure plumbing rather than a direct utils-category improvement."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Despite the Validation label, no validation, chainstate, or consensus logic is touched; the change is confined to logging plumbing in kernel and util/log.h.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Unranked: the Validation label does not match the PR's actual content, which is entirely about kernel logging API and shared logging infrastructure, not block/transaction validity or chainstate."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the Validation label reflects some indirect validation-code touch not visible from the description/commits (files not available to inspect directly).",
+   "Long stall (Jan to Sep) and many reworkings make it hard to be fully certain the currently-pushed version fully satisfies ryanofsky's earlier suggestions, though the author's summary claims it does.",
+   "Exact final commit structure (10 commits mentioned in one rebase vs 6 commits in metadata) suggests some discrepancy between described history and actual current commit list."
+  ],
+  "card": "This PR reworks the bitcoinkernel C logging API to deliver structured log entries (timestamp, thread, category, level, file/line) instead of formatted strings, and collapses the configuration surface down to a single min-level filter, removing buffering and per-category enable/disable machinery that made sense for the node but not for a library. It closes issue #34062 (RFC: separate kernel logging infrastructure), part of the libbitcoinkernel project (#27587), and removes logging.cpp from the kernel build entirely. Reviewer ryanofsky gave a strong concept/approach ACK calling it 'thoughtfully implemented' and says he plans to rebase his own kernel PR #30342 on top of it. The PR had a long, multi-month back-and-forth on API shape (Dispatcher design, argument-evaluation semantics) with ajtowns and purpleKarrot, all resolved through rework, and a real mutex-deadlock bug found by w0xlt was fixed in the most recent force-push (2026-09-17), leaving the PR currently in an actively reviewed, mergeable-looking state. No open unresolved objections remain."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

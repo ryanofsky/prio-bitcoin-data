@@ -1,0 +1,122 @@
+{
+ "number": 34969,
+ "input_hash": "1e7fcb291334937b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9251,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3887
+ },
+ "cost_usd": 0.0300923,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speeds up the scriptpubkeyman fuzz harness, which the author measured at under 40 exec/s, and fixes a harness bug that aborted fuzzing early instead of skipping bad input.",
+    "Benefits fuzzing infrastructure maintainers and anyone relying on this target's coverage."
+   ],
+   "reviewability": [
+    "Ready to review now.",
+    "Author addressed maflcko's and pablomartin4btc's inline concerns with pushes, including restoring the full IsMine/GetScriptPubKeys invariant assertion on 2026-08-19."
+   ],
+   "agreement": [
+    "Concept ACK with a specific stated reason: the early-return bug fix and moving expensive calls out of the hot path are correct (pablomartin4btc).",
+    "A raised concern about weakened assertion coverage (maflcko, pablomartin4btc) was addressed by restoring the full assertion.",
+    "No objections remain."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it improves fuzz harness throughput and coverage assertions for scriptpubkeyman without changing what area of code is tested.",
+      "Faster exec/s lets fuzzing find more bugs per CPU-hour on this target, and the early-return fix removes a false-negative hazard where the harness aborted instead of continuing."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "Unranked because no wallet source code is changed; only the fuzz test harness for scriptpubkeyman is touched, so it does not affect wallet behavior, fund safety, or correctness."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR reworks the scriptpubkeyman fuzz harness to remove redundant IsMine calls, cap the number of coins ConsumeCoins creates, move expensive operations (GetDescriptorString, GetNewDestination) out of the per-iteration hot loop, and fix a bug where the harness aborted execution instead of skipping when it could not update the wallet descriptor. It also restores and strengthens the IsMine/GetScriptPubKeys invariant assertion using the already-computed scripts set. The changes are limited to the fuzz test file and a small helper signature change in test/fuzz/util.{h,cpp}.",
+  "problem": "The scriptpubkeyman fuzz target ran very slowly on the author's machine (reported under 40 exec/s, later measured with a real corpus at 200-300 exec/s by another contributor), limiting how much fuzzing coverage can be gathered per CPU-hour, and had a harness bug that aborted a run early rather than continuing to fuzz.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "maflcko questioned removing an IsMine assertion covered implicitly by MarkUnusedAddresses; author clarified intent and restored a stronger assertion later.",
+    "pablomartin4btc noted the restored assertion only checked one random script instead of the full set and that the inverse-direction check was dropped; author agreed and restored the full assertion on 2026-08-19.",
+    "andrewtoth and ekzyis raised doubts about whether the reported speedup was real or corpus-dependent; ekzyis found the speedup only appears when running with a stale/no corpus, not with the real qa-assets corpus, but this was resolved as a misunderstanding rather than a criticism of the PR."
+   ],
+   "author_status": "active, last force-pushed and replied 2026-08-19"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The last outstanding review comment (full assertion coverage) was addressed in the 2026-08-19 push, and the author explicitly agreed to and implemented the change. No material open questions remain; a leftover minor stylistic nit was explicitly deferred by the author as non-blocking."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from pablomartin4btc with a specific stated reason (early-return bug fix, moving expensive ops out of hot path); the only substantive concern (assertion coverage) was resolved by a follow-up push.",
+   "reason": "One reviewer engaged substantively and endorsed the change for concrete reasons, and the one real criticism raised was fixed rather than left open, with no remaining objectors.",
+   "evidence": [
+    "pablomartin4btc: 'Concept ACK... A real improvement \u2014 the early return bug fix and moving expensive ops... are the right calls.'",
+    "maflcko asked for better assertion justification; brunoerg reworked the commit and later restored a full assertion.",
+    "pablomartin4btc followed up noting the restored assertion was weaker than the original; brunoerg agreed and restored full coverage on 2026-08-19."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Faster/more effective fuzzing of the scriptpubkeyman target for anyone running OSS-Fuzz or local fuzz campaigns"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "The PR is entirely about the fuzz harness for scriptpubkeyman: performance, coverage assertions, and a harness bug (early return), matching the Fuzzing label and the tests category's coverage of fuzzing harnesses.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a worthwhile, reasonably deferrable improvement to fuzz harness throughput and correctness of its invariant checks. The author reports a large speedup on their machine (20 to ~150-385 exec/s under different sanitizer configs) and fixes a real early-return bug that previously stopped fuzzing on bad input instead of continuing; a contributor's independent measurement found the speedup is corpus-dependent, but the early-return fix and assertion strengthening stand on their own as harness-quality improvements."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "No wallet source code (src/wallet/*, excluding the test file) is modified; the change only affects the fuzz test harness that exercises ScriptPubKeyMan, not wallet behavior, fund safety, or interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a wallet-category PR: it changes only test/fuzz code, per the category's own carve-out that tests pinning one area's behavior belong to that area, but here there is no wallet behavior change at all to pin or affect."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the measured speedup generalizes across environments is disputed in the discussion (andrewtoth, ekzyis got mixed results depending on corpus and sanitizer config); this affects how strong the performance claim is but not the presence of the bug fix.",
+   "Whether to classify this PR under wallet at all given it exclusively exercises wallet SPKM code, even though no wallet source is touched, is a judgment call; treated here as tests-only per the category's explicit carve-out."
+  ],
+  "card": "This PR improves the scriptpubkeyman fuzz harness: it removes redundant IsMine calls, caps coin creation in ConsumeCoins, moves expensive operations (GetDescriptorString, GetNewDestination) out of the fuzz loop, and fixes a bug where the harness aborted execution instead of skipping bad input. The author reports a large exec/s speedup (20 to 150+ per iteration) though an independent contributor found the effect is corpus-dependent. A reviewer (pablomartin4btc) gave a specific concept ACK citing the early-return fix and hot-path cleanup as correct, and a follow-up concern about weakened assertion coverage was resolved when the author restored full IsMine/GetScriptPubKeys invariant checking on 2026-08-19. The PR touches only fuzz test code (src/test/fuzz/util.* and the scriptpubkeyman fuzz target), not wallet source, so it is a tests/fuzzing-infrastructure change rather than a wallet behavior change. It conflicts with open PR #35444 (descriptor SPKM mutex change) but has no stated blocking dependency."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

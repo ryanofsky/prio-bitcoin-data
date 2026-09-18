@@ -1,0 +1,534 @@
+{
+ "number": 24230,
+ "input_hash": "9fd3c010502494da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:15:18+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 121185,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11165
+ },
+ "cost_usd": 0.1327575,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Decouple optional indexes from internal node types and reduce cs_main lock contention during index synchronization",
+    "Prepare index sync infrastructure to run out of process for multiprocess Bitcoin"
+   ],
+   "reviewability": [
+    "Needs rebase against master due to merge conflicts",
+    "Author actively maintains the PR and recently updated it to resolve CI failures"
+   ],
+   "agreement": [
+    "Strong concept and approach support across several contributors and maintainers (sedited, mzumsande, fjahr, aureleoules, josibake)",
+    "Detailed review feedback on intermediate commits addressed across revisions (furszy, mzumsande, Sjors, jamesob)",
+    "No open objections"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it removes cs_main lock contention during sync and eliminates CBlockIndex dependencies across all indexes",
+      "Decouples the index subsystem from node internals and unblocks out-of-process indexing"
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it enhances the interfaces::Chain and interfaces::Handler boundary to allow indexes to run out of process",
+      "Provides specific architectural leverage for multiprocess Bitcoin"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P4 because it is a minor boundary cleanup removing BlockInfo from src/kernel headers"
+     ]
+    }
+   ]
+  },
+  "summary": "Refactors optional indexes (txindex, blockfilterindex, coinstatsindex, txospenderindex) to remove dependencies on node internal types such as CBlockIndex, CChain, and CChainState. Moves chain synchronization logic out of BaseIndex into node::SyncChain and avoids holding cs_main during index initialization and notification handling. Extends interfaces::Chain and interfaces::Handler to support running indexes in separate processes and removes unused BlockInfo definitions from libbitcoinkernel.",
+  "problem": "Optional indexes currently depend directly on internal node data structures and hold cs_main during initial synchronization, which causes lock contention and prevents indexes from being run in separate processes or decoupled cleanly from node internals.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "mzumsande discovered a crash when invalidateblock was called during an index sync; author fixed notification handling to ignore tip notifications during sync.",
+    "furszy identified a potential race condition between index sync and the validation queue when handling reorgs at startup; author resolved it by distinguishing sync state from notification readiness.",
+    "furszy identified swallowed return values in coinstatsindex; resolved via separate follow-up PR #28427.",
+    "Discussion around PR size and difficulty reviewing intermediate commits led author to simplify commits and document behavior."
+   ],
+   "author_status": "active, rebasing and maintaining PR across upstream changes"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with current master (mergeable_state dirty) and carries the 'Needs rebase' label."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Sjors",
+     "stance": "support",
+     "note": "reviewed early commits in detail, asked architectural questions, all addressed"
+    },
+    {
+     "login": "fjahr",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "mzumsande",
+     "stance": "support",
+     "note": "Concept ACK, performed thorough commit-by-commit review and manual testing"
+    },
+    {
+     "login": "jonatack",
+     "stance": "neutral",
+     "note": "noted intent to review"
+    },
+    {
+     "login": "maxim85200",
+     "stance": "support",
+     "note": "approved review without comment text"
+    },
+    {
+     "login": "jamesob",
+     "stance": "support",
+     "note": "Concept ACK, reviewed commits in detail, discussed reviewability and refactoring structure"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "reported unused declarations and test failures"
+    },
+    {
+     "login": "aureleoules",
+     "stance": "support",
+     "note": "Concept ACK and suggested code simplification"
+    },
+    {
+     "login": "furszy",
+     "stance": "support",
+     "note": "in-depth review of synchronization and notification logic, identified edge cases that were resolved"
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "Approach ACK, reviewed kernel boundary, nudged author in 2026 to continue the work"
+    },
+    {
+     "login": "josibake",
+     "stance": "support",
+     "note": "Concept ACK, interested in kernel and multiprocess aspects"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "mzumsande",
+     "kind": "correctness",
+     "harm": "bitcoind crashed with leveldb assertion failure when invalidateblock was called during index sync",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2022-02-15: 'If, at this commit, I am in the middle of syncing an index and at the same time call invalidateblock for the tip, my node coredumps'",
+     "resolution_evidence": "2022-02-18: 'Yes, I don't encounter this anymore now.'",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "furszy",
+     "kind": "correctness",
+     "harm": "race condition where index background sync and validation queue could both process the same blocks concurrently on reorg during startup",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2023-08-02: 'Which would enable the index new block connection signals reception at the same time that ThreadSync() is being executed.'",
+     "resolution_evidence": "2023-08-02: 'Updated ... to avoid race condition pointed out by furszy in an intermediate commit'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "mzumsande",
+     "kind": "correctness",
+     "harm": "silent index corruption if sync process starts when CustomInit fails during startup",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2022-06-23: \"I think it would be good to abort early and not start the sync process if CustomInit of the initial blockConnected call failed (because the index might be corrupted).\"",
+     "resolution_evidence": "2022-06-28: author added m_index.Interrupt() call on failure",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "sedited",
+     "reason": "Approach ACK: 'This change looks good, albeit its daunting length... I still think it would be a good idea.'",
+     "substantive": true
+    },
+    {
+     "reviewer": "mzumsande",
+     "reason": "Concept ACK and detailed testing across commits",
+     "substantive": true
+    },
+    {
+     "reviewer": "josibake",
+     "reason": "Concept ACK for multiprocess and kernel indexing improvements",
+     "substantive": true
+    },
+    {
+     "reviewer": "fjahr",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "aureleoules",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong concept and approach support across multiple maintainers with all code review concerns resolved",
+   "reason": "Multiple reviewers have given Concept and Approach ACKs. Detailed feedback on locking, reorg handling, and race conditions from mzumsande and furszy has been thoroughly addressed across iterations without any remaining objections.",
+   "evidence": [
+    "sedited gave Approach ACK and reaffirmed support in 2026: 'I still think it would be a good idea.'",
+    "mzumsande and furszy provided extensive reviews and verified race condition fixes."
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (sedited, mzumsande, josibake)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "mzumsande",
+      "kind": "correctness",
+      "harm": "silent index corruption if sync process starts when CustomInit fails during startup",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2022-06-23: \"I think it would be good to abort early and not start the sync process if CustomInit of the initial blockConnected call failed (because the index might be corrupted).\"",
+      "resolution_evidence": "2022-06-28: author added m_index.Interrupt() call on failure"
+     },
+     {
+      "reviewer": "furszy",
+      "kind": "correctness",
+      "harm": "race condition allowing block connection notifications while ThreadSync is running",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2023-08-02: \"Isn't this conflicting with the StartBackgroundSync() call? ... Which would enable the index new block connection signals reception at the same time that ThreadSync() is being executed.\"",
+      "resolution_evidence": "2023-08-02: author pushed fix to distinguish between synced and ready states"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "fjahr",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "mzumsande",
+      "reason": "Concept ACK; agrees with general approach of reducing internal types and moving sync logic to node",
+      "substantive": true
+     },
+     {
+      "reviewer": "aureleoules",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "Approach ACK; change looks good for separating internal types and moving towards multiprocess",
+      "substantive": true
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Concept ACK in connection with kernel and multiprocess work",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "Sjors",
+      "stance": "support",
+      "note": "reviewed several commits, suggested cleanups, and asked for rebases"
+     },
+     {
+      "login": "fjahr",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "mzumsande",
+      "stance": "support",
+      "note": "Concept ACK; reviewed commits thoroughly, pointed out race/sync issues which were fixed"
+     },
+     {
+      "login": "jonatack",
+      "stance": "neutral",
+      "note": "noted interest in reviewing"
+     },
+     {
+      "login": "maxim85200",
+      "stance": "neutral",
+      "note": "approved without comment"
+     },
+     {
+      "login": "jamesob",
+      "stance": "support",
+      "note": "reviewed extensively; noted difficulty verifying the full changeset due to size, but supported the direction"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "reported compiler and linter warnings from CI"
+     },
+     {
+      "login": "aureleoules",
+      "stance": "support",
+      "note": "Concept ACK and suggested code simplification"
+     },
+     {
+      "login": "furszy",
+      "stance": "support",
+      "note": "reviewed in detail, found race conditions in intermediate commits which were resolved"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "Approach ACK; reviewed commits, inquired about PR progress in 2026"
+     },
+     {
+      "login": "josibake",
+      "stance": "support",
+      "note": "Concept ACK for multiprocess/kernel work"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: broad support across multiple reviewers for decoupling index sync from internal node types; race condition and review issues resolved.",
+    "usage": {
+     "input_tokens": 48316,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2013
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "mzumsande",
+      "kind": "correctness",
+      "harm": "bitcoind crashed with leveldb assertion failure when invalidateblock was called during index sync",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2022-02-15: 'If, at this commit, I am in the middle of syncing an index and at the same time call invalidateblock for the tip, my node coredumps'",
+      "resolution_evidence": "2022-02-18: 'Yes, I don't encounter this anymore now.'"
+     },
+     {
+      "reviewer": "furszy",
+      "kind": "correctness",
+      "harm": "race condition where index background sync and validation queue could both process the same blocks concurrently on reorg during startup",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2023-08-02: 'Which would enable the index new block connection signals reception at the same time that ThreadSync() is being executed.'",
+      "resolution_evidence": "2023-08-02: 'Updated ... to avoid race condition pointed out by furszy in an intermediate commit'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "sedited",
+      "reason": "Approach ACK: 'This change looks good, albeit its daunting length... I still think it would be a good idea.'",
+      "substantive": true
+     },
+     {
+      "reviewer": "mzumsande",
+      "reason": "Concept ACK and detailed testing across commits",
+      "substantive": true
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Concept ACK for multiprocess and kernel indexing improvements",
+      "substantive": true
+     },
+     {
+      "reviewer": "fjahr",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "aureleoules",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#10102 (Multiprocess bitcoin)",
+    "#15719 (Wallet passive startup)",
+    "#11756 (Multiwallet parallel rescan)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Extensively refactors BaseIndex and all derived indexes (txindex, blockfilterindex, coinstatsindex, txospenderindex) and their sync logic.",
+    "band": "P2",
+    "reason_tag": "unblocks #10102",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it decouples the indexing framework from internal validation types (removing CBlockIndex pointers) and stops holding cs_main during index sync and initialization. The category guidelines highlight that refactors count when they remove a shared-lock dependency or decouple the index framework from node internals, which directly unblocks running indexes out of process (#10102)."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Extends interfaces::Chain and interfaces::Handler with connection and synchronization primitives specifically to allow indexes to run in separate processes.",
+    "band": "P3",
+    "reason_tag": "unblocks #10102",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because it builds out the interfaces abstraction layer necessary for process separation of the index subsystem (#10102). It does not implement the multiprocess transport or Cap'n Proto layer for indexes itself, but provides required interface support."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Modifies src/kernel/chain.cpp and src/kernel/chain.h to remove BlockInfo and MakeBlockInfo from the kernel library.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because it removes non-kernel types (BlockInfo) mistakenly placed in src/kernel back to interfaces and node, which is a minor boundary cleanup."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Changes in src/net_processing.cpp are purely mechanical call site updates to adapt to new index method signatures.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site updates following signature changes do not confer membership in p2p."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches src/rpc/blockchain.cpp and src/rest.cpp only to update callers of index lookup functions to pass BlockRef instead of CBlockIndex.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site updates to RPC implementations do not make the PR an RPC category member."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches test utilities (src/test/util/index.cpp) and functional tests only to adapt existing tests to the refactored index interface and thread lifecycle.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Edits to tests that merely follow from the primary index refactoring do not qualify for the test infrastructure category."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/util/btcsignals.h only to add a connected() check to scoped_connection.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A single minor helper method on a utility connection class supporting interface refactoring does not make the PR a member of utils."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Removes a friend declaration in src/validationinterface.h but does not alter validation or chainstate logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Structural refactors of index code that touch validationinterface without altering validation behavior are explicitly excluded from validation."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Refactors optional indexes (txindex, blockfilterindex, coinstatsindex, txospenderindex) to stop using internal node types like CBlockIndex and eliminates holding cs_main during index sync and initialization. Sync logic is extracted from BaseIndex into node::SyncChain and consolidated with notification callbacks, resolving startup races and reducing lock contention. This architectural decoupling is a key prerequisite for running indexes in separate processes (#10102) and sharing sync logic with wallet rescans (#15719). The PR has strong conceptual support from multiple maintainers, but currently needs a rebase to resolve merge conflicts."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.04378575
+}

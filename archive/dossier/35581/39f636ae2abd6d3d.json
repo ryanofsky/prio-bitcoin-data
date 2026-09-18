@@ -1,0 +1,278 @@
+{
+ "number": 35581,
+ "input_hash": "39f636ae2abd6d3d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27896,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 8503
+ },
+ "cost_usd": 0.0718173,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Wrap scattered mining free functions in a stateful BlockTemplateManager so callers stop threading chainman and notifications through every call",
+    "Replace waitNext's per-tick full-template rebuild with incremental fee-inflow tracking fed by a new async mempool-update notification",
+    "Fix a related class of RPC fuzzing gaps and drop redundant block copies handed back over the IPC mining interface"
+   ],
+   "reviewability": [
+    "Ready to review, but reviewers should start with the base PR #35675 which carries the initial BlockTemplateManager work",
+    "Author already addressed the only substantive review comments by moving that scope into #35675, and remains active with recent force-pushes"
+   ],
+   "agreement": [
+    "Strong support: pablomartin4btc gave a substantive Concept ACK calling the approach clean and noting the fuzz test caught a real bug (pablomartin4btc)",
+    "Sjors requested splitting the PR so #33922 could build on the base piece, and the author complied by opening #35675 (Sjors, ismaelsadeeq)",
+    "w0xlt gave a plain Concept ACK",
+    "No open objections"
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it removes a per-tick cs_main lock plus full block-template rebuild from waitNext, replacing it with tracked fee-inflow snapshots, which reduces latency and lock contention for every longpolling miner or pool"
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P2 because the new MempoolUpdated notification and cached fee-rate-diagram chunks are explicitly framed as groundwork for the cluster mempool fee-diagram approach discussed on delvingbitcoin, unblocking template-fee-inflow tracking without full reassembly"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because getblocktemplate, a hot RPC pools call constantly, now avoids copying template transactions and coinbase data and only copies the header, a direct latency win for callers"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P2 because the new fuzz harness for BlockTemplateManager already caught a real miner bug (#35580) that skipped legitimate transactions, the kind of regression this category rewards catching"
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it changes how the interfaces::Mining implementation and NodeContext boundary are used, deliberately splitting tracked IPC templates from untracked in-process ones to avoid a shutdown lifetime hazard, though it does not touch capnp/serialization mechanics"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because it only extracts an existing witness-hashing routine into a shared helper with no behavior change"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces a BlockTemplateManager that centralizes mining template creation, submission, tip-waiting, and staleness state that were previously free functions requiring chainman and notifications to be threaded through every call site. It also changes waitNext to track mempool fee inflow incrementally via a new MempoolUpdated validation-interface notification and cached fee-rate-diagram chunks, instead of rebuilding a full block template on every tick under cs_main. In-process RPC and test callers now go through BlockTemplateManager directly (untracked templates) while IPC mining clients go through the tracked path, removing per-access block copies the old IPC accessors forced. About half the diff (roughly 1090 lines) is new fuzz and unit test coverage.",
+  "problem": "Miners and pools waiting on getblocktemplate longpolls pay the cost of a full block-template rebuild under cs_main on every waitNext tick just to check whether fees rose enough to matter; internal callers also had to awkwardly thread chainman/notifications or spin up throwaway CValidationInterface subscribers just to call mining helpers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "pablomartin4btc's inline comments about IsStale's implicit precondition and a removed comment were folded into the split-out #35675 rather than fixed here",
+    "Sjors's suggestion to split out the BlockTemplateManager alone was adopted by opening #35675, with this PR now building the fee-inflow tracking on top of it"
+   ],
+   "author_status": "active, force-pushed as recently as 2026-09-15"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35675 first",
+   "reason": "The PR is a superset of #35675, which carries the initial BlockTemplateManager refactor and already received review comments the author addressed there. This PR's additional commits (fee-inflow tracking, MempoolUpdated plumbing) are the part still needing focused review, and nothing known would invalidate reviewing them now; the author remains active with recent force-pushes."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from w0xlt and pablomartin4btc, with pablomartin4btc calling the approach clean and citing the fuzz-caught bug as a strong signal, no objections raised",
+   "reason": "Two reviewers engaged substantively with specific stated reasons for support (clean design, fuzz test catching a real bug, unblocks #33922 per Sjors) and no criticism remains unresolved.",
+   "evidence": [
+    "pablomartin4btc: 'The approach of moving free functions onto a class that holds state plus incremental snapshot tracking... seems clean. The fuzz test catching an actual bug (#35580) is a strong signal.'",
+    "Sjors: 'I should be able to build #33922... on top of that' after requesting a focused split, which the author provided via #35675",
+    "w0xlt gave a plain Concept ACK"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35675
+   ],
+   "enables": [
+    "#33922 (block template memory-load tracking, per Sjors)",
+    "the cluster mempool waitNext fee-diagram follow-up work referenced in the description"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "The only build-area change is a one-line iwyu-enforcement regex update to include the new file, mechanical and following from the new source file rather than a build-system change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a meaningful build/CI change on its own."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Removes NodeContext::mining/EnsureMining, reroutes interfaces::Mining's createNewBlock through BlockTemplateManager, and deliberately splits tracked IPC-client templates from untracked in-process ones to avoid a shutdown lifetime hazard reaching back into NodeContext.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The description states the two-entry-point split 'avoids process-static RPC caches owning BlockTemplateImpl objects whose destructor reaches back into NodeContext at shutdown', a genuine interface-boundary lifetime concern, plus it drops per-access block copies the IPC getBlock accessor forced. No external IPC consumer is waiting on this specifically."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "kernel/mempool_entry.h gains MemPoolChunk/MemPoolChunksUpdate structs, but these are mempool data types living in the kernel namespace, not changes to the libbitcoinkernel API or its boundary.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No kernel API surface or boundary is touched."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Adds MempoolUpdated notification firing on every removal path, caches fee-rate-diagram chunks in ChangeSet, and reorders removeForBlock's conflict handling; txmempool.cpp and txgraph.cpp both change substantively.",
+    "band": "P2",
+    "reason_tag": "unblocks cluster mempool",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "The description ties this directly to the cluster-mempool fee-rate-diagram approach discussed on delvingbitcoin: 'we shouldn't have to build a whole block template' to answer fee-inflow questions, and the new async notification lets waitNext (and future consumers) observe mempool changes without holding cs_main."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Core of the PR: BlockTemplateManager owns template creation, submission, tip-waiting, and staleness; waitNext now uses tracked fee-inflow snapshots instead of rebuilding a full template every tick.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Removes a cs_main lock plus full CreateNewBlock() call from every waitNext tick, per the description's stated motivation, directly reducing latency and lock contention for longpolling miners; the same fuzz harness already caught a legitimate-tx-skipping bug (#35580), evidence the underlying template logic has real correctness value being exercised here."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Routes getblocktemplate, generateblock, and waitfor* RPCs through BlockTemplateManager instead of the IPC Mining interface, and commits 951fac8/38556f8 stop copying transactions and the whole block just to answer getblocktemplate.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Commit messages state getblocktemplate now 'do[es] not copy template data' and 'only copies the header', a direct performance improvement to a method pools call on every tip change; also fixes fuzz-safety gaps in generateblock/waitfor* that previously silently no-op'd via EnsureMining."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds a 556-line fuzz harness for BlockTemplateManager and a 535-line mempool_update_tests.cpp unit test suite, roughly half the diff.",
+    "band": "P2",
+    "reason_tag": "test coverage",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The description reports the new fuzz test 'already caught a bug in the miner where it skips legitimate transactions due to an incorrect block chunk size limit check (#35580)', a realistic regression the category explicitly ranks high."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "util/hasher.cpp/h gains GetHashFromWitnesses, extracted from GetPackageHash's existing sort-and-hash logic for reuse.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Pure move-only extraction with no behavior change, judged low on its own terms per the utils rubric."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "validation.cpp's only change is passing pindexNew->nHeight into removeForBlock's new signature, a mechanical follow-on from the mempool API change rather than a substantive validation-behavior change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No validation rule, chainstate, or IBD behavior is altered."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet/test/fuzz/fees.cpp only adds the mechanical ResetBlockTemplateManager/CreateBlockTemplateManager calls needed to keep compiling against the new NodeContext member.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical test-harness update, not a wallet behavior change."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the ipc category maintainers would consider the interfaces::Mining rerouting substantive enough to count as 'interface mechanics' or merely a mining-side implementation detail",
+   "How much of this PR's diff will shrink once the shared commits with #35675 are actually merged there, since this PR currently still carries that full history",
+   "Exact current review status of the fee-inflow-tracking commits added after the 2026-07-01 review, since no reviewer has commented on them specifically"
+  ],
+  "card": "This PR adds a BlockTemplateManager that centralizes mining-template creation, submission, and tip-waiting state, and changes waitNext to track mempool fee inflow incrementally via a new async MempoolUpdated notification instead of rebuilding a full block template under cs_main on every tick. It solves real latency/lock-contention costs for miners and pools waiting on getblocktemplate longpolls, and its new fuzz harness already caught a real bug (#35580) where legitimate transactions were skipped due to an incorrect chunk-size check. Reviewers (pablomartin4btc, w0xlt) gave substantive Concept ACKs and Sjors's request to split the base BlockTemplateManager work was honored by opening #35675, which this PR is now stacked on and should be reviewed after. No objections are open, and the author remains active with force-pushes as recent as 2026-09-15. It also trims getblocktemplate's per-call copying and untangles internal callers from the IPC mining interface's per-access block copies."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

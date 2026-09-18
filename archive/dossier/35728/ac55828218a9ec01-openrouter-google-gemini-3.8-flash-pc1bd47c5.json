@@ -1,0 +1,255 @@
+{
+ "number": 35728,
+ "input_hash": "ac55828218a9ec01",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:38:27+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24218,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5664
+ },
+ "cost_usd": 0.031168500000000002,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Distinguish disk I/O and deserialization errors from missing transactions in transaction lookups.",
+    "Prevent RPC and REST callers from falsely concluding a transaction does not exist when disk reads fail."
+   ],
+   "reviewability": [
+    "Needs rebase due to merge conflicts.",
+    "The PR has also been waiting on an author reply to a review question for over 60 days."
+   ],
+   "agreement": [
+    "Concept support for separating disk errors from missing transactions (yuvicc, musaHaruna).",
+    "Unaddressed objection: pruned blocks erroneously report an I/O error instead of 'Block not available' with no author reply (yuvicc)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because reporting missing transactions during disk failures misleads client applications and indexers.",
+      "This fixes edge-case error reporting across getrawtransaction, gettxoutproof, and REST endpoints."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P3 because it improves the TxIndex::FindTx interface to explicitly surface disk errors.",
+      "It allows consumers to reliably separate index misses from underlying database or block file corruption."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR refactors `TxIndex::FindTx` and `node::GetTransaction` to return `util::Expected<CTransactionRef, std::string>` instead of flattening failures to `nullptr` or `false`. RPC and REST callers (`getrawtransaction`, `gettxoutproof`, `ProcessPSBT`, `rest_tx`) are updated to throw internal errors on disk or deserialization failures rather than reporting the transaction as not found.",
+  "problem": "When reading a transaction from disk fails due to an I/O or deserialization error, `GetTransaction` returns `nullptr`, making callers believe the transaction does not exist. Downstream services and wallets can misinterpret node I/O corruption as an unconfirmed or nonexistent transaction.",
+  "discussion": {
+   "open_concerns": [
+    "yuvicc pointed out that for pruned blocks, `getrawtransaction <txid> <blockhash>` returns 'I/O error reading block data' instead of 'Block not available'."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-16"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with base branches, is in draft state, and the author has been inactive on the PR for over 60 days."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "yuvicc",
+     "stance": "objection",
+     "note": "Concept ACK but raised a concern about pruned blocks returning an I/O error instead of 'Block not available'"
+    },
+    {
+     "login": "musaHaruna",
+     "stance": "support",
+     "note": "Concept ACK and suggested wrapping test block restoration in try-finally"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "yuvicc",
+     "kind": "correctness",
+     "harm": "In pruned mode, requesting a pruned block returns 'I/O error reading block data' instead of 'Block not available'",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-07-16: 'In pruned mode when user calls getrawtransaction <txid> <blockhash> for the block that is pruned we return \"I/O error reading block data\" instead we should return \"Block not available\" which was done previously?'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "yuvicc",
+     "reason": "Distinguishing \u201ctransaction not found\u201d from internal read failures in TxIndex::FindTx/GetTransaction makes sense.",
+     "substantive": true
+    },
+    {
+     "reviewer": "musaHaruna",
+     "reason": "Concept ACK on separating expected outcomes (\"transaction not found\") from unexpected failures (I/O errors).",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Mild: yuvicc noted pruned blocks mistakenly report an I/O error instead of 'Block not available', open with no author reply.",
+   "reason": "Reviewers support distinguishing I/O errors from missing transactions, but yuvicc noted a regression where pruned blocks report an I/O error, which remains unanswered by the author.",
+   "evidence": [
+    "yuvicc provided Concept ACK but flagged incorrect pruned block error handling",
+    "musaHaruna gave Concept ACK and suggested minor functional test improvements"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (yuvicc)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "yuvicc",
+      "kind": "interface",
+      "harm": "calls to getrawtransaction on pruned blocks return misleading 'I/O error reading block data' instead of 'Block not available'",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-16: \"In pruned mode when user calls getrawtransaction <txid> <blockhash> for the block that is pruned we return \\\"I/O error reading block data\\\" instead we should return \\\"Block not available\\\" which was done previously?\"",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "musaHaruna",
+      "reason": "separating expected outcomes (\"transaction not found\") from unexpected failures (I/O errors)",
+      "substantive": true
+     },
+     {
+      "reviewer": "yuvicc",
+      "reason": "distinguishing \"transaction not found\" from internal read failures in TxIndex::FindTx/GetTransaction makes sense",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "yuvicc",
+      "stance": "objection",
+      "note": "Concept ACK, but noted that pruned blocks may return misleading I/O error instead of 'Block not available'"
+     },
+     {
+      "login": "musaHaruna",
+      "stance": "support",
+      "note": "Concept ACK, suggested test cleanup (try...finally)"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild; yuvicc notes pruned blocks may return misleading I/O error instead of 'Block not available', unaddressed by author",
+    "usage": {
+     "input_tokens": 4319,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 1865
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "yuvicc",
+      "kind": "correctness",
+      "harm": "In pruned mode, requesting a pruned block returns 'I/O error reading block data' instead of 'Block not available'",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-07-16: 'In pruned mode when user calls getrawtransaction <txid> <blockhash> for the block that is pruned we return \"I/O error reading block data\" instead we should return \"Block not available\" which was done previously?'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "yuvicc",
+      "reason": "Distinguishing \u201ctransaction not found\u201d from internal read failures in TxIndex::FindTx/GetTransaction makes sense.",
+      "substantive": true
+     },
+     {
+      "reviewer": "musaHaruna",
+      "reason": "Concept ACK on separating expected outcomes (\"transaction not found\") from unexpected failures (I/O errors).",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Changes error handling and return codes for getrawtransaction, gettxoutproof, and REST endpoints.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes an RPC error-reporting flaw where I/O errors are conflated with missing transactions, avoiding misinforming RPC consumers during disk corruption."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Modifies TxIndex::FindTx interface in src/index/txindex.cpp to return util::Expected.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Improves txindex query interface by clearly signaling disk read failures rather than conflating them with missing tx entries."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Functional test changes only test the new I/O error reporting functionality, not test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The functional test addition test/functional/feature_io_errors.py merely covers the new RPC behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This draft PR updates GetTransaction and TxIndex::FindTx to return Expected types, differentiating internal I/O failures from missing transactions across RPC and REST endpoints. Currently, an I/O error reading block data falsely reports that a transaction does not exist. Both reviewers agree with the concept, but yuvicc noted an unresolved regression where pruned blocks return an internal I/O error instead of 'Block not available'. The PR has merge conflicts and has been waiting on the author for over two months."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.010233
+}

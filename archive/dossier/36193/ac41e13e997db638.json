@@ -1,0 +1,108 @@
+{
+ "number": 36193,
+ "input_hash": "ac41e13e997db638",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 27180,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2340
+ },
+ "cost_usd": 0.040286300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Shrink non-GUI release binaries by about half a megabyte by disabling wchar_t support in the Guix-built libstdc++.",
+    "Also passes a related libstdc++ zoneinfo option and refactors Guix toolchain code into a shared module for reuse."
+   ],
+   "reviewability": [
+    "Ready to review, author is actively iterating and split out a dependency (#36272) to make review easier.",
+    "Reproducible-build checks from multiple reviewers already match, and the concept has a Concept ACK."
+   ],
+   "agreement": [
+    "Concept ACK from hebasto, with an earlier proposal to use BOOST_NO_CWCHAR retracted as incorrect after investigation (hebasto).",
+    "No open objections, author invites focused review on the boost patch and is open to splitting further (fanquake)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it delivers a modest, verified binary-size reduction (~0.5MB) across non-GUI release binaries with no functional risk, confirmed reproducible by three independent Guix builds.",
+      "It also refactors toolchain code into a shared module, reducing duplication for future toolchain work (e.g. #25573), but the core benefit is a size optimization rather than reliability or reproducibility fix."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "Not a member because this only touches Guix build packaging and toolchain scripts, not command-line tools or contrib scripts covered by this category."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR configures the non-GUI Guix-built libstdc++ with --disable-wchar_t and --with-libstdcxx-zoneinfo=no, saving roughly 0.5MB across bitcoin, bitcoind, bitcoin-cli, bitcoin-tx, bitcoin-util, and bitcoin-wallet binaries (bitcoin-qt is unaffected). It also splits the previously monolithic manifest_build.scm toolchain code into a new shared toolchains.scm module, building on the toolchain-splitting groundwork in #36272. A small Boost Test patch works around a std::wcrtomb build failure that results from disabling wchar_t.",
+  "problem": "Bitcoin Core's non-GUI release binaries carry unnecessary libstdc++ wchar_t and zoneinfo support that is unused, inflating binary size for every user who downloads release binaries and for storage/bandwidth costs of hosting them.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "hebasto initially proposed defining BOOST_NO_CWCHAR instead of patching Boost, then retracted the proposal after further investigation, calling it incorrect.",
+    "hebasto questioned whether --disable-wchar_t is a libstdc++ vs GCC option; fanquake clarified it is passed through GCC's configure flags, resolving the confusion."
+   ],
+   "author_status": "active, most recently rebasing and adding a follow-up commit on 2026-09-16, and splitting toolchain work into #36272"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #36272 first",
+   "reason": "The PR is based on #36272 (guix: split Linux toolchain), which introduces the toolchains.scm refactor this PR builds on. Author is actively engaged, reproducible Guix builds have been independently verified by three reviewers, and there are no open unanswered requests; review of the current state should not be wasted, but reviewers will want to look at the base PR's toolchain split first."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK from hebasto with no outstanding objections after an earlier concern was retracted.",
+   "reason": "hebasto gave an explicit Concept ACK after retracting an incorrect alternative proposal (BOOST_NO_CWCHAR), and no reviewer has raised an unresolved objection. Multiple reviewers independently verified reproducible Guix build outputs, which is corroborating evidence rather than a stated preference, but no one has objected to the approach.",
+   "evidence": [
+    "hebasto: 'Concept ACK.' after retracting the BOOST_NO_CWCHAR proposal as incorrect",
+    "willcl-ark and rustaceanrob independently posted matching Guix build hashes",
+    "fanquake: 'I am mainly looking for Concept ACKs on the overall change'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    36272
+   ],
+   "enables": [
+    "Groundwork/precedent for #25573 (static-pie bitcoind) which shares the toolchain refactor",
+    "Potential future upstreaming of the Boost wcrtomb patch, mentioned in relation to #35713 (removing boost as unit test runner)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "PR modifies contrib/guix build scripts, manifest files, and depends/packages/boost.mk, all core Guix release-build machinery; labeled Build system.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Delivers a small, verified binary-size reduction (~0.5MB, ~3-8% smaller per non-GUI binary) with reproducibility confirmed by three independent Guix builds matching hashes. It also refactors toolchain code into a reusable module that other in-flight PRs (#25573) build on, giving it some leverage, but the core payoff is a minor size optimization rather than a reproducibility or correctness fix, keeping it in the worthwhile-but-deferrable band."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the Boost Test patch (drop_wcrtomb_wchar_t.patch) could have subtle side effects on Boost.MultiIndex, as hebasto suggested checking but did not resolve.",
+   "Whether the dependency on #36272 (still open) will change materially before this PR is finalized, since the toolchain split underlies this PR's diff.",
+   "Draft status suggests the author considers this not yet final, though the discussion shows active convergence toward merge readiness."
+  ],
+  "card": "This PR disables wchar_t support (and zoneinfo) in the non-GUI Guix libstdc++ build, shrinking bitcoin, bitcoind, bitcoin-cli, bitcoin-tx, bitcoin-util, and bitcoin-wallet binaries by about 0.5MB each, verified reproducible by three independent Guix builds with matching hashes. It also refactors the monolithic Guix toolchain code into a shared toolchains.scm module, building on the still-open #36272 (toolchain split) that this PR depends on. A small Boost Test patch works around a std::wcrtomb compile failure introduced by disabling wchar_t. Reviewer hebasto gave a Concept ACK after retracting an earlier incorrect alternative proposal (BOOST_NO_CWCHAR), and there are no unresolved objections. The change is a modest, low-risk size optimization for build/release infrastructure rather than a correctness or security fix, so it is worthwhile but deferrable within the build category."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

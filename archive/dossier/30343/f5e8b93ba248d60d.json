@@ -1,0 +1,182 @@
+{
+ "number": 30343,
+ "input_hash": "f5e8b93ba248d60d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30369,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5233
+ },
+ "cost_usd": 0.0579403,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace the wallet's custom WalletLogPrintf() with the new LogInfo/LogWarning/LogError macros, using a wallet-specific log context to keep the [wallet name] prefix.",
+    "Makes -logsourcelocations work for wallet log lines and lets wallet code use proper log levels instead of one flat level."
+   ],
+   "reviewability": [
+    "Not currently reviewable as a standalone unit: it is a draft built on two other open PRs (#29256, #34778) and is flagged Needs rebase.",
+    "Review of #29256/#34778 first is the practical path; this PR's own wallet-specific commits are small and mostly settled."
+   ],
+   "agreement": [
+    "Multiple reviewers (hodlinator, adyshimony, maflcko) engaged substantively and the author implemented their suggestions across many pushes.",
+    "adyshimony raised a temporary-object lifetime concern, author showed it is caught by a compiler warning, and adyshimony gave ACK on that commit (adyshimony).",
+    "No unresolved objections to the wallet-specific change itself remain (hodlinator, maflcko, adyshimony, l0rinc)."
+   ],
+   "categories": []
+  },
+  "summary": "Removes the wallet's custom WalletLogPrintf() helper and replaces it with the standard LogInfo/LogWarning/LogError macros, using a new WalletLogContext class that automatically prefixes log lines with the wallet name. It is built on top of two other open PRs (#29256 log context support, #34778 macro rewrite) and includes those commits in its diff. The change also fixes several places where wallet code was logging at the wrong severity (info vs warning vs error).",
+  "problem": "Wallet code previously used a bespoke WalletLogPrintf() that always logged at info level and used its own call-site tracking, so -logsourcelocations and level-based filtering did not work for wallet logs, and severity was often mislabeled. Users and developers debugging multi-wallet setups or filtering logs by level are affected.",
+  "discussion": {
+   "open_concerns": [
+    "PR is based on unmerged upstream PRs (#29256, #34778) with their own history of nacks/rebases, so this PR cannot land independently.",
+    "Needs rebase per CI/mergeable_state; author has force-pushed 26 times chasing conflicts with many other in-flight PRs."
+   ],
+   "resolved_concerns": [
+    "hodlinator's naming/ordering/log-level suggestions (alphabetical sort, LogWarning vs LogInfo in walletdb.cpp) were implemented by the author.",
+    "maflcko's concern that LogError was being misused for non-fatal conditions was accepted; author reverted those two commits to keep LogInfo instead.",
+    "adyshimony's rvalue lifetime concern in log.h was addressed via LIFETIMEBOUND annotation and clang warning; adyshimony ACKed the resulting commit."
+   ],
+   "author_status": "active, still force-pushing to rebase as of 2026-09-08"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is flagged needs_rebase with mergeable_state dirty, and is a draft explicitly based on two other open PRs (#29256, #34778) whose own status (nacks/rebases) is unresolved. The wallet-specific commits are small and have had substantive review, but the PR as a whole cannot be reviewed to completion until its base stack is settled."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "adyshimony gave Concept ACK and later a commit-level ACK after the lifetime issue was addressed with no outstanding objection; hodlinator's and maflcko's suggestions were all implemented (adyshimony, hodlinator, maflcko).",
+   "reason": "Reviewers who engaged raised specific, addressable points and the author fixed them; the last standing technical concern (rvalue lifetime binding) was resolved to the reviewer's satisfaction with an explicit ACK. No reviewer currently objects to the direction or the wallet-specific change.",
+   "evidence": [
+    "adyshimony: 'Concept ACK except this issue' then later 'ACK on 7fc95e7cbb3e' after the fix.",
+    "hodlinator: multiple naming/log-level nits, all implemented by author.",
+    "maflcko: questioned LogError severity, author agreed and reverted the offending commits.",
+    "l0rinc: asked if a simpler scripted-diff would suffice; author explained why the context-based approach is preferred."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    29256,
+    34778
+   ],
+   "enables": [
+    "#30342 (kernel logging to specific Logger instances) shares the underlying log-context mechanism",
+    "Makes -logsourcelocations usable for wallet logging",
+    "Sets a pattern other areas could follow for area-specific log contexts"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly rewrites wallet.cpp, wallet.h, walletdb.cpp, scriptpubkeyman.{h,cpp}, spend.cpp, receive.cpp, dump.cpp, wallettool.cpp to drop WalletLogPrintf and adds wallet/logging.h; carries the Wallet label.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes real but minor issues: several log lines were mislabeled as info when they were warnings/errors (maflcko and hodlinator both flagged specific instances), and enables -logsourcelocations for wallet debugging. No fund-safety or correctness change; it is an internal logging quality improvement that helps debugging multi-wallet setups, per the PR description's stated motivation."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The PR's diff (inherited from its base PRs) substantively rewrites src/logging.cpp, src/logging.h, and src/util/log.h, the shared logging infrastructure used across the whole codebase.",
+    "band": "P2",
+    "reason_tag": "logging API",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "This is judged on its own terms per the utils rubric since internal improvements are the subject there. The rewrite consolidates macro logic into a single LOG_EMIT path, fixes an unnecessary-strprintf-during-fuzzing issue, adds compile-time argument checking, and (per adyshimony's review) surfaced and fixed a real dangling-reference hazard in log sources, all of which reduce a burden other areas will carry when adopting log contexts (explicitly the stated purpose for the later kernel PR #30342)."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "developer-notes.md is updated to describe the new ratelimit option syntax replacing NO_RATE_LIMIT.",
+    "band": "P4",
+    "reason_tag": "doc update",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Small, mechanical documentation update tracking an API rename (NO_RATE_LIMIT -> ratelimit=false); keeps docs accurate but has no independent value beyond that."
+   },
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Changes .github/workflows/ci.yml to bump FETCH_DEPTH for test-each-commit.",
+    "band": "P4",
+    "reason_tag": "CI tweak",
+    "score": 0.05,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The commit message itself says this is 'Needed due to base PR, can be dropped before merge', confirming it is a temporary workaround for the PR's own stacking rather than a durable build-system change."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "No mempool code, policy, or fee estimation logic is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "validation.cpp's UpdateTipLog change only swaps LogInfo(NO_RATE_LIMIT,...) for the new LOG_EMIT syntax, a mechanical call-site update forced by the macro rewrite elsewhere, not a change to validation behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Excluded per the rule that mechanical edits following from a change elsewhere do not confer membership; no validation logic, acceptance rule, or chainstate behavior is altered."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Because this PR is based on two other open PRs whose commits are folded into its diff, it's hard to cleanly separate the 'wallet' contribution from the 'utils/logging' infrastructure contribution; both are assessed here but a reader should recognize much of the size and risk lives upstream in #29256/#34778.",
+   "Whether the maintainers still intend to merge this now that it has been open over two years and force-pushed 26 times is unclear from the discussion alone; author remains active as of the last signal date.",
+   "The bot's 'stale_ack: adyshimony' note suggests the ACK may predate later pushes; I treated it as still valid per the rule that stale ACKs count for Agreement."
+  ],
+  "card": "This PR removes the wallet's custom WalletLogPrintf() and switches wallet code to the standard LogInfo/LogWarning/LogError macros via a new WalletLogContext that preserves the [wallet name] prefix, also fixing several places where log severity was wrong (info instead of warning/error). It solves a debugging pain point: wallet logs previously couldn't use -logsourcelocations or level-based filtering. Strongest evidence of value is reviewer engagement itself: hodlinator, maflcko, and adyshimony all found and got fixed real issues (misclassified log levels, a dangling-reference hazard in the underlying log.h rewrite), and adyshimony gave an ACK once the lifetime issue was resolved. It is a draft explicitly stacked on two other open PRs (#29256, #34778) and flagged Needs rebase, so it cannot be merged or fully reviewed as a standalone unit until those land. The bulk of its size and risk (log.h/logging.cpp rewrite) belongs to those base PRs rather than to the wallet-specific commits unique to this one."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

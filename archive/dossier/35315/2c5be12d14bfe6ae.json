@@ -1,0 +1,173 @@
+{
+ "number": 35315,
+ "input_hash": "2c5be12d14bfe6ae",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 47551,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5068
+ },
+ "cost_usd": 0.0742973,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace deprecated integer/duration time types in net_processing.cpp and related p2p code with typed NodeClock::time_point.",
+    "Removes confusing mixed use of GetTime() durations and time points across peer eviction, tx download, and address manager code."
+   ],
+   "reviewability": [
+    "Stale because the PR needs a rebase and the author has been quiet since 2026-07-21.",
+    "Code itself was thoroughly reviewed through many rounds; a rebase would let review resume quickly."
+   ],
+   "agreement": [
+    "Broad support from multiple reviewers for the type-safety cleanup (stickies-v, ryanofsky, jeanpablojp, w0xlt).",
+    "Standing disagreement between author and ryanofsky over using NodeClock::epoch as a sentinel value, resolved by agreeing to disagree (ryanofsky, maflcko).",
+    "No blocking objections remain, several nits from jeanpablojp are open but explicitly non-blocking."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it improves type safety and readability of core net_processing time handling without fixing a specific bug or vulnerability.",
+      "Minor precision improvements to eviction sorting (nanosecond vs second granularity) were discussed at length but agreed to be practically inconsequential.",
+      "Sets up cleaner ground for future p2p time-handling work but has no stated concrete follow-up dependency."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Not a member: the rpc/net.cpp change only swaps count_seconds for TicksSinceEpoch to match the underlying type change, with identical externally observed output."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the many test file edits are mechanical adaptations to the new time_point signatures, not new test coverage or framework changes."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because the change to util/time.h (documenting and expanding use of NodeClock::epoch) is a cosmetic consistency decision within shared time infrastructure.",
+      "Generated substantial reviewer disagreement about whether epoch, min/max, or optional are better sentinels, but the outcome affects code style, not correctness or safety of primitives."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR is a large refactor of net_processing.cpp (plus txrequest, txdownloadman, addrman, net.h, and related files) to replace ad-hoc integer/duration time representations with typed NodeClock::time_point and NodeSeconds values. It fixes places still using the deprecated GetTime() call, converts fields like m_stalling_since, m_last_block_time, m_next_inv_send_time, and m_downloading_since to time_point types, and introduces sentinel usage (epoch, min, max) for unset states. Ten commits were iteratively reshaped based on review feedback, including splitting out behavior-labeled vs pure-refactor commits.",
+  "problem": "Bitcoin Core's p2p and mempool code mixed integer, duration, and time_point representations of time, which the author describes as 'confusing' and error-prone, making the code harder to reason about and review. This affects maintainers and reviewers of net_processing, txrequest, and eviction logic.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky maintains that expanding use of the nonstandard NodeClock::epoch constant is bad practice and encourages footguns, though he ACKed the PR anyway (agree-to-disagree).",
+    "stickies-v prefers std::optional over min()/max() sentinels for fields like m_stalling_since and m_next_inv_send_time; author declined citing added complexity, stickies-v accepted as non-blocking.",
+    "jeanpablojp left three nits (passing `now` consistently, using PowTargetSpacing(), and eviction test precision) explicitly marked non-blocking."
+   ],
+   "resolved_concerns": [
+    "Commit message clarity about behavior vs pure-refactor commits was addressed by splitting commits and rewording messages.",
+    "Concern about test hardcoding of microseconds was addressed by author explaining fuzz-input format constraints; reviewer accepted (thumbs up).",
+    "Confusing sentinel semantics for m_stalling_since/m_headers_sync_timeout were improved by switching some fields from epoch-zero to min()/max()."
+   ],
+   "author_status": "silent since 2026-07-21"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR is marked 'Needs rebase' and mergeable_state is dirty; combined with the author's ~57 days of silence since the last push, mechanical staleness blocks a fresh review even though the code itself received thorough review and multiple ACKs."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive with multiple ACKs (stickies-v, ryanofsky, jeanpablojp), but ryanofsky maintains a standing objection to the expanded NodeClock::epoch usage that was resolved by agreeing to disagree rather than a fix.",
+   "reason": "Several members (sedited, seduless, stickies-v, ryanofsky, jeanpablojp) reviewed and ACKed across rounds; the one recurring substantive disagreement (epoch vs min/max/optional sentinels) never blocked any reviewer's ACK.",
+   "evidence": [
+    "ryanofsky: 'Code review ACK... I still believe epoch is a non-standard, error-prone constant... but ACKed this PR so these comments can be ignored.'",
+    "stickies-v: 'Approach ACK for improved type safety... I think the epoch approach is sensible.'",
+    "jeanpablojp: 'tACK... Left 3 nits (feel free to ignore)'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Author notes 'the next pull should just remove [epoch] fully, in all remaining places' and seduless flags possible interaction with the scoped clock proposed in #35557."
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Primary change is to net_processing.cpp, net.h, txrequest, and txdownloadman, the core files of the p2p category.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "The PR improves type safety and code clarity around time handling in p2p/net_processing, which stickies-v called something that 'makes the code easier to read and harder to make mistakes,' but introduces no bug fix, DoS protection, or user-facing feature. Some minor precision changes to eviction sorting were discussed extensively but agreed to be practically inconsequential (maflcko: 'this change in behavior is not reliable or observable from outside')."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The rpc/net.cpp edit only swaps count_seconds for TicksSinceEpoch to preserve identical output after the underlying field type changed; this is a mechanical follow-on, not a change to RPC behavior or machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member per the rule that mechanical call-site updates following a change elsewhere do not confer category membership."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Numerous test files (fuzz targets, unit tests) are edited only to keep compiling against the new time_point-based signatures, with no new coverage or framework capability added.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These are mechanical adaptations pinning existing p2p/mempool behavior, which the category file explicitly assigns to their originating area rather than to test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "src/util/time.h is substantively modified to redefine NodeClock::epoch and document its intended (and discouraged) use, which is shared infrastructure work, not a mechanical follow-on.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The change is a small, contested style decision about which sentinel value (epoch vs min/max vs optional) time code should use; ryanofsky called the epoch constant 'nonstandard, undocumented, unjustified' but it was kept via agree-to-disagree. It carries no correctness, security, or performance stakes for shared utilities, matching the category's cosmetic-consistency tier."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project intends a prompt rebase or the PR will sit stale longer; no explicit signal beyond the 'Needs rebase' label.",
+   "Whether the eviction-precision behavior change (flagged unresolved by jeanpablojp's last comment about test fixtures) will require another round before merge.",
+   "Exact scope split between p2p and utils for the epoch-related commits, since reviewers disagreed on whether that part belongs in this PR at all."
+  ],
+  "card": "This PR is a refactor of Bitcoin Core's net_processing.cpp and related p2p files (txrequest, txdownloadman, addrman, net.h, util/time.h) to replace ad-hoc integer or duration time representations with typed NodeClock::time_point/NodeSeconds values, fixing lingering uses of the deprecated GetTime(). It solves a maintainability pain point for anyone touching peer eviction, tx-download, or address-manager time logic, per the author's stated goal to make time handling in net_processing 'properly use time_point types.' It has been extensively reviewed (six distinct reviewers, ACKs from stickies-v, ryanofsky, jeanpablojp, sedited, seduless, concept ACK from w0xlt) with a persistent but non-blocking disagreement between ryanofsky and the author over using NodeClock::epoch as a sentinel value, resolved by agreeing to disagree. The PR is currently marked Needs rebase and the author has been silent since 2026-07-21, so mechanical staleness rather than code quality is blocking further review. No PR dependency is stated, though the author suggests a possible follow-up PR to fully remove epoch usage, and a reviewer flagged a possible interaction with the scoped-clock proposal in #35557."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

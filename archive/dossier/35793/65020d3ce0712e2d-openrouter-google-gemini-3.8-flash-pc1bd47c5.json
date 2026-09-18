@@ -1,0 +1,584 @@
+{
+ "number": 35793,
+ "input_hash": "65020d3ce0712e2d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:41:05+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 44983,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 12265
+ },
+ "cost_usd": 0.079731,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Implement BIP 54 Consensus Cleanup validation rules without activating on mainnet",
+    "Fix long-standing consensus-level flaws including timewarp, quadratic legacy sigops DoS, and 64-byte transaction collisions"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Author recently rebased on master after unblocking dependency #35949 merged"
+   ],
+   "agreement": [
+    "Strong support from several contributors with 7 Concept ACKs (dergoegge, fanquake, fjahr, hsjoberg, polespinasa, stickies-v, theStack)",
+    "Resolved question on transaction validation return code before activation (polespinasa)",
+    "Resolved question on miner transition boundaries and sigop accounting (ariard)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it implements consensus rules for the BIP 54 soft fork to resolve known DoS and timewarp vulnerabilities",
+      "Enables regtest testing and lays the groundwork for eventual network activation"
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it aligns mempool policy with BIP 54 validation rules",
+      "Disallows bypassing legacy sigop and 64-byte transaction limits via acceptnonstdtxn"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request implements the validation rules for the BIP 54 Consensus Cleanup soft fork on regtest while keeping mainnet activation inactive. The rules address legacy sigops computational DoS, timewarp attacks, negative difficulty adjustment periods (Murch-Zawy), unspendable coinbase height timelocks, and 64-byte Merkle tree collision vulnerabilities. Around 95% of the patch consists of unit tests, functional test coverage, and test vectors.",
+  "problem": "Bitcoin consensus retains legacy vulnerabilities, including timewarp difficulty manipulation, quadratic hashing attacks from legacy sigops, and potential 64-byte transaction collisions in Merkle trees. Without implementing BIP 54 rules in Bitcoin Core, these attack vectors cannot be thoroughly tested across node validation infrastructure in preparation for potential mainnet deployment.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Miner enforcement of Murch-Zawy rule: raised by fjahr, spun out into PR #35949, merged into master, and rebased here.",
+    "Validation result classification (TX_CONSENSUS vs policy) prior to activation: raised by polespinasa, resolved by author with rationale in commit message.",
+    "Mempool transition behavior and sigops counting edge cases: discussed by ariard, resolved with author explanation of acceptnonstdtxs handling."
+   ],
+   "author_status": "Active; rebased on master and addressed review feedback on 2026-09-13."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has clean mergeable state, passes CI, and was recently rebased following the merge of related PR #35949."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "Christewart",
+     "stance": "support",
+     "note": "Expressed enthusiasm for bringing the consensus cleanup implementation to Bitcoin Core."
+    },
+    {
+     "login": "ariard",
+     "stance": "objection",
+     "note": "reviewed sigops accounting, suggested test additions, and asked about nuisance attack vector at activation boundary"
+    },
+    {
+     "login": "dergoegge",
+     "stance": "support",
+     "note": "Concept ACK."
+    },
+    {
+     "login": "fanquake",
+     "stance": "support",
+     "note": "Concept ACK."
+    },
+    {
+     "login": "polespinasa",
+     "stance": "support",
+     "note": "Concept ACK; questioned TX_CONSENSUS state categorization before activation."
+    },
+    {
+     "login": "theStack",
+     "stance": "support",
+     "note": "Concept ACK."
+    },
+    {
+     "login": "hsjoberg",
+     "stance": "support",
+     "note": "Concept ACK."
+    },
+    {
+     "login": "fjahr",
+     "stance": "objection",
+     "note": "Concept ACK, but noted the miner did not enforce the Murch-Zawy rule, which was split to #35949"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "question",
+     "note": "asked whether the BIP text or code comment should clarify network-dependent difficulty adjustment intervals"
+    },
+    {
+     "login": "stickies-v",
+     "stance": "support",
+     "note": "Concept ACK."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "polespinasa",
+     "kind": "correctness",
+     "harm": "Categorizing BIP54 check failures as TX_CONSENSUS before activation misrepresents policy rejections",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-08-24: 'This signals the state as TX_CONSENSUS even if this is a policy check. Does not affect in debug/log messages or the rejected reason message, but feels weird to miss-categorize it.'",
+     "resolution_evidence": "2026-09-13: 'Sure. I gave the rationale for this decision in the commit message though, because i could not find a satisfactory place where to put a comment about it.'",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "fjahr",
+     "kind": "approach",
+     "harm": "Miner does not enforce Murch-Zawy rule, risking invalid block creation under BIP 54",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-03: 'The miner currently does not enforce the murch-zawy rule but I think it should.'",
+     "resolution_evidence": "2026-09-13: 'Rebased now that #35949 is merged.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ariard",
+     "kind": "approach",
+     "harm": "Lax mempools could generate invalid block templates across the activation boundary",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-08-08: 'in fact it's a dumb nuisance attack vector for the few transition blocks during activation if the miners are running \"lax\" mempools.'",
+     "resolution_evidence": "2026-09-10: 'Okay if -acceptnonstdtxs effect starts to kickoff as short as there is a release including this code, I think this is limiting the risk surface for transaction blocks that could violate the rule by accident.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "dergoegge",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "fanquake",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "polespinasa",
+     "reason": "Concept ACK and review of validation logic",
+     "substantive": true
+    },
+    {
+     "reviewer": "theStack",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "hsjoberg",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "fjahr",
+     "reason": "Concept ACK and contributed miner check PR",
+     "substantive": true
+    },
+    {
+     "reviewer": "stickies-v",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "Christewart",
+     "reason": "Excited to see this work make it to this point",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong concept consensus with 7 member Concept ACKs; initial implementation concerns have been resolved.",
+   "reason": "Seven project members Concept ACKed the PR. Technical questions raised around miner rules, validation result codes, and sigop metrics have been answered and resolved without ongoing opposition.",
+   "evidence": [
+    "Concept ACKs from dergoegge, fanquake, polespinasa, theStack, hsjoberg, fjahr, and stickies-v",
+    "Fjahr suggested the Murch-Zawy miner rule in #35949 which was reviewed and merged before rebasing here",
+    "Polespinasa and ariard review discussions concluded without outstanding blocking concerns"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (polespinasa, fjahr)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Positive",
+    "objections": [
+     {
+      "reviewer": "fjahr",
+      "kind": "correctness",
+      "harm": "the miner does not enforce the Murch-Zawy timestamp rule in block templates",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-03: \"The miner currently does not enforce the murch-zawy rule but I think it should.\"",
+      "resolution_evidence": "2026-08-11: fjahr implemented fix in PR #35949; author rebased on master after merge on 2026-09-13"
+     },
+     {
+      "reviewer": "ariard",
+      "kind": "safety",
+      "harm": "a nuisance attack where lax mempools allow an infringing transaction to produce an invalid block template during activation transition",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-08: \"in fact it's a dumb nuisance attack vector for the few transition blocks during activation if the miners are running \\\"lax\\\" mempools. a tx might be okay at mempool reception, is stuck in the mempools, and even after few blocks is selected in a template rendering it invalid.\"",
+      "resolution_evidence": "2026-09-10: ariard replied \"Okay if -acceptnonstdtxs effect starts to kickoff as short as there is a release including this code, I think this is limiting the risk surface\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "Christewart",
+      "reason": "Excited to see this work make it to this point",
+      "substantive": false
+     },
+     {
+      "reviewer": "dergoegge",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "fanquake",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "theStack",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "hsjoberg",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "fjahr",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "stickies-v",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "Christewart",
+      "stance": "support",
+      "note": "cheered the PR reaching Bitcoin Core"
+     },
+     {
+      "login": "ariard",
+      "stance": "objection",
+      "note": "reviewed sigops accounting, suggested test additions, and asked about nuisance attack vector at activation boundary"
+     },
+     {
+      "login": "dergoegge",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "fanquake",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "polespinasa",
+      "stance": "support",
+      "note": "Concept ACK and code review comments regarding TX_CONSENSUS state labeling"
+     },
+     {
+      "login": "theStack",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "hsjoberg",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "fjahr",
+      "stance": "objection",
+      "note": "Concept ACK, but noted the miner did not enforce the Murch-Zawy rule, which was split to #35949"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "question",
+      "note": "asked whether the BIP text or code comment should clarify network-dependent difficulty adjustment intervals"
+     },
+     {
+      "login": "stickies-v",
+      "stance": "support",
+      "note": "Concept ACK"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive; broad Concept ACK support for implementing BIP 54 on regtest, and minor review issues have been resolved.",
+    "usage": {
+     "input_tokens": 8927,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 5424
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "polespinasa",
+      "kind": "correctness",
+      "harm": "Categorizing BIP54 check failures as TX_CONSENSUS before activation misrepresents policy rejections",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-24: 'This signals the state as TX_CONSENSUS even if this is a policy check. Does not affect in debug/log messages or the rejected reason message, but feels weird to miss-categorize it.'",
+      "resolution_evidence": "2026-09-13: 'Sure. I gave the rationale for this decision in the commit message though, because i could not find a satisfactory place where to put a comment about it.'"
+     },
+     {
+      "reviewer": "fjahr",
+      "kind": "approach",
+      "harm": "Miner does not enforce Murch-Zawy rule, risking invalid block creation under BIP 54",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-03: 'The miner currently does not enforce the murch-zawy rule but I think it should.'",
+      "resolution_evidence": "2026-09-13: 'Rebased now that #35949 is merged.'"
+     },
+     {
+      "reviewer": "ariard",
+      "kind": "approach",
+      "harm": "Lax mempools could generate invalid block templates across the activation boundary",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-08: 'in fact it's a dumb nuisance attack vector for the few transition blocks during activation if the miners are running \"lax\" mempools.'",
+      "resolution_evidence": "2026-09-10: 'Okay if -acceptnonstdtxs effect starts to kickoff as short as there is a release including this code, I think this is limiting the risk surface for transaction blocks that could violate the rule by accident.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "dergoegge",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "fanquake",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "polespinasa",
+      "reason": "Concept ACK and review of validation logic",
+      "substantive": true
+     },
+     {
+      "reviewer": "theStack",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "hsjoberg",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "fjahr",
+      "reason": "Concept ACK and contributed miner check PR",
+      "substantive": true
+     },
+     {
+      "reviewer": "stickies-v",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "BIP 54 testing and future mainnet deployment consideration"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Implements BIP 54 consensus validation rules in src/consensus/tx_verify.cpp and src/validation.cpp.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 3,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P2 because it implements the long-discussed consensus rules of BIP 54 to resolve serious historical consensus vulnerabilities, including timewarp manipulation, quadratic legacy sigops block verification DoS, and 64-byte transaction Merkle collisions. While not yet active on mainnet, implementing and testing these rules in Core is strategically critical for the consensus roadmap."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Changes policy checks in src/policy/policy.h and enforces BIP 54 input sigop validation in src/txmempool.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because it aligns mempool validation and standardness checks with BIP 54 rules, ensuring transactions that violate the 2500 legacy sigops threshold or the 64-byte size boundary cannot enter the mempool even with acceptnonstdtxn enabled."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only adds an informational line to doc/bips.md documenting BIP 54 inclusion, which is incidental to the consensus implementation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Modifies chainparams for regtest deployments in src/kernel/chainparams.cpp, which does not alter the kernel API or architecture.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Only updates timewarp constant naming in miner.cpp; the substantive miner rule was split into and merged in #35949.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Only touches test/functional/p2p_segwit.py to ensure test transactions comply with BIP 54 valid block requirements.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Exposes consensuscleanup in getdeploymentinfo via existing versionbits helpers, without modifying RPC mechanisms.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The extensive added test files (bip54_tests.cpp, feature_bip54.py, fuzz target) test BIP 54 consensus behavior specifically rather than general testing infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Updates wallet migration functional tests to disable consensuscleanup on regtest to allow ancient blocks mined without locktimes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements the validation logic for BIP 54 (Consensus Cleanup) with activation configured exclusively on regtest. It resolves long-standing consensus-level issues including quadratic legacy sigop verification DoS, timewarp attacks, negative difficulty retarget intervals, and 64-byte transaction Merkle collision vulnerabilities. The PR enjoys strong concept support with seven Concept ACKs from maintainers and regular contributors, and an accompanying miner PR (#35949) has already been merged into master. Reviewing this PR represents timely, high-value validation work as the project considers soft fork readiness."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.02703525
+}

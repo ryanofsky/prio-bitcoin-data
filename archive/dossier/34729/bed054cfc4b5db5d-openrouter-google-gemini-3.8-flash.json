@@ -1,0 +1,231 @@
+{
+ "number": 34729,
+ "input_hash": "bed054cfc4b5db5d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:25+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 25188,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5888
+ },
+ "cost_usd": 0.040971,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reduce false-alarm errors and log spam in debug.log for node operators and developers.",
+    "Introduce LogWarnThenDebug to warn once on recurring configuration issues before demoting to debug."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "The branch is clean, CI passes, and feedback from previous review rounds has been addressed."
+   ],
+   "agreement": [
+    "Positive with caveats across multiple reviewers.",
+    "General support for reducing log noise and introducing the helper macro (sedited, l0rinc, kevkevinpal).",
+    "Standing drawback noted that demoting warnings and errors makes failure diagnostics harder (ryanofsky)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it standardizes a clean rate-limiting logging macro across the codebase and prevents spurious LogError alerts.",
+      "It improves debug.log readability for operators without affecting critical node operation or core data safety."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because the changes in netbase only adjust log levels and categories for SOCKS5 proxy and socket errors.",
+      "It does not alter peer relay behavior, connection management logic, or DoS resistance."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces the LogWarnThenDebug macro in util/log.h to issue an initial warning on potentially misconfigured conditions and demote subsequent occurrences to categorized debug logs. It also audits and adjusts log levels across netbase, coinstats, txindex, and validation to reduce exaggerated LogError occurrences introduced by earlier refactors.",
+  "problem": "Node operators encounter excessive log spam and misleading high-severity errors for routine network connection failures or intermittent proxy issues.",
+  "discussion": {
+   "open_concerns": [
+    "Demoting error and warning messages to debug removes tags that help distinguish normal connection events from failure states."
+   ],
+   "resolved_concerns": [
+    "Added unit test coverage for LogWarnThenDebug in logging_tests.",
+    "Clarified why certain socket and proxy failures warrant LogWarnThenDebug versus standard debug logging."
+   ],
+   "author_status": "Active; rebased and pushed updates addressing reviewer comments."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased against master, passes CI, and has no pending requests on the author."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive, but ryanofsky notes demoting error levels makes diagnosing failures harder",
+   "reason": "Multiple contributors support the noise reduction and helper utility, but ryanofsky raised a standing caveat regarding the loss of explicit error tags.",
+   "evidence": [
+    "sedited and l0rinc provided ACKs approving the approach and implementation.",
+    "ryanofsky gave Concept/Approach -0 noting that losing error/warning tags makes logs harder to interpret, but considered it acceptable to merge if others agree."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Touches doc/developer-notes.md only to document the new logging macro as part of the code change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Developer notes documentation follows from the implementation and is not a standalone documentation effort."
+   },
+   {
+    "name": "indexes",
+    "member": false,
+    "evidence": "Touches src/index/txindex.cpp to downgrade three log lines from LogError to LogWarning.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Modifying log levels inside txindex does not affect index data integrity, synchronization, or architecture."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "Changes a single log line in src/kernel/coinstats.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "A minor log demotion does not touch kernel API boundaries, stability, or validation separation."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches CalculatePrevHeights in validation.cpp, which relates to transaction validation but changes only a log line.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mempool acceptance, replacement, or data structure behavior is modified."
+   },
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies logging behavior in netbase.cpp for SOCKS5 proxy handshakes and socket connection attempts.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Changes in netbase.cpp reduce log noise when connections fail or proxies disconnect, but have no effect on P2P protocol logic, relay correctness, or DoS resistance."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Touches src/bitcoin-tx.cpp only to check the return value of AddCScript following a nodiscard attribute addition.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical call site update in bitcoin-tx to accommodate the nodiscard qualifier."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds the LogWarnThenDebug macro in util/log.h and tests in logging_tests.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Generalizes a rate-limited logging pattern previously hardcoded in PCP/NAT-PMP into util/log.h and fixes misleading LogError calls across several modules."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches two log lines in validation.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Upgrading log levels on two validation reporting lines does not change block connection logic or consensus invariants."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Touches scriptpubkeyman.h and wallet_tests.cpp to adapt to nodiscard on LoadCScript/AddCScript.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical test adjustments and header qualifiers do not impact wallet functionality or fund safety."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This pull request adds a LogWarnThenDebug logging helper in util/log.h and uses it alongside standard debug levels to demote exaggerated LogError messages across SOCKS5 networking, coinstats, and txindex. The change directly targets log file bloat and false alarms in debug.log for operators while preserving the initial warning for systematic misconfigurations. Reviewers broadly support the noise reduction, though ryanofsky expressed reservations that demoting messages makes diagnosing intermittent connection failures harder. The PR has several approvals, passes CI, and has no unresolved technical blockers."
+ },
+ "raw_text": null
+}

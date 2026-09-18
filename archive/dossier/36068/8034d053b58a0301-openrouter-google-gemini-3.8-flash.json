@@ -1,0 +1,113 @@
+{
+ "number": 36068,
+ "input_hash": "8034d053b58a0301",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:22:51+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15382,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2564
+ },
+ "cost_usd": 0.0211515,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up wallet fuzzing by reusing one wallet instance across inputs instead of rebuilding it every time."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "A force-push addressed the initial review questions and tests pass cleanly."
+   ],
+   "agreement": [
+    "Strong support with an approach ACK and reproduction of the 4x speedup on qa-assets (jeanpablojp)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it delivers a measured 4x to 6x execution speedup in wallet transaction fuzzing.",
+      "Fuzz throughput increases substantially without altering test semantics."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because the change only introduces a test helper to clear in-memory transaction state.",
+      "It has zero effect on wallet production logic, RPCs, or storage."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request optimizes fuzzing of wallet operations by reusing a single FuzzedWallet instance across fuzz inputs rather than reconstructing it each iteration. It introduces CWallet::ClearInMemoryTxStateForTest() to reset transaction and spend maps in memory, and caches derived destinations in FuzzedWallet.",
+  "problem": "Rebuilding FuzzedWallet for every fuzz input incurs heavy repeated overhead from importing eight descriptors, BIP32 derivations, and database transactions, slowing fuzz iterations down significantly.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp noted that DescriptorScriptPubKeyMan next_index drift across inputs causes successive iterations to derive different change addresses; author clarified the bound assertions and documentation.",
+    "jeanpablojp questioned the order of clearing mapWallet relative to containers referencing it; author noted safe order in the test helper."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, CI is passing, mergeable clean, and feedback from the initial review has been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Approach ACK from jeanpablojp confirming a 4x fuzz speedup.",
+   "reason": "jeanpablojp verified the performance improvement on local corpus runs and gave an Approach ACK with only minor questions that the author addressed.",
+   "evidence": [
+    "jeanpablojp: 'Approach ACK. Ran the qa-assets corpus on master and on this head, the speedup reproduces, around 4x here.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Modifies shared fuzz utility src/test/fuzz/util/wallet.h and the spend fuzz target src/wallet/test/fuzz/spend.cpp.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 2,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "A 4x to 6x speedup on fuzz execution meaningfully increases fuzz testing throughput and test coverage rate for wallet transaction creation. It is a solid optimization for test infrastructure, though deferrable."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches src/wallet/wallet.h and src/wallet/wallet.cpp by adding CWallet::ClearInMemoryTxStateForTest().",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "From a wallet maintenance perspective, this only introduces an internal test-only helper function to wipe in-memory maps, with no impact on real wallet operation or user-facing behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors FuzzedWallet to initialize once in fuzz target initialization and reset in-memory state per input rather than re-importing descriptors and re-deriving keys every time. It adds a test-only CWallet::ClearInMemoryTxStateForTest() method and precomputes destination pools. Reviewers confirmed a 4x to 6x speedup on the qa-assets corpus. It has an Approach ACK and is ready for merge review."
+ },
+ "raw_text": null
+}

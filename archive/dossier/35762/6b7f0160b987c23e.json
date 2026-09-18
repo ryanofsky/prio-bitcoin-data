@@ -1,0 +1,129 @@
+{
+ "number": 35762,
+ "input_hash": "6b7f0160b987c23e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18346,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5006
+ },
+ "cost_usd": 0.044782300000000004,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Let functional tests run through CTest alongside unit tests, giving developers CTest's filtering, rerun, and IDE/dashboard integration for functional tests too.",
+    "Opt-in only for now, exercised in a single macOS CI job so it does not go stale."
+   ],
+   "reviewability": [
+    "Ready to review, no rebase or CI blocker, and no material unanswered question is currently open.",
+    "A maintainer suggested rebasing onto #35846 for better error handling, which is a nit not a blocker."
+   ],
+   "agreement": [
+    "Support for the CTest integration is real but maflcko has raised an unresolved concern that this reimplements ~500 LOC of logic where a much simpler Python-only approach could work, and that CTest does not cover win64-cross builds the way the Python runner does (maflcko).",
+    "Author engaged with earlier line-level feedback and fixed several of it, but the core complexity/alternative-approach objection has not been explicitly resolved (willcl-ark, maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it adds an opt-in CTest orchestration path exercised in one CI job, giving developers standard CTest tooling for running tests, but it does not fix a supported-platform failure or release-integrity issue.",
+      "A reviewer flagged that CTest mode does not work for win64-cross builds, limiting its reach as a build-system improvement."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it improves how functional tests can be selected, rerun, and inspected (CTest -R, -L, --rerun-failed) which helps contributor workflow, but it is optional and does not add new test coverage or fix flakiness.",
+      "A maintainer questions whether the ~500 LOC of new CMake/Python plumbing is proportionate to a much simpler alternative, tempering the leverage of this specific implementation."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an opt-in CMake option (BUILD_FUNCTIONAL_TESTS) that registers the Python functional tests as CTest tests alongside the existing unit tests, using CMake 4.4's discover_tests() where available and a compatibility shim otherwise. test_runner.py gains --dump-ctest (emit a manifest) and --ctest-direct (run one test the way CTest invokes it), and the combined-log renderer is factored out for reuse. The macOS native CI job is switched to run unit and functional tests together through CTest to keep the new path from going stale; all other CI jobs keep using the legacy test_runner.py orchestration.",
+  "problem": "Currently functional tests can only be run through test_runner.py's own orchestration, which is invisible to CTest-based tooling (IDEs, CDash, dashboards) and lacks CTest's per-test selection and rerun features. Developers and CI maintainers who already use CTest for unit tests get a second, incompatible interface for functional tests.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko: the PR adds roughly 500 LOC of new CMake/Python discovery logic where a much simpler pure-Python approach (referenced from issue #32770) might suffice, no full resolution given.",
+    "maflcko: CTest mode does not work for win64-cross builds the way the Python runner does, unaddressed as a coverage gap.",
+    "maflcko: overlap between CTEST_TESTS and TEST_RUNNER_EXTRA is confusing; author agreed to add a guard (implemented) but longer-term redesign is still open.",
+    "maflcko (2026-08-17): suggests rebasing onto #35846 for better error handling, unaddressed as of last activity."
+   ],
+   "resolved_concerns": [
+    "maflcko asked why not invoke test_runner.py from the build dir to avoid a new option; author reworked the PR to invoke the generated build-tree copy, addressed.",
+    "maflcko asked about an apparently unrelated change and an unexplained filter; author explained the rationale (empty-argument handling and '--' separator needed for argparse abbreviation) and added a comment.",
+    "author dropped a redundant PYTHON_GIL=1 setting after review feedback."
+   ],
+   "author_status": "active, most recently force-pushed 2026-08-17 after review comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failure, no rebase needed, and no material reviewer request has gone unanswered past the threshold; the most recent exchange (rebase-onto-#35846 nit) is a suggestion, not a blocker."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Positive on the concept from the author and one reviewer's engagement, but maflcko has an unresolved objection that the implementation is far more complex than necessary and does not cover win64-cross builds.",
+   "reason": "maflcko's core objection targets the approach itself (large added complexity vs. a simpler alternative, and a coverage gap for win64-cross), and while several smaller review comments were fixed, this larger point has not been explicitly resolved or dropped by either party.",
+   "evidence": [
+    "maflcko: 'This pull is adding 500 LOC of logic complexity, so my preference would be to at least keep the overhead low', pointing to a simpler few-line Python alternative from issue #32770.",
+    "maflcko: 'recall that Python would work when testing win64-cross builds, but CTest does not.'",
+    "willcl-ark acknowledged the overlap concern and proposed a guard, implemented in a later push, but did not directly rebut the complexity/win64-cross point."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Potential future migration of all CI jobs to CTest-driven orchestration of functional tests, per author's stated longer-term plan",
+    "Conflicts noted with #35395 (test suite dependency docs) and #31349 (outbound traffic detection in CI), which touch overlapping files/behavior"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds CMakeLists.txt options (BUILD_FUNCTIONAL_TESTS, BUILD_EXTENDED_FUNCTIONAL_TESTS), a new test/functional/CMakeLists.txt and cmake compatibility shim, and CI script changes (00_setup_env.sh, 00_setup_env_mac_native.sh, 03_test_script.sh) to run tests via CTest.",
+    "band": "P3",
+    "reason_tag": "CI tooling",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is an opt-in CI/build enhancement exercised in only one job (macOS native) rather than a fix for a supported-platform failure or a release-integrity concern. It gives developers standard CTest tooling ('-R, -L, --rerun-failed, --output-on-failure, -j') per the description, but a reviewer notes it does not work for win64-cross builds, limiting its reach, and adds substantial new logic (500 LOC per maflcko) for what may be achievable more simply."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Rewrites significant parts of test_runner.py (ctest-direct execution, --dump-ctest manifest, shared combined-log rendering) and adds test/functional/CMakeLists.txt and functional_discovery.cmake.in, which is exactly the test-framework machinery the category covers.",
+    "band": "P3",
+    "reason_tag": "framework capability",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it is a framework capability improvement (CTest discovery and per-test execution) rather than new coverage of a risky code path or a flaky-test fix; description states it 'lets individual tests become easy to inspect and rerun with standard CTest features.' A maintainer (maflcko) questions whether this complexity is proportionate to a simpler alternative, which weighs against a higher band despite genuine value to contributor workflow."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether maflcko's complexity/win64-cross objection is intended as blocking or just a strong preference; the tone reads as concerned but not an explicit NACK.",
+   "Whether the author's 2026-08-17 force-push addressed the complexity/win64-cross point even though no visible reply is shown in the discussion excerpt.",
+   "Signal fields (author_silent_days=30 vs last_author_activity=2026-08-17) appear inconsistent; treated last_author_activity and waiting_on_author_days=0 as authoritative for reviewability."
+  ],
+  "card": "This PR adds an opt-in CMake option (BUILD_FUNCTIONAL_TESTS) that registers Python functional tests as CTest tests alongside unit tests, using CMake 4.4's discover_tests() or a compatibility shim, and switches the macOS native CI job to exercise this path. It solves the problem that functional tests are invisible to CTest-based tooling (IDEs, CDash, dashboards) and lack CTest's per-test selection and rerun features, benefiting developers and CI maintainers who already rely on CTest for unit tests. The strongest counter-evidence on importance is maintainer maflcko's observation that this adds roughly 500 LOC of new logic where a much simpler pure-Python approach might suffice, and that the CTest path does not work for win64-cross builds the way the existing Python runner does. The code is currently reviewable (no CI failure, no rebase needed, no unanswered material blocker), but this larger approach objection remains unresolved as of the latest activity. No hard dependency blocks merge, though the PR conflicts with two other open PRs touching overlapping test/CI files (#35395, #31349)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

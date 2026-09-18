@@ -1,0 +1,215 @@
+{
+ "number": 35675,
+ "input_hash": "3561518962f14e99",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:54:31+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43374,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 4007
+ },
+ "cost_usd": 0.04755675,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Consolidate block template creation, submission, and wait helpers into a dedicated BlockTemplateManager",
+    "Avoid redundant block and transaction copies in getblocktemplate RPC calls",
+    "Decouple in-process RPC and test callers from the IPC Mining interface"
+   ],
+   "reviewability": [
+    "Ready to review with all CI checks passing and a clean mergeable branch."
+   ],
+   "agreement": [
+    "Strong support from multiple reviewers praising the cleaner architecture (Sjors, pablomartin4btc, w0xlt, enirox001)",
+    "Nonblocking suggestions from marcofleon to refine or spin off the new fuzz target in a follow-up"
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P4 because the build change only updates an IWYU test script pattern to cover the new header."
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it consolidates scattered mining coordination into an explicit template manager.",
+      "It unblocks downstream improvements like fee inflow tracking and template memory accounting."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it avoids redundant block and transaction copies inside getblocktemplate.",
+      "The RPC interface behavior remains unchanged while internal wiring is simplified."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it introduces a new fuzz harness for block template generation under fuzzed mempool conditions.",
+      "It properly adjusts multiple existing fuzz targets for the new manager lifecycle."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because changes in init and node context are mechanical wiring for the new mining component."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because the change only updates an initialization helper in a wallet fee fuzz target."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces node::BlockTemplateManager to centralize block template creation, block submission, and tip-wait helpers. It moves options merging and template caching out of NodeContext and the Mining interface, allowing internal RPC and test callers to create raw CBlockTemplate objects directly. Additionally, it optimizes getblocktemplate to avoid deep copies of transaction data and block headers, and adds a dedicated fuzz target for template creation.",
+  "problem": "Template creation state, mining options, and block-submission helpers were previously fragmented across NodeContext, miner.cpp, the Mining IPC interface, and RPC callers. This caused architectural coupling, required in-process callers to interact with IPC wrapper objects, and caused unnecessary block data copying during getblocktemplate invocations.",
+  "discussion": {
+   "open_concerns": [
+    "marcofleon noted that the new fuzz target primarily stresses BlockAssembler rather than the full BlockTemplateManager state, suggesting it could be reworked or moved to a separate PR, though explicitly noting this is not a blocker."
+   ],
+   "resolved_concerns": [
+    "Sjors suggested splitting commits and avoiding template data copying in getblocktemplate, which was implemented.",
+    "pablomartin4btc identified setup ordering hazards in test initialization where the manager was created before chainstate activation, which were corrected.",
+    "w0xlt caught a regression against #34672 during rebase regarding SubmitBlock error handling, which was restored.",
+    "w0xlt identified a missing reset/recreate sequence in wallet fee fuzz tests, which was addressed."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is in a clean mergeable state with passing CI and prompt author responsiveness to review comments."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus across four reviewers with a nonblocking comment on fuzz harness scope",
+   "reason": "Multiple reviewers have provided ACKs after detailed commit-by-commit reviews and verification of rebase correctness. Feedback from marcofleon on fuzz harness depth was explicitly characterized as nonblocking.",
+   "evidence": [
+    "Sjors re-ACKed e8b283c after copy-avoidance suggestions were incorporated.",
+    "pablomartin4btc re-ACKed e8b283c after reviewing lifecycle fixes and commit splits.",
+    "w0xlt re-ACKed e8b283c after verifying the SubmitBlock rebase fix.",
+    "enirox001 re-ACKed e8b283c supporting the centralized manager approach.",
+    "marcofleon offered a light code review ACK and noted fuzz improvements can be handled separately."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#33922",
+    "#35581"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches ci/test/03_test_script.sh only to include the new header in the IWYU check pattern.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical addition of the newly introduced block template manager files to the existing IWYU enforcement script does not constitute a substantive build system change."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Refactors block template generation, SubmitBlock, and tip wait functions behind node::BlockTemplateManager.",
+    "band": "P2",
+    "reason_tag": "refactor",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Centralizes core mining coordination and template lifecycle handling out of NodeContext and the IPC layer into a dedicated manager. This structural refactor significantly cleans up the mining boundary and directly unblocks downstream mining work such as template memory tracking in #33922 and waitNext fee inflow tracking in #35581."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Rewires getblocktemplate and waitfornewblock RPCs to use BlockTemplateManager and eliminates deep block copies.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Optimizes getblocktemplate by avoiding full block copying and reading transaction, fee, and sigop vectors directly from the template. The change improves internal performance while preserving exact RPC semantics."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Adds src/test/fuzz/block_template_manager.cpp and adapts test harness setup utilities.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Introduces a new fuzz test target exercising template creation against fuzzed mempools and mining arguments, while updating testing harnesses to manage the lifecycle of the new manager."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches node context and init.cpp for component construction and destruction.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Instantiation of BlockTemplateManager in init.cpp and NodeContext is standard lifecycle plumbing for a mining component rather than utility infrastructure."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only touches src/wallet/test/fuzz/fees.cpp to adjust testing setup resets.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The single edit in the wallet tree is a mechanical reset of the block template manager when resetting the mempool in a fuzz target."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR introduces node::BlockTemplateManager to consolidate block template generation, block submission, and tip-waiting logic previously scattered across NodeContext, miner.cpp, and the IPC interfaces. It removes node.mining from NodeContext, allows in-process RPC and unit tests to access block templates directly, and optimizes getblocktemplate by avoiding unnecessary block and transaction copying. Downstream PRs for template memory footprint tracking (#33922) and fee inflow monitoring (#35581) build directly on this foundation. Review consensus is strong with multiple approvals from regular mining and node contributors."
+ },
+ "raw_text": null
+}

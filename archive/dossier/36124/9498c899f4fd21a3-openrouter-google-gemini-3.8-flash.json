@@ -1,0 +1,107 @@
+{
+ "number": 36124,
+ "input_hash": "9498c899f4fd21a3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:57:34+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22214,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1661
+ },
+ "cost_usd": 0.02288925,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent external callers from arbitrarily mutating HTTPRequest internal state."
+   ],
+   "reviewability": [
+    "Ready for review."
+   ],
+   "agreement": [
+    "Strong support for enforcing state transitions by design rather than convention (janb84, winterrdog)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because it is an internal encapsulation cleanup in the HTTP server with no user-facing or protocol impact."
+     ]
+    }
+   ]
+  },
+  "summary": "Encapsulates HTTP request state parsing within `HTTPRequest`. Removes `SetState()` and the individual public loading methods (`LoadControlData`, `LoadHeaders`, `LoadBody`), replacing them with a single `Load()` method that drives state transitions internally, and updates unit tests and the fuzz harness to use the unified API.",
+  "problem": "Previously, `HTTPRequest` exposed `SetState()` and granular parse methods, allowing external classes or callers with a request reference to arbitrarily mutate the request's internal state machine.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "winterrdog and janb84 suggested clarifying the return value and docstrings for `Load()`, which the author added.",
+    "janb84 suggested `Load()` return the state enum rather than a boolean, which the author adopted.",
+    "Related disconnect handling and test cleanups were split out into separate pull requests (#36159, #36160)."
+   ],
+   "author_status": "Active; addressed review feedback and kept commits rebased."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, merge conflicts are absent, and previous review comments have been incorporated."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: reviewers endorsed replacing convention with compiler-enforced state transitions.",
+   "reason": "janb84 and winterrdog reviewed and approved the change, citing improved design by removing arbitrary state modifications. No outstanding objections remain.",
+   "evidence": [
+    "janb84 commented: 'The removal of the SetState() makes it a better design (imho), makes the convention based \"rule\" not to arbitrary set the state, to a compiler-enforced fact'",
+    "janb84 re-ACKed after API adjustments to return State",
+    "winterrdog provided tested ACK"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Touches the internal HTTP server implementation in src/httpserver.h and src/httpserver.cpp.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because this is an internal refactoring and encapsulation cleanup within the HTTP server layer. It prevents arbitrary external mutation of `HTTPRequest::State` by turning an internal convention into a compiler-enforced invariant, but does not alter HTTP protocol behavior or fix an active bug."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to test files (src/test/httpserver_tests.cpp and src/test/fuzz/http_request.cpp) are mechanical updates to match the new HTTPRequest API rather than changes to test framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter test framework tooling; changes in tests only follow the modified HTTPRequest API."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors `HTTPRequest` to manage its own internal state machine, eliminating `SetState()` and replacing separate field-loading methods with a single `Load()` method. It solves an encapsulation gap where external callers could arbitrarily manipulate a request's state enum. Reviewers support the change as a cleaner design that turns conventions into compiler-enforced invariants. The PR is clean, has multiple ACKs, and is ready for merge."
+ },
+ "raw_text": null
+}

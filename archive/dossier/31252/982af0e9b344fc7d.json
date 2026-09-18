@@ -1,0 +1,123 @@
+{
+ "number": 31252,
+ "input_hash": "982af0e9b344fc7d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21292,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3392
+ },
+ "cost_usd": 0.0396583,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Expose the decoded redeemScript and witnessScript for P2SH and P2WSH transaction inputs in getrawtransaction (verbosity 2) and getblock (verbosity 2/3), and the matching REST endpoint.",
+    "Lets users and tools inspect multisig and other script-hash spending conditions without manually decoding scriptSig/witness data."
+   ],
+   "reviewability": [
+    "Ready to review now, the author has been actively addressing feedback and pushed fixes as recently as the latest review comment.",
+    "No open mechanical blockers; CI is clean and there is no rebase pending."
+   ],
+   "agreement": [
+    "Concept ACK from two members (murchandamus, sedited) with no standing objections.",
+    "Sedited's detailed code-level concerns (function placement, edge cases like P2SH-P2WPKH and non-standard scripts) have each been addressed by the author through iterative rewrites (polespinasa)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it adds a genuinely useful but narrow RPC data field: multisig and script-hash auditors and block explorers gain visibility into redeem/witness scripts that today require manual decoding.",
+      "It does not fix a bug or close a compatibility gap that many callers have hit; it is an opt-in additive field under existing verbosity levels so risk of breaking existing consumers is low."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because the only documentation content is a short release note describing the new fields, not a standalone documentation contribution.",
+      "It accurately describes new behavior but has no independent leverage or urgency beyond the RPC change it accompanies."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds redeemScript and witnessScript fields to transaction inputs returned by getrawtransaction (verbosity 2), getblock (verbosity 2 and 3), and the /rest/block endpoint, decoding P2SH, P2WSH, and P2SH-wrapped segwit inputs when previous-output undo data is available. It introduces GetRedeemAndWitnessScripts() in script/solver.cpp to extract the relevant script from scriptSig/witness stack given the previous output's scriptPubKey, and extends TxDocOptions/TxToUniv to surface the new fields. Extensive functional tests cover P2SH, P2WSH, P2SH-P2WSH, P2SH-P2WPKH, native P2WPKH, and P2TR script-path cases to confirm correct inclusion/omission.",
+  "problem": "Users inspecting raw transactions or blocks currently see only the raw scriptSig/witness bytes for P2SH and P2WSH inputs, requiring manual decoding to see the actual redeem/witness script (e.g. the multisig conditions). This is motivated by issue #27391 and an older attempt in #8849, aimed at wallet auditors, multisig users, and block explorer-style consumers of the RPC/REST interface.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "luke-jr's concern that an early witness-detection heuristic was unreliable, addressed by rewriting the detection logic (polespinasa, 2024-11-22).",
+    "naiyoma's finding that getrawtransaction did not populate these fields (have_undo always false there) and that redeemScript/witnessScript were mislabeled for P2SH vs P2WSH, addressed in later rewrites (2025-05-08 onward).",
+    "naiyoma's finding that non-P2SH/non-segwit inputs incorrectly got a spurious redeemScript field, fixed by returning a sentinel and excluding those cases (polespinasa, 2025-09-15).",
+    "sedited's question about whether TxToUniv's other callers (decodepsbt, gettransaction) are affected, answered: they pass no txundo so are unaffected.",
+    "sedited's request to include both redeem and witness scripts via a struct rather than status codes, implemented via the RedeemAndWitnessScripts struct.",
+    "sedited's suggestion to keep the redeem script for the P2SH-P2WPKH nested-segwit case instead of clearing it, implemented by removing the clear() call (polespinasa, 2026-09-10)."
+   ],
+   "author_status": "active, most recently pushing a fix on 2026-09-10 in direct response to sedited's same-day comment"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author has been consistently responsive, pushing fixes within a day of reviewer comments (e.g. 2026-09-09 to 2026-09-10 turnaround), CI is clean, and there is no pending rebase or announced rework. The PR has undergone several substantial reworks already based on review feedback, so the current state reflects incorporated feedback rather than an outdated approach."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACK from murchandamus and sedited; sedited's implementation-level concerns have each been addressed by the author through code changes, with no standing unresolved objection.",
+   "reason": "Two members gave Concept ACK. All subsequent review comments raised concrete implementation issues (mislabeled fields, spurious script for non-P2SH inputs, code placement, nested-segwit handling) and each was resolved by an author code change rather than left open or disputed.",
+   "evidence": [
+    "murchandamus (2025-11-03): 'Concept ACK'",
+    "sedited (2026-06-19): 'Concept ACK' with several implementation questions, all later addressed",
+    "sedited (2026-09-09) suggested keeping the redeem script for nested segwit; polespinasa agreed and pushed a fix (2026-09-10)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "The PR's entire substance is adding new fields to getrawtransaction, getblock, and the related REST endpoint's transaction verbosity output, matching the RPC/REST/ZMQ label.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "Adds a narrow but concrete convenience for users of multisig and script-hash transactions: 'motivated by #27391' and inspired by prior attempt #8849, giving them decoded redeemScript/witnessScript instead of requiring manual decoding. It is purely additive (new optional fields gated by verbosity and undo-data availability) so it carries low compatibility risk, but also does not address a widely-cited pain point beyond the linked issue and a prior stalled attempt, keeping it in the worthwhile-but-deferrable range rather than strategically important.'"
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Includes doc/release-notes-31252.md describing the new fields, a direct file match for the docs category.",
+    "band": "P4",
+    "reason_tag": "release notes",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The documentation change is a small, accurate release note accompanying the RPC feature; it has no independent value or urgency beyond describing that feature, so it sits at the marginal end for the docs category."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the maintainers see enough demand for this (only one linked issue and one prior stalled PR as evidence) to eventually merge, versus treating it as a nice-to-have that stalls again as it has for over a year.",
+   "Whether sedited's outstanding structural preference (moving the extractor to script/sign.cpp's DataFromTransaction) will resurface as a blocking request in future review, which is not yet clear from the discussion."
+  ],
+  "card": "This PR adds redeemScript and witnessScript fields to getrawtransaction (verbosity 2), getblock (verbosity 2/3), and the /rest/block endpoint, decoding P2SH and P2WSH script-hash inputs (including nested segwit) using previous-output undo data. It solves a real but narrow pain point for multisig auditors and block-explorer-style consumers who currently must manually decode scriptSig/witness bytes, per issue #27391 and a prior stalled attempt in #8849. The PR has been iterated on for over a year with substantial rework driven by review from naiyoma, luke-jr, and sedited, each of whose concrete correctness issues (mislabeled fields, spurious scripts for non-segwit inputs, missed nested-segwit case) were fixed by the author. Current state is Ready for review: the author is actively responsive, with same-day fixes as recently as 2026-09-10, CI is clean, and there is Concept ACK from two members (murchandamus, sedited) with no standing objections. No dependencies block it and it unblocks nothing else."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

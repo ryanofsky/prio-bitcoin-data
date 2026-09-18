@@ -1,0 +1,111 @@
+{
+ "number": 34254,
+ "input_hash": "cc2c7422cd3687d2",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6229,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3851
+ },
+ "cost_usd": 0.0268903,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Refactor invalid-block-handling logic in validation.cpp to remove duplicate logging and duplicate block-index loops, and fix a related edge case in RPC invalidateblock handling."
+   ],
+   "reviewability": [
+    "Ready to review, author actively addressing comments through August 2026 with a crACK already in hand.",
+    "No known blocker remains; a raised multithreading question is flagged for a follow-up, not this PR."
+   ],
+   "agreement": [
+    "Positive with a caveat: Crypt-iQ gave a crACK and called it a good improvement, but flagged that m_best_invalid can still be set incorrectly in edge cases and multithreaded behavior is unclear (Crypt-iQ).",
+    "Concept ACKs from frankomosh and stratospher, stale ACK from bensig.",
+    "A logging-format concern from frankomosh was answered by the author and not disputed further."
+   ],
+   "categories": []
+  },
+  "summary": "This PR consolidates the logic in InvalidChainFound, moving most of it into InvalidBlockFound so that ActivateBestChain and InvalidateBlock no longer duplicate logging and block-index loops. It renames InvalidChainFound to UpdateBestInvalid to reflect its narrowed responsibility, and adds a functional test for invalidateblock on out-of-chain blocks. During review, a real gap was found (missing SetBlockFailureFlags/RecalculateBestHeader calls for out-of-chain invalidation) and fixed in a later push.",
+  "problem": "Invalid-block handling logic was duplicated across three call sites, causing duplicate log lines and duplicate O(n) loops over the block index, and making the code hard to reason about (as stratospher's summary gist documents). This addresses concerns raised in earlier PRs #31405 and #31533 about repeated work in InvalidateBlock and ActivateBestChain.",
+  "discussion": {
+   "open_concerns": [
+    "Crypt-iQ notes m_best_invalid may still not be set to the true best invalid block in some in-chain cases, a pre-existing issue the author says is out of scope but could be improved in a follow-up.",
+    "Crypt-iQ raised confusion about InvalidateBlock's behavior under concurrent block addition from another thread; unresolved but not treated as blocking (crACK already given).",
+    "frankomosh observed the invalidateblock log line format and prefix changed (from InvalidChainFound: to Invalidated block:), which the author addressed by explaining logs aren't a stable interface."
+   ],
+   "resolved_concerns": [
+    "Missing SetBlockFailureFlags/RecalculateBestHeader calls for out-of-chain invalidateblock case, found by Crypt-iQ, fixed by author with an added regression test.",
+    "stratospher's suggestion to merge the two block-index loops into one was declined by the author with rationale (invalidateblock is a rare/costly-to-trigger path), no pushback."
+   ],
+   "author_status": "active, addressing review, last force-pushed 2026-08-19"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Author has actively addressed prior review rounds, including fixing a real correctness gap found by Crypt-iQ and adding a regression test. The most recent open remark (multithreading behavior of InvalidateBlock) was raised alongside a crACK and framed as follow-up work, not a blocker to reviewing the current code."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Positive: Crypt-iQ crACKed calling it a good improvement, but flags that m_best_invalid handling remains imperfect and multithreaded behavior is unclear, deferred to a follow-up rather than fixed here.",
+   "reason": "Support is real and substantive (line-by-line review by Crypt-iQ, concept ACKs from others) but a known, acknowledged imperfection (m_best_invalid not always set to the true best invalid block) is being merged with the harm still present, to be fixed later.",
+   "evidence": [
+    "Crypt-iQ: 'crACK ff06c05... This PR by itself is a good improvement to ActivateBestChain' but 'm_best_invalid could be updated properly in a follow-up PR'",
+    "frankomosh and stratospher gave Concept ACKs on the refactoring approach",
+    "bensig gave a stale ACK on an early commit",
+    "author acknowledged the m_best_invalid edge case as pre-existing and declined to fully fix it in this PR"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Follow-up PR to fix m_best_invalid update timing, now easier since UpdateBestInvalid no longer loops over the block index"
+   ]
+  },
+  "categories": [
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly changes InvalidBlockFound/InvalidChainFound/InvalidateBlock logic in validation.cpp, which governs chainstate handling of invalid blocks; carries the Validation label.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.42,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "During review a real correctness gap was found and fixed: InvalidateBlock on an out-of-chain block was missing SetBlockFailureFlags and RecalculateBestHeader calls, which could leave block-index state inconsistent (Crypt-iQ's analysis, confirmed and fixed by the author with a regression test). The change also removes duplicate O(n) block-index loops and duplicate log lines. It is scoped to a rarely-triggered path (RPC invalidateblock, or attacker-costly invalid-PoW blocks) so impact is narrow, and a known remaining imperfection (m_best_invalid correctness) is explicitly deferred to a follow-up."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The PR only touches invalid-block/chainstate bookkeeping in validation.cpp; it does not change mempool acceptance, policy, or fee logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not applicable; no mempool-policy behavior is affected."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the remaining m_best_invalid edge case and multithreading concern raised by Crypt-iQ warrant blocking this PR or are truly deferrable, since the project's own agreement.md treats resolved-by-deferral caveats as 'Positive w/ caveats' rather than blocking.",
+   "No linked issue or explicit user complaint underlies this PR; its importance rests on review-thread analysis (stratospher's gist, Crypt-iQ's walkthroughs) rather than an external bug report."
+  ],
+  "card": "This PR refactors Bitcoin Core's invalid-block handling (InvalidChainFound/InvalidBlockFound/InvalidateBlock) to remove duplicate logging and duplicate O(n) loops over the block index, and renames InvalidChainFound to UpdateBestInvalid. During review, Crypt-iQ found a real gap: the refactor initially dropped necessary SetBlockFailureFlags/RecalculateBestHeader calls for invalidateblock on out-of-chain blocks, which the author fixed with an added regression test. The PR has a crACK from Crypt-iQ and concept ACKs from stratospher and frankomosh, with one acknowledged but deferred imperfection (m_best_invalid not always reflecting the true best invalid block) left for a follow-up. It touches only validation.cpp's invalid-block bookkeeping, not mempool policy or consensus rules, and the affected paths are rare (RPC-triggered or requiring costly invalid-PoW blocks). The PR is stale on activity (author silent 28 days) but not blocked; the code is currently reviewable."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

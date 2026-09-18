@@ -1,0 +1,350 @@
+{
+ "number": 35831,
+ "input_hash": "42a249372e578473",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:41:43+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 41025,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7219
+ },
+ "cost_usd": 0.05784,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow command-line options after subcommands and positional arguments across CLI tools.",
+    "Prevent options like -rpcwallet from being silently ignored or absorbed as positional arguments."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "All reviewer feedback has been addressed and recent commits are fully ACKed by the main reviewer."
+   ],
+   "agreement": [
+    "Strong support from active reviewer after author resolved several edge cases (w0xlt).",
+    "Minor question regarding behavior consistency across CLI tools addressed with bitcoin-tx update (vicjuma)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it resolves a recurring CLI footgun where options after a command were silently dropped.",
+      "Standardizes GNU getopt parsing and the '--' separator across all node binaries."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it improves bitcoin-cli ergonomics and prevents commands from silently routing to the wrong wallet.",
+      "Eliminates confusing error messages when flags like -rpcwallet or -named are placed at the end of a command."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it adapts bitcoin-tx to consume pre-parsed command arguments instead of raw argv.",
+      "Fixes a bug where flags like -json placed after a transaction hex caused unexpected command errors."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR updates ArgsManager to parse options that appear after non-option arguments (subcommands and positional parameters) using GNU-style conventions. Unrecognized options following a command now produce errors instead of being silently swallowed into the command's positional arguments, and the '--' separator is supported to terminate option parsing. Additionally, bitcoin-cli and bitcoin-tx are updated to consume the pre-filtered arguments from ArgsManager.",
+  "problem": "In existing code, any argument following the first non-option argument was treated verbatim as a positional command argument. Consequently, trailing options such as -rpcwallet were silently ignored, potentially sending commands to the wrong wallet or triggering unexpected RPC errors when misspelled options were absorbed as positional values.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "w0xlt noted that '--' only worked after a command, not before it; resolved by extending '--' processing to the pre-command loop.",
+    "w0xlt identified that Windows option parsing misclassified options like /datadir=C:/path as paths; resolved by restricting the embedded slash check to the option name.",
+    "w0xlt pointed out that a lone '-' was rejected as an invalid option; resolved by checking length > 1.",
+    "w0xlt and vicjuma noted that bitcoin-tx failed when trailing options like -json were used; resolved by reading from gArgs.GetCommand() rather than raw argv."
+   ],
+   "author_status": "active, last pushed fixes addressing all review comments"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author addressed all review points with corresponding tests and received an ACK on the head commit."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "w0xlt",
+     "stance": "support",
+     "note": "reviewed extensively, provided fixes for edge cases, and ACKed the current commit"
+    },
+    {
+     "login": "vicjuma",
+     "stance": "neutral",
+     "note": "noted discrepancy in bitcoin-tx behavior, which was then addressed by author"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "The '--' separator failed when specified before subcommands, e.g., in bitcoin-wallet.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-12: '--' is only recognized after the command, so using it before the first positional argument... incorrectly fails",
+     "resolution_evidence": "2026-08-13: ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "Windows slash options with path values (/datadir=C:/bitcoin) were mistaken for positional arguments.",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-08-13: on Windows, a post-command option such as /datadir=C:/bitcoin is mistaken for a positional argument",
+     "resolution_evidence": "2026-08-13: ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f",
+     "sources": [
+      "dossier",
+      "dossier",
+      "dossier",
+      "thread",
+      "thread",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "w0xlt",
+     "reason": "ACK on head commit after thorough review and verification of multiple edge cases.",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: w0xlt reviewed in detail, supplied several test cases and fixes, and ACKed the latest push.",
+   "reason": "The PR has substantial engagement and an explicit ACK from w0xlt following resolution of multiple parser corner cases.",
+   "evidence": [
+    "w0xlt gave Concept ACK on 2026-07-29, Approach ACK on 2026-08-13, and final commit ACK on 2026-08-13."
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (w0xlt)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Positive",
+    "derived": "Positive",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Using '--' before the first positional argument failed with 'Invalid parameter --', violating GNU-style option parsing conventions",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-12: \"'--' is only recognized after the command, so using it before the first positional argument (for example, bitcoin-wallet -help -- create) incorrectly fails with Invalid parameter --.\"",
+      "resolution_evidence": "2026-08-13: \"ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f\""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Windows post-command options with slashes in values (e.g. /datadir=C:/bitcoin) were mistaken for positional arguments",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-13: \"In the current PR code, on Windows, a post-command option such as /datadir=C:/bitcoin is mistaken for a positional argument because its value contains /.\"",
+      "resolution_evidence": "2026-08-13: \"ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f\""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "A lone '-' after a command was misidentified as an option and rejected",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-13: \"A lone - after a command, such as in bitcoin-cli echo -, is incorrectly treated as an option and rejected with Invalid parameter -.\"",
+      "resolution_evidence": "2026-08-13: \"ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f\""
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "bitcoin-tx reread raw argv and mistook trailing options for transaction-editing commands, failing with 'unknown command'",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-13: \"In the current PR code, the parser correctly recognizes a trailing option like -json, but bitcoin-tx later rereads the original arguments and mistakenly treats -json as a transaction-editing command, causing error: unknown command.\"",
+      "resolution_evidence": "2026-08-13: \"ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "Concept ACK, Approach ACK, and full ACK after bug fixes were incorporated",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "w0xlt",
+      "stance": "support",
+      "note": "reviewed, reported several edge-case bugs with suggested diffs, and ACKed"
+     },
+     {
+      "login": "vicjuma",
+      "stance": "neutral",
+      "note": "noted unified output benefits but expressed skepticism about handling across tools like bitcoin-tx; decided to wait for other reviews"
+     }
+    ],
+    "corrections": [],
+    "summary": "Positive: w0xlt reviewed thoroughly, found several edge cases that the author fixed, and ACKed; vicjuma commented with no objection",
+    "usage": {
+     "input_tokens": 11569,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 2409
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "The '--' separator failed when specified before subcommands, e.g., in bitcoin-wallet.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-12: '--' is only recognized after the command, so using it before the first positional argument... incorrectly fails",
+      "resolution_evidence": "2026-08-13: ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "Windows slash options with path values (/datadir=C:/bitcoin) were mistaken for positional arguments.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-13: on Windows, a post-command option such as /datadir=C:/bitcoin is mistaken for a positional argument",
+      "resolution_evidence": "2026-08-13: ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "A lone hyphen was treated as an option and rejected rather than treated as a positional argument.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-13: A lone - after a command, such as in bitcoin-cli echo -, is incorrectly treated as an option",
+      "resolution_evidence": "2026-08-13: ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "bitcoin-tx failed when trailing options like -json were provided after a transaction hex.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-08-13: bitcoin-tx later rereads the original arguments and mistakenly treats -json as a transaction-editing command",
+      "resolution_evidence": "2026-08-13: ACK 67a8e5bea2e30c66d7f4eb33e8b124943c5d705f"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "w0xlt",
+      "reason": "ACK on head commit after thorough review and verification of multiple edge cases.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Release notes are included but only follow the command-line code change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation updates are incidental to the CLI feature."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies bitcoin-cli command parsing and usage text.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it fixes confusing CLI behavior where options like -rpcwallet were silently ignored when provided after an RPC command, avoiding accidental execution against unintended wallets."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Modifies bitcoin-tx argument handling and benefits bitcoin-wallet CLI syntax.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it updates bitcoin-tx to consume pre-parsed commands from ArgsManager, preventing flags following transaction inputs from causing command-line errors."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes ArgsManager::ParseParameters in src/common/args.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because it introduces standard GNU-style option parsing to ArgsManager across all node tools, stopping silent ingestion of invalid options and supporting the standard '--' option terminator."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR implements GNU-style command-line option parsing in ArgsManager, allowing options to be specified after subcommands and positional arguments. It prevents misplaced or misspelled options from being silently treated as positional parameters, fixes wallet routing errors with trailing -rpcwallet arguments, and adds '--' delimiter support. The changes directly benefit bitcoin-cli, bitcoin-wallet, and bitcoin-tx. All review feedback on edge cases has been addressed and the PR is ACKed by w0xlt."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0177105
+}

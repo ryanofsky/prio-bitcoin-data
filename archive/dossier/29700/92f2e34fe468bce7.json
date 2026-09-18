@@ -1,0 +1,309 @@
+{
+ "number": 29700,
+ "input_hash": "92f2e34fe468bce7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 43538,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 9862
+ },
+ "cost_usd": 0.0942543,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes internal fatal-error paths (AbortNode-triggered shutdowns) in validation and block storage return util::Result error info to callers instead of silently signaling only through notification callbacks.",
+    "Lets libbitcoinkernel applications detect and handle fatal errors programmatically, without registering for kernel notification callbacks."
+   ],
+   "reviewability": [
+    "Ready to review, though it is built on the still-open base PR #25665 and effectively cannot be finished or merged before that lands.",
+    "58 force-pushes over 2.5 years reflect constant rebasing against unrelated conflicting PRs, not code instability; the design questions raised so far have been resolved."
+   ],
+   "agreement": [
+    "Early Concept ACK with no rationale (Graysonbarton). A design concern about wrapping result types was raised and accepted by the author, who changed the approach (maflcko).",
+    "A flush/state inconsistency noted by optout21 was acknowledged and split into a separate merged PR (#35621).",
+    "A broad philosophical objection to util::Result as a pattern was raised once with no specifics tied to this PR and no follow-up engagement (purpleKarrot)."
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it removes a hard requirement (registering notification callbacks) for libbitcoinkernel consumers to detect fatal errors, which is core to making the kernel library usable standalone.",
+      "Directly serves the kernel project's stated goal of a complete, self-contained error-reporting API."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it adds nodiscard-enforced result propagation through ConnectBlock, ActivateBestChain, FlushStateToDisk and mempool-accept call chains, surfacing fatal errors that were previously silently swallowed at call sites.",
+      "No behavior change is intended (pure refactor), but it makes validation safer to build kernel consumers on top of."
+     ]
+    },
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it returns fatal errors from BlockManager flush and block-write paths (FlushBlockFile, WriteBlock, LoadBlockIndex, ImportBlocks) that previously could fail silently during storage operations.",
+      "Improves the ability to detect storage-layer failures rather than have them vanish into an AbortNode call with no return signal."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it substantially extends util::Result (failure types, InfoType, Update(), multi-message support) and adds a new util::messages module used across many call sites.",
+      "This is foundational infrastructure that reduces a burden other areas will carry once they adopt richer error reporting."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because ProcessTransaction, ProcessNewPackage, and LoadMempool now return additional flush/fatal-error information alongside their existing accept results.",
+      "The benefit is plumbing for error visibility, not a policy or DoS-resistance change."
+     ]
+    },
+    {
+     "name": "mining",
+     "why": [
+      "P4 because miner.cpp and SubmitBlock only adapt to the new TestBlockValidity/ProcessNewBlock signatures to thread through fatal-error results.",
+      "No template-validity or performance behavior changes for miners."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P4 because the CI change only suppresses a maybe-uninitialized false positive that this PR's own code changes triggered.",
+      "Narrow, self-inflicted fix rather than a general CI reliability improvement."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes validation and block-storage functions that trigger fatal errors (via AbortNode) return util::Result objects carrying error information, instead of leaving callers to learn about fatal failures only through kernel notification callbacks. It is a pure refactor with no intended behavior change, built on top of the still-open #25665 which adds the util::Result infrastructure this PR depends on. It has been alive for over two years and rebased 58+ times against dozens of intervening validation/blockstorage PRs.",
+  "problem": "libbitcoinkernel application authors currently have no way to learn about fatal internal errors (chainstate corruption, flush failures, block-index failures) except by registering for the kernel notifications interface; ordinary function return values give no indication anything went wrong. This makes robust error handling in kernel-based applications difficult, and is a blocker for using validation code as a standalone library.",
+  "discussion": {
+   "open_concerns": [
+    "purpleKarrot's general objection that util::Result-style error handling is the wrong direction for a codebase where Bitcoin's timing does not require it; raised once, not engaged with further by anyone."
+   ],
+   "resolved_concerns": [
+    "maflcko's concern that Result<InterruptResult> wrapping was fragile was addressed by the author changing the type ordering.",
+    "optout21's observation of a pre-existing flush/state inconsistency was acknowledged and split off into #35621, which merged."
+   ],
+   "author_status": "active, most recent force-push 2026-09-08, author_silent_days=8"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #25665 first",
+   "reason": "The code itself has no known invalidating issue outstanding; raised design questions (InterruptResult wrapping, flush/state inconsistency) have been resolved or split off. It is based on the still-open #25665, so reviewers should start there, but that base is itself reviewable."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: an early Concept ACK (Graysonbarton), two substantive concerns resolved by the author (maflcko, optout21), and one unaddressed general philosophical objection with no specific harm claim and no echo from others (purpleKarrot).",
+   "reason": "No reviewer has raised a concrete harm that merging this refactor would cause; the technical objections raised were engineering nits about type design that the author fixed. The one standing dissent is a broad architectural preference, not a specific defect in this PR.",
+   "evidence": [
+    "Graysonbarton: 'Fixing fatal errors' (approval, 2024-03-25).",
+    "maflcko: Result<InterruptResult> wrapping is fragile -> ryanofsky agreed and adjusted the type.",
+    "optout21: flush/state inconsistency in VerifyDB -> ryanofsky clarified comment and split fix into #35621 (merged).",
+    "purpleKarrot: 'Introducing util::Result is a development in the wrong direction' - no reply, no other reviewer echoed this."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    25665
+   ],
+   "enables": [
+    "Standalone/robust fatal-error handling for libbitcoinkernel consumers",
+    "Presented as a lower-risk alternative/subset of the closed #29642",
+    "Cited as a needed precursor commit set for #35621 (already merged) which fixed one specific flush/state inconsistency"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Adds kernel-facing FlushStatus/FlushResult types, modifies kernel/bitcoinkernel.cpp and kernel/result.h, and its explicit purpose is to let libbitcoinkernel consumers detect fatal errors via return values instead of only via notification callbacks.",
+    "band": "P2",
+    "reason_tag": "unblocks kernel consumers",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "The description states this closes the gap that 'the only way to handle these errors is to register for notification callbacks,' which is a direct API-completeness gap for kernel library consumers. It does not fix a live bug but has high leverage for the kernel project's stated goal of independence from node internals."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Substantively changes ConnectBlock, ActivateBestChain, ActivateBestChainStep, DisconnectTip, FlushStateToDisk, and mempool-accept call chains in validation.cpp (+368/-193), adding nodiscard-enforced result propagation.",
+    "band": "P2",
+    "reason_tag": "error visibility",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "It is explicitly a behavior-preserving refactor ('This PR is a pure refactoring... without changing their behavior'), but the nodiscard annotations catch previously-silent-ignored fatal-error returns across many validation call sites, and optout21's review already uncovered one real pre-existing inconsistency as a side effect, which was split off and merged as #35621."
+   },
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Returns FlushResult/fatal-error information from BlockManager's flush, block-write, block-index-load, and ImportBlocks methods in node/blockstorage.cpp/.h, which is squarely block and undo file storage territory.",
+    "band": "P2",
+    "reason_tag": "flush integrity",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "Commit messages state these changes add nodiscard annotations 'so callers do not accidentally ignore the result values' for block/undo file flush and write failures, directly touching data-integrity-relevant storage code the category prioritizes."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds substantial new util::Result functionality (failure types, InfoType, Update()) and a new util::messages module (src/util/messages.h/.cpp), core shared infrastructure.",
+    "band": "P2",
+    "reason_tag": "error-handling infra",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 3
+    },
+    "rationale": "Commit messages describe 'Add util::Result failure values,' 'Add util::Result::Update() method,' and 'Add util::Result multiple error and warning messages,' explicitly aimed at simplifying error-handling patterns reused across many call sites, which the category ranks as reducing a burden every area carries."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Changes AcceptToMemoryPool, ProcessNewPackage, ProcessTransaction, MaybeUpdateMempoolForReorg, and LoadMempool to return fatal-error/flush information, per commit 2639ec156a.",
+    "band": "P3",
+    "reason_tag": "error plumbing",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The change is limited to propagating fatal-error/flush status alongside existing accept results; it does not alter acceptance, replacement, or DoS-resistance semantics that the category prioritizes."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "miner.cpp and SubmitBlock are updated to use the new TestBlockValidity/ProcessNewBlock result types (kernel::FlushResult, AbortFailure).",
+    "band": "P4",
+    "reason_tag": "signature adaptation",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These are call-site adaptations to the new fatal-error return types elsewhere, not changes to template validity, fee accounting, or interface behavior that the category cares about."
+   },
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies ci/test/00_setup_env_native_previous_releases.sh to add -Wno-error=maybe-uninitialized, per commit '389ab06bb0 ci: Avoid -Wno-error=maybe-uninitialized false positives'.",
+    "band": "P4",
+    "reason_tag": "CI workaround",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The commit message states the fix addresses a false positive caused by this PR's own util::Result changes, not a general CI reliability improvement."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "rpc/blockchain.cpp, rpc/mempool.cpp, rpc/mining.cpp are edited only to unpack the new tuple-style ProcessTransaction/ProcessNewPackage return values (e.g. 'auto [mempool_accept, flush_result]{...}'), a mechanical adaptation to a signature change made elsewhere.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC behavior, compatibility, or data change; call sites are updated only to keep compiling against the new mempool return types."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "net_processing.cpp changes (+9/-6) are call-site updates to the new ProcessTransaction/ProcessNewPackage tuple returns.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical follow-on from a signature change elsewhere; no relay, DoS, or protocol behavior change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Nearly all test/bench/fuzz file changes (baseindex_tests, txvalidation_tests, connect_block fuzz target, benches, etc.) only update call sites to unwrap the new Result-returning function signatures.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "These are mechanical test-harness adjustments to keep the test suite compiling against changed signatures, which the rules exclude from category membership even though the Tests label might otherwise apply."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "wallet.cpp has two small unrelated edits (a clang-tidy warning fix and a const-to-non-const change) that are incidental cleanups, not part of the fatal-error refactor's substance.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet fund-safety, backup, or coin-selection logic is touched; the two-line changes are incidental fixes needed to keep the build/CI green."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the PR can be meaningfully reviewed/merged before its base #25665 lands, given both have been in flight for years.",
+   "Whether purpleKarrot's architectural objection reflects any broader unstated maintainer sentiment against util::Result adoption, which could affect long-term mergeability beyond what the visible discussion shows.",
+   "Exact current diff scope is hard to fully verify given 58 force-pushes and a truncated file list; category assignments for large omitted files (validation.cpp, result.h) rely on commit messages and category hints rather than a full line-by-line read."
+  ],
+  "card": "This PR (ryanofsky, draft, open since 2024-03-21) makes validation and block-storage functions that trigger fatal internal errors (AbortNode-driven shutdowns) return util::Result objects with error information, instead of only notifying via the kernel notifications interface. The description states the goal directly: 'error handling in libbitcoinkernel application code [is] difficult, because the only way to handle these errors is to register for notification callbacks' - this PR fixes that gap as a behavior-preserving refactor. It touches kernel API surface, block storage/flush paths, validation internals, mempool accept functions, and adds substantial util::Result/util::messages infrastructure, with mechanical fallout across mining, rpc, p2p, and tests call sites. It depends on the still-open #25665 for the underlying util::Result machinery, and has been rebased 58+ times against dozens of conflicting in-flight validation/blockstorage PRs, which explains its age rather than any code defect. Review to date is positive: one early Concept ACK, two substantive design concerns raised and resolved (one split into merged PR #35621), and a single unaddressed general objection to the util::Result pattern that no other reviewer echoed."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

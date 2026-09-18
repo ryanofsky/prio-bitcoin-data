@@ -1,0 +1,138 @@
+{
+ "number": 36060,
+ "input_hash": "09113da265f7a5e4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9090,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3697
+ },
+ "cost_usd": 0.028981299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Makes the build fail early with a clear error if Cap'n Proto/KJ lacks C++ exception support, instead of building broken IPC code silently.",
+    "Protects the multiprocess/IPC feature from a real correctness hazard when libkj is built without exceptions."
+   ],
+   "reviewability": [
+    "Draft with no review activity yet, but nothing is known to invalidate a review now.",
+    "No open questions or mechanical blockers; conflicts with an unrelated open PR (#32387) touching the same files."
+   ],
+   "agreement": [
+    "No reviewer has commented yet (crickets)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it closes a real correctness gap: runCatchingExceptions silently relies on a symbol (getCaughtExceptionAsKj) that disappears when libkj is built with KJ_NO_EXCEPTIONS, which the NetBSD doc note says can be mis-detected.",
+      "Turns a late, confusing link/runtime failure into an early configure-time error with actionable guidance, protecting IPC builds on affected platforms."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it hardens the build glue that IPC depends on (depends pinning, in-tree target defines) rather than changing IPC's runtime behavior or interface.",
+      "Prevents miscompiled IPC binaries on setups where system libkj lacks exception support, but has no consumer-facing effect otherwise."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "Unranked because the documentation lines are a mechanical side effect of the build change, not the PR's subject."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes Bitcoin Core's CMake build require that Cap'n Proto/KJ be built with C++ exception support when IPC is enabled, failing configure with a clear message instead of allowing a silent miscompile. It pins -DKJ_NO_EXCEPTIONS=0 for the depends capnp and native_capnp packages, adds a CheckKjExceptions.cmake module that probes the compiler and the installed libkj, and defines KJ_NO_EXCEPTIONS=0 privately on in-tree IPC targets so headers and library agree. Documentation for FreeBSD, NetBSD, OpenBSD, macOS, and Unix builds is updated to note the exception-support requirement.",
+  "problem": "IPC's runCatchingExceptions relies on kj::getCaughtExceptionAsKj, which capnp's kj library omits when built with KJ_NO_EXCEPTIONS set. Without this check, a system or self-built libkj lacking exception support can produce IPC binaries that silently misbehave or fail to link late in the build, which the author says is why depends packages and a new build-time check are needed (addresses #36058).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active, no review yet"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Draft, no reviews yet",
+   "reason": "No mechanical blocker (CI passes per author's manual testing, no rebase needed) and no open reviewer question. The PR is draft and has received zero review activity, and it textually conflicts with the unrelated open PR #32387 (Windows IPC support) which touches overlapping files, but that is a merge-conflict fact, not a reason review would be wasted."
+  },
+  "agreement": {
+   "state": "Crickets",
+   "summary": "No reviewer has commented on the PR at all.",
+   "reason": "Zero reviews and zero review comments recorded; the PR references RFC issue #36058 but nobody has weighed in on this specific implementation.",
+   "evidence": [
+    "No distinct reviewers (0) and no review comments in the signals."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Addresses RFC issue #36058 (Check / enforce exception support)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds a new cmake/module/CheckKjExceptions.cmake, modifies top-level CMakeLists.txt and cmake/libmultiprocess.cmake, and pins depends/packages/capnp.mk and native_capnp.mk cxxflags \u2014 squarely build-system and depends-pinning territory.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a latent correctness hazard where IPC code can be built against a libkj missing exception-support symbols, turning it into an early, actionable configure failure. The NetBSD doc addition ('KJ can mis-detect this when __has_feature is stubbed') indicates the failure mode is real on at least one supported platform, not purely theoretical."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Changes src/ipc/CMakeLists.txt and src/ipc/test/fuzz/CMakeLists.txt to define KJ_NO_EXCEPTIONS=0 on in-tree IPC targets, and the cmake/libmultiprocess.cmake changes affect how the libmultiprocess subtree is configured for IPC.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Protects IPC's build correctness against a subtle library/header mismatch, per the commit message 'Header autodetection is not a configure failure... fail if libkj lacks getCaughtExceptionAsKj.' This is infrastructure hygiene for the IPC build rather than a change to the IPC interface or its consumers, so it ranks below build-critical work in this category."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Doc edits are one-line mentions of the exception-support requirement, a side effect of the build change rather than the PR's subject.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per category rules, a code change that also updates its docs belongs to the code's category, not docs."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "No reviewer has weighed in, so it's unclear whether maintainers agree with gating configure this strictly versus a softer warning.",
+   "The conflict with #32387 (Windows IPC support) could require rework depending on which merges first, but no explicit dependency statement exists.",
+   "Real-world frequency of libkj built without exception support is unquantified beyond the NetBSD note."
+  ],
+  "card": "This PR adds a CMake-time check that fails configure if Cap'n Proto's KJ library lacks C++ exception support, which IPC's runCatchingExceptions silently depends on (missing kj::getCaughtExceptionAsKj). It pins -DKJ_NO_EXCEPTIONS=0 for the depends capnp/native_capnp packages and privately defines the same macro on in-tree IPC and libmultiprocess targets so headers and library agree, addressing RFC issue #36058. The NetBSD doc note that KJ 'can mis-detect this when __has_feature is stubbed' is the strongest evidence this is a real, not just theoretical, footgun on some supported platforms. The PR is draft, has had zero reviewer engagement, and conflicts with the unrelated open PR #32387 (Windows IPC support) on overlapping files, but nothing blocks a code review of the current diff."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

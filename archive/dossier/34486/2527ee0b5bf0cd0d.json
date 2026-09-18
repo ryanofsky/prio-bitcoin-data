@@ -1,0 +1,106 @@
+{
+ "number": 34486,
+ "input_hash": "2527ee0b5bf0cd0d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 7873,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4288
+ },
+ "cost_usd": 0.030719299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops NAT-PMP port mapping and Tor control connections from running in the background when networkactive=0 is set",
+    "Makes the network-active toggle work correctly at runtime too, not just at startup"
+   ],
+   "reviewability": [
+    "Not ready to review as-is: labeled Needs rebase and the author has been silent for about 30 days",
+    "A real backoff-reset edge case raised by winterrdog on 2026-08-18 is still unaddressed"
+   ],
+   "agreement": [
+    "Multiple concept ACKs and two tested/approach ACKs, generally positive (sedited, fanquake, Jhackman2019, bradleystachurski, brunoerg, winterrdog)",
+    "winterrdog flagged a real backoff bug (reconnect delay grows instead of resetting on rapid off/on toggles during a reconnect sleep) but still gave an approach ACK, treating it as nonblocking (winterrdog)",
+    "No unresolved blocking objections"
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it closes a real gap between stated intent (networkactive=0) and actual behavior: mapport and Tor control kept probing/connecting in the background despite the user disabling networking",
+      "Matters for privacy- and resource-conscious operators (e.g. Tor users) who rely on networkactive=0 to mean no network activity, verified with real packet capture by brunoerg",
+      "Does not unblock other major work, but fixes a documented issue (#34190) with concrete reproduction evidence"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR wires NAT-PMP port mapping and the Tor control connection into CConnman::SetNetworkActive so both subsystems start and stop dynamically with the node's network-active state, including via the setnetworkactive RPC at runtime, not just at startup. It supersedes an earlier alternative (#34467) that only gated these subsystems at init time. Two functional tests are added covering mapport and torcontrol behavior under networkactive toggling, plus a Tor reconnect-backoff test.",
+  "problem": "When -networkactive=0 is set, bitcoind still performs NAT-PMP gateway queries and Tor control connection attempts in the background, contradicting the documented meaning of the flag (issue #34190). This affects any operator who expects the flag to fully suspend outbound network activity, including privacy-conscious Tor users.",
+  "discussion": {
+   "open_concerns": [
+    "winterrdog (2026-08-18): a rapid off/on toggle of networkactive during a Tor reconnect backoff sleep can leave the backoff timer growing instead of resetting, with a reproduction test and a proposed diff; not yet addressed by the author",
+    "brunoerg earlier noted functional tests can't easily hit the disconnect-guard code path in torcontrol.cpp; author explained this is a defensive check and accepted brunoerg's suggested additional coverage"
+   ],
+   "resolved_concerns": [
+    "bradleystachurski's nit that TorController::SetNetworkActive didn't reset reconnect_timeout on reactivation was implemented by the author",
+    "winterrdog's earlier question about a redundant network-active check in the loop was acknowledged by the author as redundant but harmless",
+    "brunoerg's nits on moving restart_node inside assert_debug_log and dropping a sleep were addressed in a follow-up push"
+   ],
+   "author_status": "silent since 2026-08-17 force-push; has not yet responded to winterrdog's 2026-08-18 backoff-reset comment"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a 'Needs rebase' label and mergeable_state is dirty, and the author has been silent for about 30 days since the last force-push. There is also an open, unaddressed technical comment from winterrdog (2026-08-18) about a backoff-reset edge case during rapid networkactive toggling, which a reviewer would want resolved before final review, though it was raised alongside an approach ACK so it is not itself blocking."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Broadly positive with several concept/tested/approach ACKs, but winterrdog's backoff-reset edge case is unresolved though treated as nonblocking.",
+   "reason": "Multiple reviewers (sedited, fanquake, Jhackman2019 concept ACK; bradleystachurski and brunoerg tested; winterrdog approach ACK) support the change, and brunoerg did substantial independent verification including a custom Docker test rig showing the fix works as intended. winterrdog's 2026-08-18 comment about backoff not resetting on rapid off/on toggles during a reconnect sleep is a real, still-open correctness point, but winterrdog gave an approach ACK in the same round, indicating it is not being treated as blocking.",
+   "evidence": [
+    "sedited, fanquake, Jhackman2019: Concept ACK",
+    "bradleystachurski: Tested ACK with a nit (backoff reset) that the author implemented",
+    "brunoerg: Tested ACK with a custom Docker-based verification rig showing 14/14 checks pass",
+    "winterrdog: raised a backoff-reset race condition on 2026-08-18 with a reproduction test and proposed fix, then gave an approach ACK the same day"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Correct behavior for future automated or scripted use of setnetworkactive toggling (e.g. privacy-preserving network kill-switch tooling)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "The PR changes torcontrol.cpp and mapport lifecycle management, both squarely under the P2P label and covering Tor integration and network activity management, which the p2p category charter explicitly includes.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.58,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes a documented mismatch between the networkactive=0 setting and actual node behavior (issue #34190), where NAT-PMP and Tor control kept operating despite the flag. brunoerg's independent Docker-based packet capture test confirmed real network traffic stopped and resumed correctly with the fix, and multiple reviewers (bradleystachurski, brunoerg) manually verified mapport and Tor control lifecycle now track network-active state through RPC toggling as well as startup, which the flag's semantics require but previously did not deliver."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project intends to require the winterrdog-identified backoff race fix before merge, or treat it as a follow-up given the approach ACK",
+   "Impact of the conflicting open PRs (#36260, #36170, #36142, #35292, #34534, #34213) on merge order and whether this PR will need further rework after they land",
+   "Exact current date relative to the 2026-08-18 last comment, which determines whether the Paused/Stale-versus-mildly-active characterization is still accurate"
+  ],
+  "card": "placeholder"
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

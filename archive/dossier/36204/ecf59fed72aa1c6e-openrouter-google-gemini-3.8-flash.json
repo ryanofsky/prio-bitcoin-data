@@ -1,0 +1,94 @@
+{
+ "number": 36204,
+ "input_hash": "ecf59fed72aa1c6e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:32+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17759,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2473
+ },
+ "cost_usd": 0.01710795,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent slow or malicious clients from occupying all RPC connection slots",
+    "Enforce a request completion deadline so trickled requests cannot hold connections indefinitely"
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Clean merge state, green CI, and previous review comments addressed."
+   ],
+   "agreement": [
+    "Positive with concept approval and constructive review feedback (hodlinator)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P2 because it fixes connection slot exhaustion (Slowloris DoS) on the HTTP server.",
+      "Clients trickling bytes currently reset the idle timer forever, blocking legitimate RPC access.",
+      "Impact is bounded by RPC usually binding to localhost, but interface DoS hardening is high priority."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds a request completion deadline to the internal HTTP server used for RPC and REST. Sockets that trickle in partial requests will no longer reset their timeout indefinitely on every received byte, freeing occupied connection slots when the deadline expires.",
+  "problem": "The existing `-rpcservertimeout` mechanism only tracks client inactivity and resets on every read. An unauthenticated client trickling single bytes can occupy one of the limited connection slots (`-rpcmaxconnections`, default 16) indefinitely, causing denial of service for all other RPC callers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "hodlinator suggested checking `!m_req_busy` first for efficiency; author explained that `rpcservertimeout.count()` is cheaper and usually short-circuits sooner.",
+    "hodlinator noted potential race with `RestartRequestDeadline()` in `Send()`; author clarified that `m_request_since` is empty while a request is being processed by a worker.",
+    "Minor test and docstring suggestions from hodlinator were incorporated in subsequent force-pushes."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is passing, mergeable state is clean, and feedback from the initial review round has been addressed."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: Concept ACK and detailed review from hodlinator, addressed by the author.",
+   "reason": "hodlinator gave a Concept ACK and provided technical feedback on clock mocking, timeout naming, and test cleanup, which the author addressed.",
+   "evidence": [
+    "hodlinator: 'Concept ACK 537944cb7869039912139793b58bc6296b64eebe'",
+    "janb84 addressed inline comments and rebased/updated tests across subsequent pushes"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies src/httpserver.cpp and src/httpserver.h to implement request completion timeouts for HTTP/RPC connections.",
+    "band": "P2",
+    "reason_tag": "DoS protection",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Prevents HTTP connection slot exhaustion against the RPC server. While default configuration binds RPC to localhost limiting remote exposure, resource exhaustion across the HTTP interface is explicitly prioritized in the RPC rubric."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR mitigates slowloris-style connection slot exhaustion against Bitcoin Core's HTTP server by adding a request completion deadline. Currently, any client sending bytes slowly resets the idle timeout on each read and can hold a connection slot indefinitely, eventually exhausting all available slots (-rpcmaxconnections) and blocking legitimate RPC calls. The solution enforces an unextendable deadline equal to -rpcservertimeout from the first byte until parsing finishes, complemented by unit and functional test coverage. The PR is clean, has active concept support from hodlinator, and is ready for review."
+ },
+ "raw_text": null
+}

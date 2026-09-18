@@ -1,0 +1,147 @@
+{
+ "number": 27409,
+ "input_hash": "6aa72428f21d56d6",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14143,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4417
+ },
+ "cost_usd": 0.0376343,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make GUI and CLI tools resolve to the same default data directory",
+    "Fixes a long-standing usability bug where a custom GUI datadir is silently ignored by bitcoin-cli, bitcoind, and bitcoin-wallet"
+   ],
+   "reviewability": [
+    "Paused: author called the PR not ready and abandoned active work on it since mid-2024, and a known Windows bug remains unfixed",
+    "A push in Oct 2025 rebased the branch but did not address open review comments or bring it out of draft"
+   ],
+   "agreement": [
+    "No reviewer objects to the goal, but pinheadmz confirmed a concrete bug (Windows datadir detection) that was never fixed (pinheadmz)",
+    "luke-jr's early concern was clarified without further pushback (luke-jr)",
+    "Author himself flagged the PR as unfinished and paused work on it (ryanofsky)"
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P2 because it changes core ArgsManager/config-file loading (datadir resolution, config path handling) used by every binary",
+      "Fixes a real cross-tool inconsistency that causes wallets, blocks, and settings to end up in different places depending on which binary is run"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it makes bitcoin-wallet load the config file for the first time, closing a gap where the tool could silently ignore settings in the target datadir",
+      "Modest but concrete correctness improvement for a tool that manipulates wallet files directly"
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the test file edits only adapt existing tests to the new ReadConfigFiles signature, they add no new test coverage in their own right"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR unifies how the GUI and command-line tools (bitcoin-cli, bitcoind, bitcoin-wallet) determine the default data directory. It changes the GUI to store a custom datadir choice as a symlink or marker file at the default datadir location instead of in a Qt-only settings key, refactors ArgsManager's config-file and datadir resolution logic to support this, and makes bitcoin-wallet load the config file like other tools. It is a draft built on the merged #27302 and has been open since April 2023 without reaching a mergeable state.",
+  "problem": "Users who pick a non-default data directory in the GUI intro screen currently get inconsistent behavior from CLI tools, which ignore that choice: bitcoin-cli and bitcoin-wallet show errors, and bitcoind silently uses a different datadir, downloading blocks and loading wallets in the wrong place. This affects any user who runs both the GUI and CLI tools against the same node.",
+  "discussion": {
+   "open_concerns": [
+    "pinheadmz confirmed the Windows CSIDL-based datadir detection does not work as intended, with no fix pushed since (2023-10-03)",
+    "Author himself says the PR is unfinished: writing a Qt test covering the many datadir-presence permutations proved difficult and the work stalled"
+   ],
+   "resolved_concerns": [
+    "luke-jr's initial worry about breaking bitcoin.conf placement in a GUI-selected datadir was clarified as not applicable by the author"
+   ],
+   "author_status": "silent on the substantive review comments since mid-2024; rebased the branch in Oct 2025 without addressing the open Windows bug or draft status"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking",
+   "reason": "The author explicitly said in 2024 that the PR is not ready and he does not expect to return to it soon, and a known Windows-specific bug (confirmed by pinheadmz) remains unfixed. A rebase in Oct 2025 did not include a substantive update or response, so review effort now would likely be invalidated by future rework."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "No one objects to the goal, but pinheadmz found a concrete bug in the current implementation that was never addressed.",
+   "reason": "Support for the underlying idea is uncontested (it fixes a genuine cross-tool inconsistency), but a real, unresolved implementation flaw exists and the author has not responded to it or continued the work.",
+   "evidence": [
+    "pinheadmz: 'Confirmed, doesn't work :-(' regarding Windows datadir detection, no follow-up fix",
+    "luke-jr raised then dropped a concern about bitcoin.conf placement",
+    "ryanofsky (author): 'not ready now... don't think I will have an update on it soon' (2024-06-28)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Would resolve the long-standing usability issue tracked informally as bitcoin/bitcoin#8106 and closes the gap raised in #27273 about GUI ignoring datadir= config lines"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Only src/test/util/setup_common.cpp and src/test/argsman_tests.cpp are touched, and solely to call the new ReadConfigFiles signature so existing tests keep compiling; no new test coverage is added.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical adaptation to an API change elsewhere, not a test-infrastructure contribution in its own right."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "src/bitcoin-wallet.cpp is changed so the tool reads the config file, per the commit message 'bitcoin-wallet: make bitcoin-wallet tool load config file', and test/functional/tool_wallet.py is updated to match.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real gap where bitcoin-wallet silently ignored the config file in its target datadir, a tool that directly manipulates wallet files. Worthwhile but narrow, and it is a supporting piece for the larger datadir-unification change rather than a standalone tools improvement."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The bulk of the diff is in src/common/args.cpp, args.h, config.cpp, and init.cpp/h, refactoring ArgsManager's config-file reading and datadir resolution (the InitialDataDirFn mechanism, CreateDataDir, m_datadir caching).",
+    "band": "P2",
+    "reason_tag": "user request",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Addresses a genuine, long-standing user pain point: 'GUI and CLI tools use inconsistent datadirs... bitcoind will appear to work but use a different datadir, not loading the same wallets and settings, and downloading blocks into the wrong place' (PR description). It touches the config-loading path used by every Bitcoin Core binary, so correctness here matters broadly, but it is a usability/consistency fix rather than a security or crash issue, keeping it at P2 rather than P1."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the pinheadmz-reported Windows bug has since been fixed off-list is unclear; the visible discussion shows no resolution",
+   "Actual current mergeable/rebased state versus master is unclear beyond the 'Needs rebase' label and dirty mergeable_state",
+   "Whether the project still wants this specific symlink/marker-file approach given how long it has stalled is untested by fresh review"
+  ],
+  "card": "This draft PR unifies the default data directory used by the Bitcoin Core GUI and CLI tools, fixing a real bug where a GUI-selected datadir is ignored by bitcoin-cli, bitcoind, and bitcoin-wallet, causing wallets and blocks to end up in the wrong place. It refactors core ArgsManager config-file and datadir resolution logic and makes bitcoin-wallet load the config file for the first time. Open since April 2023, it remains a draft with a confirmed unfixed Windows-specific bug (pinheadmz) and the author stating in 2024 that the work is not finished and unlikely to resume soon. A 2025 rebase did not add substantive progress. Depends on the already-merged #27302; no open PRs depend on it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

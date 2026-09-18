@@ -1,0 +1,103 @@
+{
+ "number": 35197,
+ "input_hash": "7888402b90c8fa9b",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24986,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7045
+ },
+ "cost_usd": 0.0616173,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Shrink Darwin release binaries by adding an ICF (identical code folding) linker flag, saving roughly 5% binary size.",
+    "Applies only to macOS builds since the option targets lld."
+   ],
+   "reviewability": [
+    "Ready to review, nothing mechanically blocking it.",
+    "But an open technical question about whether the flag is actually safe on the pinned toolchain has not been resolved in the code."
+   ],
+   "agreement": [
+    "Support for the size win is broad, but 151henry151 showed with a reproducible test that safe ICF folds address-taken functions on Darwin without -faddrsig, i.e. it behaves like unsafe icf=all (151henry151).",
+    "Sjors independently found the same gap earlier and gave a synthetic function-identity-bypass example (Sjors).",
+    "hebasto gave a concept ACK on the ICF idea itself but flagged the probe ordering issue (hebasto).",
+    "Author has engaged and pursued an upstream LLVM docs fix but has not yet changed this PR's code to add -faddrsig or fix probe order (fanquake)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P2 because it's a real release-binary correctness question, not just a size tweak: reviewers demonstrated that on the pinned Darwin toolchain the 'safe' ICF variant silently behaves like the unsafe variant, folding address-taken functions in real bitcoind symbols.",
+      "The size win (~5%) is a nice-to-have but secondary; the open question is whether shipping this as-is risks subtly wrong function-identity semantics in release binaries, which matters for release integrity."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds `-Wl,--icf=safe(_thunks)` to the Darwin CMake build to enable identical code folding, shrinking bitcoind and bitcoin-qt release binaries by roughly 4-5% on aarch64/x86_64 macOS. It is a five-line CMakeLists.txt change, guix-verified reproducible by multiple reviewers, and has gone through many rounds of investigation into whether the 'safe' variant is actually safe on the project's pinned lld toolchain.",
+  "problem": "Darwin release binaries are noticeably larger than necessary because identical functions are not folded; this affects distribution size and, more importantly, the discussion surfaced a subtler concern: without `-faddrsig`, LLD's Mach-O 'safe' ICF mode behaves identically to the unsafe 'all' mode, silently folding address-taken functions and risking incorrect function-pointer identity in shipped binaries.",
+  "discussion": {
+   "open_concerns": [
+    "151henry151 (2026-07-30): 'Not an ACK in its current shape \u2014 on the pinned Guix toolchain, --icf=safe behaves like --icf=all for the Darwin release binaries,' with a reproduction showing 4,149 symbols sharing 678 addresses in the actual built bitcoind versus zero in the base build, and a concrete suggested fix (guard the safe_thunks probe and/or add -faddrsig).",
+    "Sjors independently demonstrated with a synthetic audit-trail example that ICF without -faddrsig can make a program behave incorrectly when code relies on function-pointer identity.",
+    "hebasto raised that the probe order prioritizes --icf=safe over --icf=safe_thunks, which matters once the toolchain supports both."
+   ],
+   "resolved_concerns": [
+    "Whether -faddrsig has any effect on Mach-O (initially disputed by fanquake) was settled: Sjors confirmed the __llvm_addrsig section is emitted for Darwin targets too."
+   ],
+   "author_status": "active but has not pushed a code fix since 2026-07-10; last activity (2026-08-10) was opening an upstream LLVM PR to clarify the icf=safe docs rather than changing this PR's flags"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No CI failure or rebase need is reported and the author remains engaged, so review is not mechanically blocked. However, a substantive unresolved question (does this PR need -faddrsig or a reordered probe to be correct) means the current diff may need to change, so reviewers should read the thread before assuming the flags shown are final."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept support for ICF is broad, but 151henry151 showed with a reproduction that safe ICF folds address-taken functions on Darwin without -faddrsig and called it 'not an ACK in its current shape'; author has responded but not changed the code.",
+   "reason": "The critique is substantive (demonstrated in the actual built bitcoind binary, not just a toy example) and the critic treats it as blocking merge as-is. The author is engaging (pursuing an upstream LLVM docs PR) but has not implemented the suggested fix (adding -faddrsig or reordering the icf probes), so the objection stands unresolved.",
+   "evidence": [
+    "151henry151: 'Not an ACK in its current shape... --icf=safe behaves like --icf=all for the Darwin release binaries,' with a reproducible test and symbol-collision counts from the real binary.",
+    "Sjors: 'My LLM friend thinks that --icf=safe is not actually safe... it's equivalent to --icf=all,' with a synthetic bypass example.",
+    "hebasto: Concept ACK on ICF generally, but flags the probe-ordering issue as inconsistent with the safety rationale.",
+    "fanquake (2026-08-10): opened an upstream LLVM PR to clarify docs, without changing the PR's code."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Labeled Build system; changes CMakeLists.txt linker flags for the guix/Darwin build only.",
+    "band": "P2",
+    "reason_tag": "decision needed",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because the size win (~5%) is real and guix-reproducible across multiple independent builders (davidgumberg, 0xB10C, sedited, Sjors), but the discussion surfaced a genuine release-integrity question: 151henry151 demonstrated in the actual built bitcoind that --icf=safe without -faddrsig folds address-taken functions (4,149 symbols sharing 678 addresses) exactly like the unsafe --icf=all mode, naming real risky folds like std::variant dispatch and tinyformat instantiations. This is a build-category 'could ship a wrong binary' concern per the category's top priority, and it remains an open decision (add -faddrsig, or fix probe order) rather than a resolved nit."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the address-taken-function folding risk translates into any real observable bug in bitcoin's actual code paths (std::variant, tinyformat) rather than being a theoretical/synthetic hazard is not established in the thread.",
+   "Whether the mergeable_state 'blocked' reflects a required-review gate or something else is not specified in the facts.",
+   "It is unclear whether fanquake intends to push a code fix (adding -faddrsig or reordering probes) or is instead waiting for the upstream LLVM doc/behavior change he filed."
+  ],
+  "card": "This PR adds `-Wl,--icf=safe(_thunks)` to shrink Darwin release binaries (bitcoind ~5%, bitcoin-qt ~4%), reproduced by several independent guix builders. The strongest evidence of both its value and its risk comes from reviewer 151henry151, who showed in the actual built bitcoind that, on the project's pinned lld toolchain, 'safe' ICF without `-faddrsig` silently folds address-taken functions just like the unsafe 'all' mode (4,149 symbols sharing 678 addresses versus zero in the base build), naming risky folds in std::variant dispatch and tinyformat code. Sjors independently demonstrated a synthetic case where this could make function-pointer-identity checks silently wrong. The author (fanquake) has engaged extensively over three months but has not yet changed the code to add `-faddrsig` or fix the ICF probe order that reviewers suggested; his latest move was opening an upstream LLVM PR to fix the documentation rather than adjusting this PR. The change is Build-labeled, touches only Darwin CMake flags, and has no stated external dependency."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

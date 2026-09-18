@@ -1,0 +1,355 @@
+{
+ "number": 35026,
+ "input_hash": "d097f0821fae5c11",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:28:00+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 31520,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8730
+ },
+ "cost_usd": 0.0563775,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent valid BIP68 transactions with unconfirmed parents from being falsely evicted from the mempool during chain reorgs."
+   ],
+   "reviewability": [
+    "Ready to review. The implementation is concise and covered by deterministic functional tests."
+   ],
+   "agreement": [
+    "Strong support with multiple ACKs across several review iterations (Bicaru20, ismaelsadeeq).",
+    "Earlier concerns about mixed confirmed/unconfirmed inputs and time-based lockpoints were resolved with an improved recalculation approach and dedicated test coverage (ismaelsadeeq, instagibbs, Bicaru20)."
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it fixes an edge-case correctness bug where valid transactions are evicted from the mempool on reorg.",
+      "While dropped transactions can be rebroadcast, ensuring mempool sequence locks correctly evaluate against new tips prevents unnecessary transaction loss."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a bug in `Chainstate::MaybeUpdateMempoolForReorg` where BIP68 transactions with unconfirmed parents are incorrectly evicted when a chain reorg lowers the tip. Cached lockpoints evaluated relative to a previous tip become stale, so the PR recalculates lockpoints via `CalculateLockPointsAtTip` whenever cached validity or sequence checks fail.",
+  "problem": "When a BIP68 transaction enters the mempool with unconfirmed inputs, its lockpoints are cached assuming parent confirmation at tip + 1. If a reorg lowers the tip or median time past, the cached lockpoints falsely report unsatisfied sequence locks, causing the transaction and all its descendants to be evicted from the mempool even when still valid.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "The initial genesis-sentinel check only handled transactions with all-unconfirmed parents and missed mixed confirmed/unconfirmed inputs as well as time-based relative locktimes.",
+    "The test needed a predictable median time past to deterministically test the time-based lockpoint recalculation on reorg."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, cleanly rebased, and CI passes with comprehensive regression test coverage."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "instagibbs",
+     "stance": "objection",
+     "note": "noted the initial approach missed the time-based lock variant if MTP drops post-reorg"
+    },
+    {
+     "login": "Bicaru20",
+     "stance": "support",
+     "note": "tested, provided test setup for time-based locks, and re-ACKed"
+    },
+    {
+     "login": "Bortlesboat",
+     "stance": "support",
+     "note": "tested locally and confirmed test reproduction on master"
+    },
+    {
+     "login": "ismaelsadeeq",
+     "stance": "objection",
+     "note": "pointed out the genesis-sentinel fix missed mixed confirmed/unconfirmed inputs, proposed general recalculation fix, and ACKed once adopted"
+    },
+    {
+     "login": "sedited",
+     "stance": "neutral",
+     "note": "moderation reminder regarding AI policy"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "Bicaru20",
+     "kind": "approach",
+     "harm": "unnecessary caller-side condition if handled inside TestLockPointValidity",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-05-03: 'Since we already call TestLockPointValidity, maybe it would be better if this condition... is included inside of the TestLockPointValidity.'",
+     "resolution_evidence": "2026-05-13: 'I see, I also got the same error. Good catch! ACK c281b1ea0b' after author explained it breaks txmempool.cpp assert",
+     "sources": [
+      "dossier"
+     ]
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "kind": "correctness",
+     "harm": "transactions spending mixed confirmed and unconfirmed inputs are still falsely evicted",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-15: 'If a transaction spends a mix of confirmed and unconfirmed inputs... the transaction is still falsely evicted along with its descendants.'",
+     "resolution_evidence": "2026-07-20: 'ACK 3813fc8c9d6a70ce2e22fa2295e2ff95837ba67b' after author adopted general recalculation",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "instagibbs",
+     "kind": "correctness",
+     "harm": "time-based variant is missed if MTP drops post-reorg",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-15: 'in addition to what @ismaelsadeeq said it seems it misses time-based variant, if MTP drops post-reorg.'",
+     "resolution_evidence": "2026-07-16: author confirmed general recalculation covers time-based locks and added regression test coverage",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "ismaelsadeeq",
+     "reason": "simpler and general fix ensuring valid transactions survive reorgs without relying on genesis sentinel assumptions",
+     "substantive": true
+    },
+    {
+     "reviewer": "Bicaru20",
+     "reason": "verified fix, helped develop stable MTP test for time-based variant, and ACKed",
+     "substantive": true
+    },
+    {
+     "reviewer": "Bortlesboat",
+     "reason": "verified regression test fails on master and passes on branch",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus after ismaelsadeeq and Bicaru20 helped refine the fix and test suite",
+   "reason": "All reviewers who raised concerns are satisfied. The proposed approach was simplified to recalculate on any failed check, covering all input and locktime variants.",
+   "evidence": [
+    "ismaelsadeeq approved the general recalculation approach",
+    "Bicaru20 re-ACKed after contributing the mocktime setup for time-based test coverage",
+    "Bortlesboat tested and confirmed reproduction"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (ismaelsadeeq, Bicaru20, Bortlesboat)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ismaelsadeeq",
+      "kind": "correctness",
+      "harm": "Transactions spending a mix of confirmed and unconfirmed inputs are still falsely evicted along with descendants after a reorg because maxInputBlock points to the confirmed input rather than genesis sentinel.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'If a transaction spends a mix of confirmed and unconfirmed inputs, the cached lp.height still carries the tip+1 assumption from the unconfirmed input, but maxInputBlock points to the confirmed input's block... the transaction is still falsely evicted along with its descendants.'",
+      "resolution_evidence": "2026-07-20: 'ACK 3813fc8c9d6a70ce2e22fa2295e2ff95837ba67b'"
+     },
+     {
+      "reviewer": "instagibbs",
+      "kind": "correctness",
+      "harm": "The initial sentinel fix missed time-based relative lock variants if MTP drops after a reorg.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'in addition to what @ismaelsadeeq said it seems it misses time-based variant, if MTP drops post-reorg. his fix seems to work more generally and less brittle?'",
+      "resolution_evidence": "2026-07-16: 'The recalculation approach handles it uniformly ... CheckSequenceLocksAtTip evaluates both height and time locks, so any stale cache (height or MTP-based) triggers recalculation the same way.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "Bicaru20",
+      "reason": "reviewed code, provided the test framework logic to deterministically verify the time-based lock variant, and ACKed",
+      "substantive": true
+     },
+     {
+      "reviewer": "Bortlesboat",
+      "reason": "verified functional test fails on master and passes on the PR branch",
+      "substantive": true
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "ACKed after author adopted his suggestion to recalculate lockpoints when cached checks fail",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "instagibbs",
+      "stance": "objection",
+      "note": "noted the initial approach missed the time-based lock variant if MTP drops post-reorg"
+     },
+     {
+      "login": "Bicaru20",
+      "stance": "support",
+      "note": "reviewed, suggested test improvements, implemented test coverage for the time-based variant, and ACKed"
+     },
+     {
+      "login": "Bortlesboat",
+      "stance": "support",
+      "note": "tested the branch and verified the regression test reproduces failure on master"
+     },
+     {
+      "login": "ismaelsadeeq",
+      "stance": "objection",
+      "note": "pointed out the genesis-sentinel fix missed mixed confirmed/unconfirmed inputs, proposed general recalculation fix, and ACKed once adopted"
+     },
+     {
+      "login": "sedited",
+      "stance": "neutral",
+      "note": "reminded another commenter about the project's AI policy"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong; earlier gaps covering mixed inputs and time locks were raised by ismaelsadeeq and instagibbs and resolved via general recalculation, leading to multiple ACKs.",
+    "usage": {
+     "input_tokens": 9185,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3470
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "Bicaru20",
+      "kind": "approach",
+      "harm": "unnecessary caller-side condition if handled inside TestLockPointValidity",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-05-03: 'Since we already call TestLockPointValidity, maybe it would be better if this condition... is included inside of the TestLockPointValidity.'",
+      "resolution_evidence": "2026-05-13: 'I see, I also got the same error. Good catch! ACK c281b1ea0b' after author explained it breaks txmempool.cpp assert"
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "kind": "correctness",
+      "harm": "transactions spending mixed confirmed and unconfirmed inputs are still falsely evicted",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'If a transaction spends a mix of confirmed and unconfirmed inputs... the transaction is still falsely evicted along with its descendants.'",
+      "resolution_evidence": "2026-07-20: 'ACK 3813fc8c9d6a70ce2e22fa2295e2ff95837ba67b' after author adopted general recalculation"
+     },
+     {
+      "reviewer": "instagibbs",
+      "kind": "correctness",
+      "harm": "time-based variant is missed if MTP drops post-reorg",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-15: 'in addition to what @ismaelsadeeq said it seems it misses time-based variant, if MTP drops post-reorg.'",
+      "resolution_evidence": "2026-07-16: author confirmed general recalculation covers time-based locks and added regression test coverage"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "simpler and general fix ensuring valid transactions survive reorgs without relying on genesis sentinel assumptions",
+      "substantive": true
+     },
+     {
+      "reviewer": "Bicaru20",
+      "reason": "verified fix, helped develop stable MTP test for time-based variant, and ACKed",
+      "substantive": true
+     },
+     {
+      "reviewer": "Bortlesboat",
+      "reason": "verified regression test fails on master and passes on branch",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Changes how mempool reorg handling evaluates sequence locks and evicts transactions.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes an edge-case mempool bug where valid BIP68 transactions with unconfirmed parents are evicted during reorgs due to stale cached lockpoints. While evicted transactions can be rebroadcast, fixing false eviction maintains mempool consistency across reorgs."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Although the code modification is in Chainstate::MaybeUpdateMempoolForReorg in src/validation.cpp, it only affects mempool eviction filtering and does not alter consensus rules or chainstate validation.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Validation logic is untouched; this is strictly mempool reorg state maintenance."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The functional test tests specific mempool reorg behavior rather than general testing infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Category rubric excludes tests written specifically to cover a single feature area."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a bug in removeForReorg where valid BIP68 transactions with unconfirmed parents are incorrectly evicted from the mempool following a chain reorg. Stale cached lockpoints evaluated against the previous higher tip or MTP falsely indicate that relative locktime is unsatisfied. The fix recalculates lockpoints via CalculateLockPointsAtTip whenever the cached check fails, supported by a functional test covering height-based, mixed-input, and time-based cases. Review consensus is strong with multiple ACKs and no open objections."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.01990125
+}

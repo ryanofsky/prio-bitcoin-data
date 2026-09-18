@@ -1,0 +1,144 @@
+{
+ "number": 35833,
+ "input_hash": "d221933e59151ad4",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:55+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14828,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 5473
+ },
+ "cost_usd": 0.0435993,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stops untrusted RPC method names and wallet names from injecting fake newline-delimited log lines into debug.log.",
+    "Makes the logger escape embedded newlines like other control characters instead of passing them through untouched."
+   ],
+   "reviewability": [
+    "Ready to review now, last push already addressed the latest reviewer feedback and got a fresh approval the same day."
+   ],
+   "agreement": [
+    "Strong support with code review approval from ryanofsky and ACKs from achow101 and polespinasa (achow101, polespinasa, ryanofsky).",
+    "Design discussion converged on escaping all newlines globally rather than RPC-specific sanitization, author adopted the simpler suggested approach.",
+    "Wallet-name-restriction commits were dropped after ryanofsky suggested keeping scope to logging, no remaining objections."
+   ],
+   "categories": []
+  },
+  "summary": "This PR makes the logger escape embedded newlines (as \\x0a) the same way it escapes other control characters, closing a path where restricted RPC callers or createwallet/restorewallet callers could inject newlines that forged additional, fake-looking log lines. It also adds a SplitLines helper so intentional multi-line output (exception traces, wallet transaction commit logs, wallet DB load errors, message-box text) is emitted as separate, properly-prefixed log entries instead of relying on raw embedded newlines. Tests were added/updated for SplitLines, LogEscapeMessage, RPC whitelist rejection logging, and wallet name creation logging.",
+  "problem": "An attacker or misbehaving caller who can supply a rejected RPC method name or a wallet name (e.g. via createwallet/restorewallet) can embed a newline plus a crafted string that reads like a legitimate log line, confusing operators or forensic analysis of debug.log. This affects anyone relying on the debug log for trust, including via similarly-shaped injection points in the Tor control and I2P daemon integrations noted in review.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky suggested also using SplitLines in walletdb.cpp:781 for readability; author applied it to the other spot but left this one as 'less cleanly applicable,' open for further comment.",
+    "ryanofsky had a mild preference to drop the separator banner in PrintExceptionContinue for simplicity; author kept it, no strong objection stated."
+   ],
+   "resolved_concerns": [
+    "maflcko/davidgumberg raised whether newlines should be wholesale rejected across the whole log framework; author and maflcko agreed to scope that as a separate follow-up PR.",
+    "ryanofsky objected that per-site SanitizeString-based RPC sanitization was fragile/misleading; author reworked the PR to use global newline escaping instead, which ryanofsky then approved.",
+    "Wallet-name restriction commits were dropped after polespinasa/ryanofsky suggested leaving that to a dedicated wallet PR (#35768); author complied."
+   ],
+   "author_status": "active, last force-push and reply same day as latest review (2026-09-15)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author pushed a rework addressing ryanofsky's simplification request and received a fresh Code Review ACK the same day; no open material request is outstanding."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: ryanofsky gave Code Review ACK after the author adopted his suggested global-escaping approach, plus ACKs from achow101 and polespinasa; no outstanding objections.",
+   "reason": "Multiple members reviewed substantively and converged on a simplified design; the one scope question (wallet-name restrictions) was resolved by dropping those commits.",
+   "evidence": [
+    "achow101: 'ACK ed4eb51'",
+    "polespinasa: 'tACK' then 're-ACK' after rework",
+    "ryanofsky: 'Code review ACK ... this seems simpler than the per-site sanitizing and it covers more cases'",
+    "ryanofsky's suggestion to drop wallet commits was accepted by the author, resolving the only scope disagreement"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Sets precedent/groundwork for a broader log-framework rework (rejecting all non-trailing newlines) that maflcko suggested doing as a follow-up.",
+    "Related to #35768 (wallet: reject whitespace-only wallet names) which could independently restrict wallet names further; not a hard dependency."
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "The vulnerability and its test coverage (test/functional/rpc_whitelist.py) concern RPC-whitelist-rejected method names being logged; the interface's security against forged log entries is the concern, even though the code fix lives in the shared logger rather than RPC-specific code.",
+    "band": "P3",
+    "reason_tag": "security fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because it closes a log-forging vector reachable via RPC-whitelist-rejected method names, per the manual reproducer in the description, but the fix itself is a general logging change and RPC source code is untouched in the final diff."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added/updated tests (test_SplitLines, rpc_whitelist.py, wallet_createwallet.py) each pin the behavior of a specific area (logging, RPC whitelist, wallet naming) rather than adding general framework capability, so per the category rule they belong to those areas, not test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the tests pin area-specific behavior rather than extending shared test machinery."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "The core fix is in src/logging.cpp and src/util/string.h (LogEscapeMessage, new SplitLines helper), matching the Utils/log/libs label and the category's remit over logging correctness.",
+    "band": "P2",
+    "reason_tag": "security fix",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P2 because it fixes a real log-integrity weakness (forged log lines from untrusted input) flagged independently by multiple members (davidgumberg noted the same class of issue in torcontrol.cpp and i2p.cpp), and maflcko explicitly wants this merged first so a broader log-framework hardening can follow, giving it leverage over future work."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "src/wallet/wallet.cpp and src/wallet/walletdb.cpp are touched to use SplitLines for multi-line log output (CommitTransaction, DB load errors); the earlier wallet-name-restriction test/behavior commits were dropped from scope during review.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the remaining wallet changes only reformat existing multi-line log output for readability; the wallet-name-restriction idea that would have had fund-safety/privacy relevance was explicitly deferred to a separate PR (#35768) per polespinasa's comment."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether httprpc.cpp changes remain in the final diff is unclear from the provided patch (discussion references inline comments on it, but the file list and patch shown do not include it); this affects how strongly the PR counts as an rpc-area change versus purely a utils change.",
+   "Whether the maintainers will want the wallet.cpp/walletdb.cpp SplitLines touch-ups to land here or be folded into a broader logging cleanup follow-up is not fully settled (see ryanofsky's walletdb.cpp:781 suggestion)."
+  ],
+  "card": "This PR fixes a log-injection vector where restricted RPC callers or wallet-name inputs could embed a newline plus forged text to make fake entries appear in debug.log, by making the logger escape embedded newlines like other control characters and by splitting genuinely multi-line diagnostic output (exceptions, wallet transaction commits, wallet DB load errors) into separate properly-escaped log lines via a new SplitLines helper. The strongest evidence of importance is that reviewers independently found the same class of issue elsewhere (davidgumberg noted Tor control and I2P daemon output can also inject control sequences), and maflcko explicitly wants this merged before a broader log-framework hardening follow-up, giving it leverage over future work. After design back-and-forth (RPC-specific sanitization was rejected as fragile in favor of a global newline-escaping approach suggested by ryanofsky), the PR was reworked and received Code Review ACK from ryanofsky plus ACKs from achow101 and polespinasa; no unresolved objections remain. It touches utils (the core logging fix), rpc and wallet (as the vectors demonstrated and tested), with the wallet-name-restriction idea explicitly scoped out to a separate PR (#35768). The PR is currently Ready for review with no known pending invalidating changes."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

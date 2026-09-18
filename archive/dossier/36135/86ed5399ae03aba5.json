@@ -1,0 +1,103 @@
+{
+ "number": 36135,
+ "input_hash": "86ed5399ae03aba5",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 10790,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2407
+ },
+ "cost_usd": 0.0242313,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Improve the http_request fuzz target to exercise HTTPRequest's resumable parsing (partial reads across I/O cycles), not just single-pass parsing.",
+    "Also raises the input size cap so headers can reach MAX_HEADERS_SIZE, and checks that splitting the same byte stream differently never changes the parsed result."
+   ],
+   "reviewability": [
+    "Ready. Author addressed all style and naming feedback and got two ACKs on the latest commit, no open blockers."
+   ],
+   "agreement": [
+    "Strong support: two reviewers built with ASan/UBSan, replayed the corpus, and confirmed the new assertions catch mutations on the resume paths (jeanpablojp, hodlinator).",
+    "Naming nits were resolved through iteration, and a corpus-coverage follow-up was split out to a separate qa-assets PR rather than blocking this one."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P3 because it adds real coverage of previously unreachable parser resume paths (header, chunk, body) in a security-relevant HTTP parsing component, confirmed by reviewer testing that the new assertions catch mutations there.",
+      "It does not fix an active flake or unblock other work, so it ranks as solid, worthwhile coverage rather than urgent."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR extends the http_request fuzz target to exercise the resumable-parse paths of HTTPRequest's state machine, which the prior single-pass target could not reach. It feeds the same input through a mock client both whole and sliced into arbitrary pieces, asserting the two runs produce identical parsed requests, since HTTP framing must not depend on how the byte stream was split by the network. It also raises the fuzz input cap so generated inputs can reach MAX_HEADERS_SIZE (8192 bytes), previously unreachable because the cap sat at 4096.",
+  "problem": "The existing http_request fuzz harness parsed each input in a single pass, so the code paths that resume a partially-read request (across header, chunk, and body boundaries) were never exercised, leaving that logic essentially untested by fuzzing despite being new, security-relevant surface added in #35735.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp noted several parser paths (header resume, chunk resume, body resume, chunked Transfer-Encoding branch) are not reached by the current qa-assets corpus; a corpus/dictionary follow-up (bitcoin-core/qa-assets#293) was opened separately to address this, deliberately kept out of this PR due to lint rules.",
+    "hodlinator noted corecheck.dev shows no significant coverage difference yet, attributed to the corpus not being updated, not a flaw in the PR itself."
+   ],
+   "resolved_concerns": [
+    "hodlinator's naming/style suggestions (Receive/ReceiveBytesFromSocket, ZeroSock usage, string_view slicing, comment wording) were all taken by the author.",
+    "fanquake's CI build failure (Sock::operator= hidden warning) was fixed by switching to ZeroSock."
+   ],
+   "author_status": "active, addressing review, most recently pushed 2026-09-04 with style fixes"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Latest commit fca8fef8 received an ACK from hodlinator and a tACK from jeanpablojp after CI failures and style nits were resolved. No open material request is blocking review."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support: both jeanpablojp and hodlinator independently verified the new assertions catch real mutations, no unresolved objections.",
+   "reason": "Two reviewers who tested the change (ASan/UBSan builds, corpus replay, mutation checks) both endorsed it with concrete verification, and all style disagreements were resolved through author edits.",
+   "evidence": [
+    "jeanpablojp: 'tACK fca8fef... Rebuilt with ASan and UBSan, replayed the corpus and fuzzed on top of it without a failure. Mutating the resume paths trips the new assertions.'",
+    "hodlinator: 'ACK fca8fef... Should provide more coverage of HTTPRemoteClient as well as adding comparison of the resulting requests when the input is sliced up and when it's not.'",
+    "Naming nits (Receive method name, string_view slicing) all taken by author without pushback."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35735
+   ],
+   "enables": [
+    "More effective fuzzing coverage for #36124 (HTTPRequest state internalization) and related HTTP server work",
+    "Companion qa-assets corpus PR (bitcoin-core/qa-assets#293) to actually realize the added coverage"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "This PR's entire content is a fuzz harness (src/test/fuzz/http_request.cpp) improvement, labeled Fuzzing, adding coverage for parser resume paths not previously reachable.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "P3 because it adds targeted coverage of a resumable HTTP parsing state machine that handles untrusted network input, a realistic security-relevant surface per the category's emphasis on 'coverage of high-risk code paths ... p2p message handling.' Reviewer testing (jeanpablojp: 'Mutating the resume paths trips the new assertions') confirms the new checks catch real regressions, not just added assertions for their own sake. It stops short of P2 because the underlying corpus still doesn't reach several of the new paths without manual seeding, a gap left to a follow-up PR."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the qa-assets corpus follow-up (bitcoin-core/qa-assets#293) needs to land alongside this PR for the added assertions to have practical effect is not fully resolved in discussion.",
+   "No explicit maintainer (non-contributor committer) ACK beyond hodlinator (member) is present; author_association shows hodlinator as member which supports weight but this is a fuzz-only test change so low risk regardless."
+  ],
+  "card": "This PR extends the http_request fuzz harness to exercise HTTPRequest's resumable parsing paths (header, chunk, body resumption across I/O cycles) by feeding identical input both whole and sliced, asserting framing must not depend on stream segmentation, and raises the fuzz input cap so headers can reach MAX_HEADERS_SIZE. It closes a real coverage gap: previously the target parsed each input in one pass so partial-read resume logic added in #35735 was fuzz-unreachable. Two reviewers (jeanpablojp, hodlinator) independently rebuilt with ASan/UBSan, replayed the qa-assets corpus, and confirmed the new assertions catch mutations on the resume paths, giving it Strong agreement. All prior CI failures and style nits were resolved through iteration, leaving the PR Ready for review. A related follow-up to actually update the qa-assets corpus/dictionary to reach some of the newly-tested branches was deliberately split into a separate PR (bitcoin-core/qa-assets#293)."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,226 @@
+{
+ "number": 24230,
+ "input_hash": "9fd3c010502494da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:47:59+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 70382,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3734
+ },
+ "cost_usd": 0.066789,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Decouple optional indexes from internal node types and locking",
+    "Allow indexes to run in separate processes and share sync logic with wallets"
+   ],
+   "reviewability": [
+    "Needs rebase",
+    "Branch currently has merge conflicts against master and the author considers splitting it"
+   ],
+   "agreement": [
+    "Strong support for moving index sync logic to interfaces and reducing cs_main locking (mzumsande, jamesob, sedited, josibake)",
+    "Reviewers raised concerns about changeset size and commit churn, with author considering splitting parts out (jamesob, furszy)"
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P2 because it decouples BaseIndex from node internals and eliminates cs_main contention during indexing sync",
+      "Removes races during -reindex-chainstate and unblocks running indexes outside the main node process"
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it refactors chain event handling to enable out-of-process indexing under the multiprocess project",
+      "Provides the interface primitives needed for process-separated indexing and wallet sync"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it moves BlockInfo out of the kernel back to interfaces, preventing unwanted index dependencies in the kernel library"
+     ]
+    }
+   ]
+  },
+  "summary": "Decouples Bitcoin Core's optional indexing architecture from internal node types like CBlockIndex and CChainState, shifting index synchronization out of src/index into a reusable node::SyncChain routine. It eliminates holding cs_main during index notification processing and aligns index event handling with interfaces::Chain for multiprocess support.",
+  "problem": "Currently, indexing subsystems are tightly coupled to node validation internals and hold cs_main during parts of synchronization, causing lock contention and preventing indexes from running in separate processes. In addition, existing index startup and sync logic contains race conditions during reindexing.",
+  "discussion": {
+   "open_concerns": [
+    "The changeset is large and has historically suffered from commit churn, prompting discussion on whether to split parts (such as race fixes and initial refactors) into standalone PRs."
+   ],
+   "resolved_concerns": [
+    "Fixed race conditions where indexes rewound blocks unnecessarily during -reindex-chainstate.",
+    "Resolved TSAN and ASAN issues regarding index synchronization threads and BlockFilterIndex filter mutex.",
+    "Cleaned up intermediate kernel boundary leaks by keeping BlockInfo in interfaces."
+   ],
+   "author_status": "active, regularly rebasing and maintaining the branch across major node refactors."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with current master and has a dirty mergeable state."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept and approach ACKs from multiple contributors (sedited, mzumsande, jamesob, josibake), with feedback focused on size and decomposition.",
+   "reason": "Several maintainers and regular contributors have reviewed and concept/approach ACKed the design, finding the decoupling and locking reduction desirable, though noting the review burden of the large patch series.",
+   "evidence": [
+    "Concept ACKs from fjahr, mzumsande, jamesob, aureleoules, josibake.",
+    "Approach ACK from sedited: 'This change looks good, albeit its daunting length.'",
+    "jamesob gave extensive commit-by-commit review and verified the decoupling motivations."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Multiprocess bitcoin (#10102)",
+    "Wallet passive startup (#15719)",
+    "Parallel wallet rescan (#11756)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Rewires BaseIndex, TxIndex, BlockFilterIndex, CoinStatsIndex, and TxoSpenderIndex to remove direct CBlockIndex and CChainState dependencies.",
+    "band": "P2",
+    "reason_tag": "cleanup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Decoupling indexes from node internals and removing cs_main locking during sync improves index maintainability and node responsiveness during initial sync. It also eliminates startup race conditions during -reindex-chainstate."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds methods and types to interfaces::Chain and interfaces::Handler to allow indexing to run across the process boundary.",
+    "band": "P2",
+    "reason_tag": "unblocks #10102",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 3
+    },
+    "rationale": "This refactor is a stated prerequisite for running indexes in separate processes (#10102), making index components independent clients of the node interface."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Removes BlockInfo and MakeBlockInfo from the kernel back to interfaces and node, cleaning up the kernel boundary.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Cleans up the kernel boundary by removing data structures that were inappropriately placed in src/kernel/ and are only used by interfaces and indexes."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Only touches net_processing.cpp to adapt to signature changes in BlockFilterIndex lookup methods.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Changes in rpc/ and rest.cpp are mechanical call-site updates passing BlockRef instead of CBlockIndex.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test changes adapt existing index test suites to the new IndexTester harness and sync interfaces.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Minor helper method additions in btcsignals.h supporting interfaces::Handler do not make this a utils PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches validationinterface.h only to drop unused friend declarations; does not alter consensus or chainstate logic.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #24230 decouples the indexing system from internal node types (CBlockIndex, CChainState) and moves index synchronization logic into node::SyncChain, eliminating cs_main locking during notification handling. This addresses locking contention in index syncing and serves as essential leverage for running indexes out-of-process under the multiprocess project (#10102). The change enjoys strong concept and approach support from several contributors, though review progress has been slow due to the PR's size and merge conflicts that currently require a rebase."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,213 @@
+{
+ "number": 33922,
+ "input_hash": "75fc67876d2bb30b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:17:33+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 39178,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7819
+ },
+ "cost_usd": 0.05870475,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Track memory used by block templates for transactions no longer in the mempool.",
+    "Expose memory load via IPC so Stratum v2 template providers can manage template lifetimes."
+   ],
+   "reviewability": [
+    "Stacked on unmerged PR 35675.",
+    "Reviewing the base PR first avoids re-reviewing inherited BlockTemplateManager code."
+   ],
+   "agreement": [
+    "Strong conceptual support for memory tracking and the getMemoryLoad method (ryanofsky).",
+    "Prior revisions received code approvals and detailed reviews (vasild, enirox001).",
+    "Discussion on whether eviction should be handled internally or by clients remains open for follow-up work (ismaelsadeeq)."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P3 because it provides telemetry on non-mempool memory consumption for external mining clients.",
+      "It lays the foundation for future eviction limits but does not enforce limits yet."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request tracks the memory footprint of transactions that are referenced by block templates but have been removed from the mempool. It introduces an internal map of transaction reference counts across templates and exposes a `getMemoryLoad()` method over the Mining IPC interface so external mining clients can monitor usage and destroy stale templates.",
+  "problem": "When external mining clients such as Stratum v2 template providers hold references to block templates across multiple blocks, transactions evicted or replaced in the mempool are kept in memory by those templates. Without tracking, the node and client cannot measure this footprint or decide when to release stale templates to prevent memory bloat.",
+  "discussion": {
+   "open_concerns": [
+    "Whether Bitcoin Core should enforce an internal FIFO eviction budget rather than delegating template lifetime management to IPC clients (raised by ismaelsadeeq, with Sjors preferring client control with FIFO as a fallback)."
+   ],
+   "resolved_concerns": [
+    "Thread safety of template reference counting resolved by adding mutex synchronization.",
+    "Potential memory address collisions avoided by moving transaction hashing to a salted hasher in util/hasher."
+   ],
+   "author_status": "Active; recently rebased on top of PR 35675."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #35675 first",
+   "reason": "The PR is stacked on open PR 35675 (block template manager). Reviewing the base PR first is advisable since the template manager infrastructure originates there."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: Concept ACKs from ryanofsky and ismaelsadeeq, with previous code ACKs from vasild and enirox001.",
+   "reason": "Reviewers agree with the motivation and interface additions. An architectural question about whether template eviction should be automatic or client-driven was discussed collaboratively without blocking this PR.",
+   "evidence": [
+    "ryanofsky gave Concept ACK noting getMemoryLoad is useful and underlying tracking provides what is needed to limit memory.",
+    "vasild approved multiple earlier iterations with PGP-signed ACK.",
+    "ismaelsadeeq offered Concept ACK while debating internal FIFO eviction vs client query mechanisms."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    35675
+   ],
+   "enables": [
+    "Enforcing block template memory limits in node/miner (#33899)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Touches CI scripts only to update an IWYU list for a newly added file.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a build system change."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Adds an interface method to mining.capnp and interfaces::Mining without modifying IPC infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per ipc guidelines, changes that alter what the mining interface exposes rather than IPC communication plumbing belong to mining."
+   },
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Adds memory tracking to block templates and adds getMemoryLoad to interfaces::Mining.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Adds valuable memory inspection for external mining clients (such as Stratum v2 template providers) holding multiple block templates. It is P3 because it introduces tracking and reporting without yet enforcing active memory limits, and real-world memory spikes from retained templates are typically modest."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Does not add or modify RPC commands in this PR's commits; RPC changes in the diff belong to base PR 35675.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not an RPC change."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Test modifications are confined to functional IPC mining tests and fuzzing the template manager.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Tests verify mining and template manager behavior rather than test framework infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Moving CTransactionRef salted hasher and comparator to util/hasher is an incidental refactoring.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Incidental utility helper change serving mining template tracking."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Does not modify transaction or block validation rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a validation change."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Does not alter wallet code; touch in fuzz/fees.cpp is a fixture reset from base PR 35675.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a wallet change."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds non-mempool transaction memory tracking to block templates and exposes a getMemoryLoad IPC method for external miners. It addresses issue 33899 by allowing clients like Stratum v2 template providers to monitor memory overhead caused by keeping templates whose transactions left the mempool. The change is supported by concept reviews from ryanofsky and ismaelsadeeq, with previous code ACKs from vasild. Review is ready but best performed after base PR 35675 is reviewed."
+ },
+ "raw_text": null
+}

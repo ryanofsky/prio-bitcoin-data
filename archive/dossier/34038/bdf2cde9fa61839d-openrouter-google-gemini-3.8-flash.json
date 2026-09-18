@@ -1,0 +1,151 @@
+{
+ "number": 34038,
+ "input_hash": "bdf2cde9fa61839d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:27+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29928,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3489
+ },
+ "cost_usd": 0.03552975,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Make trace-level logging easier to configure by replacing -loglevel with a -trace option and exposing trace controls in the logging RPC."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "The approach is contested, but the implementation is complete and stable."
+   ],
+   "agreement": [
+    "Disputed: stickies-v and sedited approved the design, but ryanofsky approach-NACKed in favor of an alternative unified -loglevel design in #35387 (stickies-v, sedited, ryanofsky)."
+   ],
+   "categories": [
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it fixes the confusing requirement where -loglevel silently did nothing without -debug, making fine-grained trace logs usable."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it extends the logging RPC to toggle trace levels dynamically at runtime, accompanied by a standard deprecation cycle for the new output format."
+     ]
+    }
+   ]
+  },
+  "summary": "Replaces the `-loglevel` command-line option with `-trace`, using syntax parallel to `-debug` so that `-trace=net` enables both debug and trace logs for the category. Also updates the `logging` RPC to accept a `trace` parameter and returns categorized arrays (`excluded`, `debug`, `trace`), retaining the old format under `-deprecatedrpc=logging`.",
+  "problem": "Trace logging was cumbersome to configure because `-loglevel=cat:trace` did nothing unless combined with `-debug=cat`, and category log levels could not be adjusted dynamically over RPC.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky approach-NACKed, arguing that managing log levels across three interacting flags (-debug, -trace, -debugexclude) is confusing and breaks RPC backwards compatibility, advocating instead for a unified -loglevel key-value model implemented in #35387.",
+    "ajtowns and sedited prefer the current parallel -debug/-trace syntax over introducing a new key-value format for logging."
+   ],
+   "resolved_concerns": [
+    "Internal logging API refactors and STDLOCK thread annotations were split out into #34806 and #34809 and merged.",
+    "Backward-compatibility concerns around the logging RPC output were resolved by introducing the -deprecatedrpc=logging option."
+   ],
+   "author_status": "Active; author maintains preference for this approach over #35387 and left the decision to project consensus."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, tests pass, and previous review comments have been addressed in code; only the high-level approach dispute remains."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: approved by stickies-v and sedited, but ryanofsky approach-NACKed in favor of #35387",
+   "reason": "Two contributors have tested and approved the PR, but ryanofsky posted an approach NACK favoring a single unified option in #35387. The author declined to adopt that design.",
+   "evidence": [
+    "stickies-v approved (2026-04-02): 'The new -debug and -trace startup options are a lot easier to use... seems to be the best approach minimizing breaking changes.'",
+    "sedited approved (2026-05-11, re-ACK 2026-07-04): 'tACK 5b114839... I am fine with the changes here.'",
+    "ryanofsky approach NACK (2026-07-15): 'Concept ACK because making trace logging more accessible is a good goal, but approach NACK because having three options (-debug, -trace, -debugexclude) interact to control log levels is unnecessarily confusing... implemented an alternative in #35387.'",
+    "ajtowns (2026-08-09): 'I don't agree with @ryanofsky's criticisms... or accept majority opinion on the subjective ones if anyone is willing to offer opinions.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#30486"
+   ]
+  },
+  "categories": [
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Changes logging configuration parsing in src/init/common.cpp and logging category management in src/logging.cpp/h.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Worthwhile developer ergonomics improvement for node logging. It removes a confusing pitfall where '-loglevel=net:trace' without '-debug' would silently do nothing, laying groundwork for broader trace logging adoption."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies the logging RPC arguments and return structure in src/rpc/node.cpp.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Adds dynamic runtime trace log control over RPC without requiring a node restart. While breaking the existing RPC output format, it safely gates it behind a standard deprecation flag."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches functional test scripts only to verify the new logging features and RPC interface, not test harness infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Test changes are exclusively coverage for the modified logging functionality."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Only includes a release note file documenting the code change itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Release note additions accompanying a feature do not make the PR a documentation PR."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR replaces the -loglevel argument with -trace (matching -debug syntax) and updates the logging RPC to support runtime configuration of trace-level categories. It solves a user pain point where setting trace levels was non-obvious and silently failed without combining with -debug. The PR has ACKs from stickies-v and sedited, but sits under an Approach NACK from ryanofsky, who prefers a unified key-value -loglevel interface as implemented in competing PR #35387. It was deferred from 32.0 to 33.x to resolve the design dispute."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,220 @@
+{
+ "number": 35713,
+ "input_hash": "74417967b23ef8df",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 40409,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 6332
+ },
+ "cost_usd": 0.07347530000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replaces Boost.Test with a bespoke, header-only unit-test framework used across the entire C++ test suite.",
+    "Aims to unify inconsistent check macros, simplify the depends/guix/vcpkg build, and give the project full control over test tooling."
+   ],
+   "reviewability": [
+    "Ready to review, author has been actively addressing feedback with fixes through mid-September.",
+    "No open material request is unanswered; a scope question about testing the framework itself is a suggested follow-up, not a blocker."
+   ],
+   "agreement": [
+    "Strong concept support from josibake, who wants an in-house framework for future test concurrency work (josibake).",
+    "jeanpablojp gave a concept ACK but found several real correctness bugs in the new framework: a segfault on null string comparison, output not flushed on crash, and a silent loss of deterministic random-seed reproduction (jeanpablojp).",
+    "Author fixed each of those in subsequent pushes and the discussion shows no standing unresolved objection (rustaceanrob)."
+   ],
+   "categories": [
+    {
+     "name": "tests",
+     "why": [
+      "P2 because this replaces the shared unit-test runner for the whole project, unifying four inconsistent Boost check macros into one and removing dependency risk cited in issues #34666 and #8670.",
+      "Unblocks future work like test concurrency improvements mentioned by josibake, but review already surfaced framework-level correctness bugs (segfault, lost flush, silent seed loss) that show the new code itself needs careful scrutiny before it becomes everyone's daily tool."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P3 because it lets depends/CMake/vcpkg drop the Boost.Test component and removes a guix linker-flag workaround, a modest simplification of the build with no urgency behind it.",
+      "No breakage is being fixed; it is a dependency-footprint reduction rather than a release-integrity or platform fix."
+     ]
+    },
+    {
+     "name": "ipc",
+     "why": [
+      "Not a member: the only ipc/test file change is a mechanical include swap following from the shared macro rename, not a change to IPC mechanics."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "Not a member: test_kernel.cpp is updated only to keep compiling against the new test-runner include and entry point, not a change to the kernel API or boundary."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "Not a member: no tools or contrib scripts other than the build-integration files already covered under build are touched."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "Not a member: every wallet/test file change is the same mechanical include-line swap performed by the scripted diff, not a change to wallet behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR removes Boost.Test as the unit-test runner for Bitcoin Core and replaces it with a new, header-only, project-specific test framework, plus BOOST_*-compatible macro shims so no test file has to change its assertions. It touches over 160 files, mostly mechanical include swaps produced by a scripted diff, alongside the ~1200-line new framework, associated depends/cmake/vcpkg/guix simplifications, and several fixes for compiler warnings uncovered along the way. It is a continuation of the closed #35587.",
+  "problem": "Boost.Test gives developers four inconsistent ways to write the same assertion with different failure output, adds a real dependency with its own bugs and abandonment risk, and cannot be tailored to Bitcoin Core's needs (per the author and echoed by josibake, who wants a framework flexible enough to support future test-concurrency work).",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp's suggestion to add coverage for the new framework's own failure paths (raised 2026-08-30) is an open follow-up idea, not a blocking requirement.",
+    "jeanpablojp's question about whether TEST_CASE should delegate to the suite fixture like BOOST_AUTO_TEST_CASE does was answered by the author as an intentional simplification rather than fixed, so it stands as an accepted trade-off."
+   ],
+   "resolved_concerns": [
+    "Segfault risk comparing null C-strings under the new decomposition-based check (jeanpablojp) \u2014 fixed by adding a null check (rustaceanrob, 2026-09-10).",
+    "Test output not flushed before a crash, losing debug context, and duplicated output from forked child processes (jeanpablojp) \u2014 fixed with an explicit flush (rustaceanrob, 2026-09-10).",
+    "BOOST_TEST_RANDOM seed value was checked only for presence, silently breaking deterministic reproduction of ordering (jeanpablojp) \u2014 fixed with proper seed handling and printing (rustaceanrob, 2026-09-10).",
+    "std::optional<T> comparisons bypassing the static_assert on missing stringify (jeanpablojp) \u2014 acknowledged as the same class of issue as iterator comparisons, to be handled via CHECK_NO_DISPLAY follow-up.",
+    "Guix build_linux.sh dropping -Wl,--fatal-warnings for all Linux hosts when removing the riscv64 Boost.Test workaround (jeanpablojp) \u2014 addressed by restoring the flag (rustaceanrob, 2026-09-10).",
+    "Debate with maflcko over static_assert vs compile failure for missing stringify overloads, and over deleting vs preserving && / || in checks \u2014 resolved by implementing a static_assert with CHECK_NO_DISPLAY escape hatch and deleting && / || for correctness (rustaceanrob)."
+   ],
+   "author_status": "active, addressing review, last push 2026-09-16"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The author has been continuously responsive, fixing every substantive bug jeanpablojp raised (segfault, flush, seed reproducibility, guix flag) within about two weeks, with no material request left open. CI is passing and mergeable state is clean, though the PR's size and multiple in-flight design points mean a reviewer should expect further iteration on details like CHECK_NO_DISPLAY follow-ups."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: strong concept ACK from josibake, and jeanpablojp's concept ACK came with several real bugs that the author has since fixed.",
+   "reason": "Two members (josibake, jeanpablojp) support the change in principle. jeanpablojp's review found substantive correctness issues in the new framework itself, which the author addressed with concrete fixes rather than argument, and no reviewer has raised a standing objection to the change's direction since.",
+   "evidence": [
+    "josibake: 'Strong Concept ACK... Love to see it' citing repository-specific context and extensibility as the reasons.",
+    "jeanpablojp: found a null-string segfault, unflushed crash output, and a silently-broken random seed; author fixed all three by 2026-09-10.",
+    "maflcko raised design questions (static_assert vs compile error, keeping && / ||) that were worked through to an agreed design rather than left contested."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Future test-framework improvements such as concurrency work mentioned by josibake",
+    "Follow-up PRs to migrate BOOST_* call sites to the new macros and to add CHECK_NO_DISPLAY at remaining sites",
+    "Related #36018 (removing manual exception checks) and #36091 (debug output for common types) already interact with this PR via rebases"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies depends/packages/boost.mk, cmake/module/AddBoostIfNeeded.cmake, vcpkg.json, and contrib/guix/libexec/build_linux.sh to drop the Boost.Test component and an associated linker workaround.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because dropping the Boost.Test library from depends, cmake, and vcpkg is a modest simplification with no urgency: 'We can simplify depends and a workaround in the guix build' per the PR description. jeanpablojp flagged that the guix change over-broadly removed a fatal-warnings flag for all Linux hosts, which the author then restored, indicating the build change needed care but was not itself solving an active breakage."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "This is the PR's core subject: a new ~1200-line header-only test framework in src/test/util/framework.h replacing Boost.Test across the entire unit test suite, plus the linter update in test/lint/lint-includes.py.",
+    "band": "P2",
+    "reason_tag": "framework capability",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "P2 because it is a foundational change to how every contributor writes and debugs unit tests, unifying macros the author says currently exist in three or four incompatible forms ('deciding between BOOST_TEST, CHECK, and BOOST_CHECK_EQUAL is unintuitive') and removing dependency risk cited in open issue #34666. Review by jeanpablojp surfaced concrete framework bugs \u2014 a segfault on null-string comparison, output not flushed before a crash, and a silently-broken deterministic random seed \u2014 showing the new code carries real correctness risk of its own that reviewers must weigh, though the author fixed each one during review."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "src/ipc/test/ipc_tests.cpp only swaps the #include line for the new framework header; no IPC infrastructure is touched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the change is a mechanical follow-on from the shared macro migration, matching the exclusion for call sites updated to keep compiling."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "src/test/kernel/test_kernel.cpp is updated to use the new BITCOIN_TEST_MAIN entry point and header instead of Boost's, but the kernel API and boundary are untouched.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: this is the test-runner migration applied to a kernel test file, not a change to libbitcoinkernel's API or boundary."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "No command-line tool or contrib script outside the build integration (already covered under build) is changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: nothing in the diff touches bitcoin-tx, bitcoin-util, seed/asmap generation, or other contrib tooling."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "All src/wallet/test/*.cpp changes are the same one-line #include swap produced by the scripted diff; no wallet behavior or test logic changes.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: mechanical edits following from the shared macro migration do not make a PR a member of the wallet category per the membership rule."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the outstanding design point about TEST_CASE not inheriting the suite fixture (raised by jeanpablojp) will be revisited, since the author called it 'strange' to want but did not change it \u2014 this could be read as either resolved-by-agreeing-to-disagree or still open.",
+   "Whether the libmultiprocess subtree's bitcoin_core_ci.sh breakage flagged by jeanpablojp (passing now-unsupported Boost.Test flags) has been addressed; it wasn't mentioned again in the visible discussion.",
+   "How large the scope of remaining CHECK_NO_DISPLAY follow-up work is, since roughly 80 call sites were cited as still lacking a string representation."
+  ],
+  "card": "This PR replaces Boost.Test with a new, project-owned header-only unit-test framework across the entire C++ test suite (163 files, +1696/-264), continuing the closed #35587. It solves real problems with Boost.Test's inconsistent assertion macros and an external dependency the author says has bugs and abandonment risk, a motivation echoed by josibake who wants the flexibility for future test-concurrency work. The strongest evidence of stakes is not the size but the bugs found in review: jeanpablojp identified a segfault on null-string comparisons, output that is never flushed before a crash, and a silently broken deterministic random seed in the new framework itself, all of which the author fixed by 2026-09-10. Reviewability is Ready: the author has been continuously responsive and no material request is unanswered, though the PR is large and still absorbing design feedback (e.g., how to handle types lacking a string representation). No hard dependency blocks it, but it interacts with recent related PRs (#36091, #36018) that were rebased into it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

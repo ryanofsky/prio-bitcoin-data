@@ -1,0 +1,258 @@
+{
+ "number": 19460,
+ "input_hash": "f40696936a3721fb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:48:09+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 46348,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5462
+ },
+ "cost_usd": 0.0552435,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Enable bitcoin-wallet to connect to a running bitcoin-node process via IPC",
+    "Lay the groundwork for future online wallet CLI subcommands like sync or interactive shell"
+   ],
+   "reviewability": [
+    "Stacked on unmerged IPC prerequisites (#29409 and #10102)",
+    "Review base PRs first before reviewing the top commit"
+   ],
+   "agreement": [
+    "Open design critique on whether the offline tool should be combined with IPC (ajtowns)",
+    "Past conceptual questions about keeping offline tools strictly separated from node RPCs (jonasschnelli)"
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P3 because it advances the multiprocess roadmap by establishing IPC socket connections for the wallet tool",
+      "It does not provide end-user wallet functionality on its own until follow-up commands land"
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because the connection hook does not yet perform wallet operations or improve existing wallet features",
+      "There is no immediate benefit to bitcoind wallet users"
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because bitcoin-wallet currently only checks socket connectivity without adding user-facing tool capabilities",
+      "The proposed online subcommands remain future work"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds `-ipcconnect` to `bitcoin-wallet` and `-ipcbind` to `bitcoin-node` for multiprocess builds, allowing the wallet tool to connect to a local Unix domain socket hosted by the node. At present, the tool connects and verifies socket connectivity, establishing the transport foundation for future online subcommands.",
+  "problem": "The `bitcoin-wallet` tool currently operates strictly offline and cannot interact with a running node, limiting planned features like resyncing unloaded wallets or executing commands over IPC without HTTP RPC.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns questioned overloading daemon and online connection behavior onto an existing offline CLI tool instead of introducing a separate binary (like bitcoin-walletd or bitcoin-ipc-wallet), noting it could be a footgun for users"
+   ],
+   "resolved_concerns": [
+    "jonasschnelli raised concerns that bitcoin-wallet was designed as an offline tool; ryanofsky clarified that offline operations remain intact and fully functional without requiring IPC"
+   ],
+   "author_status": "active, periodically rebasing on top of the multiprocess PR stack"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Review #29409 first",
+   "reason": "This PR is stacked on top of unmerged multiprocess prerequisite PRs #29409 and #10102; review should focus on the underlying IPC base PRs first."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "Mild: ajtowns raised an unaddressed architectural question about overloading offline tool binaries with IPC",
+   "reason": "ajtowns raised a concern in April 2026 asking why daemon/connection behavior is added to an existing CLI tool rather than a separate binary. The author has rebased since but has not explicitly answered the design question.",
+   "evidence": [
+    "jonasschnelli expressed conceptual caution about keeping offline wallet tools strictly offline",
+    "ryanofsky clarified that offline usage remains the default and intact",
+    "ajtowns questioned whether combining offline and IPC behavior into one binary creates user footguns"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    10102,
+    29409
+   ],
+   "enables": [
+    "#19461"
+   ]
+  },
+  "categories": [
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Implements IPC socket connection endpoints (-ipcconnect and -ipcbind) for bitcoin-wallet and bitcoin-node.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "Advances the multiprocess project by enabling external wallet binaries to connect to the node process over IPC. The PR author acknowledges that 'This PR is small and doesn't do much' on its own, serving primarily as infrastructure for follow-up PRs like #19461."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies bitcoin-wallet options and interfaces/wallet.h, carrying the maintainers' Wallet label.",
+    "band": "P4",
+    "reason_tag": "new feature",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Does not alter core wallet behavior, fund safety, descriptor logic, or migration. It only adds a connection handshake to bitcoin-wallet for multiprocess builds, which provides no immediate utility to wallet users until commands utilizing the connection are added."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Changes the command-line options and startup behavior of the bitcoin-wallet tool in src/bitcoin-wallet.cpp.",
+    "band": "P4",
+    "reason_tag": "new feature",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Adds the -ipcconnect option to bitcoin-wallet, but the tool does not yet expose any online operational subcommands, merely printing a connection status line."
+   },
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "CMakeLists changes only wire up the IPC wallet source files as part of multiprocess support.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Build changes are incidental additions of new source and test files for IPC."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Mentions bitcoin-wallet in doc/design/libraries.md as an incidental documentation update.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Documentation updates directly accompany code changes and are not the primary subject of the PR."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches a comment in block_policy_estimator.h regarding capnp struct mirroring.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not affect mempool logic or policy rules."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Touches comments in net.h and net_processing.h regarding IPC serialization.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change P2P messaging or networking behavior."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only touches comments in request.h noting capnp struct definitions.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No RPC methods or RPC server infrastructure are changed."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Functional test changes adjust timeouts and log assertions for multiprocess mode.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Adjustments to existing tests to support IPC logging and subprocess timings belong to the IPC area rather than the generic test framework."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Carries the Utils/log/libs label due to logging suffix handling in init and util/result.h tweaks in the base branch.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The logging changes specifically support separating log files across IPC processes, which belongs to IPC rather than general utility improvements."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #19460 introduces `-ipcconnect` to `bitcoin-wallet` and `-ipcbind` to `bitcoin-node`, allowing the wallet executable to establish a Unix domain socket connection with the node process in multiprocess builds. This provides transport groundwork for future commands that require node communication from the wallet CLI tool, but it does not yet expose any user-facing online wallet subcommands. The PR sits on top of the large multiprocess stack (#29409 and #10102), which should be reviewed first. Reviewers have raised questions regarding whether the offline tool should be extended with IPC capabilities or split into a dedicated daemon binary."
+ },
+ "raw_text": null
+}

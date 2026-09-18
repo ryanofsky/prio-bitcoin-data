@@ -1,0 +1,109 @@
+{
+ "number": 34254,
+ "input_hash": "cc2c7422cd3687d2",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:24+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14964,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2515
+ },
+ "cost_usd": 0.02065425,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Eliminate duplicate logging and redundant block index traversals during invalid block handling in ActivateBestChain and InvalidateBlock."
+   ],
+   "reviewability": [
+    "Ready to review."
+   ],
+   "agreement": [
+    "Strong support from reviewers endorsing the cleanup in ActivateBestChain (Crypt-iQ, stratospher, frankomosh).",
+    "Prior feedback regarding out-of-chain blocks in InvalidateBlock was resolved with added test coverage."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it removes duplicate block index loops and redundant log messages during invalid block processing.",
+      "The code cleanup clarifies invalid block state transitions, though the runtime benefits only occur during rare invalid block encounters or RPC calls."
+     ]
+    }
+   ]
+  },
+  "summary": "Refactors invalid block handling by moving flag updates, header recalculations, and logging from InvalidChainFound into InvalidBlockFound. This avoids duplicate traversals over the block index and duplicate log entries when ActivateBestChain processes an invalid block, renaming the residual function to UpdateBestInvalid.",
+  "problem": "When ActivateBestChain encounters an invalid chain, it calls InvalidBlockFound (which called InvalidChainFound) and then immediately calls InvalidChainFound again on the highest connectable block. This resulted in redundant SetBlockFailureFlags and RecalculateBestHeader loops across the block index as well as duplicated log lines.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Crypt-iQ noted that the initial push missed SetBlockFailureFlags and RecalculateBestHeader for InvalidateBlock when the block was not in the active chain; author reinstated these calls and added a regression test.",
+    "frankomosh noted changes to InvalidateBlock log formatting; author explained why dedicated RPC logging is preferable and not part of a stable API."
+   ],
+   "author_status": "active; addressed review concerns and rebased on 2026-08-19"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR has clean CI, is rebased, and all previous review comments have been addressed with a crACK on the latest push."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong; consensus that cleaning up duplicate loops and logs in ActivateBestChain is worthwhile (Crypt-iQ, stratospher).",
+   "reason": "Multiple contributors and maintainers support the refactoring. Crypt-iQ crACKed the latest push after prior concerns about out-of-chain blocks were resolved.",
+   "evidence": [
+    "Crypt-iQ gave crACK ff06c05043bf: 'This PR by itself is a good improvement to ActivateBestChain.'",
+    "stratospher gave Concept ACK: 'nice cleanup!' and shared a summary sheet on block invalidity handling.",
+    "frankomosh gave Concept ACK on the refactoring approach.",
+    "bensig ACKed an earlier commit."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches block validation and chainstate failure handling in src/validation.cpp rather than mempool policy or limits.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not alter mempool acceptance, replacement, or eviction logic."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly alters ActivateBestChain, InvalidateBlock, and block index traversal routines in src/validation.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because it resolves redundant block index iterations and eliminates duplicate log messages when handling invalid blocks. While the performance and logging benefits only trigger during rare invalid block events or manual RPC invalidations, it clarifies validation control flow and untangles historical duplication noted in #31405 and #31533."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR refactors invalid block handling across ActivateBestChain and InvalidateBlock to eliminate repeated traversals of the block index and duplicated log messages. Moving flag updates and header recalculations into InvalidBlockFound leaves UpdateBestInvalid to handle only its remaining role. It solves an inefficiency and logging nuisance identified in earlier validation PRs. Review is currently in good standing with a code review ACK from Crypt-iQ on the latest push and no open blockers."
+ },
+ "raw_text": null
+}

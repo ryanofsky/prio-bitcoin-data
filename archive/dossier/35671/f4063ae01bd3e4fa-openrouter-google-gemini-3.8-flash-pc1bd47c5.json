@@ -1,0 +1,363 @@
+{
+ "number": 35671,
+ "input_hash": "f4063ae01bd3e4fa",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:35:19+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 45622,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 9785
+ },
+ "cost_usd": 0.07091025000000001,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Allow Stratum v2 Job Declarator Servers and external miners to validate custom block templates efficiently",
+    "Eliminate the need for external mining services to maintain duplicate mempool mirrors"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "No pending rebase or major redesign expected"
+   ],
+   "agreement": [
+    "Broad Concept support from mining reviewers (ismaelsadeeq, pablomartin4btc, enirox001, jeanpablojp)",
+    "Design questions regarding interface splitting and lock duration were addressed or conceded (ViniciusCestarii, enirox001)",
+    "Unanswered questions from jeanpablojp are minor doc and test suggestions"
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P2 because it provides essential infrastructure for external Stratum v2 template construction",
+      "Removes the heavy requirement for pool software to mirror the node mempool"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces the `TxCollection` interface to Bitcoin Core's mining IPC API. It allows external clients (specifically Stratum v2 Job Declarator Servers) to supply a list of transaction witness IDs, query which transactions the node mempool is missing, provide only those missing transactions, and construct and validate an external block template using Core's existing validation logic.",
+  "problem": "External mining servers running Stratum v2 Job Declarator Protocols previously had to run their own mirror mempools by polling block templates and requesting missing transactions over P2P/IPC. This wasted bandwidth, duplicated mempool tracking logic, and risked divergence from the node's consensus validation.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp asked whether the difference between `stale-prevblk` and `inconclusive-not-best-prevblk` error strings relative to `Mining::checkBlock()` was intentional, and suggested an extra test case for invalid witness commitment."
+   ],
+   "resolved_concerns": [
+    "ViniciusCestarii suggested splitting into two interfaces rather than throwing on unsupported methods for external templates; concluded as non-blocking after author explanation.",
+    "enirox001 noted mutex lock scope was wider than necessary in `MakeTemplate` and suggested reserving map size, both incorporated by author.",
+    "pablomartin4btc suggested input bounds checking on `wtxids` vector size in the constructor, which author implemented."
+   ],
+   "author_status": "Addressing review actively through August 2026; silent for 28 days following minor follow-up feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is clean, tests are passing, and outstanding reviewer comments are minor clarifications that do not invalidate review."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "ismaelsadeeq",
+     "stance": "support",
+     "note": "Concept ACK and asked about round-trip optimization."
+    },
+    {
+     "login": "ViniciusCestarii",
+     "stance": "objection",
+     "note": "Raised order-dependence in addMissingTxs and suggested capnp interface split"
+    },
+    {
+     "login": "gmaxwell",
+     "stance": "objection",
+     "note": "Warned of OOM attacks from repeated large transaction requests without differential indexing"
+    },
+    {
+     "login": "pablomartin4btc",
+     "stance": "support",
+     "note": "Concept ACK and code review comments on limits and assertions."
+    },
+    {
+     "login": "enirox001",
+     "stance": "objection",
+     "note": "Concept ACK with architectural rationale, raised concerns on transaction weight limits and duplicate wtxids"
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "support",
+     "note": "Concept ACK, verified test suite, asked clarification question on rejection codes."
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ViniciusCestarii",
+     "kind": "correctness",
+     "harm": "order-dependent addition in addMissingTxs could leave partially applied state if an invalid transaction aborts the loop early",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-08: 'AddMissingTxs is order-dependent, a bad entry aborts the loop at that point, so [valid, invalid] keeps valid but [invalid, valid] doesn't. Is this intentional? Correct me if I am wrong but validate-then-apply seems to be a safer approach.'",
+     "resolution_evidence": "2026-07-23: 'Addressed @ViniciusCestarii's inline comments... Ready for review.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "gmaxwell",
+     "kind": "safety",
+     "harm": "non-differential indices allow an attacker to repeatedly request large transactions to overflow buffers or cause out-of-memory errors",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-07-14: 'compact blocks uses a differential index not primarily for efficiency... but so that the wire format is safe by construction against an attack that applies the same large transaction over and over again... and overflows a buffer or OOMs an implementation explicitly constructs the block'",
+     "resolution_evidence": "2026-07-15: 'the Mining IPC client is expected to run on the same machine, so unknownTxPos() and addMissingTxs() are not designed for bandwidth efficiency. We also (currently) more or less trust the IPC client. It needs to deal with any hardening against its clients itself.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "enirox001",
+     "kind": "safety",
+     "harm": "addMissingTxs checks transaction count rather than weight, permitting oversized transaction payloads to be stored before block validation",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-08-12: 'The check here is against the size, but it does not check the weight. So even though it can reject a million tiny transactions, it can accept 16666 large ones. This would be eventually rejected as oversized in makeTemplate when TestBlockValidity is called, but that is a bit too late.'",
+     "resolution_evidence": "2026-08-20: 'I don't think we should take over too much work that TestBlockValidity() does for us. Duplicating consensus checks could introduce new bugs.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "enirox001",
+     "reason": "Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization, transfers only missing transactions, and lets external templates be reconstructed using existing validation logic.",
+     "substantive": true
+    },
+    {
+     "reviewer": "ismaelsadeeq",
+     "reason": "Concept ACK for enabling efficient external template validation.",
+     "substantive": false
+    },
+    {
+     "reviewer": "pablomartin4btc",
+     "reason": "Concept ACK.",
+     "substantive": false
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "reason": "Concept ACK after running the new tests and checking coinbase commit handling.",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong concept consensus from mining contributors; all code review comments addressed.",
+   "reason": "Multiple contributors and maintainers supporting Stratum v2 integration have reviewed and endorsed the architectural shift to using Core's mempool rather than an external mirror.",
+   "evidence": [
+    "enirox001: 'Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization...'",
+    "jeanpablojp: 'Concept ACK: Ran the new tests and the mining suite...'",
+    "ViniciusCestarii: 'I took the liberty to prototype this... I'm fine either way'"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (enirox001, jeanpablojp)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "ViniciusCestarii",
+      "kind": "correctness",
+      "harm": "order-dependent addition in addMissingTxs could leave partially applied state if an invalid transaction aborts the loop early",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-08: 'AddMissingTxs is order-dependent, a bad entry aborts the loop at that point, so [valid, invalid] keeps valid but [invalid, valid] doesn't. Is this intentional? Correct me if I am wrong but validate-then-apply seems to be a safer approach.'",
+      "resolution_evidence": "2026-07-23: 'Addressed @ViniciusCestarii's inline comments... Ready for review.'"
+     },
+     {
+      "reviewer": "gmaxwell",
+      "kind": "safety",
+      "harm": "non-differential indices allow an attacker to repeatedly request large transactions to overflow buffers or cause out-of-memory errors",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-07-14: 'compact blocks uses a differential index not primarily for efficiency... but so that the wire format is safe by construction against an attack that applies the same large transaction over and over again... and overflows a buffer or OOMs an implementation explicitly constructs the block'",
+      "resolution_evidence": "2026-07-15: 'the Mining IPC client is expected to run on the same machine, so unknownTxPos() and addMissingTxs() are not designed for bandwidth efficiency. We also (currently) more or less trust the IPC client. It needs to deal with any hardening against its clients itself.'"
+     },
+     {
+      "reviewer": "enirox001",
+      "kind": "safety",
+      "harm": "addMissingTxs checks transaction count rather than weight, permitting oversized transaction payloads to be stored before block validation",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-08-12: 'The check here is against the size, but it does not check the weight. So even though it can reject a million tiny transactions, it can accept 16666 large ones. This would be eventually rejected as oversized in makeTemplate when TestBlockValidity is called, but that is a bit too late.'",
+      "resolution_evidence": "2026-08-20: 'I don't think we should take over too much work that TestBlockValidity() does for us. Duplicating consensus checks could introduce new bugs.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "enirox001",
+      "reason": "Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization, transfers only transactions the node is missing, and lets external templates be reconstructed and validated using existing validation logic.",
+      "substantive": true
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Ran the new tests and the mining suite, and checked the coinbase commit against its parent.",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "ismaelsadeeq",
+      "stance": "support",
+      "note": "Concept ACK and asked about collapsing round trips"
+     },
+     {
+      "login": "ViniciusCestarii",
+      "stance": "objection",
+      "note": "Raised order-dependence in addMissingTxs and suggested capnp interface split"
+     },
+     {
+      "login": "gmaxwell",
+      "stance": "objection",
+      "note": "Warned of OOM attacks from repeated large transaction requests without differential indexing"
+     },
+     {
+      "login": "pablomartin4btc",
+      "stance": "support",
+      "note": "Concept ACK, suggested input size guard and mutex/assert cleanups"
+     },
+     {
+      "login": "enirox001",
+      "stance": "objection",
+      "note": "Concept ACK with architectural rationale, raised concerns on transaction weight limits and duplicate wtxids"
+     },
+     {
+      "login": "jeanpablojp",
+      "stance": "support",
+      "note": "Concept ACK after testing and checking coinbase commit, questioned reject reasons"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong; multiple reviewers Concept ACK the design to eliminate the JDS mirror mempool, and technical concerns were addressed or clarified.",
+    "usage": {
+     "input_tokens": 12158,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 5356
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [],
+    "support": [
+     {
+      "reviewer": "enirox001",
+      "reason": "Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization, transfers only missing transactions, and lets external templates be reconstructed using existing validation logic.",
+      "substantive": true
+     },
+     {
+      "reviewer": "ismaelsadeeq",
+      "reason": "Concept ACK for enabling efficient external template validation.",
+      "substantive": false
+     },
+     {
+      "reviewer": "pablomartin4btc",
+      "reason": "Concept ACK.",
+      "substantive": false
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Concept ACK after running the new tests and checking coinbase commit handling.",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Stratum v2 Job Declarator Server (sv2-apps #599)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Touches src/node/miner.cpp, src/interfaces/mining.h, and modifies block template construction logic.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Substantially advances Stratum v2 integration by allowing the Job Declarator Server to validate external templates against Core's mempool without keeping an in-memory mirror."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Exempt per IPC guidelines because changes to Cap'n Proto files and interfaces only expose mining features rather than altering IPC transport or infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The IPC category explicitly excludes mining interface additions whose primary subject is mining template construction."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "New functional test interface_ipc_mining_tx_collection.py tests the mining feature specifically, not testing framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Category rubric excludes functional tests that merely exercise domain-specific area behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR 35671 adds a TxCollection interface to the mining API to allow external software like the Stratum v2 Job Declarator Server to validate externally proposed block templates against Bitcoin Core's mempool. Instead of transmitting full blocks or maintaining duplicate mirror mempools in external daemons, clients provide a list of wtxids and only transfer transactions missing from the node's mempool. It has strong Concept ACK support from mining developers, with previous rounds of review from enirox001, ViniciusCestarii, and pablomartin4btc addressed in pushes."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.0292035
+}

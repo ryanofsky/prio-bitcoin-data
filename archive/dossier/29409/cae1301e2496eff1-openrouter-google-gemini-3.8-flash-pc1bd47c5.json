@@ -1,0 +1,528 @@
+{
+ "number": 29409,
+ "input_hash": "cae1301e2496eff1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:19:38+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 106086,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 15355
+ },
+ "cost_usd": 0.13714574999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Expose the node's Chain interface over Cap'n Proto IPC to allow external processes to query chainstate and subscribe to block notifications.",
+    "Unblock running the wallet out-of-process and enable independent tools to integrate directly over IPC sockets."
+   ],
+   "reviewability": [
+    "Ready to review.",
+    "Code is rebased and passing CI with active downstream testing on BDK, Electrs, and monitoring tools."
+   ],
+   "agreement": [
+    "Broad concept and testing support for exposing Chain over IPC (darosior, sedited, Sjors, willcl-ark).",
+    "Open nonblocking concern that non-C++ clients can trigger node aborts with null transactions or out-of-range heights (willcl-ark, zaidmstrr).",
+    "Prior review comments regarding capnp type mismatches were addressed and resolved (l0rinc)."
+   ],
+   "categories": [
+    {
+     "name": "ipc",
+     "why": [
+      "P2 because it exposes the full Chain interface over IPC, providing essential infrastructure for process separation.",
+      "It directly unblocks the out-of-process wallet project (#10102) and has already been verified by external integrations."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request defines Cap'n Proto schemas and C++ proxy wrappers for the `interfaces::Chain` and `interfaces::Handler` interfaces. It squashes upstream updates to the `libmultiprocess` subtree (v14) and integrates serialization helpers for Bitcoin Core types. This allows processes connected via UNIX sockets or socket pairs to access chain queries, mempool state, and notifications.",
+  "problem": "Currently, running the Bitcoin Core wallet or other services out-of-process requires an IPC communication channel for chain queries and notifications. Without a serialized Chain interface, the process separation project (#10102) cannot proceed and external consumers must rely on polling JSON-RPC.",
+  "discussion": {
+   "open_concerns": [
+    "Node asserts or segfaults when non-C++ IPC clients supply out-of-bounds block heights or omit required parameters like transactions (zaidmstrr, willcl-ark).",
+    "Unclean client disconnections during shutdown can cause proxy termination crashes, tracked in libmultiprocess#219 (sedited, darosior)."
+   ],
+   "resolved_concerns": [
+    "Missing struct fields such as `best_height` and mismatched integer/enum widths across C++ and capnp declarations (l0rinc).",
+    "Subtree compile failures and lint errors during rebase updates (maflcko, zaidmstrr, pseudoramdom)."
+   ],
+   "author_status": "Active, rebasing regularly to track master and responding to feedback."
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The branch merges cleanly, CI passes, and the changes are stable enough that multiple contributors are running integration tests against them."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "cbergqvist",
+     "stance": "support",
+     "note": "reviewed types and provided surface-level ACK"
+    },
+    {
+     "login": "ariard",
+     "stance": "support",
+     "note": "supportive of socket IPC for separated wallet processes"
+    },
+    {
+     "login": "sedited",
+     "stance": "support",
+     "note": "reviewed and ACKed; performed integration tests with Rust BDK wallet"
+    },
+    {
+     "login": "josibake",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "darosior",
+     "stance": "support",
+     "note": "tested ACK using BDK Rust wallet proof of concept"
+    },
+    {
+     "login": "Big621",
+     "stance": "neutral",
+     "note": "approval without rationale"
+    },
+    {
+     "login": "pseudoramdom",
+     "stance": "question",
+     "note": "asked about build configuration on macOS"
+    },
+    {
+     "login": "zaidmstrr",
+     "stance": "objection",
+     "note": "reported node crash when getBlockHash is invoked with height above tip"
+    },
+    {
+     "login": "maflcko",
+     "stance": "neutral",
+     "note": "pointed out spelling error and CI lint failure"
+    },
+    {
+     "login": "l0rinc",
+     "stance": "objection",
+     "note": "requested changes on capnp mappings and types; addressed in push"
+    },
+    {
+     "login": "Sjors",
+     "stance": "support",
+     "note": "implemented Rust capnp bindings and Electrs proof of concept"
+    },
+    {
+     "login": "xyzconstant",
+     "stance": "question",
+     "note": "inquired about ChainClient contract for peer-observer monitoring"
+    },
+    {
+     "login": "willcl-ark",
+     "stance": "objection",
+     "note": "concept ACK, but noted lack of input validation and potential segfaults if non-C++ clients omit parameters"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "zaidmstrr",
+     "kind": "correctness",
+     "harm": "node aborts with an assertion failure if an IPC client requests getBlockHash for a height exceeding the active chain tip",
+     "blocking": false,
+     "author_replied": false,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-09-09: 'when we pass the height, which is greater than the current tip, then the node crashes and exits with the error... Assertion `chainman().ActiveChain()[height]` failed.'",
+     "resolution_evidence": "",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "willcl-ark",
+     "kind": "safety",
+     "harm": "node segfaults if a non-C++ client passes null transaction data or an unhandled enum value over IPC",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "open",
+     "evidence": "2026-05-20: 'Also what happens here is tx is a null pointer (allowed by capnp spec AFAIU)? I think we will immediately try to deference it in BroadcastTransaction and segfault.'",
+     "resolution_evidence": "2026-05-20: 'In general it's not a realistic goal for this PR to ensure that it's safe to call all Chain methods with all possible arguments and ensure that the node will not crash, but it should be good to do where feasible.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "l0rinc",
+     "kind": "correctness",
+     "harm": "capnp definitions had missing struct fields and signedness/width discrepancies with C++ declarations",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2025-11-25: 'It seems to me the capnp wrapper needs some updates (missing field, 32/64 bit params, param rename, bool vs uint64, enums as unsigned, optional mapping, unused declarations, comments, etc).'",
+     "resolution_evidence": "2025-12-12: author addressed all discrepancies in push 89cf624fe8 and l0rinc did not object further",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "darosior",
+     "reason": "verified multiple scenarios on regtest and signet using a custom Rust BDK wallet client",
+     "substantive": true
+    },
+    {
+     "reviewer": "sedited",
+     "reason": "reviewed code and tested against Rust client integrations",
+     "substantive": true
+    },
+    {
+     "reviewer": "willcl-ark",
+     "reason": "tested against a node dashboard and considers IPC the ideal programmatic boundary for Bitcoin Core",
+     "substantive": true
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "developed Rust bindings and demonstrated an Electrs integration over IPC",
+     "substantive": true
+    },
+    {
+     "reviewer": "josibake",
+     "reason": "Concept ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "cbergqvist",
+     "reason": "Surface-level ACK",
+     "substantive": false
+    },
+    {
+     "reviewer": "ariard",
+     "reason": "finds socket-based IPC very useful for separating node and wallet onto different hosts",
+     "substantive": true
+    }
+   ],
+   "state": "Mild",
+   "summary": "Strong concept and testing support, but nonblocking concerns remain open regarding crash safety when clients send null or invalid inputs.",
+   "reason": "Multiple reviewers have ACKed and developed functional downstream prototypes against the interface. Nonblocking objections from willcl-ark and zaidmstrr note that omitting arguments or requesting blocks past the tip triggers assertions or null pointer dereferences on the node side.",
+   "evidence": [
+    "darosior (2024-12-09): 'tested ACK 395d5eed... exercised getHeight, getBlockHash, hasBlocks... and ChainNotifications'",
+    "willcl-ark (2026-05-20): 'Concept ACK. Exposing interfaces::Chain over IPC seems very useful...'",
+    "zaidmstrr (2026-09-09): 'Assertion `chainman().ActiveChain()[height]` failed. Aborted (core dumped)'"
+   ],
+   "model_state": "Mild",
+   "derivation": "nonblocking objection open (zaidmstrr, willcl-ark)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Mild",
+    "derived": "Mild",
+    "objections": [
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "Missing fields such as best_height in estimateSmartFee and parameter type mismatches between C++ and capnp schema caused data loss and interface bugs.",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-11-25: 'It seems to me the capnp wrapper needs some updates (missing field, 32/64 bit params, param rename, bool vs uint64, enums as unsigned, optional mapping, unused declarations, comments, etc).'",
+      "resolution_evidence": "2025-12-12: 'You found a lot of annoying discrepencies and a real bug in the estimateSmartFee best_height return value, which should all be fixed now.'"
+     },
+     {
+      "reviewer": "willcl-ark",
+      "kind": "safety",
+      "harm": "Null or omitted parameters from non-C++ clients calling exposed IPC methods like BroadcastTransaction or checkChainLimits cause null-pointer dereferences and segfaults in the node.",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-05-20: 'Also what happens here is tx is a null pointer (allowed by capnp spec AFAIU)? I think we will immediately try to deference it in BroadcastTransaction and segfault.'",
+      "resolution_evidence": "2026-05-20: 'In general it's not a realistic goal for this PR to ensure that it's safe to call all Chain methods with all possible arguments and ensure that the node will not crash, but it should be good to do where feasible.'"
+     },
+     {
+      "reviewer": "zaidmstrr",
+      "kind": "correctness",
+      "harm": "Passing a block height greater than the current tip over IPC causes an assertion failure in ChainImpl::getBlockHash and aborts the node process rather than returning an error.",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-09: 'when we pass the height, which is greater than the current tip, then the node crashes and exits with the error: ... Assertion `chainman().ActiveChain()[height]' failed. Aborted (core dumped) I think instead of crashing the node, we should return an error instead here.'",
+      "resolution_evidence": ""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "darosior",
+      "reason": "implemented a PoC Rust BDK wallet consuming the Chain IPC interface and verified extensive regtest and Signet scenarios without issues",
+      "substantive": true
+     },
+     {
+      "reviewer": "willcl-ark",
+      "reason": "tested on a node dashboard; considers IPC a cleaner long-term programmatic integration boundary for Bitcoin Core than RPC/REST/ZMQ",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "built Rust bindings and adapted Electrs to use the IPC interface for block fetching, mempool sync, and notifications instead of RPC/p2p",
+      "substantive": true
+     },
+     {
+      "reviewer": "ariard",
+      "reason": "finds socket-based IPC very useful for separating node and wallet onto different hosts",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "reviewed and approved multiple iterations",
+      "substantive": false
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "cbergqvist",
+      "reason": "Surface-level ACK",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "cbergqvist",
+      "stance": "support",
+      "note": "reviewed capnp definitions and gave surface-level ACK"
+     },
+     {
+      "login": "ariard",
+      "stance": "support",
+      "note": "supported running node and wallet across sockets"
+     },
+     {
+      "login": "sedited",
+      "stance": "support",
+      "note": "reviewed, tested, and approved multiple revisions; tested disconnect behavior with Rust wallet"
+     },
+     {
+      "login": "josibake",
+      "stance": "support",
+      "note": "concept ACK"
+     },
+     {
+      "login": "darosior",
+      "stance": "support",
+      "note": "tested ACK after writing a PoC Rust BDK wallet exercising the Chain IPC interface"
+     },
+     {
+      "login": "Big621",
+      "stance": "neutral",
+      "note": "left approval reviews without project history or comments"
+     },
+     {
+      "login": "pseudoramdom",
+      "stance": "question",
+      "note": "asked about build configurations on macOS"
+     },
+     {
+      "login": "zaidmstrr",
+      "stance": "objection",
+      "note": "pointed out rebase conflicts and reported that getBlockHash asserts and aborts the node on invalid heights"
+     },
+     {
+      "login": "maflcko",
+      "stance": "neutral",
+      "note": "spelling nit and pointed out failing lint task"
+     },
+     {
+      "login": "l0rinc",
+      "stance": "objection",
+      "note": "requested changes for schema mismatches and a missing field in smart fee estimation"
+     },
+     {
+      "login": "Sjors",
+      "stance": "support",
+      "note": "implemented Rust capnp bindings and an Electrs demo using the IPC Chain interface"
+     },
+     {
+      "login": "xyzconstant",
+      "stance": "question",
+      "note": "asked about ChainClient applicability for non-wallet monitoring tools"
+     },
+     {
+      "login": "willcl-ark",
+      "stance": "objection",
+      "note": "concept ACK, but noted lack of input validation and potential segfaults if non-C++ clients omit parameters"
+     }
+    ],
+    "corrections": [],
+    "summary": "Mild: zaidmstrr reported that calling getBlockHash with a height above the tip aborts the node via assertion failure; author has not replied.",
+    "usage": {
+     "input_tokens": 37417,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 6779
+    }
+   },
+   "first_read": {
+    "state": "Mild",
+    "model_state": "Mild",
+    "objections": [
+     {
+      "reviewer": "zaidmstrr",
+      "kind": "correctness",
+      "harm": "node aborts with an assertion failure if an IPC client requests getBlockHash for a height exceeding the active chain tip",
+      "blocking": false,
+      "author_replied": false,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-09-09: 'when we pass the height, which is greater than the current tip, then the node crashes and exits with the error... Assertion `chainman().ActiveChain()[height]` failed.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "willcl-ark",
+      "kind": "safety",
+      "harm": "node segfaults if a non-C++ client passes null transaction data or an unhandled enum value over IPC",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "open",
+      "evidence": "2026-05-20: 'Also what happens here is tx is a null pointer (allowed by capnp spec AFAIU)? I think we will immediately try to deference it in BroadcastTransaction and segfault.'",
+      "resolution_evidence": ""
+     },
+     {
+      "reviewer": "l0rinc",
+      "kind": "correctness",
+      "harm": "capnp definitions had missing struct fields and signedness/width discrepancies with C++ declarations",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2025-11-25: 'It seems to me the capnp wrapper needs some updates (missing field, 32/64 bit params, param rename, bool vs uint64, enums as unsigned, optional mapping, unused declarations, comments, etc).'",
+      "resolution_evidence": "2025-12-12: author addressed all discrepancies in push 89cf624fe8 and l0rinc did not object further"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "darosior",
+      "reason": "verified multiple scenarios on regtest and signet using a custom Rust BDK wallet client",
+      "substantive": true
+     },
+     {
+      "reviewer": "sedited",
+      "reason": "reviewed code and tested against Rust client integrations",
+      "substantive": true
+     },
+     {
+      "reviewer": "willcl-ark",
+      "reason": "tested against a node dashboard and considers IPC the ideal programmatic boundary for Bitcoin Core",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "developed Rust bindings and demonstrated an Electrs integration over IPC",
+      "substantive": true
+     },
+     {
+      "reviewer": "josibake",
+      "reason": "Concept ACK",
+      "substantive": false
+     },
+     {
+      "reviewer": "cbergqvist",
+      "reason": "Surface-level ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#10102",
+    "#19460",
+    "#19461"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": false,
+    "evidence": "Build changes consist only of adding IPC source targets and suppressing a C++23 extension warning for IPC proxy headers.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The CMake edits follow mechanically from adding new Cap'n Proto interface files and do not touch build system architecture."
+   },
+   {
+    "name": "ipc",
+    "member": true,
+    "evidence": "Adds Cap'n Proto schemas and wrappers for the Chain interface and updates the libmultiprocess subtree.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.7,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 3
+    },
+    "rationale": "P2 because exposing `interfaces::Chain` over Cap'n Proto IPC is a critical foundational component for process separation, directly unblocking out-of-process wallet support (#10102) and enabling external clients like BDK and Electrs to interact with node chainstate over a structured socket."
+   },
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "Touches only a two-line maintenance comment inside block_policy_estimator.h.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not change mempool policy, validation, or data structures."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches only a two-line maintenance comment inside rpc/request.h.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify RPC server behavior, methods, or endpoints."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #29409 provides Cap'n Proto schema definitions and C++ wrappers for the `interfaces::Chain` interface, allowing external processes to query chainstate and receive block notifications over IPC sockets. It is a prerequisite for running the wallet out-of-process in #10102 and has already been validated against independent external consumers such as BDK Rust wallets and Electrs. Review sentiment is broadly favorable with tested ACKs, though open nonblocking discussions highlight the need for safer input validation against null arguments and out-of-range heights from foreign language clients. The PR is rebased, passing CI, and ready for further review."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.053484
+}

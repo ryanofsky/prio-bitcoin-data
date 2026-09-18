@@ -1,0 +1,86 @@
+{
+ "number": 36259,
+ "input_hash": "dcdddba990c0d5b3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:59:18+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15000,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1544
+ },
+ "cost_usd": 0.01704,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent dropped responses on pipelined HTTP requests by synchronizing keep-alive state with the send buffer."
+   ],
+   "reviewability": [
+    "Ready to review."
+   ],
+   "agreement": [
+    "Strong support with rationale confirming state synchronization under the send mutex (winterrdog)."
+   ],
+   "categories": [
+    {
+     "name": "rpc",
+     "why": [
+      "P3 because it fixes a real but rare race condition where a pipelined HTTP response could be dropped on connection close.",
+      "Most standard clients including bitcoin-cli do not pipeline, keeping the practical exposure low."
+     ]
+    }
+   ]
+  },
+  "summary": "Synchronizes `HTTPRemoteClient::m_keep_alive` updates with `m_send_buffer` by moving the assignment inside `m_send_mutex` and switching the field from `std::atomic_bool` to `bool GUARDED_BY(m_send_mutex)`. Also adds a regression unit test simulating the race condition.",
+  "problem": "When a client pipelines a keep-alive request followed by a 'Connection: close' request, the worker handling the second request clears `m_keep_alive` before taking `m_send_mutex`. If the I/O thread drains the first response in between, it observes an empty buffer with keep-alive disabled and disconnects the client before the second response can be queued, dropping it.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The patch is small, self-contained, clean, and accompanied by a deterministic mock-socket regression test."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACK with rationale from winterrdog; no objections raised.",
+   "reason": "winterrdog gave a Concept ACK noting that updating m_keep_alive in the same critical section as the send buffer prevents the I/O thread from viewing inconsistent state while responses are queued.",
+   "evidence": [
+    "winterrdog: 'concept ACK... makes sense to update m_keep_alive in the same critical section as the send buffer, since both are read together under the same lock'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Modifies HTTP server concurrency and request lifecycle under src/httpserver.*, which powers the RPC and REST interfaces.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes a dropped response bug during pipelined HTTP requests. As the author notes, 'the window is small and bitcoin-cli does not pipeline, so this is a low-severity fix', making it a worthwhile correctness improvement without high release urgency."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a race condition in the internal HTTP server where HTTPRemoteClient::m_keep_alive was updated outside m_send_mutex. For pipelined requests where a keep-alive request is followed by a connection-closing request, the I/O thread could observe an empty buffer and a disabled keep-alive flag between requests, disconnecting the client and dropping the second reply. The fix guards m_keep_alive with m_send_mutex and includes a deterministic mock-socket regression test. winterrdog provided a concept ACK supporting the lock synchronization, and the PR is ready for review."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,125 @@
+{
+ "number": 35906,
+ "input_hash": "210f5879db958735",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14944,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4562
+ },
+ "cost_usd": 0.0391603,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Exposes three internal validation functions (CheckBlockHeader, ContextualCheckBlockHeader, ContextualCheckBlock) through validation.h and decouples them from ChainstateManager and the system clock.",
+    "Lets these functions be unit tested directly instead of only indirectly through full block submission, and is explicitly framed as a first step toward a stateless validation library."
+   ],
+   "reviewability": [
+    "Ready. All substantive review comments (doc placement, consistency, fixture choice) have been discussed and resolved or accepted as non-blocking by the author."
+   ],
+   "agreement": [
+    "Strong support: janb84 and optout21 gave (t)ACKs praising the testability improvement, josibake and yuvicc gave concept ACKs, nobody raised a blocking objection.",
+    "One reviewer flagged overlap with three competing/alternative PRs touching the same lines, which is a coordination note rather than an objection (maflcko)."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P2 because it is a pure refactor with no behavior change that meaningfully improves testability of core header/block validity checks and removes an internal dependency on ChainstateManager.",
+      "It unblocks the broader stateless-validation-library effort referenced in issue #35904, though it does not itself fix a bug or change consensus behavior."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "Not a member. The PR only touches block/header validity checks in validation.cpp/h; it does not change mempool acceptance, replacement, or fee logic."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes three previously-static validation functions (CheckBlockHeader, ContextualCheckBlockHeader, ContextualCheckBlock) part of the public validation interface, replaces their ChainstateManager parameter with a plain Consensus::Params, and passes the validation timestamp explicitly instead of reading the system clock internally. It adds ~800 lines of new unit tests exercising these functions directly with the new, more testable signatures. The stated goal, per issue #35904, is the first step toward a stateless, side-effect-free validation library.",
+  "problem": "Historically these functions were static and only reachable indirectly by pushing a full block through validation via RPC, p2p, or heavy test fixtures, and they had hidden dependencies on ChainstateManager and the system clock, making them hard to isolate and test. This blocks the stated project of extracting a stateless validation library that can be tested and reused independently.",
+  "discussion": {
+   "open_concerns": [
+    "optout21 suggested strengthening one test's assertions (nit, non-blocking).",
+    "alexanderwiederin raised several minor consistency questions (doc comment placement, param naming, fixture usage) which the author addressed or explained as intentional."
+   ],
+   "resolved_concerns": [
+    "maflcko's concern about conflicting with alternative PRs (#35557, #34895) was acknowledged but treated as a coordination note, not a blocker.",
+    "alexanderwiederin's questions about doc comment placement and code consistency were resolved through discussion and a subsequent force-push."
+   ],
+   "author_status": "active, addressing review; last pushed 2026-08-20 in response to feedback, silent 27 days since but no unanswered material request pending"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "All raised review comments were either nits, style preferences, or questions the author answered and partly implemented in a later push. No open material request has been waiting long enough or gone unanswered to invalidate review of the current code."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong support from janb84 and optout21 (ACKs citing the testability improvement) and concept ACKs from josibake and yuvicc, with no unresolved objections.",
+   "reason": "Multiple reviewers explicitly endorse the change for a stated reason (functions become directly testable, dependency on ChainstateManager and system clock removed) and no one has raised a harm or blocking concern; remaining comments are style nits.",
+   "evidence": [
+    "janb84: 't ACK ... This PR undertakes three (small) refactors that increase what is practical to test ... Big improvement IMHO'",
+    "optout21: 'ACK ... This change reduces complexity around the ContextualCheckBlock and ContextualCheckBlockHeader methods, and adds tests'",
+    "josibake: 'Concept ACK ... very happy to see ContextualCheckBlockHeader no longer reading system time'",
+    "maflcko noted overlap with alternative PRs but did not object to this one's approach"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on issue #35904, 'Factoring out a stateless, side-effect free validation library'",
+    "Potential future kernel-library work that needs these validation functions exposed and decoupled from ChainstateManager"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": false,
+    "evidence": "The PR touches only src/validation.cpp/h header and block validity checks; no mempool acceptance, replacement, or fee logic is changed.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No mempool-relevant code or behavior is touched by this PR."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Directly modifies validation.cpp/h: exposes CheckBlockHeader/ContextualCheckBlockHeader/ContextualCheckBlock, changes their signatures to take Consensus::Params instead of ChainstateManager, and passes time explicitly. Reviewers (janb84, optout21) confirm it reduces coupling and enables direct testing of validation logic.",
+    "band": "P2",
+    "reason_tag": "unblocks #35904",
+    "score": 0.6,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "This is a no-behavior-change refactor, so it carries no correctness or performance benefit on its own, but it removes a real coupling hazard (hidden ChainstateManager and system-clock dependencies) and is explicitly the first step of a stated future project to extract a stateless validation library (issue #35904), which several reviewers (janb84, optout21) call a clear testability improvement. Its importance is in the leverage it provides for future validation work, not in fixing an existing defect."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether this refactor's ultimate value should be assessed jointly with the kernel-library project (issue #35904) rather than purely within 'validation', since the category boundary between them is fuzzy for early decoupling work.",
+   "How the overlap/conflict with alternative PRs (#35557, #35570, #36244, #36167) touching the same lines will be resolved; merge order could affect scope but not the stated importance.",
+   "Whether optout21's minor commit-message-prefix inconsistency point will be addressed before merge; it appears non-blocking."
+  ],
+  "card": "This PR exposes three previously-static validation functions (CheckBlockHeader, ContextualCheckBlockHeader, ContextualCheckBlock) via validation.h, removes their dependency on ChainstateManager in favor of plain Consensus::Params, and passes validation time explicitly instead of reading the system clock, adding substantial new unit test coverage for each. It is explicitly framed, per linked issue #35904, as the first step toward a stateless, side-effect-free validation library, a stated project goal rather than a bug fix. Reviewers janb84 and optout21 gave (tested) ACKs specifically praising the testability improvement, with concept ACKs from josibake and yuvicc and no unresolved objections; only style nits remain open. A maintainer (maflcko) flagged that this PR's changed lines overlap with several other open alternative PRs (#35557, #35570, #34895), a coordination concern rather than a blocking objection. No consensus behavior changes; importance rests on unblocking the stateless-validation-library effort rather than fixing a defect."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

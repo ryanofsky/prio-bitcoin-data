@@ -1,0 +1,230 @@
+{
+ "number": 35474,
+ "input_hash": "6a51ccab9c75d2eb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:53:49+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23242,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3123
+ },
+ "cost_usd": 0.02914275,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Eliminate process-global index variables by moving ownership into NodeContext.",
+    "Clarify optional index lifecycles and avoid direct global state access across node subsystems."
+   ],
+   "reviewability": [
+    "Ready to review. The branch is rebased cleanly and all CI checks pass."
+   ],
+   "agreement": [
+    "Concept ACKs with no objections (sedited, fjahr).",
+    "Clarified orthogonality with #24230 regarding index sync logic (Sjors)."
+   ],
+   "categories": [
+    {
+     "name": "indexes",
+     "why": [
+      "P3 because it eliminates global index pointers without changing behavior or fixing bugs.",
+      "Decouples block filter indices from global state and makes index ownership explicit on NodeContext."
+     ]
+    },
+    {
+     "name": "p2p",
+     "why": [
+      "P4 because the p2p change is only a callback parameter wired through PeerManager::Options.",
+      "Leaves p2p relay and protocol behavior completely unchanged."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because RPC handlers are only updated to look up indexes via NodeContext.",
+      "Does not modify any RPC endpoints, options, or output formats."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "P4 because test changes are purely mechanical call-site adjustments.",
+      "Updates test fixtures to provide NodeContext to index setup helpers."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because it cleans up node initialization and destruction ordering in NodeContext.",
+      "Reduces reliance on global singletons across startup and shutdown sequences."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because optional indexes are decoupled from validation consensus logic.",
+      "Touches no chainstate or consensus validation rules."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because changes in wallet code are confined to test harness call-site updates.",
+      "Does not change wallet rescan or descriptor behavior."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request moves ownership of optional indexes (`g_txindex`, `g_txospenderindex`, `g_coin_stats_index`, and `g_filter_indexes`) from process-global singletons into `NodeContext`. It extracts block filter index management into `node/indexes.{h,cpp}` and passes index lookup into `PeerManager` via an options callback. RPC, REST, and test callers are updated to reference indexes through `NodeContext` instead of global pointers.",
+  "problem": "Process-global index variables obscure object lifecycles during init and shutdown and hinder running multiple node instances or separating processes. Node subsystems and RPC handlers were directly accessing global index pointers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Sjors asked how this PR interacts with #24230; w0xlt clarified that #24230 modifies sync logic and decoupling from node internals while keeping global ownership, making this ownership refactor orthogonal."
+   ],
+   "author_status": "active, rebased promptly upon ping"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Clean mergeable state with passing CI and no pending author blockers."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: concept approved by sedited and fjahr with no opposition",
+   "reason": "Two contributors provided Concept ACKs and the author addressed questions regarding conflict with other index PRs.",
+   "evidence": [
+    "sedited left a Concept ACK and later requested a rebase.",
+    "fjahr left a Concept ACK.",
+    "Sjors asked about relationship to #24230, which w0xlt clarified without dispute."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "indexes",
+    "member": true,
+    "evidence": "Refactors ownership and registry of all optional indexes (txindex, coinstatsindex, txospenderindex, and block filter indexes).",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Worthwhile internal architectural cleanup. It removes global pointers `g_txindex`, `g_txospenderindex`, `g_coin_stats_index`, and `g_filter_indexes`, binding their destruction directly to NodeContext ahead of validation_signals."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "Changes to src/net_processing.cpp and .h are mechanical wiring of a filter index lookup callback via PeerManager::Options.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Net processing changes are purely mechanical call site adaptations to avoid referring to global filter indexes."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches RPC files only to retrieve index pointers from NodeContext rather than global variables.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "RPC endpoints and behavior are unaffected; changes in src/rpc/ are mechanical call-site updates."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes in test files update setup helpers and mock calls to pass NodeContext.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Only adapts existing tests to the new function signatures."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Modifies NodeContext in src/node/context.h and lifecycle sequencing in src/init.cpp.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Streamlines NodeContext structure by taking explicit ownership of core node modules, ensuring proper destruction ordering with ValidationSignals."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Touches only optional indexes, which are excluded from validation category scope despite the repo label.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "The UTXO Db and Indexes label covers optional indexes here, which belong to the indexes category rather than validation."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Changes in wallet code are confined to updating test calls in wallet_tests.cpp.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No wallet interfaces, databases, or coin selection behavior are modified."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves ownership of optional indexes (txindex, txospenderindex, coinstatsindex, and block filter indexes) from process-global variables into NodeContext, registering index lifecycle explicitly during node startup and shutdown. It decouples the block filter index registry into node/indexes.{h,cpp} and adapts RPC and net_processing call sites to access indexes through NodeContext. The change is an internal refactoring that supports multiprocess goals and cleaner test isolation without modifying user-visible behavior. The PR has Concept ACKs from sedited and fjahr and is ready for detailed code review."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,119 @@
+{
+ "number": 36230,
+ "input_hash": "cae9d8147b04ab54",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:49+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 22110,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2303
+ },
+ "cost_usd": 0.019724925,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Speed up descriptor comparison in the wallet by caching canonical string hashes",
+    "Resolve review followups from canonical descriptor string changes"
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "Recent push addressed constructor comments, minor design discussions remain open."
+   ],
+   "agreement": [
+    "Tested ACK on performance fix (rkrux)",
+    "Positive review discussion refining caching and descriptor constness (polespinasa, davidgumberg, Sjors)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes a 50% performance regression in wallet descriptor lookups introduced during canonical descriptor refactoring, avoiding costly string conversions on every check."
+     ]
+    },
+    {
+     "name": "tools",
+     "why": [
+      "P4 because the PR does not change developer or user-facing tools, only updating test release hashes."
+     ]
+    }
+   ]
+  },
+  "summary": "Caches the SHA-256 hash of the canonical descriptor string on `WalletDescriptor` to optimize `HasWalletDescriptor` checks and avoid recurring string allocations. It also removes `WalletDescriptor`'s default constructor in favor of explicit initialization, documents descriptor update behavior, and updates backwards compatibility testing data.",
+  "problem": "Recomputing the full canonical descriptor string during every `HasWalletDescriptor` call caused a noticeable performance regression when handling complex descriptors (such as Miniscript), cutting wallet descriptor lookup speed in half.",
+  "discussion": {
+   "open_concerns": [
+    "Whether descriptor computation should be strictly lazy on first lookup rather than computed at construction",
+    "Protecting `m_wallet_descriptor.descriptor` with `const` to prevent mutating the underlying descriptor while cached hashes exist"
+   ],
+   "resolved_concerns": [
+    "Removed the uninitialized default constructor in favor of RAII",
+    "Renamed `Equals` to `IsCanonicallyEquivalent` to clarify that only canonical representations are compared",
+    "Fixed backwards compatibility CI failures when adding version 31.1"
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "CI is clean and the author actively addresses review feedback within the same day."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive; tested ACK from rkrux confirming a 50% speedup, with minor follow-up design suggestions from polespinasa and davidgumberg.",
+   "reason": "Reviewers verified the benchmark improvements and agreed with the caching concept while discussing implementation details regarding const-correctness and lazy evaluation.",
+   "evidence": [
+    "rkrux gave tested ACK reporting 50% improvement in wallet test execution time",
+    "hebasto confirmed test runner execution time dropped substantially on Alpine",
+    "polespinasa and davidgumberg suggested protecting descriptors against post-construction mutation"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Modifies WalletDescriptor and DescriptorScriptPubKeyMan in src/wallet/ to cache canonical descriptor hashes and optimize descriptor lookup routines.",
+    "band": "P2",
+    "reason_tag": "speedup",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 2,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P2 because it fixes a significant performance regression in descriptor comparison where repeated string generation slowed down wallet checks (confirmed by rkrux noting a 50% improvement in `wallet_miniscript.py`). Backporting to 32.x is requested, preventing the regression from persisting into release."
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Only modifies test/get_previous_releases.py to register v31.1 binary hashes for functional backward compatibility testing, which is test infrastructure rather than tools.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a tools change; the modified Python script serves functional test backwards compatibility testing."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR optimizes wallet descriptor comparisons by computing and caching a SHA-256 hash of the canonical descriptor string on WalletDescriptor rather than rebuilding strings during every HasWalletDescriptor check. This eliminates a 50% performance slowdown in descriptor comparison workloads and addresses documentation and string compatibility followups from earlier descriptor work. The change is marked for backport to 32.x, has positive review with a tested ACK, and has minor open discussions regarding lazy evaluation and const-correctness."
+ },
+ "raw_text": null
+}

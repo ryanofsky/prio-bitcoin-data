@@ -1,0 +1,113 @@
+{
+ "number": 32065,
+ "input_hash": "98b4e831a8acd914",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14447,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3153
+ },
+ "cost_usd": 0.0316183,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a time gap between I2P transient session creation and first use, so network monitoring can't easily correlate the two events.",
+    "Improves privacy for I2P-only or mixed-network nodes that use transient sessions (i.e. not accepting inbound I2P connections)."
+   ],
+   "reviewability": [
+    "Stale: PR needs rebase and has conflicts with several other open net.cpp PRs.",
+    "Code has been through many rebases; last force-push 2026-04-30 was just a rebase, not new logic."
+   ],
+   "agreement": [
+    "Concept ACKs from I2P developers zzzi2p, eyedeekay, 1440000bytes, with initial concern that a bank of 10 pre-created sessions is wasteful and could spike session-creation at startup (zzzi2p, eyedeekay).",
+    "Author responded with measured data and reduced the pool to a single pre-created session, addressing the core concern.",
+    "mzumsande raised a further question about whether unused I2P tunnels expire before use, and about pre-filling on -onlynet=i2p startup; no clear resolution but not framed as blocking.",
+    "jonatack asked a clarifying scoping question, answered by author; no objection registered."
+   ],
+   "categories": []
+  },
+  "summary": "This PR changes how Bitcoin Core creates I2P transient SAM sessions so that session creation (SESSION CREATE) happens ahead of time, decoupled from when the session is actually used to connect to a peer (STREAM CONNECT). Previously these two events happened back to back, which the author argues makes network traffic analysis by an adversary easier. The change pre-creates a session in the Session constructor and maintains a small pool (tuned down to one after review feedback) of unused sessions to draw from.",
+  "problem": "I2P users who rely on transient sessions (nodes not accepting inbound I2P connections) reveal a timing pattern where SESSION CREATE is immediately followed by STREAM CONNECT, which the author and I2P developers agree could aid traffic correlation by an adversary monitoring the I2P router.",
+  "discussion": {
+   "open_concerns": [
+    "mzumsande's question about whether I2P tunnels expire (after ~10 min) before an unused pre-created session gets used, potentially wasting resources, was not conclusively answered.",
+    "mzumsande's suggestion to pre-fill the session pool at startup under -onlynet=i2p was not addressed with a code change."
+   ],
+   "resolved_concerns": [
+    "zzzi2p and eyedeekay's concern about a too-large session pool (10) causing excess resource use and startup session-creation bursts was resolved by the author reducing the pool to a single session, backed by measured session lifetime data."
+   ],
+   "author_status": "active periodically, mostly rebasing due to conflicts; last activity 2026-04-30 was a rebase push"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR carries a 'Needs rebase' label and mergeable_state is dirty, with conflicts against at least three other open PRs touching net.cpp (#34213, #32394, #30951). It has been force-pushed 11 times over more than a year purely to keep up with conflicting changes, most recently 2026-04-30."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACKs from I2P developers zzzi2p, eyedeekay, 1440000bytes; the main sizing concern was resolved by author tuning the session pool down to one, with an open but non-blocking question from mzumsande about tunnel expiry timing.",
+   "reason": "Multiple domain experts (I2P protocol maintainers) gave concept ACKs and engaged substantively; the one concrete objection (pool size of 10 being wasteful) was resolved by the author reducing it to 1 with supporting data, and no one has objected since.",
+   "evidence": [
+    "zzzi2p: 'Concept ACK' but '10 standby sessions is a lot... 2 or 3 is probably enough'",
+    "eyedeekay: 'Concept ACK is fine but I'm very concerned about having the session bank be 10 sessions long'",
+    "vasild: reduced MAX_UNUSED_I2P_SESSIONS_SIZE from 10 to 4, then further to 1, citing measured session usage data",
+    "mzumsande: raised tunnel-expiry and startup pre-fill questions, not conclusively resolved but not framed as blocking",
+    "jonatack: asked a scoping question, answered by author without further pushback"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "A further suggested follow-up (mentioned by the author) to delay session closing similarly, which is not part of this PR"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies I2P session management inside CConnman/net.cpp and i2p.cpp, changing connection-establishment behavior and timing for I2P transport.",
+    "band": "P3",
+    "reason_tag": "privacy",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "This is a real but narrow privacy hardening for I2P transient-session users, a small subset of node operators (those not accepting inbound I2P connections). The author demonstrates the mitigation works with real timing logs, and I2P developers concept-ACKed the direction after negotiating pool size down to 1. It does not touch consensus, DoS resistance, or general p2p relay correctness, so it ranks as worthwhile-but-deferrable rather than category-critical."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The only test-file change is a one-line #include fix in test/util/net.h needed to keep it compiling after net.h stopped including <queue>; this is a mechanical follow-on, not a change to test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the test/util/net.h edit is purely a mechanical include fix caused by the header-dependency change in net.h, not a change to test framework capability."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the pending rebase (against #34213, #32394, #30951) would require nontrivial rework of the current approach or is purely mechanical.",
+   "Whether mzumsande's tunnel-expiry-timing question represents a real unresolved technical flaw or just an open curiosity; no follow-up data was posted.",
+   "No activity from reviewers since 2025-05-26 despite several rebases, so current appetite for merging is unclear beyond the earlier concept ACKs."
+  ],
+  "card": "This PR makes I2P transient SAM sessions be created ahead of time rather than immediately before use, closing a timing gap that could otherwise let an adversary correlate session creation with connection use, benefiting privacy for I2P nodes that use transient sessions (i.e. do not accept inbound I2P connections). Three I2P protocol developers (zzzi2p, eyedeekay, 1440000bytes) gave concept ACKs; the main objection, that a pool of 10 pre-created sessions was wasteful, was resolved when the author reduced it to a single session backed by measured session-lifetime logs. A secondary question from mzumsande about tunnel expiry timing and startup pre-fill was never conclusively answered but was not treated as blocking. The PR carries a 'Needs rebase' label, has been force-pushed 11 times over more than a year due to conflicts with other open net.cpp PRs (#34213, #32394, #30951), and needs another rebase before review would be durable. It has no stated dependency but the author notes a natural follow-up of also delaying session closure."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

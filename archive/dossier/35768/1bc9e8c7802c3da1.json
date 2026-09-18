@@ -1,0 +1,103 @@
+{
+ "number": 35768,
+ "input_hash": "1bc9e8c7802c3da1",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5650,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2280
+ },
+ "cost_usd": 0.0184563,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reject wallet names made only of whitespace when creating a wallet, since such names are indistinguishable from each other in the filesystem.",
+    "Small validation tweak at wallet creation and dump/import call sites."
+   ],
+   "reviewability": [
+    "Author is actively revising scope after maintainer feedback, latest push addressed loading concern.",
+    "Direction is still shifting, per polespinasa's broader whitespace proposal, so current diff will likely change again."
+   ],
+   "agreement": [
+    "Disputed: maflcko questions the benefit and calls it risky for near-zero gain, author still defending motivation (maflcko, vicjuma)",
+    "polespinasa proposes a wider scope (trim leading/trailing whitespace too, release notes, more tests), author agreed to rework (polespinasa, vicjuma)",
+    "achow101 gave one concrete concession, that existing wallets must still load with whitespace-only names, which the author implemented (achow101)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P4 because it prevents a cosmetic edge case, creating a wallet whose name is only whitespace, with no reported real-world user harm beyond confusion in a directory listing.",
+      "No fund-safety, data-loss, or reliability effect and no evidence anyone actually hit this problem; maflcko explicitly calls the benefit near-zero."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds a check so that RPC/tool wallet creation rejects names consisting solely of whitespace, by trimming the name (without mutating stored value) before the existing empty-name check. It touches CreateWallet, CreateFromDump, and the wallettool create path, and adds functional test coverage for the new rejection. After maintainer pushback, the author restored the ability to load pre-existing whitespace-named wallets (RestoreWallet unaffected) to avoid breaking backward compatibility.",
+  "problem": "Currently a user can create a wallet whose name is only spaces (e.g. via bitcoin-cli createwallet \"    \"), producing directories that look empty or indistinguishable from each other, which is confusing when browsing the wallets directory. This mostly affects a hypothetical/rare user who accidentally or intentionally creates such a wallet; no concrete complaint or issue is cited.",
+  "discussion": {
+   "open_concerns": [
+    "maflcko questions whether there is any real benefit and calls the change risky for pre-existing whitespace-padded names, with 'seems highly risky... so ~0 for a risky change without any benefits.'",
+    "polespinasa proposes expanding scope to also reject leading/trailing whitespace (not just whitespace-only names), require an error message change, add release notes, and add more tests, which the author agreed to implement but has not yet pushed.",
+    "maflcko additionally raises a code conflict with PR #35833 and probes for the 'real motivation' behind the whitespace-only restriction, without a clear resolution."
+   ],
+   "resolved_concerns": [
+    "achow101's concern about breaking backward compatibility for existing whitespace-only-named wallets during load/restore was addressed by the author restoring the RestoreWallet path to still allow loading such wallets."
+   ],
+   "author_status": "active, currently reworking scope per polespinasa's suggestions as of 2026-08-26"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Author reworking scope",
+   "reason": "The author explicitly agreed on 2026-08-26 to rework the PR to cover leading/trailing whitespace, change the error message, add release notes, and add more tests, per polespinasa's suggestion, but has not yet pushed that rework. Reviewing the current diff would likely be invalidated by the coming scope change."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: maflcko sees near-zero benefit and calls it risky, author and polespinasa are working toward a revised scope but no consensus reached yet.",
+   "reason": "A maintainer (maflcko) raised a substantive objection about benefit versus risk that has not been resolved, while another maintainer (polespinasa) is engaged constructively but is proposing a larger change rather than endorsing the current one.",
+   "evidence": [
+    "maflcko: 'Seems highly risky... so ~0 for a risky change without any benefits.'",
+    "achow101: 'It's reasonable to disallow such names when creating a new wallet, but still allow existing wallets to be loaded' (implemented by author).",
+    "polespinasa: proposes broader whitespace restriction, release notes, and more tests; author agreed to rework.",
+    "maflcko: notes a code conflict with #35833 and still questions the real motivation."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Nothing else depends on this; it is a standalone validation tweak."
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies wallet.cpp CreateWallet, dump.cpp CreateFromDump, and wallettool.cpp create path plus wallet functional tests; carries the Wallet label.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P4 because the change addresses a cosmetic edge case, whitespace-only wallet names causing confusing directory listings, with no fund-safety, corruption, or reliability implication. A maintainer explicitly questioned the benefit ('~0 for a risky change without any benefits') and no user or issue reports this as an actual problem encountered in practice."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the project will ultimately want any version of this restriction is unresolved; polespinasa's broader proposal could change the shape and merit of the PR substantially.",
+   "No linked issue exists, so it's unclear how much real user pain this addresses versus a hypothetical scenario the author constructed."
+  ],
+  "card": "This PR makes wallet creation (and the wallettool create path) reject names consisting solely of whitespace, by checking the trimmed name against emptiness without mutating the stored name, while keeping backward-compatible loading of pre-existing whitespace-only-named wallets after achow101's feedback. The problem is cosmetic: a whitespace-only wallet name produces directories that look empty or indistinguishable, but no issue or user report is cited and maintainer maflcko called the benefit near-zero given the risk of touching name handling. Maintainer polespinasa instead proposed a broader restriction on leading/trailing whitespace with release notes and more tests, and the author has agreed to rework the PR accordingly but has not yet pushed that revision, so review of the current diff is likely to be invalidated soon. There is also a noted code conflict with open PR #35833 (log injection prevention). Agreement is Disputed: one maintainer objects to the benefit-risk tradeoff, another is engaged but pushing for a different, larger scope, and no consensus direction has been finalized."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

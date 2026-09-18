@@ -1,0 +1,144 @@
+{
+ "number": 34374,
+ "input_hash": "15505d3c78020a06",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:21+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 23439,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2687
+ },
+ "cost_usd": 0.0276555,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Deliver structured log entries rather than formatted strings to kernel consumers",
+    "Decouple bitcoinkernel from internal node logging infrastructure"
+   ],
+   "reviewability": [
+    "Ready to review",
+    "Recent push addressed exception safety and deadlock edge cases"
+   ],
+   "agreement": [
+    "Strong support from ryanofsky for the C API redesign and decoupling",
+    "Performance and evaluation concerns from ajtowns resolved in earlier iterations",
+    "Exception and locking edge cases raised by w0xlt addressed by the author"
+   ],
+   "categories": [
+    {
+     "name": "kernel",
+     "why": [
+      "P2 because it eliminates string parsing for bitcoinkernel logging consumers",
+      "Removes node logging code from the kernel library and establishes a stable C logging struct"
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P4 because changes to util/log were previously spun out into separate PRs",
+      "The remaining diff is confined to bitcoinkernel and does not alter shared logging utilities"
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the Validation label is incidental and no validation logic or consensus rules change"
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request refactors the bitcoinkernel logging API to deliver structured log entries (btck_LogEntry) containing raw metadata and message slices instead of pre-formatted strings. It simplifies the C logging configuration to level filtering, introduces an internal KernelLogger, and drops the dependency on logging.cpp from the kernel build.",
+  "problem": "Downstream consumers of libbitcoinkernel had to parse formatted text strings to extract timestamps, source locations, log levels, and categories. In addition, the kernel library depended directly on node-specific logging machinery like logging.cpp.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "ajtowns flagged indirection overhead and argument evaluation regressions for LogInfo, leading to the removal of std::function dispatchers and the preservation of eager argument evaluation.",
+    "purpleKarrot questioned the necessity of multiple logging connections and the singleton design; the author clarified that connection scoping matches the existing API while keeping client filtering lightweight.",
+    "w0xlt identified exception-safety and lock-inversion deadlock hazards during callback registration and destruction, which the author fixed using RAII wrappers and releasing locks before user-data cleanup."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is rebased on master, passes CI, and the author actively addressed recent review feedback regarding callback exception safety."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept and approach ACK from ryanofsky; feedback from ajtowns and w0xlt addressed by author",
+   "reason": "ryanofsky strongly backed the redesign and helped disentangle base refactors, while specific correctness issues raised by ajtowns and w0xlt have been resolved in code.",
+   "evidence": [
+    "ryanofsky gave approach ACK: 'Major concept and approach ACK. This seems thoughtfully implemented to be minimally disruptive to existing code while rationalizing the kernel logging API'",
+    "ajtowns noted overhead and evaluation regressions in earlier revisions, which were addressed by reverting to eager evaluation and removing util/log indirection",
+    "w0xlt reviewed callback registration error paths, and stickies-v pushed fixes to prevent deadlocks and memory leaks"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#27587",
+    "#30342"
+   ]
+  },
+  "categories": [
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Changes the bitcoinkernel public C API (btck_LogEntry, btck_LogCallback, btck_logging_set_min_level) and removes logging.cpp from the kernel build.",
+    "band": "P2",
+    "reason_tag": "new feature",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 2,
+     "leverage": 2
+    },
+    "rationale": "Substantially improves the libbitcoinkernel public API for external consumers by providing structured metadata instead of requiring brittle string parsing. Furthermore, dropping logging.cpp moves the project closer to clean process separation by removing a major node-internal dependency from the kernel build."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "While early versions of the PR touched general utility logging in src/util/log.h, those changes were extracted into #34465; this PR only implements kernel-specific hooks.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Non-member. Utility-level changes were separated into earlier PRs, leaving this pull request entirely specific to the kernel logging implementation and C interface."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Has a Validation area label, but makes no changes to consensus rules, chainstate, block connection, or validation state.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Non-member. The PR does not alter validation invariants, consensus rules, or block execution behavior."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #34374 upgrades the libbitcoinkernel logging API from string formatting to structured log entries (btck_LogEntry) and removes the dependency on logging.cpp from the kernel library. This resolves the awkward requirement for external kernel consumers to parse timestamps, levels, and source locations out of formatted strings. The approach has strong support from ryanofsky, and earlier concerns regarding indirection overhead and locking edge cases from ajtowns and w0xlt have been resolved. The PR is clean, passes CI, and is ready for final review."
+ },
+ "raw_text": null
+}

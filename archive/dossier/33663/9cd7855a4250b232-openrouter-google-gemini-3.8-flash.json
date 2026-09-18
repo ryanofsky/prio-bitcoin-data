@@ -1,0 +1,117 @@
+{
+ "number": 33663,
+ "input_hash": "9cd7855a4250b232",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:16:55+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 21127,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3314
+ },
+ "cost_usd": 0.02827275,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Ensure address queries return the full requested quota even when many peer addresses are banned or discouraged.",
+    "Prevent address responses from leaking information about the node ban list size to network peers."
+   ],
+   "reviewability": [
+    "Review is blocked by author inactivity of over 80 days.",
+    "Recent reviewer feedback highlights missing test cases for the underfill bug fix."
+   ],
+   "agreement": [
+    "Concept supported for preventing underfill in GETADDR responses (mzumsande, frankomosh, sipa).",
+    "Nonblocking architectural objections raised over adding a custom callback policy instead of unifying address filtering (fjahr, sipa).",
+    "Alternative design question raised on whether banned addresses should simply be purged from addrman (ajtowns)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it fixes an underfill edge case in GETADDR responses and RPC queries when many peers are banned.",
+      "The fix prevents leaking ban list counts to peers but does not address an urgent stability or protocol defect."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request introduces an `AddrPolicy` predicate callback to `AddrMan::GetAddr` so callers can filter addresses during selection rather than post-processing them. In `CConnman::GetAddressesUnsafe`, this policy is used to skip banned and discouraged addresses while scanning `AddrMan`. This ensures that `GETADDR` P2P messages and the `getnodeaddresses` RPC return up to the requested number of addresses instead of underfilling.",
+  "problem": "When responding to address requests, `GetAddressesUnsafe` previously selected addresses up to the requested limit and then filtered out banned or discouraged nodes afterward. If a node has many banned or discouraged addresses, the returned list contains fewer entries than requested, which degrades address discovery and reveals that the node maintains a large ban list.",
+  "discussion": {
+   "open_concerns": [
+    "fjahr and Bicaru20 argued that passing an AddrPolicy predicate adds unnecessary complexity compared to oversampling or fully unifying all AddrMan filtering under the policy mechanism.",
+    "sipa suggested moving all filtering arguments (network, quality, caps) into the policy callback if this direction is chosen.",
+    "ajtowns suggested removing banned addresses from AddrMan directly rather than filtering them upon selection.",
+    "frankomosh pointed out that the current unit tests run with unlimited caps and do not actually verify that underfill is avoided when a policy is active."
+   ],
+   "resolved_concerns": [
+    "mzumsande noted that answering peer GETADDR queries is the primary use case, prompting updates to the PR title and description.",
+    "brunoerg and frankomosh identified missing mutation test coverage and requested diagnostics breakdown by filter type, both of which the author added."
+   ],
+   "author_status": "silent since 2026-06-26"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent",
+   "reason": "The author has been inactive for 83 days, exceeding the 60-day threshold, and recent reviewer feedback on test coverage remains unanswered."
+  },
+  "agreement": {
+   "state": "Positive w/ caveats",
+   "summary": "Concept supported, but reviewers debated architectural complexity and alternative approaches",
+   "reason": "Reviewers broadly agree on the value of returning full address quotas (mzumsande, frankomosh, sipa), but fjahr and sipa questioned the piecemeal policy design and ajtowns suggested purging banned addresses from addrman instead.",
+   "evidence": [
+    "mzumsande and frankomosh gave Concept ACKs, noting it is good to always return full address sets so peers cannot deduce ban list sizes.",
+    "sipa gave Concept ACK but suggested that all selection logic could reasonably move into the function argument if pursuing this path.",
+    "fjahr preferred a simpler oversampling approach (#34162) and argued the policy mechanism was overengineering unless generalized.",
+    "ajtowns questioned whether banned addresses should simply be removed from addrman upon banning."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies address selection and filtering in AddrMan and CConnman used for P2P GETADDR responses.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The change fixes an address selection shortfall where banned peers caused GETADDR responses to return fewer addresses than expected. As mzumsande noted, returning full sets prevents peers from learning whether a node has a large ban list. The issue is minor in severity and does not disrupt connectivity, making it a worthwhile but non-critical P2P improvement."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Changes to test files (addrman fuzz harness and addrman unit test) only verify the P2P address filtering change and do not touch test infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Does not modify testing framework machinery, fuzz harnesses broadly, or runners."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR adds an AddrPolicy callback predicate to AddrMan::GetAddr so CConnman can filter out banned and discouraged peers during selection rather than post-selection. This ensures GETADDR P2P responses and getnodeaddresses RPC calls return the full requested count instead of underfilling, preventing peers from inferring ban list sizes. While multiple reviewers Concept ACKed the intent, discussion remains divided between this approach, generalized filter refactoring, oversampling, and evicting banned peers entirely from AddrMan. Review is currently stale due to author inactivity of over 80 days."
+ },
+ "raw_text": null
+}

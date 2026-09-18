@@ -1,0 +1,103 @@
+{
+ "number": 35989,
+ "input_hash": "6f7466994ca053ae",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8381,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2995
+ },
+ "cost_usd": 0.0247623,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fixes a node crash when importing a descriptor whose range ends at 2^31-1, or when -keypool exceeds INT32_MAX.",
+    "Protects wallet users from an abort during keypool top-up that leaves a corrupted, inverted descriptor range on disk."
+   ],
+   "reviewability": [
+    "Needs rebase due to conflicts with several open wallet PRs touching the same code.",
+    "Code itself is well reviewed and tested; only mechanical rebase work remains."
+   ],
+   "agreement": [
+    "Strong support: two tested ACKs (molnard, kriss39) after reproducing the crash on master and confirming the fix, plus concept ACKs (jeanpablojp, vicjuma).",
+    "Follow-up ideas raised by molnard were explicitly deferred, not blocking (molnard).",
+    "No unresolved objections."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P1 because it fixes a reproducible node abort (assertion failure) triggered by a plausible RPC call, and the descriptor is written to disk before the crash, corrupting wallet state (author, molnard testing).",
+      "Also fixes a related undefined-behavior integer overflow in keypool top-up reachable without any import.",
+      "Related overflow work (#36245, #34861 discussion) shows this area has recurring correctness issues that this PR helps stabilize."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a node crash in the wallet's descriptor import and keypool top-up code: WalletDescriptor stores its range in int32_t with an exclusive end, but the code that computes that end uses int64_t/unsigned arithmetic with no bound check, so an inclusive range endpoint of 2^31-1 (accepted by the shared descriptor-range parser) truncates to INT32_MIN. This aborts the node via an assertion in TopUpWithDB, and the same crash occurs with no explicit range at all when -keypool exceeds INT32_MAX. The PR adds bounds checks in ProcessDescriptorImport and TopUpWithDB, and adds functional test coverage for both crash paths plus a related integer-overflow case in keypoolrefill.",
+  "problem": "Users importing a watch-only descriptor with a range ending at 2^31-1, or running with an oversized -keypool value, crash their node with an assertion failure, and the malformed descriptor is persisted to the wallet database before the crash, corrupting its on-disk range.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp asked for test coverage of the keypoolrefill overflow path; author added it in a force push.",
+    "molnard suggested a minor readability tweak to the new_range_end line; not blocking.",
+    "molnard raised several follow-up ideas (recovering already-corrupted descriptors, centralizing -keypool validation, changing TopUpWithDB's return semantics); author gave detailed responses and molnard agreed these are separate follow-ups that don't block this fix."
+   ],
+   "author_status": "active as of 2026-09-05, addressing review; PR now needs rebase due to conflicts with several other open wallet PRs"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Labeled 'Needs rebase' and mergeable_state is dirty due to conflicts with several other open wallet PRs (#36245, #36236, #35444, #35377, #34861) touching the same descriptor/keypool code. The code itself has already received substantive review and tested ACKs; a rebase is the only remaining mechanical blocker."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong: tested ACKs from molnard and kriss39 who reproduced the crash on master and confirmed the fix, plus concept ACKs from jeanpablojp and vicjuma; no unresolved objections.",
+   "reason": "Two contributors independently reproduced the reported crashes on master and verified the PR fixes them without regressing behavior, and a third contributor raised only deferred follow-up suggestions that were explicitly agreed to be non-blocking.",
+   "evidence": [
+    "molnard: 'ACK def4fb0101... Importing [2147483647,2147483647] terminated master. The PR returned error -8 and remained responsive.'",
+    "kriss39: 'tACK def4fb0101... Built and ran both tests. Also tried it by hand...'",
+    "jeanpablojp and vicjuma: Concept ACK",
+    "molnard: 'I agree with these points and think they can be handled in follow-up PRs. They don't block this fix, so this PR can be merged as is.'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Referenced by #36245 (start descriptor top-up at range_start) as related follow-up work on the same code area",
+    "polespinasa flagged another related overflow relevant to #34861 discussion, suggesting further follow-up work in this area"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "PR modifies src/wallet/rpc/backup.cpp and src/wallet/scriptpubkeyman.cpp, the descriptor import and keypool top-up code, and is labeled Wallet.",
+    "band": "P1",
+    "reason_tag": "bug fix",
+    "score": 0.85,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 3,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P1 because the bug causes the node to abort (crash) on a reproducible, plausible RPC call or startup configuration, and the malformed descriptor is persisted to disk before the crash, corrupting wallet state as confirmed by molnard's testing ('Importing [2147483647,2147483647] terminated master... The PR returned error -8 and remained responsive'). This is a reliability/fund-safety-adjacent issue: a corrupted descriptor range on disk affects the wallet's integrity, and the crash itself is a denial-of-service against the node's own operator. The fix also resolves a related integer-overflow UB in the keypoolrefill path reachable without any import."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [
+   "Whether the persisted-but-corrupted descriptor from the original bug (before this fix) needs a separate recovery/repair follow-up, as molnard and the author discussed, is unresolved but explicitly deferred.",
+   "Extent of overlap/conflict with #36245 and other open PRs touching the same code is noted but not fully assessed here."
+  ],
+  "card": "This PR fixes a reproducible node crash: importing a watch-only descriptor with a range ending at 2^31-1, or running with -keypool above INT32_MAX, causes an assertion failure in TopUpWithDB because WalletDescriptor's int32_t range_end silently truncates and inverts, and the corrupted descriptor is written to disk before the abort. It also fixes a related integer-overflow (UB) in keypool top-up reachable via keypoolrefill without any import. Two contributors (molnard, kriss39) reproduced the crash on master and confirmed the fix works, giving tested ACKs, with additional concept ACKs and only non-blocking follow-up suggestions (deferred by consensus). The PR needs a rebase due to conflicts with several other open wallet PRs touching the same descriptor/keypool code (#36245, #36236, #35444, #35377, #34861), but the code itself is well reviewed. This is a P1 wallet reliability fix: a crash plus on-disk state corruption reachable from ordinary RPC usage."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

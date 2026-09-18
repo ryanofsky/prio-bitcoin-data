@@ -1,0 +1,137 @@
+{
+ "number": 33112,
+ "input_hash": "d0a738c52c67865d",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29284,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4333
+ },
+ "cost_usd": 0.0523553,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets an external-signer wallet also hold private keys and toggle the external_signer flag after creation.",
+    "Removes constraints that blocked using an external signer alongside a hot key, needed for planned MuSig2 multisig support."
+   ],
+   "reviewability": [
+    "Ready to review, the code is stable after fixing bugs reviewers found during testing.",
+    "Author has been actively pushing fixes through September 2026; no open blocking question remains."
+   ],
+   "agreement": [
+    "Concept ACK from maintainer achow101 and several contributors, with multiple Tested/Concept ACKs after real hardware testing (naiyoma, jeanpablojp, PraneethGunas, rkrux, adyshimony).",
+    "Two hardware-signer testers (jeanpablojp, PraneethGunas) found concrete fund-safety-adjacent bugs (broken FillPSBT on toggle, hot-key signing broken) which the author fixed and they confirmed."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it removes a hard-coded constraint that blocks multisig setups combining an external signer with a hot key, a stated prerequisite for MuSig2 support (Sjors/bitcoin#91).",
+      "Review already surfaced and the author fixed real signing-correctness bugs on Ledger hardware, showing the problem space has fund-safety weight."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR relaxes constraints originally placed on external-signer wallets: disable_private_keys is no longer mandatory (though still default), and the external_signer flag becomes mutable and triggers a wallet reload when toggled. It also fixes createwallet's blank-wallet behavior for signer wallets, avoids routing signing through createTransaction for external signers (to not break the GUI), and creates the correct ScriptPubKeyMan variant immediately on descriptor import instead of requiring a reload. Test coverage is added for spending from an imported hot-key descriptor in an otherwise external-signer wallet.",
+  "problem": "The external_signer flag currently forces watch-only, private-keys-disabled wallets and cannot be changed after creation, which works for the single hardware-wallet use case but blocks multisig setups where the wallet also holds a hot key alongside an external signer, a configuration needed for the author's planned MuSig2 support (Sjors/bitcoin#91).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "jeanpablojp found that toggling the external_signer flag left stale ScriptPubKeyMans that broke walletdisplayaddress and signing; author added an automatic wallet reload on flag change to fix it.",
+    "PraneethGunas found that a hot-key descriptor in a signer wallet went straight to the (unreachable) external device and failed to sign; author added logic to sign with the wallet's own keys first and only fall back to the external signer if still unsigned, confirmed fixed by PraneethGunas.",
+    "jeanpablojp noted that setting the flag on a build without ENABLE_EXTERNAL_SIGNER left the wallet stuck; author added a compile-guard.",
+    "Multiple nits on commit messages and duplicated test helpers (rkrux, w0xlt) were addressed by the author across force-pushes.",
+    "gcc maybe-uninitialized CI failure was fixed per maflcko's suggestion using value_or(false)."
+   ],
+   "author_status": "active, last activity 2026-09-14 rebasing after a dependency merge"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No known open blocking question; the author has been actively addressing hardware-tester feedback and fixing real bugs through repeated force-pushes, most recently rebasing on 2026-09-14 after #35445 merged. Two open PRs (#36114, #35358) conflict at the file level but neither is stated as a prerequisite that would invalidate current review."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Concept ACKs from maintainer achow101 and contributors naiyoma/jeanpablojp, plus Tested ACKs from PraneethGunas and adyshimony after hands-on hardware testing; bugs found during that testing were fixed and confirmed.",
+   "reason": "Multiple reviewers engaged substantively, including hardware testing on real signer devices, and every concrete issue raised was fixed by the author with confirmation from the reporter. No standing objection remains, though achow101's ACK lacks stated rationale beyond 'Concept ACK'.",
+   "evidence": [
+    "achow101: 'Concept ACK'",
+    "naiyoma: 'Concept ACK' after reviewing and testing on bitcoin-qt",
+    "jeanpablojp: found reload/SPKM bug, confirmed fixed after author's change",
+    "PraneethGunas: found hot-key signing bug on Ledger Flex, 'Confirmed fixed... thanks', later gave ACK on specific commits",
+    "rkrux: multiple (re-)ACKs and nit reviews across the PR's history"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "MuSig2 multisig support combining hot keys and external signers (Sjors/bitcoin#91)",
+    "follow-up hardening of external-signer PSBT handling (#36114, opened by the same author as a direct outgrowth of testing done here)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Primary subject: relaxes WALLET_FLAG_EXTERNAL_SIGNER constraints, changes ExternalSignerScriptPubKeyMan and DescriptorScriptPubKeyMan creation/import logic, and CWallet flag mutability, all core wallet/fund-signing code.",
+    "band": "P2",
+    "reason_tag": "unblocks MuSig2",
+    "score": 0.62,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 3,
+     "leverage": 2
+    },
+    "rationale": "Substantial, durable value for a specific and stated future project (MuSig2 multisig with a hot key plus an external signer), described by the author as blocked without this change. Hardware testers uncovered real signing-correctness bugs during review (stale ScriptPubKeyMan after flag toggle, hot-key inputs routed to an unreachable device), both fixed, which shows genuine fund-safety stakes in this area even though the default single-signer use case is unaffected."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Touches setwalletflag/createwallet/loadwallet/unloadwallet RPC code, but only to expose wallet-specific behavior (flag mutability, reload, defaulting disable_private_keys); it does not change RPC machinery itself, per the category's wallet-first rule.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the RPC edits are wallet-behavior exposure, not changes to the RPC/HTTP/REST machinery itself."
+   },
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "Moves the duplicated mock_signer_path() helper into BitcoinTestFramework so multiple signer-related functional tests can share it, a small addition to shared test-framework capability rather than to one area's test.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "Minor, mechanical framework change: 'Both rpc_signer.py and wallet_signer.py defined identical mock_signer_path() helpers; the upcoming wallet_signer_musig2.py test needs the same helper' (commit message). It removes small duplication but has no broader payoff beyond this feature's own tests."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the two conflicting open PRs (#36114, #35358) represent a real merge-order dependency or just file overlap is not stated explicitly by any participant.",
+   "The MuSig2 test (wallet_signer_musig2.py) was dropped from this PR partway through per the author's 2026-08-28 comment, so the current diff's exact test scope for MuSig2 could not be fully verified from the provided patch.",
+   "Long PR history (411 days, 17 force-pushes) makes it hard to confirm every earlier nit is fully resolved in the latest head, though the discussion trail suggests they are."
+  ],
+  "card": "This PR relaxes hard constraints on Bitcoin Core's external_signer wallet flag: disable_private_keys is no longer mandatory, and the flag becomes mutable (triggering an automatic wallet reload), so a wallet can combine an external signer with a hot key. The stated motivation is to unblock a planned MuSig2 multisig feature (Sjors/bitcoin#91) that needs exactly this combination. During review, hardware testers (jeanpablojp, PraneethGunas) found and the author fixed real signing bugs: stale ScriptPubKeyMans after toggling the flag, and hot-key inputs incorrectly routed to an unreachable external device; both were confirmed fixed. Concept ACKs came from maintainer achow101 and contributors naiyoma and jeanpablojp, with Tested ACKs from PraneethGunas and adyshimony after live hardware testing. The PR is actively maintained (last force-push 2026-09-14) and conflicts at the file level with two other open PRs (#36114, #35358) without a stated hard dependency."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

@@ -1,0 +1,99 @@
+{
+ "number": 36156,
+ "input_hash": "b57885cc6069e5cb",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 4822,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3606
+ },
+ "cost_usd": 0.0242583,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Change BlockAssembler to include a mempool chunk when it fills the block exactly to the weight or sigops limit, since consensus allows blocks at exactly that limit.",
+    "Aimed at pool operators, closing a byte-level inefficiency in template construction."
+   ],
+   "reviewability": [
+    "Draft explicitly opened for concept feedback, code itself is a 4-line comparison change and easy to review.",
+    "But the core disagreement is whether to make this change at all, and that has not been resolved."
+   ],
+   "agreement": [
+    "Blocking objection: ajtowns argues the tiny gain (under $1 per block) is not worth the risk of an off-by-one error invalidating a block worth ~$240k, and says he is done discussing (ajtowns).",
+    "ismaelsadeeq gave a concept ACK but also flagged uncertainty about whether the surrounding weight and sigops accounting is trustworthy enough to remove the buffer.",
+    "Author has not replied to either comment in two weeks."
+   ],
+   "categories": [
+    {
+     "name": "mining",
+     "why": [
+      "P4 because the category's own guidance says benefits worth a small fraction of a block's fees, weighed against invalidity risk, rank low, and ajtowns quantifies the gain here as under 80c against a $240k subsidy.",
+      "Fixes a real inefficiency described in issue #35596 but the win is at the single-transaction, single-vbyte scale, not something a pool or user would notice."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR changes BlockAssembler's chunk-limit check from >= to > so that a mempool chunk which brings the block exactly to block_max_weight or MAX_BLOCK_SIGOPS_COST is included, matching consensus's <= semantics per BIP 141. It extends the existing chunk-limit unit test to cover the exact-equality case for both weight and sigops. The PR is a draft opened specifically to gather concept feedback before further work.",
+  "problem": "BlockAssembler currently rejects a fee-paying chunk when adding it would bring the block exactly to its weight or sigops limit, even though consensus permits blocks at exactly that limit. This leaves a small amount of block capacity and fee revenue unused, an issue raised as item 1 of #35596.",
+  "discussion": {
+   "open_concerns": [
+    "ajtowns: the potential gain (under $1 per block based on typical bottom-transaction fees) is dwarfed by the risk of an accounting off-by-one producing an invalid block and losing the entire ~$240k subsidy; he treats this as not worth doing and says he is unsubscribing from the thread.",
+    "ismaelsadeeq: concept ACK, but questions whether the underlying weight/sigops accounting is proven correct enough to remove the defensive buffer; implicitly conditions his support on that confidence."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-09-03, no response to either reviewer"
+  },
+  "reviewability": {
+   "state": "Paused",
+   "label": "Concept objection unanswered",
+   "reason": "ajtowns raised a substantive objection that the tiny benefit does not justify the risk of shipping an invalid block, and the author has not responded in 13 days despite the PR being flagged specifically for concept review; the small code diff itself is trivial to review but reviewing it now would not settle the actual disagreement."
+  },
+  "agreement": {
+   "state": "Blocked",
+   "summary": "Blocked: ajtowns argues the fix's benefit is negligible against the risk of invalidating a block; author has not replied (ajtowns, ismaelsadeeq concept-ACKed with a caveat).",
+   "reason": "A reviewer raised a concrete harm (risk of producing an invalid block for near-zero benefit) framed as not worth doing, and the author has given no response for well over the waiting threshold. The other reviewer's concept ACK is conditional on accounting confidence that has not been established.",
+   "evidence": [
+    "ajtowns: benefit is 'less than 80c per block' versus '$240k' subsidy risk if a mistake invalidates the block",
+    "ismaelsadeeq: 'Concept ACK... if we are confident that our accounting of weight and sigops is correct without this PR' then it's okay, implying otherwise it may not be",
+    "ajtowns: 'I've said my piece, I'll unsubscribe' with no author reply since"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Progress on issue #35596 (BlockAssembler underfill), item 1 of several listed there"
+   ]
+  },
+  "categories": [
+   {
+    "name": "mining",
+    "member": true,
+    "evidence": "Directly modifies BlockAssembler's chunk acceptance logic in src/node/miner.cpp, labeled Mining, and referenced against issue #35596 about block assembler underfill.",
+    "band": "P4",
+    "reason_tag": "marginal edge case",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P4 because the category file explicitly says changes whose benefit is a small fraction of a block's fees, weighed against invalidity risk, rank low, and this is exactly that case: ajtowns quantifies the upside as under $1 per block against risking the entire subsidy on an accounting mistake. The fix does address a real inequality-vs-consensus mismatch (#35596), but the magnitude is a single vbyte or a few sigops, not a meaningful capacity or revenue gain."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the underlying weight/sigops accounting that this change depends on for safety has been independently verified, which is the crux of ismaelsadeeq's conditional support.",
+   "Whether the author intends to respond to ajtowns's cost-benefit objection or will let the PR stall as a draft indefinitely."
+  ],
+  "card": "This draft PR flips two >= comparisons to > in BlockAssembler so that a chunk which fills the block exactly to its weight or sigops limit is included, matching BIP 141's <= consensus semantics, and adds tests for the equality case; it addresses item 1 of issue #35596. The problem it fixes is real but tiny: ajtowns estimates the benefit at under $1 per block in extra fees, and argues this is not worth the risk of an accounting off-by-one producing an invalid block and forfeiting the ~$240k subsidy, a concern the author has not answered in two weeks. ismaelsadeeq gave a concept ACK but conditioned it on confidence in the surrounding weight/sigops accounting, which was not established in the thread. The PR was opened specifically to gather concept feedback before further work, and that concept question is exactly where it is currently stuck. No dependencies block it, and it modestly furthers the broader #35596 underfill cleanup."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

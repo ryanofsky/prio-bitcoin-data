@@ -1,0 +1,658 @@
+{
+ "number": 28690,
+ "input_hash": "d70d2b8d6b93d4bc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:17:37+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 85138,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 11476
+ },
+ "cost_usd": 0.1068885,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Introduce an internal static library target for the kernel and isolate its utility dependencies",
+    "De-duplicate kernel source lists in the build system and prevent non-kernel code leakage into the kernel"
+   ],
+   "reviewability": [
+    "Ready",
+    "All CI jobs pass and recent feedback has been addressed with fresh ACKs"
+   ],
+   "agreement": [
+    "Strong support across numerous reviewers and maintainers (hebasto, ryanofsky, janb84, yuvicc, w0xlt)",
+    "Design questions regarding library topology and utility splitting were discussed and resolved without blocking (ajtowns, ryanofsky)",
+    "Concept approvals and build verifications across platforms including Guix and iOS (Sjors, janb84)"
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it improves CMake target structure by modularizing internal kernel sources",
+      "Removes manual source-list duplication across kernel and node build targets"
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": [
+      "P3 because it formalizes the internal static library boundary for libbitcoinkernel",
+      "Separates minimal kernel utilities from general node utilities to guard against layer violations"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR introduces an internal `libbitcoin_kernel` static library target and a companion `bitcoin_util_kernel` target containing only the utility modules needed by the kernel. The external `libbitcoinkernel` shared library is updated to re-use source lists from these internal static targets rather than maintaining an independent list of sources. It also updates dependency-checking scripts and documentation to reflect the new library boundaries.",
+  "problem": "Currently, `libbitcoinkernel` manually duplicates a large list of source files also compiled for `bitcoind` and `bitcoin_node`, making build configurations prone to drift. Additionally, the broad `util` library pulls in unnecessary dependencies (like socket and process execution helpers) that the kernel should not rely on.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Redundant linkage of `bitcoin_kernel` to `bitcoin-cli` and `bitcoin-wallet` was pointed out by achow101 and removed by the author.",
+    "Concerns around introducing additional utility libraries versus migrating unused utilities to `common` were raised by ryanofsky and ajtowns; author provided rationale around build-time boundary enforcement, updated documentation, and reviewers did not push back.",
+    "Missing dependency allowances in `contrib/devtools/check-deps.sh` and documentation in `doc/design/libraries.md` were flagged by ajtowns and resolved in subsequent pushes.",
+    "CMake configuration error when cross-compiling without Boost headers was reported by maflcko and resolved using `TARGET_NAME_IF_EXISTS`."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The PR is clean against master, passes CI, and latest commits have received multiple re-ACKs."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "hebasto",
+     "stance": "objection",
+     "note": "raised circular dependency between crypto and util, later Approach ACKed"
+    },
+    {
+     "login": "stickies-v",
+     "stance": "support",
+     "note": "Concept ACK and prepared PR review club notes"
+    },
+    {
+     "login": "theuni",
+     "stance": "support",
+     "note": "Concept ACK on standalone library decoupling"
+    },
+    {
+     "login": "kashifs",
+     "stance": "support",
+     "note": "Concept ACK after reviewing design"
+    },
+    {
+     "login": "ryanofsky",
+     "stance": "objection",
+     "note": "code review ACKed earlier, later raised header layering and library topology concerns"
+    },
+    {
+     "login": "maflcko",
+     "stance": "objection",
+     "note": "reported CI build failure on Boost headers, which author fixed"
+    },
+    {
+     "login": "pablomartin4btc",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "ismaelsadeeq",
+     "stance": "support",
+     "note": "Concept ACK"
+    },
+    {
+     "login": "fanquake",
+     "stance": "neutral",
+     "note": "Discussed clientversion usage in util CMake targets"
+    },
+    {
+     "login": "yuvicc",
+     "stance": "support",
+     "note": "Tested and re-ACKed latest revisions"
+    },
+    {
+     "login": "janb84",
+     "stance": "support",
+     "note": "Tested Guix builds across multiple architectures and repeatedly ACKed"
+    },
+    {
+     "login": "Sjors",
+     "stance": "support",
+     "note": "Concept ACK, tested integration with iOS experimental kernel app"
+    },
+    {
+     "login": "BrandonOdiwuor",
+     "stance": "support",
+     "note": "Approach ACK, verified CMake build targets"
+    },
+    {
+     "login": "achow101",
+     "stance": "objection",
+     "note": "questioned unnecessary kernel linkage in bitcoin-cli and bitcoin-wallet"
+    },
+    {
+     "login": "ajtowns",
+     "stance": "objection",
+     "note": "Objected to library sprawl and questioned dependency direction from wallet/common to kernel"
+    },
+    {
+     "login": "w0xlt",
+     "stance": "objection",
+     "note": "pointed out CMAKE_SOURCE_DIR issue for subprojects and extraneous files, then ACKed"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "ajtowns",
+     "kind": "approach",
+     "harm": "Adds another library to the existing menagerie and creates dependency edges from common and wallet into the kernel",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-04-27: 'Should be updating the design doc, and it would be nicer if this was reducing the complexity of all our libraries rather than adding another one to menagerie... Adding deps from common/util/wallet to the kernel seems backwards to me.'",
+     "resolution_evidence": "2026-04-28: author updated libraries.md and check-deps, explained rationale regarding policy dependencies, and ajtowns did not object further",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "achow101",
+     "kind": "interface",
+     "harm": "Unnecessary linking of kernel target into bitcoin-cli and bitcoin-wallet",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-03-30: 'I would be surprised if bitcoin-cli needed to be linked with the kernel. It appears to build without this.'",
+     "resolution_evidence": "2026-04-22: 'dropped left over kernel library links where they are no longer needed.'",
+     "sources": [
+      "dossier",
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "hebasto",
+     "kind": "correctness",
+     "harm": "circular dependency between libbitcoin_crypto and libbitcoin_util on memory_cleanse",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2023-10-27: 'There still exist a circle dependency between libbitcoin_crypto and libbitcoin_util. In particular, the former depends on the memory_cleanse symbol.'",
+     "resolution_evidence": "2023-10-30: 'Addressed @hebasto's comment, moved cleanse files to crypto library.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "ryanofsky",
+     "kind": "correctness",
+     "harm": "layering violation where a util header depends on a common header",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2023-12-05: 'It seems like a bug to have a util header depending on a common header.'",
+     "resolution_evidence": "2023-12-06: 'Addressed @ryanofsky's comment, undo changes to the spanparsing module.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "maflcko",
+     "kind": "correctness",
+     "harm": "CI build failure during CMake generation due to missing Boost::headers target for bitcoin_kernel",
+     "blocking": true,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-09: 'CMake Error at src/CMakeLists.txt:127 (target_link_libraries): Target \"bitcoin_kernel\" links to: Boost::headers but the target was not found.'",
+     "resolution_evidence": "2026-07-09: 'Fixed previously silent merge conflict.'",
+     "sources": [
+      "thread"
+     ]
+    },
+    {
+     "reviewer": "w0xlt",
+     "kind": "correctness",
+     "harm": "CMAKE_SOURCE_DIR breaks builds when Bitcoin Core is used as a CMake subproject",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": true,
+     "status": "resolved",
+     "evidence": "2026-07-21: 'Would PROJECT_SOURCE_DIR be more appropriate here? When Bitcoin Core is used as a subproject, CMAKE_SOURCE_DIR points to the parent project\u2019s source directory.'",
+     "resolution_evidence": "2026-07-22: 'switched to PROJECT_SOURCE_DIR.'",
+     "sources": [
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "janb84",
+     "reason": "Verified reproducible Guix builds across architectures and approved the CMake refactoring",
+     "substantive": true
+    },
+    {
+     "reviewer": "w0xlt",
+     "reason": "Reviewed CMake source properties, proposed improvements, and verified builds",
+     "substantive": true
+    },
+    {
+     "reviewer": "yuvicc",
+     "reason": "Tested and re-ACKed the CMake target split and cleanup",
+     "substantive": true
+    },
+    {
+     "reviewer": "BrandonOdiwuor",
+     "reason": "Verified CMake build targets and source reuse for external shared library",
+     "substantive": true
+    },
+    {
+     "reviewer": "Sjors",
+     "reason": "Tested kernel API bindings against an external iOS application",
+     "substantive": true
+    },
+    {
+     "reviewer": "hebasto",
+     "reason": "tested undefined symbols in libbitcoin_util and Approach ACKed",
+     "substantive": true
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong consensus with multiple ACKs; design questions by ajtowns and ryanofsky were addressed and settled.",
+   "reason": "The PR has substantial review from 16 contributors over an extended period, multiple tested ACKs on recent head revisions, and all technical suggestions have been addressed.",
+   "evidence": [
+    "janb84 and yuvicc provided explicit re-ACKs on recent commits",
+    "w0xlt verified CMake targets and provided re-ACK",
+    "Earlier topology questions from ajtowns were answered and accompanied by doc and script updates"
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (janb84, w0xlt, yuvicc, BrandonOdiwuor, Sjors, hebasto)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "hebasto",
+      "kind": "correctness",
+      "harm": "circular dependency between libbitcoin_crypto and libbitcoin_util on memory_cleanse",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2023-10-27: 'There still exist a circle dependency between libbitcoin_crypto and libbitcoin_util. In particular, the former depends on the memory_cleanse symbol.'",
+      "resolution_evidence": "2023-10-30: 'Addressed @hebasto's comment, moved cleanse files to crypto library.'"
+     },
+     {
+      "reviewer": "ryanofsky",
+      "kind": "correctness",
+      "harm": "layering violation where a util header depends on a common header",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2023-12-05: 'It seems like a bug to have a util header depending on a common header.'",
+      "resolution_evidence": "2023-12-06: 'Addressed @ryanofsky's comment, undo changes to the spanparsing module.'"
+     },
+     {
+      "reviewer": "achow101",
+      "kind": "interface",
+      "harm": "unnecessary linkage of the kernel library to bitcoin-cli and bitcoin-wallet",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-03-30: 'I would be surprised if bitcoin-cli needed to be linked with the kernel. It appears to build without this.'",
+      "resolution_evidence": "2026-04-22: 'dropped left over kernel library links where they are no longer needed.'"
+     },
+     {
+      "reviewer": "ajtowns",
+      "kind": "correctness",
+      "harm": "check-deps.sh fails with errors and design doc is out of sync with new dependencies",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-04-27: 'I think you should be updating check-deps.sh as well. It shows up a lot of errors.'",
+      "resolution_evidence": "2026-04-27: 'updated doc/design/libraries.md... updated check-deps with kernel library deps.'"
+     },
+     {
+      "reviewer": "maflcko",
+      "kind": "correctness",
+      "harm": "CI build failure during CMake generation due to missing Boost::headers target for bitcoin_kernel",
+      "blocking": true,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-09: 'CMake Error at src/CMakeLists.txt:127 (target_link_libraries): Target \"bitcoin_kernel\" links to: Boost::headers but the target was not found.'",
+      "resolution_evidence": "2026-07-09: 'Fixed previously silent merge conflict.'"
+     },
+     {
+      "reviewer": "w0xlt",
+      "kind": "correctness",
+      "harm": "CMAKE_SOURCE_DIR breaks builds when Bitcoin Core is used as a CMake subproject",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-07-21: 'Would PROJECT_SOURCE_DIR be more appropriate here? When Bitcoin Core is used as a subproject, CMAKE_SOURCE_DIR points to the parent project\u2019s source directory.'",
+      "resolution_evidence": "2026-07-22: 'switched to PROJECT_SOURCE_DIR.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "janb84",
+      "reason": "tested multiple architectures with Guix and verified symbol exports with REDUCE_EXPORTS=ON",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "tested integration with a PoC iOS app using libbitcoinkernel API bindings",
+      "substantive": true
+     },
+     {
+      "reviewer": "BrandonOdiwuor",
+      "reason": "verified CMake targets for shared and static kernel libraries on Ubuntu",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "reviewed CMake setup and re-ACKed after cleanup of unused modules",
+      "substantive": true
+     },
+     {
+      "reviewer": "yuvicc",
+      "reason": "reviewed and confirmed alignment of the internal library design",
+      "substantive": true
+     },
+     {
+      "reviewer": "hebasto",
+      "reason": "tested undefined symbols in libbitcoin_util and Approach ACKed",
+      "substantive": true
+     }
+    ],
+    "participants": [
+     {
+      "login": "hebasto",
+      "stance": "objection",
+      "note": "raised circular dependency between crypto and util, later Approach ACKed"
+     },
+     {
+      "login": "stickies-v",
+      "stance": "support",
+      "note": "Concept ACK and prepared review club notes"
+     },
+     {
+      "login": "theuni",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "kashifs",
+      "stance": "support",
+      "note": "Concept ACK in preparation for review club"
+     },
+     {
+      "login": "ryanofsky",
+      "stance": "objection",
+      "note": "code review ACKed earlier, later raised header layering and library topology concerns"
+     },
+     {
+      "login": "maflcko",
+      "stance": "objection",
+      "note": "reported CI build failure on Boost headers, which author fixed"
+     },
+     {
+      "login": "pablomartin4btc",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "ismaelsadeeq",
+      "stance": "support",
+      "note": "Concept ACK"
+     },
+     {
+      "login": "fanquake",
+      "stance": "neutral",
+      "note": "suggested dropping clientversion from util"
+     },
+     {
+      "login": "yuvicc",
+      "stance": "support",
+      "note": "Concept ACK and re-ACKed latest revisions"
+     },
+     {
+      "login": "janb84",
+      "stance": "support",
+      "note": "ACKed and tested with Guix builds and symbol export checks"
+     },
+     {
+      "login": "Sjors",
+      "stance": "support",
+      "note": "Concept ACK and tested against PoC iOS app using kernel API"
+     },
+     {
+      "login": "BrandonOdiwuor",
+      "stance": "support",
+      "note": "Approach ACK after testing CMake build targets"
+     },
+     {
+      "login": "achow101",
+      "stance": "objection",
+      "note": "questioned unnecessary kernel linkage in bitcoin-cli and bitcoin-wallet"
+     },
+     {
+      "login": "ajtowns",
+      "stance": "objection",
+      "note": "pointed out check-deps failures, design doc inconsistencies, and discussed library structure"
+     },
+     {
+      "login": "w0xlt",
+      "stance": "objection",
+      "note": "pointed out CMAKE_SOURCE_DIR issue for subprojects and extraneous files, then ACKed"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: multiple reviewers tested and ACKed; build, CMake, and dependency issues raised were resolved.",
+    "usage": {
+     "input_tokens": 34250,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 5529
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "ajtowns",
+      "kind": "approach",
+      "harm": "Adds another library to the existing menagerie and creates dependency edges from common and wallet into the kernel",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-04-27: 'Should be updating the design doc, and it would be nicer if this was reducing the complexity of all our libraries rather than adding another one to menagerie... Adding deps from common/util/wallet to the kernel seems backwards to me.'",
+      "resolution_evidence": "2026-04-28: author updated libraries.md and check-deps, explained rationale regarding policy dependencies, and ajtowns did not object further"
+     },
+     {
+      "reviewer": "achow101",
+      "kind": "interface",
+      "harm": "Unnecessary linking of kernel target into bitcoin-cli and bitcoin-wallet",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": true,
+      "status": "resolved",
+      "evidence": "2026-03-30: 'I would be surprised if bitcoin-cli needed to be linked with the kernel. It appears to build without this.'",
+      "resolution_evidence": "2026-04-22: 'dropped left over kernel library links where they are no longer needed.'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "janb84",
+      "reason": "Verified reproducible Guix builds across architectures and approved the CMake refactoring",
+      "substantive": true
+     },
+     {
+      "reviewer": "w0xlt",
+      "reason": "Reviewed CMake source properties, proposed improvements, and verified builds",
+      "substantive": true
+     },
+     {
+      "reviewer": "yuvicc",
+      "reason": "Tested and re-ACKed the CMake target split and cleanup",
+      "substantive": true
+     },
+     {
+      "reviewer": "BrandonOdiwuor",
+      "reason": "Verified CMake build targets and source reuse for external shared library",
+      "substantive": true
+     },
+     {
+      "reviewer": "Sjors",
+      "reason": "Tested kernel API bindings against an external iOS application",
+      "substantive": true
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Enables future decoupling of mempool and validation from node internals"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Modifies CMakeLists.txt across src, kernel, and util, and updates contrib/devtools/check-deps.sh",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "It reorganizes internal static library targets and de-duplicates source lists between external and internal targets, reducing CMake maintenance friction."
+   },
+   {
+    "name": "kernel",
+    "member": true,
+    "evidence": "Introduces libbitcoin_kernel internal library and separates kernel utility dependencies",
+    "band": "P3",
+    "reason_tag": "decoupling",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 2
+    },
+    "rationale": "As stated by the author, 'this is more about establishing a moat to prevent new entanglements on the build system level.' It solidifies the boundary around the kernel but provides internal architectural cleanup rather than direct new user-facing functionality."
+   },
+   {
+    "name": "docs",
+    "member": false,
+    "evidence": "Documentation updates in doc/design/libraries.md merely document the code and build system changes in this PR.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Only minor CI/sanitizer adjustments were touched during development.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "tools",
+    "member": false,
+    "evidence": "Touches contrib/devtools/check-deps.sh to update the whitelist of permitted library dependencies.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Touches src/util/CMakeLists.txt to split target definitions, but does not alter general utility logic or APIs.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Changes in src/wallet/CMakeLists.txt are mechanical build adjustments following the target splits.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": ""
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR introduces the internal static library target `libbitcoin_kernel` alongside `bitcoin_util_kernel`, formalizing the CMake build boundaries for the libbitcoinkernel project. It eliminates duplication between the internal source lists and the external shared library target, while restricting kernel code from accessing non-kernel utilities like sockets and process execution. The PR has gathered broad review and multiple ACKs across several years of development, with all major topology and interface concerns resolved."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.04642125
+}

@@ -1,0 +1,114 @@
+{
+ "number": 34603,
+ "input_hash": "123a484055320da7",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8579,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3590
+ },
+ "cost_usd": 0.0279353,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix Windows-specific bug where the wallet fails to detect symlinks and reparse points",
+    "Prevents wallet directory scans from recursing into symlinked directories and mis-validating wallet paths on Windows"
+   ],
+   "reviewability": [
+    "Ready to review, code has been through several rounds and is approved",
+    "Author has not pushed or commented in over 100 days, though the last reviewer activity is a recent utACK"
+   ],
+   "agreement": [
+    "Strong support: sedited gave a utACK after review, calling the change fine (sedited)",
+    "Earlier design questions from hebasto, luke-jr, and fanquake about junctions, reparse tags, and double-checking symlinks were all addressed by author pushes",
+    "No open objections remain, sedited's only suggestion was a documentation nit (sedited)"
+   ],
+   "categories": []
+  },
+  "summary": "This PR adds an IsSymlink helper that correctly detects symlinks and reparse points on Windows, since GCC's libstdc++ does not implement symlink detection there. It updates the wallet's ListDatabases to avoid recursing into symlinked directories on Windows and updates GetWalletPath to reject symlinked wallet files/directories on Windows, matching Linux/macOS behavior. The final commit re-enables the previously-skipped Windows symlink tests in wallet_multiwallet.py so the behavior is verified cross-platform. It builds on the Windows CI/test changes from #34418.",
+  "problem": "On Windows, GCC's standard library cannot detect symlinks or reparse points, so wallet directory scanning could recurse into symlinked directories and wallet path validation could fail to reject symlinked wallet files, unlike on Linux/macOS. This is a correctness gap affecting Windows users of the wallet, whose behavior silently diverges from other platforms.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "fanquake/hebasto asked whether this also matters for LLVM/clang-cl builds; hebasto clarified std::filesystem::is_symlink works there except for junctions, resolved by discussion",
+    "hebasto suggested checking reparse point tag values; author explained no tag value is one they want to recurse into, accepted",
+    "luke-jr asked about overriding fs::is_symlink directly; author explained rationale for not doing so, accepted",
+    "luke-jr pointed out IsSymlink called twice and a redundant check in wallet.cpp; author fixed both in later pushes",
+    "maflcko gave minor spelling/capitalization nits; author fixed"
+   ],
+   "author_status": "silent since 2026-05-26 (113 days), but PR was already approved by sedited on 2026-06-07 after the last author push"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 113 days",
+   "reason": "All raised review comments were addressed in prior pushes and sedited gave a utACK, but the author has had no activity for 113 days, exceeding the 60-day stale threshold, so mechanical staleness applies even though no material request is outstanding."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "sedited gave a utACK finding the changes fine, and all earlier design questions from hebasto, luke-jr, and fanquake were addressed with no remaining objections.",
+   "reason": "One reviewer explicitly supports the change with a stated review outcome (utACK) and multiple other reviewers' concerns were resolved via discussion and code changes, with nobody currently objecting.",
+   "evidence": [
+    "sedited: 'The changes seem fine to me' with utACK approval",
+    "hebasto raised junction/reparse-tag questions, resolved by author's explanation",
+    "luke-jr raised double-check and override questions, resolved by author's fixes and explanation",
+    "maflcko's nits fixed by author"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    34418
+   ],
+   "enables": [
+    "Full re-enablement of Windows symlink tests in wallet_multiwallet.py",
+    "Cleaner path for #31507 (clang-cl native Windows build) since symlink detection is now consistent"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly modifies wallet/db.cpp ListDatabases and wallet/wallet.cpp GetWalletPath to correctly detect and handle symlinks on Windows, plus wallet_multiwallet.py test updates.",
+    "band": "P2",
+    "reason_tag": "platform fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real correctness gap where Windows wallet path validation and directory scanning could not detect symlinks/reparse points, unlike Linux/macOS, per the description: 'GCC doesn't support symlinks on Windows.' This affects wallet users on a supported platform but is not a fund-loss or consensus issue, so it lands as a solid platform bug fix rather than category-critical."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "Adds a new IsSymlink primitive to src/util/fs_helpers.cpp/h that wraps Windows-specific file attribute checks alongside std::filesystem::is_symlink.",
+    "band": "P3",
+    "reason_tag": "platform fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "A correctness-focused addition to a shared filesystem helper, judged on its own terms per the utils rubric, but its current consumer is narrowly the wallet directory scan and path validation, not a broad cross-cutting primitive yet. hebasto's review noted the function also returns true for non-symlink reparse points (e.g. OneDrive mounts), a documented tradeoff rather than a defect."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether other Windows build configurations (clang-cl vs MinGW) behave identically was raised by fanquake/hebasto but not fully settled in the discussion, though it did not block the ACK.",
+   "Long author silence (113 days) is unusual for a PR that already received a utACK; unclear if a maintainer will merge without further author confirmation."
+  ],
+  "card": "This PR adds an IsSymlink helper for Windows, since GCC's standard library cannot detect Windows symlinks or reparse points, and uses it in the wallet's ListDatabases and GetWalletPath to correctly avoid recursing symlinked directories and reject symlinked wallet paths, matching Linux/macOS behavior. It also re-enables previously-skipped Windows symlink tests in wallet_multiwallet.py. The problem is a real behavioral gap for Windows wallet users, not a security-critical or fund-loss issue. Review activity was substantial: hebasto, luke-jr, fanquake, and maflcko raised design and nit questions, all resolved by author pushes, and sedited gave a utACK. The author has been silent for 113 days since the last push, though that silence came after the ACK, so nothing material is pending; it depends on the merged #34418 for its CI/test groundwork."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

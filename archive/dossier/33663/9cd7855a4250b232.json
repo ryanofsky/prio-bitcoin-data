@@ -1,0 +1,129 @@
+{
+ "number": 33663,
+ "input_hash": "9cd7855a4250b232",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 17599,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4706
+ },
+ "cost_usd": 0.042535300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Fix addrman so GETADDR and getnodeaddresses return the full number of addresses requested even when many known peers are banned or discouraged.",
+    "Currently, filtering banned/discouraged peers after selection can silently underfill responses, leaking information about ban list size and reducing peer discovery quality."
+   ],
+   "reviewability": [
+    "Stale: author has not responded in the PR for 83 days despite unresolved review comments from September 2026 about test gaps found via mutation testing.",
+    "Code itself has been through many review rounds and force-pushes; a fresh look would need the author to address the latest correctness gaps in the tests."
+   ],
+   "agreement": [
+    "Concept ACKs from several reviewers (mzumsande, frankomosh, sipa) that filtering during selection is the right direction.",
+    "fjahr disputes the approach as overengineered relative to a simpler fix and implemented a rival PR (#34162); dispute never resolved (fjahr, waketraindev).",
+    "frankomosh's mutation-testing review shows the added tests don't actually catch reintroduction of the underfill bug, unaddressed due to author silence (frankomosh)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it fixes a real correctness bug where GETADDR/getnodeaddresses can return fewer addresses than requested when many peers are banned, which mzumsande confirmed affects P2P responses and can leak information about ban-list size.",
+      "Impact is bounded: it affects address discovery completeness rather than DoS resistance or consensus, and a simpler competing fix (#34162) exists with comparable real-world adequacy per fjahr's own benchmarks."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the added and fuzz tests exist to pin the behavior of the p2p/addrman fix itself, not to improve shared test infrastructure."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR adds an AddrMan::AddrPolicy predicate that lets callers exclude addresses during selection itself, rather than filtering results afterward. It is used in CConnman::GetAddressesUnsafe to skip banned/discouraged peers while selecting, so GETADDR and getnodeaddresses responses reach the requested count instead of being underfilled. It also adds diagnostic logging of filtered counts and unit/fuzz test coverage.",
+  "problem": "Previously, banned or discouraged addresses were removed from the result after selection, so if a large fraction of addrman was banned, GetAddressesUnsafe could return fewer addresses than requested. This affects P2P GETADDR responses to peers and the getnodeaddresses RPC, and can also leak information about the size of the node's ban list, per mzumsande's review.",
+  "discussion": {
+   "open_concerns": [
+    "fjahr argues the AddrPolicy abstraction is unnecessary complexity for this narrow fix and proposed a simpler alternative (#34162: overshoot-and-trim), and implemented it as a competing PR when the author declined to generalize.",
+    "sipa suggested going further and folding all selection logic (max_addresses, max_pct, filtered) into the policy argument; not implemented.",
+    "frankomosh's latest review (2026-09-15) shows via mutation testing that the current unit tests don't actually verify the no-underfill fix (a mutant that reintroduces underfilling survives), and proposed a fix; unaddressed.",
+    "fjahr also raised that the separate per-reason filter counters are order-dependent and potentially misleading; unaddressed in latest push.",
+    "ajtowns raised a broader question of whether banned addresses should be purged from addrman entirely, which would change the shape of the fix; discussion inconclusive."
+   ],
+   "resolved_concerns": [
+    "mzumsande's initial request to clarify PR description to emphasize P2P GETADDR impact over RPC was addressed by the author.",
+    "brunoerg's initial test-coverage request was addressed with added addrman_tests and fuzz coverage.",
+    "Lock-ordering safety of calling BanMan under AddrMan::cs was discussed at length; author clarified and documented the lock order (AddrMan::cs -> m_banned_mutex), and frankomosh acknowledged this."
+   ],
+   "author_status": "silent since 2026-06-26 (about 83 days), leaving frankomosh's September test-coverage critique and fjahr's design objection unanswered"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Author silent 83d",
+   "reason": "No author activity since 2026-06-26 (83 days), exceeding the stale threshold, while a concrete correctness gap in the tests (found via mutation testing by frankomosh on 2026-09-15) remains unaddressed."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Concept ACKs from mzumsande, frankomosh, and sipa, but fjahr disputes the approach as overengineered and built a rival simpler PR (#34162); the disagreement was never resolved.",
+   "reason": "Multiple reviewers like the direction of filtering during selection, but fjahr raised a sustained, substantive objection that the AddrPolicy abstraction is unnecessary given a simpler overshoot-and-trim fix, and when the author declined to broaden or simplify the design, fjahr implemented and pushed the alternative as a competing PR instead of continuing on this one. Separately, frankomosh's most recent review found the tests don't actually catch reintroduction of the bug this PR fixes, which is unaddressed due to author silence.",
+   "evidence": [
+    "mzumsande: 'Concept ACK... it seems good to always try to return 1000 addresses'",
+    "frankomosh: 'Still concept ack, I think filtering during selection is good approach'",
+    "sipa: 'Concept ACK. But if we're going this direction, I think we could reasonably move all selection logic into the function argument'",
+    "fjahr: 'It appears you aren't interested in addressing the rest of my comments... I have implemented my suggested approach in #34162 instead'",
+    "frankomosh (2026-09-15): tests 'only check that the policy excludes the right addresses, and not that a filtered request still returns what was asked for, which I think is what the PR is for', with a mutant that survives"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Changes AddrMan selection logic and CConnman::GetAddressesUnsafe, directly affecting GETADDR and getnodeaddresses behavior, and carries the P2P label.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes a real correctness/liveness issue: address responses can be silently underfilled when large portions of addrman are banned, as confirmed by mzumsande and demonstrated in the author's repro. Impact is moderate and bounded to address discovery completeness rather than consensus or DoS resistance, and a simpler rival fix (#34162) shows the problem is solvable with much less new surface area, per fjahr's own benchmark showing comparable real-world performance for the alternative."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added unit and fuzz tests exist solely to pin the behavior of this p2p/addrman change; per the category definition, tests for one area's behavior belong to that area, not to the test-infrastructure category.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: no changes to test framework, fuzzing harness capability, or CI machinery itself."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the rival PR #34162 will supersede this one and make this PR moot is unclear; the discussion explicitly frames them as alternative solutions to the same problem.",
+   "Whether ajtowns's suggestion to purge banned addresses from addrman entirely would change the preferred fix was left open and could affect how this PR should proceed.",
+   "No explicit maintainer decision on which approach (AddrPolicy vs overshoot-and-trim) the project prefers."
+  ],
+  "card": "This PR adds an AddrMan::AddrPolicy predicate so addrman can skip banned/discouraged addresses during selection itself, fixing a bug where GETADDR and getnodeaddresses responses could return fewer addresses than requested when a large fraction of addrman is banned (confirmed by mzumsande as a real P2P and privacy-relevant issue: peers could infer ban-list size from a short reply). Concept ACKs came from mzumsande, frankomosh, and sipa, but fjahr argued the added AddrPolicy abstraction is overengineered relative to a simpler overshoot-and-trim fix and, after the author declined to generalize the design, implemented and pushed the alternative as a competing open PR (#34162), leaving the two PRs in direct rivalry over the same problem. The author has been silent for about 83 days, during which frankomosh used mutation testing to show the current unit tests do not actually catch reintroduction of the underfill bug they claim to guard against. The PR is otherwise mergeable and CI-clean, but review time here risks being superseded by the sibling PR or wasted on tests that need further hardening."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

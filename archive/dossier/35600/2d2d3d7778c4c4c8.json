@@ -1,0 +1,116 @@
+{
+ "number": 35600,
+ "input_hash": "2d2d3d7778c4c4c8",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 6560,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2494
+ },
+ "cost_usd": 0.0204363,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent -connect and -addnode from racing to open duplicate manual connections to the same peer at startup."
+   ],
+   "reviewability": [
+    "Ready for review now.",
+    "No open code-review questions, just two concept ACKs so far."
+   ],
+   "agreement": [
+    "Two concept ACKs with no objections (sedited, w0xlt).",
+    "No one has raised a code-level concern yet."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it fixes a real but narrow startup race where -connect and -addnode can open two sockets to the same manual peer, wasting a connection slot.",
+      "Not a remote-attacker DoS vector, just a self-inflicted duplication bug affecting node operators who configure both flags for the same address."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member: the added functional test pins behavior specific to p2p manual-connection handling, which the tests category explicitly assigns to its owning area instead."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR closes a race in Bitcoin Core's connection manager where concurrent -connect and -addnode attempts at startup can both pass the existing duplicate-connection checks (which only see peers already in m_nodes) and open two sockets to the same manual peer. It fixes this by reserving a normalized destination key in OpenNetworkConnection() before dialing, releasing the reservation on failure or once the node is published to m_nodes. The fix is scoped to ConnectionType::MANUAL only, and a new functional test (p2p_duplicate_manual_connections.py) reproduces the startup race and fails without the fix. This is a rework (\"take 2\") of a previously closed approach (#27804) that de-duplicated CLI arguments instead of tracking in-flight attempts.",
+  "problem": "Node operators who configure the same peer via both -connect and -addnode (or trigger overlapping manual reconnection/RPC connection attempts) can end up with duplicate outbound connections to that peer, wasting a connection slot and potentially confusing peer accounting, because the existing dedup logic only checks already-established peers.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [],
+   "author_status": "active as of 2026-07-25 force-push; no unresolved reviewer requests since"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No material review comments are open; only two concept ACKs have been given, and there is no known blocker to invalidate a code review now."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Two concept ACKs (sedited, w0xlt) with no objections, but neither elaborated a specific rationale so it falls short of Strong.",
+   "reason": "No criticism or NACK has been raised; support so far is generic concept-level agreement without detailed code review.",
+   "evidence": [
+    "sedited: 'Concept ACK' (2026-07-24)",
+    "w0xlt: 'Concept ACK' (2026-08-18)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Closes long-open issue #5299 (Initial connection management)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly modifies src/net.cpp/net.h connection-opening logic and carries the P2P label; core subject is manual connection handling.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a genuine startup race that can create duplicate manual connections, as described: 'two concurrent manual dial attempts can both pass the checks and create duplicate connections.' Impact is limited to operators who configure the same peer via both -connect and -addnode, and the author explicitly scopes the fix to only manual connections, leaving automatic outbound dedup to a separate mechanism from #28428. It resolves a long-open tracking issue (#5299) but is not a security or DoS-from-peer issue."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The added functional test (p2p_duplicate_manual_connections.py) exercises a p2p-specific scenario, which per the tests category definition belongs to the p2p area rather than the tests category itself.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Category file explicitly excludes area-specific regression tests from membership here."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the hostname-keying limitation (non-DNS-resolved dedup) is acceptable to reviewers has not been discussed yet.",
+   "Interaction with conflicting open PR #32278 (doc PR on NetEventsInterface) is unclear but likely non-blocking since it's a doc change.",
+   "No maintainer/committer has reviewed the code itself yet, only concept ACKs from contributors."
+  ],
+  "card": "This PR fixes a startup race in Bitcoin Core's net.cpp where -connect and -addnode can concurrently dial the same peer and both succeed, because existing duplicate checks only see peers already inserted into m_nodes. The fix reserves a normalized manual-connection key in OpenNetworkConnection() before dialing and releases it on failure or once the peer is published, scoped only to ConnectionType::MANUAL. It closes long-open issue #5299 and is a reworked, less-brittle version of a previously closed PR (#27804). A new functional regression test reproduces the race and fails without the fix. So far it has only two concept ACKs (sedited, w0xlt) and no detailed code review; nothing blocks review starting now, though a hostname-keying limitation (not DNS-resolved) is a known, author-acknowledged tradeoff worth scrutiny."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

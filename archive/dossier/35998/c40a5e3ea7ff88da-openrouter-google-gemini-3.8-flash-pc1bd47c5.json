@@ -1,0 +1,345 @@
+{
+ "number": 35998,
+ "input_hash": "c40a5e3ea7ff88da",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T21:46:22+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 32679,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 7635
+ },
+ "cost_usd": 0.0531405,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent in-memory and on-disk state desynchronization in the wallet",
+    "Ensure all database write failures are handled or explicitly documented rather than silently ignored"
+   ],
+   "reviewability": [
+    "Merge conflict with current master branch",
+    "Needs a rebase after recent wallet commits"
+   ],
+   "agreement": [
+    "Strong support for hardening wallet database failure handling (rkrux, l0rinc, jeanpablojp)",
+    "Technical questions on whether write failures should abort or allow best-effort backups were resolved by the author (jeanpablojp)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P2 because it fixes silent database write failures that can desynchronize in-memory keys and passphrases from disk",
+      "Hardens wallet recovery and prevents unpersisted keys from being treated as active"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR marks all database read, write, erase, and transaction methods in `WalletBatch` as `[[nodiscard]]`. It audits every call site across the wallet codebase to either handle database failures or explicitly cast them to void with a documenting comment. It also integrates failure handling for wallet encryption and passphrase changes based on #35752 and adds a SQLite fault-injection testing harness.",
+  "problem": "Wallet database write failures are frequently ignored across the codebase. When a write or erase fails (for example during encryption, key insertion, or passphrase changes), the wallet may update in-memory state while leaving disk records outdated or unwritten, causing data inconsistency or potential loss of unpersisted keys.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Whether BackupWallet should continue if writing the best block locator fails; author clarified write failures indicate potential corruption where backups should not proceed",
+    "Whether in-memory structures like mapWallet and descriptor caches should be rolled back on write failure; author noted write failures are catastrophic and lead to aborts or fatal errors rather than recoverable retries",
+    "Whether write failure during wallet loading should return DBErrors::CORRUPT or DBErrors::LOAD_FAIL on full disk; author clarified write failure at load time indicates the database is unusable"
+   ],
+   "author_status": "active, force-pushed updates on 2026-09-14 after addressing reviewer questions"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and is marked with the 'Needs rebase' label and dirty mergeable state."
+  },
+  "agreement": {
+   "participants": [
+    {
+     "login": "l0rinc",
+     "stance": "support",
+     "note": "Concept ACK and referred author to latest failure-handling updates in prerequisite PR #35752"
+    },
+    {
+     "login": "rkrux",
+     "stance": "support",
+     "note": "Concept ACK because it enforces db error handling and in-memory vs disk consistency"
+    },
+    {
+     "login": "jeanpablojp",
+     "stance": "objection",
+     "note": "Concept ACK with inline concerns about aborting backups on best block failure and in-memory state desync on write exceptions"
+    }
+   ],
+   "objections": [
+    {
+     "reviewer": "jeanpablojp",
+     "kind": "approach",
+     "harm": "Failing WriteBestBlock causes BackupWallet to abort without creating a backup, preventing copies when the database first starts rejecting writes",
+     "blocking": false,
+     "author_replied": true,
+     "fix_pushed": false,
+     "status": "resolved",
+     "evidence": "2026-09-04: 'With the best block write failing, BackupWallet returns false and no copy is taken; before this change, Backup() still runs. This is the copy you most want when the database starts refusing writes.'",
+     "resolution_evidence": "2026-09-08: achow101 replied 'If a write fails, it is possible that the database is already corrupted, and we do not want to be making a backup that may not be usable.' No further pushback.",
+     "sources": [
+      "dossier",
+      "dossier",
+      "dossier",
+      "dossier",
+      "thread",
+      "thread",
+      "thread",
+      "thread"
+     ]
+    }
+   ],
+   "support": [
+    {
+     "reviewer": "rkrux",
+     "reason": "enforces the handling of database errors, thereby ensuring consistency between in-memory behaviour and databases behaviour",
+     "substantive": true
+    },
+    {
+     "reviewer": "l0rinc",
+     "reason": "Concept ACK, thanks for taking over",
+     "substantive": false
+    },
+    {
+     "reviewer": "jeanpablojp",
+     "reason": "Concept ACK",
+     "substantive": false
+    }
+   ],
+   "state": "Strong",
+   "summary": "Strong: concept ACKs across three reviewers, with inline concerns about error recovery resolved by author rationale",
+   "reason": "The change enjoys solid consensus on its approach. Reviewer queries around whether database write failures should be recoverable or treated as catastrophic corruption were addressed by the author, with no remaining open objections.",
+   "evidence": [
+    "rkrux: 'Concept ACK ... enforces the handling of database errors, thereby ensuring consistency between in-memory behaviour and databases behaviour.'",
+    "l0rinc: 'Concept ACK, thanks for taking over.'",
+    "achow101: explained that database write failures are treated as catastrophic corruptions requiring abort rather than retry."
+   ],
+   "model_state": "Strong",
+   "derivation": "substantive support, no open objection (rkrux)",
+   "corrections": [],
+   "thread_read": {
+    "state": "Strong",
+    "derived": "Strong",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "prevents taking a wallet backup when a best block write fails, which is when a backup is most needed",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: \"With the best block write failing, `BackupWallet` returns false and no copy is taken; before this change, `Backup()` still runs. This is the copy you most want when the database starts refusing writes.\"",
+      "resolution_evidence": "2026-09-08: achow101 replied: \"No. If a write fails, it is possible that the database is already corrupted, and we do not want to be making a backup that may not be usable.\""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "leaves an incomplete wtx in mapWallet without nOrderPos or wtxOrdered slot if IncOrderPosNext fails, causing subsequent calls to report false success",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: \"The `emplace()` into `mapWallet` happens before `IncOrderPosNext()`, so this return leaves the entry behind with no `nOrderPos`, no `wtxOrdered` slot and no `AddToSpends`...\"",
+      "resolution_evidence": "2026-09-08: achow101 replied: \"This is ok, a failure here results in an exception higher up in the call stack which will result in a crash. Database write failures are supposed to be catastrophic...\""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "safety",
+      "harm": "throw out of TopUp leaves in-memory max cached index advanced, which can persist a descriptor wider than the cache and cause wallet reload to fail with corruption",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: \"The throw propagates out of `TopUp` before `TxnCommit`, so the cache items roll back while `m_max_cached_index` and the new range end stay in memory... Reopening that wallet stops with `Unable to expand wallet descriptor from cache` and returns `Error loading <file>: Wallet corrupted`...\"",
+      "resolution_evidence": "2026-09-08: achow101 replied: \"What retry? Write failures are supposed to be catastrophic and an indicator that corruption has likely happened.\""
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "interface",
+      "harm": "reports wallet corrupted on a full disk when opening the wallet rather than a load failure",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: \"On a genuinely full disk, with just enough room left for the database to open, this reports `Error loading <file>: Wallet corrupted` while nothing is corrupt.\"",
+      "resolution_evidence": "2026-09-08: achow101 replied: \"Failure to write is always corruption, regardless of how that may come about. We don't know why the write failed, it could be for reasons other than a disk being full.\""
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "rkrux",
+      "reason": "enforces the handling of database errors, ensuring consistency between in-memory and database behavior",
+      "substantive": true
+     },
+     {
+      "reviewer": "l0rinc",
+      "reason": "Concept ACK, thanks for taking over",
+      "substantive": false
+     }
+    ],
+    "participants": [
+     {
+      "login": "l0rinc",
+      "stance": "support",
+      "note": "Concept ACK, thanked the author for taking over the work"
+     },
+     {
+      "login": "rkrux",
+      "stance": "support",
+      "note": "Concept ACK, noted it enforces error handling and consistency between in-memory and database behavior"
+     },
+     {
+      "login": "jeanpablojp",
+      "stance": "objection",
+      "note": "Concept ACK with multiple comments pointing out failure-handling regressions"
+     }
+    ],
+    "corrections": [],
+    "summary": "Strong: rkrux supports enforcing db error handling; jeanpablojp noted edge cases where write failures cause corruption or cancel backups, which author rejected as catastrophic anyway.",
+    "usage": {
+     "input_tokens": 4593,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 0,
+     "output_tokens": 3023
+    }
+   },
+   "first_read": {
+    "state": "Strong",
+    "model_state": "Strong",
+    "objections": [
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "approach",
+      "harm": "Failing WriteBestBlock causes BackupWallet to abort without creating a backup, preventing copies when the database first starts rejecting writes",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: 'With the best block write failing, BackupWallet returns false and no copy is taken; before this change, Backup() still runs. This is the copy you most want when the database starts refusing writes.'",
+      "resolution_evidence": "2026-09-08: achow101 replied 'If a write fails, it is possible that the database is already corrupted, and we do not want to be making a backup that may not be usable.' No further pushback."
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Emplacing into mapWallet before IncOrderPosNext leaves an incompletely populated transaction entry in memory if the position write fails",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: 'The emplace() into mapWallet happens before IncOrderPosNext(), so this return leaves the entry behind with no nOrderPos...'",
+      "resolution_evidence": "2026-09-08: achow101 replied 'This is ok, a failure here results in an exception higher up in the call stack which will result in a crash. Database write failures are supposed to be catastrophic...'"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "correctness",
+      "harm": "Throwing on descriptor cache write failure in TopUpWithDB leaves cache indices in memory out of sync with disk, leading to corruption errors on reopen",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: 'The throw propagates out of TopUp before TxnCommit, so the cache items roll back while m_max_cached_index and the new range end stay in memory.'",
+      "resolution_evidence": "2026-09-08: achow101 replied 'What retry? Write failures are supposed to be catastrophic and an indicator that corruption has likely happened.'"
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "kind": "interface",
+      "harm": "A disk-full error during LoadWallet reports the wallet as corrupted rather than load failure",
+      "blocking": false,
+      "author_replied": true,
+      "fix_pushed": false,
+      "status": "resolved",
+      "evidence": "2026-09-04: 'On a genuinely full disk, with just enough room left for the database to open, this reports Error loading <file>: Wallet corrupted while nothing is corrupt.'",
+      "resolution_evidence": "2026-09-08: achow101 replied 'Failure to write is always corruption, regardless of how that may come about. We don\\'t know why the write failed...'"
+     }
+    ],
+    "support": [
+     {
+      "reviewer": "rkrux",
+      "reason": "enforces the handling of database errors, thereby ensuring consistency between in-memory behaviour and databases behaviour",
+      "substantive": true
+     },
+     {
+      "reviewer": "l0rinc",
+      "reason": "Concept ACK, thanks for taking over",
+      "substantive": false
+     },
+     {
+      "reviewer": "jeanpablojp",
+      "reason": "Concept ACK",
+      "substantive": false
+     }
+    ]
+   }
+  },
+  "dependencies": {
+   "depends_on": [
+    35752
+   ],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches wallet database layer, scriptpubkeyman, wallet loading, and migration tests.",
+    "band": "P2",
+    "reason_tag": "fund safety",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Systematically enforces `[[nodiscard]]` on all database operations in `WalletBatch`, preventing silent persistence failures. Ignored write failures during encryption or address/key generation can leave in-memory keys desynchronized from disk storage, risking fund loss if a process terminates or reloads."
+   },
+   {
+    "name": "ipc",
+    "member": false,
+    "evidence": "Changes to src/interfaces/wallet.h merely update method signatures to return util::Expected rather than modifying IPC architecture or mechanics.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Interface header changes are mechanical consequences of wallet error-type adjustments."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Added test helpers in src/wallet/test/util.h and test modifications pin wallet-specific database behavior rather than testing framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes to wallet tests and benchmarks are wallet-domain tests, not general test framework improvements."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR marks all WalletBatch operations as [[nodiscard]] to ensure database write, erase, and transaction failures are explicitly checked across the wallet. It prevents silent write failures that cause in-memory state (such as newly generated keys, encryption state, or passphrases) to diverge from on-disk database records. It builds on the atomic encryption work in #35752 and adds a SQLite fault-injection testing utility. Review is currently blocked by merge conflicts requiring a rebase."
+ },
+ "raw_text": null,
+ "prompt_hash": "c1bd47c5",
+ "second_read_cost_usd": 0.014781
+}

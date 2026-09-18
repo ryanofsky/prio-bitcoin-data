@@ -1,0 +1,125 @@
+{
+ "number": 32861,
+ "input_hash": "b7a4d10f8c963878",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9936,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3217
+ },
+ "cost_usd": 0.027427299999999998,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Lets `createwalletdescriptor` auto-find the HD key added via `addhdkey` on a blank wallet, so users no longer have to copy-paste an xpub from `gethdkeys`.",
+    "Also fixes `addhdkey` so it rejects a duplicate xprv already known to the wallet, and updates the multisig tutorial to use blank wallets with only a legacy descriptor to avoid accidental singlesig address reuse."
+   ],
+   "reviewability": [
+    "Ready. No open review threads are unaddressed and the last few pushes incorporated reviewer suggestions."
+   ],
+   "agreement": [
+    "Concept ACKs from w0xlt and jeanpablojp, approach ACK and a tested review from adyshimony, no objections outstanding (w0xlt, jeanpablojp, adyshimony).",
+    "jeanpablojp raised a design question about ambiguous-key handling and a redundant-helper question, both were resolved with explanations or code changes by the author (jeanpablojp, Sjors)."
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it removes a real papercut in the new blank-wallet + addhdkey workflow and fixes a genuine gap where a duplicate xprv could otherwise be added twice, but the impact is narrow to users of a still-new, not-yet-widely-used workflow."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P3 because it makes the multisig tutorial safer by steering readers away from accidental singlesig address reuse, a real but limited-audience clarity improvement to one document."
+     ]
+    }
+   ]
+  },
+  "summary": "This PR makes `createwalletdescriptor` automatically use the single `unused(KEY)` HD key created by `addhdkey` when no active descriptors exist, avoiding a manual `gethdkeys`/copy-paste step. It also adds a duplicate-key check to `addhdkey` (rejecting an xprv already known to the wallet), and updates the multisig tutorial to start participant wallets blank with only a legacy descriptor to reduce accidental singlesig address exposure, plus a release note.",
+  "problem": "Users following the new blank-wallet workflow (createwallet blank=true, addhdkey, createwalletdescriptor) previously hit a hard failure requiring manual xpub lookup; separately, addhdkey allowed silently adding a key the wallet already had. Both are minor UX/correctness gaps in a workflow enabled by recently merged PRs #29130/#29136/#32784.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "rkrux questioned reusing GetScriptlessSPKMs vs simpler checks; author called it orthogonal to this PR, discussion did not escalate.",
+    "adyshimony found a bug (duplicate xprv via active descriptor not caught) and a test/descriptor_tests.cpp typo (parse_pub vs parse_priv); both fixed by author in later commits.",
+    "jeanpablojp asked why createwalletdescriptor doesn't also fall back to unused(KEY) when there are multiple active descriptors; author explained the fail-safe rationale (descriptors can't be deleted) and updated help text; no pushback.",
+    "jeanpablojp suggested reusing GetHDPubKeys(HDKeyFilter::UnusedKey) instead of a separate helper; author adopted the suggestion and dropped the redundant commit."
+   ],
+   "author_status": "active, last force-pushed 2026-09-14 after rebasing on a newly merged dependency (#35436)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No unresolved reviewer requests remain; all inline concerns (duplicate-key bug, test typo, ambiguous-key design question, redundant helper) were addressed in subsequent pushes, the most recent being a routine rebase on #35436."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Multiple concept/approach ACKs (w0xlt, jeanpablojp, adyshimony) with substantive review comments all resolved by author changes or explanation, no standing objections.",
+   "reason": "Three distinct reviewers gave concept or approach ACKs with real engagement (adyshimony did a tested review and found a concrete bug that was fixed); jeanpablojp's design question was answered with a stated rationale and no follow-up disagreement.",
+   "evidence": [
+    "adyshimony: 'Concept ACK, Approach ACK' after finding and having fixed a duplicate-key bug.",
+    "w0xlt: 'Concept ACK'.",
+    "jeanpablojp: 'Concept ACK' with a design question that Sjors answered ('it's better to err on the side of failing, because descriptors can't be deleted'), no pushback recorded."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [
+    29136,
+    32784,
+    35436
+   ],
+   "enables": [
+    "a safer/simpler multisig tutorial workflow (mentioned as a followup)",
+    "cleaner blank-wallet + addhdkey setup flow"
+   ]
+  },
+  "categories": [
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Changes wallet RPC behavior (createwalletdescriptor, addhdkey) and wallet.cpp logic; directly affects wallet key/descriptor management.",
+    "band": "P3",
+    "reason_tag": "user request",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "Fixes a real UX gap in a new blank-wallet workflow (author: 'Before this PR the last line would fail, requiring the user to call gethdkeys and copy-paste the xpub') and closes a minor correctness gap where addhdkey could add a duplicate key (adyshimony's finding, fixed). Impact is real but confined to a narrow, still-emerging workflow built atop very recently merged RPCs."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Primary change to doc/multisig-tutorial.md plus a new release-notes file; the tutorial rewrite is a substantive part of the diff, not incidental.",
+    "band": "P3",
+    "reason_tag": "clarity",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Improves a frequently-read tutorial to avoid readers accidentally reusing singlesig addresses meant only for signing ('avoids handing the reader singlesig addresses they are not supposed to use'), a real but limited-audience clarity/safety improvement."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the duplicate-key fix in addhdkey (from #29136 follow-up commits) should be weighed as a separate, more significant fund-safety fix rather than folded into this PR's overall priority.",
+   "No maintainer area label present, so category membership relies on path/content inference rather than an explicit label prior."
+  ],
+  "card": "This PR makes `createwalletdescriptor` auto-detect the single `unused(KEY)` HD key added via `addhdkey` on a blank wallet, removing a manual xpub copy-paste step in a workflow enabled by recently merged #29130/#29136/#32784. It also fixes a bug where `addhdkey` could silently add a duplicate xprv already known to the wallet (found and confirmed by reviewer adyshimony), and updates the multisig tutorial to start from blank wallets with only a legacy descriptor to avoid accidental singlesig address exposure. Review has been active and substantive: three reviewers (w0xlt, jeanpablojp, adyshimony) gave concept/approach ACKs, and every concern raised (a bug, a test typo, an ambiguous-key design question, a redundant helper) was resolved by the author in later pushes. The PR depends on and was rebased after several other merged PRs (#29136, #32784, #35436), and is currently Ready with nothing pending."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

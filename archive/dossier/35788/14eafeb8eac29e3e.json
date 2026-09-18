@@ -1,0 +1,138 @@
+{
+ "number": 35788,
+ "input_hash": "14eafeb8eac29e3e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 14969,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4577
+ },
+ "cost_usd": 0.039260300000000005,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Adds a bitcoin-util evalscript subcommand so developers can feed a script and stack into the real consensus interpreter and see the result.",
+    "Helps debug script behavior, signature checks, and OP_SUCCESS handling without building a whole transaction and node."
+   ],
+   "reviewability": [
+    "Ready. One tACK is in, and the reviewer's remaining comment is a minor test-coverage suggestion, not a blocker."
+   ],
+   "agreement": [
+    "Strong support from a tester who ran the unit tests, feature_taproot, and both description examples successfully (jeanpablojp).",
+    "Their only note is that the -tx flag path lacks a functional-test case, offered as a suggestion, not an objection."
+   ],
+   "categories": [
+    {
+     "name": "tools",
+     "why": [
+      "P3 because it is a genuinely useful developer debugging tool for script behavior, similar in spirit to bitcoin-tx, but its audience is script/consensus developers rather than node operators or downstream projects."
+     ]
+    },
+    {
+     "name": "validation",
+     "why": [
+      "P4 because the interpreter.cpp/h changes are a mechanical extraction (CheckTapscriptOpSuccess, CastToBool exposure) to support the tool, with no stated change to validation behavior, though it still touches consensus-critical code and warrants a careful correctness check."
+     ]
+    },
+    {
+     "name": "tests",
+     "why": [
+      "Not a member because the added tests pin the new bitcoin-util evalscript command's own behavior (a tools-area feature), not shared test infrastructure or another area's regression coverage."
+     ]
+    }
+   ]
+  },
+  "summary": "Adds an evalscript subcommand to bitcoin-util that runs the real consensus script interpreter over a user-supplied script and stack, optionally with a transaction and spent outputs to validate signatures and locktime opcodes. To support this it extracts CastToBool and a new CheckTapscriptOpSuccess helper from script/interpreter.cpp/h without changing their behavior, and adds functional tests covering various sigversions, flags, and OP_SUCCESS handling.",
+  "problem": "Developers and reviewers working on script/consensus changes currently have no lightweight way to evaluate a script fragment against real consensus logic; they must construct full transactions or rely on external tooling (the PR notes this was previously carried in the bitcoin-inquisition fork). This tool gives them a fast, direct way to inspect script execution, signature checks, and OP_SUCCESS behavior.",
+  "discussion": {
+   "open_concerns": [
+    "jeanpablojp noted the -tx flag path (real signature validation) has no functional test case in bitcoin-util-test.json, and asked whether it's worth adding one."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-07-24 (no reply to the reviewer's suggestion, though it is a non-blocking suggestion rather than a material objection)"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "No mechanical blockers: CI is not failing and the branch is mergeable. The only open reviewer comment is a suggestion to add a test case for the untested -tx path, which is a coverage gap rather than something that would invalidate review of the current code."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "tACK from jeanpablojp who ran the unit tests, feature_taproot, and reproduced both description examples, with no objections raised.",
+   "reason": "One reviewer substantively verified the change works as described and wants it merged; their remaining comment is a suggestion for additional test coverage, not a stated harm or blocking objection.",
+   "evidence": [
+    "jeanpablojp: 'tACK a64f2ac... Ran tool_utils, the script unit tests and feature_taproot on the head, and both examples from the description reproduce here.'",
+    "jeanpablojp: 'The PR description mentions -tx, but I noticed no case in bitcoin-util-test.json uses -tx... Would it be worth adding a case like that?' (suggestion, not an objection)"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Author notes possible followups: simplifying the interpreter API used here, and potentially exposing equivalent functionality as a kernel API."
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "The functional test file added (bitcoin-util-test.json entries and evalscript-*.json fixtures) pins the behavior of the new bitcoin-util evalscript command itself, which is a tools-area feature, not shared test framework or cross-area coverage. The one fuzz harness edit just removes a now-redundant forward declaration.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the tests added belong to the tools area they exercise (the new evalscript subcommand), per the rule that area-specific tests belong to that area rather than to test infrastructure."
+   },
+   {
+    "name": "tools",
+    "member": true,
+    "evidence": "Adds a new bitcoin-util subcommand, matching the category's explicit coverage of bitcoin-util.",
+    "band": "P3",
+    "reason_tag": "new feature",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is a genuinely useful debugging tool for script developers, echoed by its prior use in the bitcoin-inquisition fork ('Previously included in bitcoin-inquisition' per the author), but its audience is narrow (script/consensus developers) rather than operators or downstream projects, which the category ranks higher."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches src/script/interpreter.cpp and interpreter.h, extracting CastToBool and a new CheckTapscriptOpSuccess function used by the consensus-critical tapscript execution path.",
+    "band": "P4",
+    "reason_tag": "cleanup",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because the interpreter changes are a mechanical extraction to expose existing logic for reuse by the tool, with the author stating it 'makes minimal changes to consensus logic' and suggesting the diff be reviewed with move-detection to confirm no behavior change; there is no claimed or evident consensus behavior change, so it ranks low despite touching sensitive code."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CheckTapscriptOpSuccess extraction is truly behavior-preserving was not independently verified here; the author's own suggestion to diff with --color-moved implies this needs a careful check, which affects how much validation reviewer time this actually deserves.",
+   "Whether jeanpablojp's test-coverage suggestion will be treated as material enough to warrant a follow-up before merge is unclear given no author response yet, though the 55-day silence has not yet crossed the 60-day stale threshold."
+  ],
+  "card": "This PR adds an evalscript subcommand to bitcoin-util, letting developers run a script and stack through Bitcoin Core's real consensus interpreter for debugging, previously carried in the bitcoin-inquisition fork. It makes a mechanical extraction of two functions (CastToBool, CheckTapscriptOpSuccess) from script/interpreter.cpp with no stated consensus behavior change, plus functional tests for the new command. A single reviewer (jeanpablojp) gave a tested ACK after running the unit tests and feature_taproot, with only a non-blocking suggestion to add test coverage for the untested -tx signature-validation path. The PR is otherwise mergeable and not blocked; the author has been silent since opening it but the outstanding comment is minor. Priority is moderate as a developer tool (tools) and low as a validation change since it doesn't alter consensus logic."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

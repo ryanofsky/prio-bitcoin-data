@@ -1,0 +1,95 @@
+{
+ "number": 34486,
+ "input_hash": "2527ee0b5bf0cd0d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:50:34+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16162,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1830
+ },
+ "cost_usd": 0.018984,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop NAT-PMP port mapping queries and Tor control connections when bitcoind is configured with networkactive=0 or deactivated via RPC."
+   ],
+   "reviewability": [
+    "Needs rebase against current master.",
+    "An open review edge case regarding backoff resets during rapid deactivation cycles also awaits author response."
+   ],
+   "agreement": [
+    "Strong support for wiring mapport and Tor lifecycle to CConnman (sedited, fanquake, brunoerg, winterrdog).",
+    "One outstanding edge-case report about backoff handling during rapid off-on toggles (winterrdog)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P3 because it fixes unexpected network traffic when the node is configured to be offline.",
+      "Users relying on networkactive=0 or setnetworkactive to silence all network activity are currently surprised by ongoing background NAT-PMP queries and Tor control retries."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request wires NAT-PMP/PCP port mapping and Tor control port connections into CConnman's network active lifecycle. When networkactive=0 is set at startup or toggled via the setnetworkactive RPC, port mapping and Tor connection attempts are paused, and then properly resumed with reset backoff upon reactivation.",
+  "problem": "When -networkactive=0 is configured, the node still attempts NAT-PMP port mapping and repeatedly tries to connect to the Tor control port in the background, violating user expectations of a completely inactive network state and generating unnecessary network traffic.",
+  "discussion": {
+   "open_concerns": [
+    "winterrdog noted an edge case where rapid off/on toggling during a backoff sleep will increase backoff delay rather than resetting it, providing a reproduction test and patch."
+   ],
+   "resolved_concerns": [
+    "bradleystachurski identified that reconnect backoff was not reset on reactivation, which the author fixed.",
+    "brunoerg raised test flakiness and coverage improvements, which the author addressed across functional tests."
+   ],
+   "author_status": "silent since 2026-08-17"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts with master and has a pending edge case discussion awaiting author action."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept and approach accepted across multiple reviewers; winterrdog noted one backoff edge case during sleep.",
+   "reason": "Multiple contributors and maintainers ACKed the concept and approach. Brunoerg tested and approved a previous revision, and winterrdog approach-ACKed the current head while offering a fix for a minor backoff race during rapid toggling.",
+   "evidence": [
+    "sedited, fanquake, Jhackman2019, and brunoerg gave Concept ACKs.",
+    "brunoerg approved commit e5ed5f2 after verifying NAT-PMP and Tor traffic teardown in a Docker environment.",
+    "winterrdog gave Approach ACK on 48f1321 while opening a discussion on backoff handling during rapid deactivation."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Touches CConnman network activation logic, torcontrol.cpp, and NAT-PMP port mapping under the P2P area.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 2,
+     "leverage": 0
+    },
+    "rationale": "P3 because it resolves an unexpected behavior bug where local network traffic and port mappings still occur while the network is supposedly inactive. As described in #34190, users setting networkactive=0 expect all local networking daemon attempts to stop. It provides worthwhile polish and privacy/isolation guarantees, but does not fix a consensus, remote DoS, or peer protocol vulnerability."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "PR #34486 wires the lifecycle of NAT-PMP/PCP port mapping and Tor control connections to CConnman's networkactive state so that both pause when networking is disabled and resume when reactivated. It solves issue #34190, where bitcoind continued background network calls despite networkactive=0. The PR has strong support and testing from multiple contributors, but it is currently stale with merge conflicts and an unaddressed edge case regarding reconnect backoffs during rapid off/on cycles."
+ },
+ "raw_text": null
+}

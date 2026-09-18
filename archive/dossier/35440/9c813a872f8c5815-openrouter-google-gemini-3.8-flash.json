@@ -1,0 +1,128 @@
+{
+ "number": 35440,
+ "input_hash": "9c813a872f8c5815",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:19:23+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 24794,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2614
+ },
+ "cost_usd": 0.028398,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent container overflow when reading truncated xpub records from the wallet cache",
+    "Standardize extended key serialization to use streams instead of raw buffer pointers"
+   ],
+   "reviewability": [
+    "CI is failing or pending approval for a first-time contributor run",
+    "Code is otherwise complete and responsive to reviewer feedback"
+   ],
+   "agreement": [
+    "Strong support for standardizing stream serialization across extended key types (achow101, molnard)",
+    "Testing coverage and memory cleanliness concerns resolved cleanly (molnard, winterrdog)"
+   ],
+   "categories": [
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it fixes an out-of-bounds read crash when loading corrupted descriptor cache records",
+      "Hardens wallet loading against malformed data without altering existing on-disk storage formats"
+     ]
+    }
+   ]
+  },
+  "summary": "This PR checks serialized xpub lengths before decoding wallet descriptor cache records, preventing an out-of-bounds read when loading corrupted or truncated records. It also refactors CExtKey and CExtPubKey to implement standard Serialize/Unserialize stream methods, replacing custom buffer-based Encode and Decode functions across the codebase.",
+  "problem": "When loading wallet descriptor cache entries, CExtPubKey::Decode assumed a full 74-byte buffer without verifying the deserialized byte vector length, causing an out-of-bounds container read under ASan on short records. Additionally, CExtKey and CExtPubKey were unique in using raw pointer output parameters for serialization rather than standard stream abstractions.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Added unit test coverage for truncated xpub cache entries in walletload_tests (maflcko, winterrdog)",
+    "Replaced raw buffer Encode/Decode with idiomatic Serialize/Unserialize stream interfaces (achow101)",
+    "Secured temporary private key deserialization buffer with secure_allocator and added stream error negative tests (molnard)",
+    "Addressed 32-bit compiler array-bounds diagnostics by breaking up stream chaining in unit tests (winterrdog, molnard)"
+   ],
+   "author_status": "Active, addressed all reviewer comments in the latest push."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI has failed on the latest push and needs a rerun or maintainer workflow approval."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on migrating extended key serialization to streams with tests verified",
+   "reason": "Reviewers agreed that raw pointer decoding was error-prone and requested the stream refactor, which was implemented, thoroughly tested, and re-ACKed.",
+   "evidence": [
+    "achow101 requested converting CExtKey/CExtPubKey to standard Serialize/Unserialize and ACKed de971e1",
+    "molnard thoroughly tested and ACKed both the initial bug fix and the latest refactored commit 3d39505",
+    "winterrdog validated the test improvements and stream decoupling"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Mechanical update to rawtransaction.cpp to adapt to the new stream serialization interface.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Only touches RPC call sites mechanically to accommodate CExtPubKey stream serialization changes."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Touches fuzz and unit tests specifically testing extended keys and wallet loading rather than testing framework infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes are area-specific tests for bip32 serialization and wallet cache corruption rather than shared test harnesses."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Directly fixes descriptor cache record deserialization in src/wallet/walletdb.cpp and adds walletload regression tests.",
+    "band": "P3",
+    "reason_tag": "bug fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "Fixes a container-overflow crash when reading corrupt descriptor cache entries from the wallet database, turning an invalid memory read into a clean DBErrors::CORRUPT failure. It also eliminates raw pointer buffer writes by migrating extended keys to idiomatic stream serialization."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR fixes a container overflow in the wallet descriptor cache loader when encountering truncated xpub entries, ensuring invalid records fail cleanly as database corruption. At reviewer request, it refactors CExtKey and CExtPubKey serialization to use standard streams rather than raw pointer output buffers across wallet, PSBT, and key IO code paths. The bug fix addresses memory safety on corrupted databases, while the refactor eliminates an error-prone pattern across the codebase. The change has strong reviewer support and ACKs from maintainers and contributors, but CI is currently marked failing pending maintainer action."
+ },
+ "raw_text": null
+}

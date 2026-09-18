@@ -1,0 +1,129 @@
+{
+ "number": 35578,
+ "input_hash": "1935e56eb141fc10",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 9962,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 2716
+ },
+ "cost_usd": 0.0249483,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Stop leaking a Tor exit node's or proxy's IP as this node's own self-advertised address on outbound clearnet connections made via a proxy",
+    "Reduces unnecessary gossip and connection attempts toward Tor exit nodes, which make up over half of observed addrman entries"
+   ],
+   "reviewability": [
+    "Ready, latest push added tests, a comment, and a release note addressing reviewer requests",
+    "One CI job failed but author says it is unrelated and asked for a restart"
+   ],
+   "agreement": [
+    "Concept ACK from multiple reviewers with concrete data on tor exit node prevalence (0xB10C, naiyoma, mzumsande)",
+    "mzumsande raised a caveat that transparent torification (e.g. Whonix) would not be fixed by this, author acknowledged as unaddressed limitation, non-blocking",
+    "naiyoma suggested a cleaner alternative implementation and added tests, author incorporated the suggestions in the latest push"
+   ],
+   "categories": []
+  },
+  "summary": "This PR stops a node from self-advertising a SOCKS5 proxy's (often a Tor exit node's) IP address as its own reachable address when making outbound clearnet connections through that proxy. It fixes GetLocalAddrForPeer to skip the peer-reported view of our address when the connection is proxied, adds a ResetProxy() test helper, adds regression tests, and updates docs/release notes (including an unrelated fix of stale -proxy=tor syntax from PR #34031).",
+  "problem": "When a node runs both Tor and clearnet via a shared SOCKS5 proxy with listen=1/discover=1 overriding the softer defaults, the proxy's (often a Tor exit node's) IP gets relayed on the network as the node's own address. Author found 55-76% of tor exit node IPs already appear in addrman snapshots, polluting peer address tables with unreachable addresses.",
+  "discussion": {
+   "open_concerns": [
+    "mzumsande: transparent torification (e.g. via Whonix) reroutes traffic externally without touching Bitcoin Core's proxy settings, so this fix would not catch that case; author agrees this is a known gap but says it still helps for explicit proxy misconfiguration cases",
+    "CI failure on latest push which author claims is unrelated and needs a manual restart"
+   ],
+   "resolved_concerns": [
+    "naiyoma's request for a comment explaining the proxy check was addressed in the latest push",
+    "naiyoma's suggested test coverage for the proxy skip case was added in the latest push",
+    "naiyoma's suggested alternative implementation approach (skip peer view earlier) was incorporated"
+   ],
+   "author_status": "active, addressed review comments in latest push on 2026-09-14, asked for CI restart on 2026-09-15"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "Latest push (2026-09-14) added the requested comment, tests, and release note, addressing the outstanding inline review comments. CI failure is claimed unrelated by the author and does not block review of the logic."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Concept ACKs from 0xB10C, naiyoma, and mzumsande with concrete supporting data, no unresolved objections",
+   "reason": "Multiple members gave concept ACK with substantive reasoning (exit node prevalence data, log verification). The one caveat raised (transparent torification not fixed) is acknowledged by the author as a known limitation rather than disputed, and does not block the value of the fix for the explicit-proxy case.",
+   "evidence": [
+    "0xB10C: 'Concept ACK, it makes sense to me to not advertise an address we know we can't be reached on', cites 7.5-12.5 daily connection attempts to Tor exit IPs",
+    "naiyoma: 'Concept ACK... It makes sense not to advertise these addresses, as they are not useful', tested and verified in logs",
+    "mzumsande: 'Concept ACK' with caveat about transparent torification, author acknowledged as a known gap not fully solvable by this patch",
+    "naiyoma's implementation and testing suggestions were incorporated by the author in the final push"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "References PR #34031 (merged) which removed 'tor' as a network name, and this PR's doc commit fixes stale tor.md examples resulting from that change"
+   ]
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Directly changes net.cpp's GetLocalAddrForPeer self-advertisement logic and netbase.cpp proxy handling, core P2P address-relay behavior; labeled P2P.",
+    "band": "P3",
+    "reason_tag": "privacy/DoS reduction",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 1,
+     "performance": 1,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Reduces unnecessary gossip of unreachable Tor exit node addresses that pollute addrman and waste connection attempts network-wide, per 0xB10C's data showing 55-76% of exit IPs found in addrman snapshots and 7.5-12.5 daily connection attempts per node. Not a critical bug or security hole; it is an incremental hygiene improvement acknowledged to not fully solve the underlying issue for transparent torification setups (mzumsande)."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "Includes a release note (doc/release-notes-35578.md) and a fix to doc/tor.md correcting stale '-proxy=...=tor' syntax that produces an error, per commit message quoting an actual error output.",
+    "band": "P3",
+    "reason_tag": "correctness fix",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "The tor.md fix corrects documentation that would cause users following it to hit an 'Unrecognized network' error, per the commit message reproducing the failure. This is a small but real correctness fix to a frequently-referenced setup guide, alongside a standard release note; not high-stakes but useful."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "The init.cpp change is a one-line help-text string update mechanically following from the stale 'tor' network name fix in #34031, not a substantive change to argument-handling infrastructure.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member; the init.cpp edit is a mechanical help-string correction, not a change to utils infrastructure itself."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the CI failure the author calls 'unrelated' is truly unrelated was not independently verified.",
+   "Real-world prevalence of the listen=1/discover=1 override misconfiguration this PR targets is based on anecdotal GitHub search results, not hard usage data.",
+   "No maintainer (non-author, non-reviewer with commit bit beyond concept ACKs) has given a full code-review ACK yet, so approach agreement is clear but final code sign-off is pending."
+  ],
+  "card": "This PR stops Bitcoin Core from self-advertising a SOCKS5 proxy's IP address (often a Tor exit node) as its own reachable address on outbound clearnet connections made through that proxy, when a user has overridden the default listen=0/discover=0 proxy interaction. The author found 55-76% of Tor exit node IPs already present in various addrman snapshots, motivating the fix to reduce unnecessary gossip and connection attempts toward these unreachable addresses. Three members gave concept ACK with supporting data and log verification (0xB10C, naiyoma, mzumsande); mzumsande noted the fix does not address transparent torification setups (e.g. Whonix), which the author accepts as a known limitation. The latest push (2026-09-14) added a code comment, tests, and a release note addressing all prior reviewer requests, leaving the PR ready for review pending a CI restart the author says is due to an unrelated failure. No dependency blocks this PR, though it also fixes a stale doc example broken by the earlier merged PR #34031."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

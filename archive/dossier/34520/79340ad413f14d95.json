@@ -1,0 +1,149 @@
+{
+ "number": 34520,
+ "input_hash": "79340ad413f14d95",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 5509,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 4191
+ },
+ "cost_usd": 0.0278703,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Add [[nodiscard]] to legacy bool-returning getters that also write into a mutable reference",
+    "Prevents callers from silently ignoring a false return and using stale/uninitialized data"
+   ],
+   "reviewability": [
+    "Stale: CI is failing and the author has not followed up since the last force-push over a month ago, with an open library-dependency question still hanging"
+   ],
+   "agreement": [
+    "Positive overall, with concept ACKs from sedited and ajtowns and code ACKs from HowHsu and yuvicc (stale)",
+    "ryanofsky approved but flagged the interpreter.cpp commit as not quite right, leading to an open question about whether consensus code should depend on util/check.h, not yet settled (ryanofsky, maflcko)"
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because it adds an Assert/assert to GetOp in CountWitnessSigOps, a defensive change with no known bug behind it and no reported wrong-block-acceptance risk",
+      "Discussion trailed into an unresolved library layering question (should consensus depend on util) rather than a validation correctness fix, so it doesn't unblock other validation work"
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it hardens GetCachedLastHardenedExtPubKey against an unchecked false return, a narrow descriptor-cache correctness nicety rather than a fund-safety fix",
+      "No wallet user or maintainer has reported a bug from the current behavior, so value is preventive rather than urgent"
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "Not a member because the RPC portion (net.cpp) was split out into #34741, which the author says has already merged, so this PR's remaining diff no longer touches rpc code"
+     ]
+    }
+   ]
+  },
+  "summary": "This is a mechanical refactor that adds C++17 [[nodiscard]] to legacy functions with the pattern bool Get(...)+mutable-ref-out-param, so callers can't silently ignore a false return and use garbage output. The author fixed the handful of call sites that previously discarded the return value, in separate commits (GetOp/GetScriptOp, GetCachedLastHardenedExtPubKey). An RPC-related piece was split out into #34741, which has since merged, and this PR's remaining scope is validation (script/interpreter.cpp) and wallet (descriptor.cpp) plus other legacy getters across the codebase.",
+  "problem": "Legacy bool+mutable-ref getters make it easy for a caller to ignore a false return and then use an unset/stale output value, a latent-bug pattern that nodiscard closes off at compile time. This affects contributors touching the affected getters more than end users directly.",
+  "discussion": {
+   "open_concerns": [
+    "ryanofsky: the interpreter.cpp commit's handling (Assert vs plain assert) is 'not quite right'; a broader library-layering question (should consensus depend on util/check.h) was raised and left unresolved as of 2026-04-08",
+    "sedited suggested a broader clang-tidy-based approach instead of incremental changes; author declined, offering to write a clang-tidy plugin as a follow-up"
+   ],
+   "resolved_concerns": [
+    "ajtowns' concern about discarding GetOp's return value in consensus code addressed by first using Assume, then assert per ryanofsky's suggestion",
+    "ajtowns' descriptor.cpp suggestion (use return value as cache-hit optimization) implemented by author",
+    "ajtowns' rpc/net.cpp question addressed by extracting that piece into #34741, which merged"
+   ],
+   "author_status": "silent since 2026-05-19 force-push, no reply to the last open library-dependency discussion from 2026-04-08"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "CI failing",
+   "reason": "CI is currently failing and the author has not commented since a force-push on 2026-05-19, over a month after the last substantive review thread (ryanofsky, 2026-04-08) that ended on an open library-layering question without a stated resolution."
+  },
+  "agreement": {
+   "state": "Positive",
+   "summary": "Positive: concept ACKs from sedited and ajtowns, code ACKs from HowHsu/yuvicc (stale), and an approval from ryanofsky with a flagged but non-blocking concern about the interpreter.cpp commit.",
+   "reason": "Multiple reviewers substantively engaged and none oppose the change; the one open item is a design question about library dependencies, not an objection to the PR's purpose.",
+   "evidence": [
+    "sedited: Concept ACK, suggested a broader clang-tidy approach; author declined but offered a follow-up",
+    "ajtowns: Concept ACK, raised concerns on three inline spots, all addressed",
+    "ryanofsky: APPROVED but said 'First commit does not seem right to me', prompting an unresolved library-layering discussion",
+    "HowHsu, yuvicc: stale ACKs on earlier commits"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Author mentions a possible follow-up clang-tidy plugin to systematically catch this pattern",
+    "Split off #34741 (RPC std::optional conversion), already merged"
+   ]
+  },
+  "categories": [
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "The RPC-facing change (net.cpp) was split into #34741, which has already merged per the author's comment; this PR's current scope no longer includes rpc.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a member: the rpc portion was extracted into a separate, already-merged PR (#34741)."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Touches src/script/interpreter.cpp, adding [[nodiscard]] to GetOp/GetScriptOp and an Assert/assert in CountWitnessSigOps guarding a return value guaranteed by prior IsPushOnly() check; reviewer discussion (ryanofsky) treated this as consensus-code-adjacent and debated crash-vs-tolerate semantics.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because the change is a defensive nodiscard/assert addition to a getter whose false case is already logically impossible per IsPushOnly(), with no reported bug or exploit behind it. ryanofsky called the first commit 'not quite right' and the discussion drifted into an unresolved question of whether consensus should depend on util/check.h, which is a design question but not a correctness fix."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Touches src/script/descriptor.cpp, adding [[nodiscard]] to GetCachedLastHardenedExtPubKey and using the return value as a cache-hit optimization per ajtowns' suggestion.",
+    "band": "P3",
+    "reason_tag": "cleanup",
+    "score": 0.3,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "P3 because it prevents silently using a possibly-uninitialized xpub when the descriptor cache misses, a fund-safety-adjacent hardening, but there's no evidence of an actual wallet bug from the current code, per ryanofsky's note the commit message description of the change needed updating to reflect it's an optimization, not just marking unused."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the current diff still contains the src/rpc/net.cpp change or whether it was fully removed after being split into #34741; description of files not available to confirm precisely",
+   "Whether the interpreter.cpp library-layering question was resolved off-thread before the last force-push on 2026-05-19",
+   "Exact current CI failure cause is unknown"
+  ],
+  "card": "This PR is a mechanical refactor that adds C++17 [[nodiscard]] to legacy bool-returning getters that also write through a mutable reference, closing off a class of bugs where a false return is silently ignored and a stale/garbage value gets used. It touches script/interpreter.cpp (GetOp/GetScriptOp, with an Assert guarding a return value the author and reviewers argue is logically guaranteed by a prior IsPushOnly check) and script/descriptor.cpp (GetCachedLastHardenedExtPubKey, now used as a cache-hit optimization). An RPC-facing piece was split out into #34741, which has already merged. Review has been broadly positive (concept ACKs from sedited and ajtowns, an approval from ryanofsky) but ryanofsky flagged the interpreter.cpp commit as 'not quite right,' leading to an unresolved side discussion about whether consensus code should depend on util/check.h. The PR is currently draft, CI is failing, and the author has been silent since a 2026-05-19 force-push with no reply to that last open thread, so it is Stale for review purposes even though nobody is blocking it."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

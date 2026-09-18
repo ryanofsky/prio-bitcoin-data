@@ -1,0 +1,315 @@
+{
+ "number": 36122,
+ "input_hash": "770f63edfe1862ff",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 29903,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 7247
+ },
+ "cost_usd": 0.0675443,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Reference implementation of BIP460 Cross-Input Signature Aggregation for Taproot key-path spends, letting multiple Taproot inputs share one aggregated signature.",
+    "Companion draft commits also add descriptor and PSBT support so wallets can prototype coinjoin/payjoin-style use cases on top of it."
+   ],
+   "reviewability": [
+    "Marked needs-rebase and mergeable_state is dirty, so the tip is not currently mergeable against master.",
+    "Author explicitly asked reviewers to focus on the core consensus/policy commits, not the later draft-bip wallet/PSBT commits which are expected to keep changing."
+   ],
+   "agreement": [
+    "Author frames this explicitly as a draft to accompany unmerged BIPs, not intended for merge (fjahr).",
+    "A first substantive review found three concrete correctness bugs in the wallet/PSBT signing and finalization paths, including cases where testmempoolaccept fails after signrawtransactionwithwallet reports complete=true (BarneyChambers).",
+    "No author response yet, posted one day before assessment."
+   ],
+   "categories": [
+    {
+     "name": "validation",
+     "why": [
+      "P3 because this is a proposed soft fork whose deployment and script-verification logic (new DEPLOYMENT_CISA, new witness v2 validation, CISA check in the check queue) needs eventual correctness review, but the author explicitly marks it draft-only and not for merge, and activation parameters exist only for regtest.",
+      "Reviewer-found consensus-adjacent bug (mempool-script-verify-flag-failed on a supposedly complete signature) shows real correctness risk if this direction is pursued further."
+     ]
+    },
+    {
+     "name": "mempool",
+     "why": [
+      "P3 because it changes standardness rules to make witness v2 transactions relayable, which matters if BIP460 moves forward but has no current deployment beyond regtest experimentation."
+     ]
+    },
+    {
+     "name": "wallet",
+     "why": [
+      "P3 because it adds nontrivial wallet signing, PSBT, and RPC support for a brand-new spend type, and a reviewer already found three fund-safety-adjacent bugs (PSBT combine losing conflicting half-agg sigs, finalize building an invalid second aggregation group) that would matter if this were headed toward merge."
+     ]
+    },
+    {
+     "name": "rpc",
+     "why": [
+      "P4 because the RPC surface (cisa_mode option, reservecisanonce, scantxoutset descriptor help) exists only to exercise this experimental feature and has no external consumer yet."
+     ]
+    },
+    {
+     "name": "docs",
+     "why": [
+      "P4 because the descriptor.md and psbt.md additions just describe the new experimental cisa()/rawcisa() constructs, useful mainly to PoC builders following the linked BIP drafts."
+     ]
+    },
+    {
+     "name": "build",
+     "why": [
+      "P4 because enabling the unmerged secp256k1 halfagg/fullagg experimental modules in the cmake build is scoped narrowly to this experiment and carries no benefit outside it."
+     ]
+    },
+    {
+     "name": "utils",
+     "why": [
+      "P3 because the secp256k1 subtree bump vendors two experimental, not-yet-upstream-merged crypto modules (halfagg, fullagg); correctness of aggregation primitives is exactly the kind of subtle, node-wide-risk area this category cares about, even though the author does not intend this to merge as-is."
+     ]
+    },
+    {
+     "name": "kernel",
+     "why": []
+    },
+    {
+     "name": "mining",
+     "why": []
+    },
+    {
+     "name": "p2p",
+     "why": []
+    },
+    {
+     "name": "tests",
+     "why": []
+    }
+   ]
+  },
+  "summary": "This PR is a reference implementation of BIP460 (Cross-Input Signature Aggregation for Taproot key-path spends), adding a new witness v2 output type whose spends can be aggregated via BIP458 half-aggregation or BIP459 full-aggregation, or spent individually with a plain BIP341 signature. It touches consensus deployment, script verification, policy, PSBT, wallet signing, RPC, and vendors two experimental unmerged secp256k1 modules (halfagg, fullagg) via subtree update. Later commits (prefixed draft-bip) go further, adding companion descriptor (cisa()/rawcisa()) and PSBT field/role support that the author says are unreviewed drafts included only so others can prototype end-to-end. Activation is regtest-only; there is no deployment on any other network.",
+  "problem": "There is currently no way to aggregate signatures across multiple Taproot inputs in a transaction, which second-layer protocols like payjoin and coinjoin could use to reduce transaction size and cost. This PR gives the BIP process and interested developers a concrete, runnable implementation to review and prototype against, ahead of any decision on whether BIP460 should be adopted.",
+  "discussion": {
+   "open_concerns": [
+    "signrawtransactionwithwallet can report complete=true for a v2 input that is actually an incomplete aggregation-group member, only caught later by mempool policy (BarneyChambers, unaddressed).",
+    "combinepsbt silently keeps whichever half-agg signature it sees first when two PSBTs disagree, unlike the full-agg path which already detects this conflict (BarneyChambers, unaddressed).",
+    "finalizepsbt can build a second, invalid aggregation group when one input in a group is already finalized and another is added later, causing consensus to reject the transaction with SCRIPT_ERR_CISA_GROUP_INVALID (BarneyChambers, unaddressed)."
+   ],
+   "resolved_concerns": [],
+   "author_status": "silent since 2026-09-08, review comments posted 2026-09-15"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "Labeled Needs rebase with mergeable_state dirty, a mechanical blocker independent of the draft-bip design questions. The author has also asked reviewers to focus on the core consensus/policy commits rather than the still-evolving draft-bip wallet/PSBT commits."
+  },
+  "agreement": {
+   "state": "Mild",
+   "summary": "BarneyChambers found three concrete signing/finalization bugs after building and testing the branch; author has not yet replied.",
+   "reason": "A real, substantive review surfaced three unresolved correctness issues (mis-reported completeness, PSBT combine losing conflicting signatures, invalid aggregation groups from finalize) that the reviewer frames as suggestions rather than explicit blockers, and the author has not had a chance to respond (posted one day before this assessment).",
+   "evidence": [
+    "BarneyChambers: 'signrawtransactionwithwallet came back complete=true with no errors' while testmempoolaccept failed with an aggregation-structure error",
+    "BarneyChambers: 'combinepsbt([A, B]) succeeded and kept A' despite conflicting half-agg sigs",
+    "BarneyChambers: finalizepsbt built a second aggregation group and testmempoolaccept then failed with 'Invalid CISA aggregation group structure'",
+    "fjahr: 'Draft to accompany the BIPs, not intended for merge'"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Prototyping of payjoin/coinjoin-style aggregated-signature transactions on regtest",
+    "Community review of BIP458/459/460 drafts (bitcoin/bips#2205, #2210, #2212)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Adds cmake flags to enable the experimental secp256k1 halfagg and fullagg modules for this build only.",
+    "band": "P4",
+    "reason_tag": "experimental flag",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P4 because the build change only turns on modules needed for this one experimental feature; no supported-platform or release-integrity impact."
+   },
+   {
+    "name": "docs",
+    "member": true,
+    "evidence": "doc/descriptors.md and doc/psbt.md gain sections describing the new cisa()/rawcisa() descriptors and CISA PSBT fields.",
+    "band": "P4",
+    "reason_tag": "experimental docs",
+    "score": 0.1,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P4 because the docs describe a not-for-merge experimental feature; useful to PoC builders but not to today's users or contributors."
+   },
+   {
+    "name": "kernel",
+    "member": false,
+    "evidence": "No kernel API or boundary changes; validation logic changes are internal to validation.cpp/interpreter.cpp, not the libbitcoinkernel API.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Not a kernel PR; no libbitcoinkernel API surface touched."
+   },
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "policy.cpp/policy.h changed to treat witness v2 (CISA) spends as standard, following BIP460.",
+    "band": "P3",
+    "reason_tag": "policy addition",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because standardness rules for a brand new, not-yet-adopted spend type are only relevant if BIP460 proceeds; the author explicitly frames the whole PR as draft-only ('not intended for merge')."
+   },
+   {
+    "name": "mining",
+    "member": false,
+    "evidence": "Only a one-line test assertion update (getblocktemplate rules list) that mechanically follows from the new deployment; no mining-interface or template-construction change.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical test-list update only, not a mining subject change."
+   },
+   {
+    "name": "p2p",
+    "member": false,
+    "evidence": "p2p_segwit.py test tweak is a mechanical accommodation of the new witness version, not a change to p2p behavior.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "No relay, DoS, or protocol-message logic is changed."
+   },
+   {
+    "name": "rpc",
+    "member": true,
+    "evidence": "Adds cisa_mode parameters to PSBT RPCs, a reservecisanonce RPC, scantxoutset descriptor help text, and DeploymentInfo entries for cisa.",
+    "band": "P4",
+    "reason_tag": "experimental feature",
+    "score": 0.15,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P4 because these RPCs exist solely to exercise an experimental, not-for-merge consensus proposal with no external consumer asking for them yet."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "All new tests (cisa_tests.cpp, feature_cisa.py, wallet_cisa.py, test_framework/cisa.py) pin behavior specific to validation, mempool, and wallet, not the general test framework.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Per the category definition, area-specific tests belong to their area, not test infrastructure."
+   },
+   {
+    "name": "utils",
+    "member": true,
+    "evidence": "src/secp256k1 subtree bump vendors two experimental, not-yet-upstream-merged modules (BIP458 half-aggregation, BIP459 full-aggregation) plus unrelated upstream refactors.",
+    "band": "P3",
+    "reason_tag": "experimental crypto",
+    "score": 0.4,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "P3 because vendoring unreviewed, not-yet-merged cryptographic aggregation code into the subtree is exactly the kind of change this category flags for correctness scrutiny, even though the PR is explicitly not intended to merge as-is."
+   },
+   {
+    "name": "validation",
+    "member": true,
+    "evidence": "Adds a new DEPLOYMENT_CISA versionbits deployment, a new SCRIPT_VERIFY_WITNESS_V2 flag, per-input and transaction-level CISA verification in script/interpreter.cpp, and a CISA check integrated into validation's check queue.",
+    "band": "P3",
+    "reason_tag": "decision needed",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 1,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 1
+    },
+    "rationale": "P3 because this is a proposed soft fork whose consensus correctness matters if adopted, but the author states it is 'a draft to accompany the BIPs, not intended for merge' with activation parameters defined only for regtest, so it is not currently blocking other validation work or awaiting a near-term project decision."
+   },
+   {
+    "name": "wallet",
+    "member": true,
+    "evidence": "Substantial wallet changes: scriptpubkeyman, sign.cpp/h, psbt.cpp/h, wallet.cpp/h, and new RPCs (reservecisanonce, cisa_mode) to create and finalize aggregated-signature spends.",
+    "band": "P3",
+    "reason_tag": "fund-safety bug",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P3 because a reviewer already surfaced concrete correctness problems that would affect fund safety if this shipped (a supposedly complete signature that mempool rejects, combinepsbt silently dropping a conflicting half-agg signature, and finalize producing consensus-invalid aggregation groups), but the feature itself is explicitly experimental and not slated for merge."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the draft-bip descriptor/PSBT commits should be weighed the same as the core consensus/policy commits for priority purposes, given the author asked reviewers to set them aside; I included them since membership is inclusive of what the diff touches.",
+   "No maintainer area labels beyond 'Needs rebase' were given, so category membership for validation/wallet/mempool/rpc/utils rests on diff inspection rather than a labeled prior.",
+   "Long-term significance of BIP458/459/460 within the BIP process is outside this PR's discussion and not something I can assess from the given signals."
+  ],
+  "card": "BIP460: CISA for Taproot key path spends is a reference implementation of cross-input signature aggregation for Taproot key-path spends, adding a new witness v2 output type, half/full aggregation modes, PSBT and wallet support, plus a secp256k1 subtree bump vendoring two experimental, not-yet-merged upstream crypto modules. The author explicitly states this is 'a draft to accompany the BIPs, not intended for merge' and activation is regtest-only. A reviewer (BarneyChambers) who built and tested the branch found three concrete bugs: signrawtransactionwithwallet reporting complete=true for signatures that mempool then rejects, combinepsbt silently dropping a conflicting half-agg signature, and finalizepsbt producing consensus-invalid aggregation groups; the author has not yet responded. The PR is labeled Needs rebase with a dirty mergeable state. No dependency on other open PRs was stated, but it depends on two unmerged secp256k1 PRs (#1566, #1754) for the vendored crypto modules."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

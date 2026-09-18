@@ -1,0 +1,92 @@
+{
+ "number": 36142,
+ "input_hash": "9b06596e10e7f532",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T16:23:04+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16522,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2280
+ },
+ "cost_usd": 0.0209415,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent command and argument injection into Tor's control socket by validating returned and cached onion service keys and IDs."
+   ],
+   "reviewability": [
+    "Needs a clean rebase before review can continue."
+   ],
+   "agreement": [
+    "Strong support from multiple reviewers who helped shape the strict key and service ID validation (jeanpablojp, vasild, winterrdog)."
+   ],
+   "categories": [
+    {
+     "name": "p2p",
+     "why": [
+      "P2 because it fixes a control protocol injection vulnerability in the Tor integration.",
+      "Impersonated or compromised Tor control endpoints could inject commands or hijack onion traffic through cached keys."
+     ]
+    }
+   ]
+  },
+  "summary": "Validates Tor v3 service IDs and private keys received from the Tor control daemon and cached on disk. The private key format is strictly checked against the expected 64-byte Ed25519-V3 base64 payload both when received and before reuse from disk, and invalid service IDs are rejected before advertising.",
+  "problem": "Tor reply parsing unescapes quoted strings, allowing a malicious or impersonated Tor control endpoint to return a private key containing spaces or CRLF line breaks. When bitcoind reuses the cached key in an unquoted ADD_ONION command upon restart, these characters cause command injection (such as triggering Tor shutdowns) or argument injection (such as adding duplicate Port bindings that hijack inbound onion traffic).",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Space injection in ADD_ONION arguments alongside CRLF command injection was noted and tested by jeanpablojp; author added strict payload validation to block both.",
+    "Strict key format and service ID verification rather than character blacklisting was suggested by vasild; implemented in the Sep 4 push.",
+    "winterrdog raised whether explicit owner-only file permissions should be enforced when writing cached keys; vasild noted process umask already ensures safe permissions, and winterrdog closed the topic."
+   ],
+   "author_status": "Active; addressed review feedback with a push on 2026-09-04 but needs to rebase dirty branch."
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts against master and requires a rebase."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong concept consensus; reviewers actively analyzed edge cases and the author addressed all feedback.",
+   "reason": "Three contributors gave Concept ACKs with substantive technical analysis. Reviewer requests for strict base64 parsing, space-injection guards, and service ID validation were completely integrated by the author.",
+   "evidence": [
+    "winterrdog, jeanpablojp, and vasild posted Concept ACKs.",
+    "jeanpablojp demonstrated that injected Port= arguments diverted 15 of 30 incoming connections to the injected target.",
+    "vasild advised strict whitelist validation for ServiceID and Ed25519 base64 payloads rather than character blacklists, which author adopted."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "p2p",
+    "member": true,
+    "evidence": "Modifies src/torcontrol.cpp, which manages bitcoind's Tor onion service integration and P2P listening address advertising.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.65,
+    "factors": {
+     "security_stability": 2,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "P2 because it fixes an injection vulnerability in the Tor control integration that could hijack inbound onion connections. As demonstrated during review, an injected `Port=` argument in a cached key causes Tor to route half of incoming onion connections away from the node to an attacker-controlled target, compromising node connectivity and transaction privacy."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Validates Tor onion service IDs and private keys received from Tor control connections and cached on disk. It prevents an impersonated or hostile Tor control endpoint from injecting arbitrary control commands (via CRLF) or arguments (via spaces) when the node restarts and passes cached keys into ADD_ONION. Reviewers confirmed real exploitability where argument injection hijacks incoming onion traffic, and the author adopted strict format validation. Reviewers strongly support the change, though the branch currently requires a rebase."
+ },
+ "raw_text": null
+}

@@ -1,0 +1,125 @@
+{
+ "number": 35026,
+ "input_hash": "d097f0821fae5c11",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:36+00:00",
+ "provider": "Google",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 20073,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5743
+ },
+ "cost_usd": 0.036591,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Prevent the mempool from incorrectly evicting valid BIP68 transactions and their descendants during chain reorganizations."
+   ],
+   "reviewability": [
+    "Ready for review.",
+    "All reviewer feedback has been addressed and recent commits only refined test coverage."
+   ],
+   "agreement": [
+    "Strong support with an active ACK and co-authored test improvements (Bicaru20).",
+    "Prior approval on code-identical logic before the test extension (ismaelsadeeq)."
+   ],
+   "categories": [
+    {
+     "name": "mempool",
+     "why": [
+      "P2 because it fixes false eviction of valid transactions and their descendants during chain reorganizations.",
+      "Ensures packages with BIP68 relative locktimes and unconfirmed parents survive tip rollbacks."
+     ]
+    }
+   ]
+  },
+  "summary": "Fixes a bug in mempool reorg processing where valid transactions with BIP68 relative locktimes and unconfirmed parents are falsely evicted along with their descendants. When such transactions enter the mempool, their LockPoints are cached assuming tip+1. When a reorg lowers or alters the tip, the cached lockpoints become stale and sequence lock verification fails against the lowered tip. The patch recalculates LockPoints via CalculateLockPointsAtTip whenever cached checks fail, only evicting if fresh recalculation also fails.",
+  "problem": "During a chain reorganization or block invalidation, valid BIP68 transactions spending unconfirmed inputs are evicted from the mempool because their cached LockPoints are evaluated against the rolled-back tip. Node operators and users see legitimate transaction chains dropped from the mempool during reorgs.",
+  "discussion": {
+   "open_concerns": [],
+   "resolved_concerns": [
+    "Initial fix only checked the genesis sentinel which failed for mixed confirmed and unconfirmed inputs (raised by ismaelsadeeq, fixed by recalculating whenever cached checks fail).",
+    "Lack of coverage for time-based BIP68 relative lock variations when median time past drops (raised by instagibbs and ismaelsadeeq, addressed with a deterministic mocktime test developed with Bicaru20)."
+   ],
+   "author_status": "active"
+  },
+  "reviewability": {
+   "state": "Ready",
+   "label": "Ready",
+   "reason": "The code is compact, functional tests pass, and previous review concerns around mixed inputs and time-based locks have been addressed."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Strong consensus on the generalized recalculation approach with an ACK from Bicaru20 and earlier approval from ismaelsadeeq.",
+   "reason": "Both active reviewers confirmed the bug and helped refine the fix from a narrow genesis-sentinel check into a clean fallback recalculation, with full test coverage.",
+   "evidence": [
+    "ismaelsadeeq suggested recalculating whenever cached checks fail and approved commit 3813fc8.",
+    "Bicaru20 designed the deterministic time-based test case and re-ACKed commit ea2d638.",
+    "Bortlesboat verified regression reproduction on unpatched master."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "categories": [
+   {
+    "name": "mempool",
+    "member": true,
+    "evidence": "Modifies mempool reorg handling and eviction logic in MaybeUpdateMempoolForReorg.",
+    "band": "P2",
+    "reason_tag": "bug fix",
+    "score": 0.55,
+    "factors": {
+     "security_stability": 1,
+     "bug_severity": 2,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 0
+    },
+    "rationale": "Fixes issue #35007 where valid BIP68 transactions with unconfirmed parents are falsely evicted from the mempool during reorgs. Erroneous eviction of valid transactions and their descendants harms relay reliability across chain tip adjustments."
+   },
+   {
+    "name": "tests",
+    "member": false,
+    "evidence": "Adds a functional test specifically for mempool reorg behavior rather than modifying test framework machinery.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Subsystem-specific functional tests belong to their respective areas rather than general test infrastructure."
+   },
+   {
+    "name": "validation",
+    "member": false,
+    "evidence": "Edits src/validation.cpp inside MaybeUpdateMempoolForReorg, which manages mempool transaction retention rather than block validity or chainstate rules.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Changes whose subject is mempool policy and eviction belong to mempool even when modifying validation files."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "Prevents false eviction of valid BIP68 transactions with unconfirmed parents and their descendants during chain reorganizations. Transactions entering the mempool cache LockPoints assuming tip+1, which become stale when the tip lowers, causing removeForReorg to erroneously drop them. The fix recalculates LockPoints at the new tip whenever cached sequence lock checks fail before deciding to evict. Reviewers have validated the fix across height-based, mixed-input, and time-based lock cases, with an ACK from Bicaru20 and a prior ACK from ismaelsadeeq."
+ },
+ "raw_text": null
+}

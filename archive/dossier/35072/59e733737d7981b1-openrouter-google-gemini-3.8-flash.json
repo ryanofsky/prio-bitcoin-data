@@ -1,0 +1,145 @@
+{
+ "number": 35072,
+ "input_hash": "59e733737d7981b1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "batch": false,
+ "created": "2026-09-17T15:51:28+00:00",
+ "provider": "Google AI Studio",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 18973,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2656
+ },
+ "cost_usd": 0.02418975,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Avoid unnecessary target recompilation when reconfiguring optional build options like GUI, DBus, and tracing."
+   ],
+   "reviewability": [
+    "Not ready: needs a rebase, CI is failing, and the author has been inactive for over 100 days."
+   ],
+   "agreement": [
+    "Concept NACK citing that config headers should trigger rebuilds when options change and questioning the architectural motivation (fanquake).",
+    "Tested ACK on Ubuntu confirming non-GUI targets are not rebuilt when GUI is enabled (BrandonOdiwuor).",
+    "Notes that external scripts rely on the build config header as a single source of truth (151henry151)."
+   ],
+   "categories": [
+    {
+     "name": "build",
+     "why": [
+      "P3 because it reduces developer build friction by avoiding full rebuilds when toggling optional targets like Qt.",
+      "The optimization saves developer iteration time, but rebuild avoidance across reconfigurations is a modest convenience."
+     ]
+    }
+   ]
+  },
+  "summary": "This pull request moves optional definitions (`USE_DBUS`, `USE_QRCODE`, `ENABLE_WALLET`, `ENABLE_TRACING`, and `ENABLE_EXTERNAL_SIGNER`) out of `bitcoin-build-config.h` and scopes them directly to their consuming CMake targets. Unneeded inclusions of `bitcoin-build-config.h` are also removed from various source files.",
+  "problem": "When reconfiguring the build with new CMake options (such as enabling GUI builds after a non-GUI build), modifying `bitcoin-build-config.h` forces a full recompilation of all targets that include the header, even if they do not depend on the reconfigured options.",
+  "discussion": {
+   "open_concerns": [
+    "fanquake concept NACKed the change, arguing that shared config headers are intended to trigger rebuilds on configuration changes, and questioning whether scoping definitions to targets makes sense standalone without a coherent overall design.",
+    "151henry151 noted that auxiliary tooling like `gen-manpages.py` relies on `bitcoin-build-config.h` as a single source of truth for enabled features."
+   ],
+   "resolved_concerns": [
+    "BrandonOdiwuor verified that only Qt targets are rebuilt when `BUILD_GUI=ON` is subsequently added."
+   ],
+   "author_status": "silent since 2026-05-29 after converting the PR to draft to address reviewer feedback"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "The PR has merge conflicts, failing CI, and has had no author activity for 111 days after being turned into a draft."
+  },
+  "agreement": {
+   "state": "Disputed",
+   "summary": "Disputed: fanquake concept NACKed removing optional definitions from the config header; author moved PR to draft.",
+   "reason": "fanquake raised a concept objection regarding the purpose of config headers and the lack of clear criteria for what belongs there, while BrandonOdiwuor provided a tested ACK. The author moved the PR to draft to address the concerns and has not resumed work.",
+   "evidence": [
+    "BrandonOdiwuor gave a Tested ACK verifying that non-GUI targets are not rebuilt when toggling GUI builds.",
+    "fanquake gave a Concept NACK stating: 'I think the point of a (shared) config header, is to trigger rebuilds of modules that use it, when the header/config changes.'",
+    "151henry151 commented that tools like `gen-manpages.py` use `bitcoin-build-config.h` as a canonical reference for enabled features."
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#29914"
+   ]
+  },
+  "categories": [
+   {
+    "name": "build",
+    "member": true,
+    "evidence": "Changes CMakeLists configuration, module definitions, and header generation in `cmake/bitcoin-build-config.h.in`.",
+    "band": "P3",
+    "reason_tag": "speedup",
+    "score": 0.35,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 1,
+     "user_value": 0,
+     "leverage": 1
+    },
+    "rationale": "The PR addresses developer rebuild times when reconfiguring CMake options, specifically preventing complete rebuilds of unrelated targets when enabling GUI or tracing options. While unblocking faster iteration and linked to issue #29914, build configuration fine-tuning without broader build system fixes qualifies as a worthwhile, deferrable P3 improvement."
+   },
+   {
+    "name": "rpc",
+    "member": false,
+    "evidence": "Only mechanically removes an unused `#include <bitcoin-build-config.h>` from RPC source files.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical header removal; does not touch RPC logic or interfaces."
+   },
+   {
+    "name": "utils",
+    "member": false,
+    "evidence": "Only mechanically removes an unused `#include <bitcoin-build-config.h>` from common utility files.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical header removal; does not affect shared utility behavior."
+   },
+   {
+    "name": "wallet",
+    "member": false,
+    "evidence": "Only mechanically removes an unused `#include <bitcoin-build-config.h>` from wallet files.",
+    "band": "Unranked",
+    "reason_tag": "",
+    "score": 0.0,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 0,
+     "leverage": 0
+    },
+    "rationale": "Mechanical header removal; does not affect wallet functionality or interfaces."
+   }
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "needs": [],
+  "card": "This PR moves optional feature definitions (such as DBus, QR code, and tracing support) out of the centralized bitcoin-build-config.h header into target-specific CMake compile definitions. Its purpose is to prevent unnecessary full recompilations when CMake configuration options are toggled in an existing build directory. The change represents a developer workflow convenience (P3 in build). Review is currently blocked by merge conflicts, failing CI, and an unresolved Concept NACK from fanquake questioning the architectural shift away from a canonical configuration header."
+ },
+ "raw_text": null
+}

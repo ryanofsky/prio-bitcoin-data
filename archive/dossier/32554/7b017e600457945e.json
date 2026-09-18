@@ -1,0 +1,98 @@
+{
+ "number": 32554,
+ "input_hash": "7b017e600457945e",
+ "model": "claude-sonnet-5",
+ "batch": true,
+ "created": "2026-09-17T14:50:54+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 30891,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 14063,
+  "output_tokens": 3007
+ },
+ "cost_usd": 0.0473323,
+ "error": null,
+ "result": {
+  "display": {
+   "goal": [
+    "Replace a ~1MB hardcoded pre-SegWit block fixture in benchmarks with a runtime, seeded block generator.",
+    "Lets benchmark authors vary transaction and script mixes (SegWit, Taproot, multisig, etc.) instead of being stuck with one 2016-era block.",
+    "Removes binary bloat going forward and unblocks more representative and extensible benchmarks."
+   ],
+   "reviewability": [
+    "Needs rebase, PR shows dirty mergeable state.",
+    "Otherwise substantive review already happened and most feedback was addressed; a rebase would restore reviewable state."
+   ],
+   "agreement": [
+    "Several concept ACKs with stated reasons and no open objections (laanwj, yuvicc, Raimo33, 0xB10C).",
+    "hodlinator did a deep review with many suggestions; author addressed nearly all of them and both sides are aligned on remaining minor iteration.",
+    "No unresolved blocking criticism."
+   ],
+   "categories": []
+  },
+  "summary": "Replaces the embedded ~1MB raw block413567 fixture used across multiple benchmarks (checkblock, readwriteblock, load_external, rpc_blockchain) with a new bench/block_generator.{h,cpp} that builds fully valid, deterministically-seeded blocks at runtime on regtest. It adds configurable ScriptRecipe presets (kLegacy, kWitness) to vary script/transaction mixes, unit tests pinning generator behavior, and links secp256k1 into bench_bitcoin. The old binary fixture and its CMake wiring are removed in the final commit.",
+  "problem": "Benchmark authors were stuck with one 2016 pre-SegWit block, unable to test SegWit v0, Taproot, or varied script/transaction mixes, and the binary embeds ~1MB in the repo permanently. This affects anyone extending or trusting Bitcoin Core's benchmark suite going forward.",
+  "discussion": {
+   "open_concerns": [
+    "hodlinator raised many design questions (occupancy-limit-based sizing vs fixed tx_count, more realistic scriptSig/witness generation, probability normalization) that are partially resolved: author addressed most concrete ones (genesis linkage, height, secp constants, witness malleation check) but deferred the more invasive 'realistic unlock scripts' idea to a follow-up by mutual agreement.",
+    "CI failure once occurred (assertion on probability sum) which the author says was fixed rather than worked around."
+   ],
+   "resolved_concerns": [
+    "Naming, coinbase height/hashPrevBlock semantics, powLimit assumption documentation, OP_RETURN sizing, script factory naming/style nits all addressed by author pushes.",
+    "hodlinator's request to keep old block413567 around for older benchmarks was not adopted but no pushback recorded; treated as a non-blocking suggestion."
+   ],
+   "author_status": "active, last force-pushed 2026-08-21 and has been responsive to all substantive review feedback across many rounds"
+  },
+  "reviewability": {
+   "state": "Stale",
+   "label": "Needs rebase",
+   "reason": "PR is marked needs_rebase and mergeable_state is dirty; also conflicts with several other open PRs touching the same files (#36181, #36171, #35646, #35591). The code itself has had substantial review already and most concerns were addressed, but a fresh review should wait for a rebase to a clean diff."
+  },
+  "agreement": {
+   "state": "Strong",
+   "summary": "Multiple concept ACKs with stated reasons (laanwj, yuvicc, Raimo33, 0xB10C) and hodlinator's extensive review comments were mostly addressed by the author with no standing objection.",
+   "reason": "0xB10C's concept ACK explicitly states the direction is right for repo size and extensibility reasons, echoing the PR's stated rationale, and hodlinator's 'Strong problem ACK' after deep review found no fundamental fault, only implementation refinements the author has largely incorporated.",
+   "evidence": [
+    "laanwj, yuvicc, Raimo33: Concept ACK",
+    "hodlinator: 'Strong problem A-C-K - It's quite bad that we are only benchmarking against a pre-segwit block', extensive suggestions, mostly resolved by author pushes",
+    "0xB10C: 'if we're want to use blocks in our benchmarks going forward, something like this is the right move'",
+    "No open blocking objections; remaining items (fully realistic unlock scripts) deferred by mutual agreement to a follow-up"
+   ]
+  },
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "More realistic/extensible benchmark scenarios for future PRs like #36254 (undo data benchmarking) per 0xB10C's comment",
+    "Supersedes and closes the need for #32457 (updating the embedded block)"
+   ]
+  },
+  "categories": [
+   {
+    "name": "tests",
+    "member": true,
+    "evidence": "This is entirely bench/test infrastructure: a new src/bench/block_generator.{h,cpp} helper plus unit tests pinning its behavior (src/test/bench_block_generator_tests.cpp), with the Tests label applied.",
+    "band": "P3",
+    "reason_tag": "test coverage",
+    "score": 0.45,
+    "factors": {
+     "security_stability": 0,
+     "bug_severity": 0,
+     "performance": 0,
+     "user_value": 1,
+     "leverage": 2
+    },
+    "rationale": "P3 because it improves the realism and extensibility of the benchmark suite rather than fixing a flaky or misleading test; 0xB10C notes it 'takes up far less repo space' and 'we don't need to add a recent mainnet block every few years', and it is explicitly framed as unblocking future work like undo-data benchmarking (#36254). It has real, durable value to benchmark maintainers but is not urgent and does not touch consensus-critical test coverage, so it sits below P1/P2 despite broad concept support."
+   }
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Whether the remaining design disagreement (occupancy-limit sizing vs fixed tx_count, fully realistic unlock scripts) will resurface as blocking once a fresh review round starts after rebase.",
+   "Exact current CI state is unknown beyond one historical failure that was fixed; ci_failed signal says false but the PR needs_rebase and conflicts with 4 open PRs, so re-verification is needed.",
+   "No maintainer (non-member author aside) has given a full ACK/Approach ACK on the current code; all support so far is Concept-level."
+  ],
+  "card": "This PR replaces the hardcoded ~1MB pre-SegWit block413567.raw fixture used by several benchmarks with a new runtime block_generator that builds fully valid, deterministically-seeded blocks with configurable script/transaction mixes (legacy vs witness-heavy presets). The problem is that the old fixture is binary bloat frozen in 2016, predating SegWit and Taproot, and cannot exercise varied script types; 0xB10C's concept ACK states this is 'the right move' for repo size and extensibility and links it to future undo-data benchmarking work. The PR has received sustained review since May 2025, with laanwj, yuvicc, and Raimo33 giving concept ACKs and hodlinator doing an extensive line-by-line review whose suggestions the author has largely incorporated over many force-pushes, with no standing blocking objection. It currently needs a rebase (dirty mergeable state) and conflicts with four other open PRs touching the same benchmark files, so a review right now risks being invalidated by merge conflicts even though the design itself looks settled. No PR depends on this one merging, but it is described as unblocking more realistic future benchmark work."
+ },
+ "raw_text": null,
+ "batch_id": "msgbatch_0133h2dRwnqg4P3cywLjJiHK"
+}

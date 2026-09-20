@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-09-20T01:14:25+00:00",
+ "card": "This pull request removes the runtime error state (M_ERROR) from ValidationState and routes system and filesystem failures through util::Expected with a kernel::FatalError type instead. Previously, BlockValidationState conflated block invalidity with fatal runtime errors, forcing non-validating methods such as InvalidateBlock and FlushStateToDisk to accept validation state parameters purely to signal disk or system errors. The refactor simplifies error handling for callers across the validation engine and unblocks PR 35570 from transitioning validation functions to cleaner return signatures.",
+ "changed_since_previous": "No substantial architectural changes; the implementation continues using `util::Expected<T, kernel::FatalError>` across validation call sites with minor test and rebase adjustments.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#35570"
+  ]
+ },
+ "evidence": [
+  "PR description highlights the dual design flaws: 'Wrong abstraction for non-validating functions' and 'Three outcomes in one object... forcing every caller to unwrap.'",
+  "Author notes discussions in #33856 and #35570 supporting the elimination of `M_ERROR`.",
+  "The change paves the way for #35570 to return `BlockValidationState` cleanly without conflating fatal system errors."
+ ],
+ "head_sha": "22af5819cd2d29df7a937909d6dd11f1f8abe2b2",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35646,
+ "patch_id": "cccf37f61f213801",
+ "problem": "`BlockValidationState` conflates consensus and policy rejection reasons with runtime and filesystem errors like disk write failures. Non-validating operations like `FlushStateToDisk`, `DisconnectTip`, and `InvalidateBlock` are forced to take a `BlockValidationState` out-parameter solely for error reporting, and callers of validating functions must distinguish three separate states packed into a single status object.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "validation",
+   "consensus"
+  ],
+  "why": "A mistake in error propagation or validation unwrapping across ConnectBlock, AcceptBlock, or ProcessNewBlock could cause blocks to be incorrectly rejected or accepted, potentially desyncing the node."
+ },
+ "run": "run:20260920-0114-assess",
+ "scope_notes": "Touches the return types of core chainstate, validation, and block storage functions across 39 files, including updates to kernel C API definitions and validation fuzz targets.",
+ "size": {
+  "additions": 575,
+  "deletions": 370,
+  "files": 39,
+  "test_lines": 315
+ },
+ "summary": "Removes the runtime error mode (`M_ERROR`) from `ValidationState` and separates fatal system errors from consensus or policy validity checks. Chainstate methods and block storage routines (including `ConnectBlock`, `AcceptBlock`, `FlushStateToDisk`, and `ProcessNewBlock`) are updated to return `util::Expected<T, kernel::FatalError>`. Corresponding `INTERNAL_ERROR` states are also eliminated from the kernel C API and wrapper interfaces.",
+ "uncertainties": []
+}

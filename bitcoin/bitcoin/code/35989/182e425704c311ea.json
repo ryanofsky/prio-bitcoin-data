@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-09-21T01:15:23+00:00",
+ "card": "This PR fixes a node crash where calling importdescriptors with a range ending at 2^31-1, or importing without a range under an oversized -keypool, narrows the exclusive range end to a negative int32_t and aborts the node during keypool top-up. It also prevents signed integer overflows during keypoolrefill INT32_MAX after address usage and in CheckDescriptorRangeBounds for reversed ranges like [INT64_MAX, 0]. Regression tests verify the bounds checks and ensure operations remain clean under UBSan.",
+ "changed_since_previous": "Added commit 457c9e8999 and unit test coverage to prevent signed integer overflow in CheckDescriptorRangeBounds by checking for reversed ranges before calculating high - low.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Importing [2147483647, 2147483647] produces an end of 2^31, which narrows to a negative value and aborts the node during keypool top-up. An import without a range can hit the same issue with an oversized -keypool.'",
+  "Commit 867ad9bffb and functional test: keypoolrefill INT32_MAX after advancing a descriptor overflows int32_t next_index + target_size under UBSan.",
+  "Commit 457c9e8999 and unit test: CheckDescriptorRangeBounds triggers signed integer overflow under UBSan for [INT64_MAX, 0]."
+ ],
+ "head_sha": "457c9e8999fbee1d37f41eaede681f787e657395",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35989,
+ "patch_id": "182e425704c311ea",
+ "problem": "WalletDescriptor stores exclusive range endpoints in int32_t. Importing a descriptor with an inclusive end of 2^31-1, or importing without a range when -keypool exceeds 2^31-1, narrows the exclusive end to a negative integer, writing an inverted range and aborting the node on assertion during keypool top-up. Additionally, keypoolrefill INT32_MAX causes signed integer overflow in TopUpWithDB after an address is used, and passing [INT64_MAX, 0] to CheckDescriptorRangeBounds triggers signed overflow on low + 1000000.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api",
+   "tests"
+  ],
+  "why": "Flaws in descriptor range checks or top-up bounds calculations could improperly reject valid descriptor imports or fail keypool refills for wallet users."
+ },
+ "run": "run:20260921-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 71,
+  "deletions": 5,
+  "files": 6,
+  "test_lines": 51
+ },
+ "summary": "Fixes node aborts and signed integer overflows triggered by edge-case descriptor ranges. Rejects descriptor imports whose exclusive range end exceeds the int32_t bound, computes keypool refill target bounds in int64_t to avoid integer overflow in TopUpWithDB, and checks for reversed ranges before evaluating maximum range size in CheckDescriptorRangeBounds.",
+ "uncertainties": []
+}

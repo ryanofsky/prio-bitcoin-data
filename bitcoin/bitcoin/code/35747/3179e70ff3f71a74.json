@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-21T01:15:19+00:00",
+ "card": "Updates DescriptorScriptPubKeyMan::FillPSBT to use PSBTInput::GetUTXO for selecting signing keys instead of reading witness_utxo directly. Previously, an input with conflicting witness and non-witness UTXO fields caused FillPSBT to look up keys for the witness script while SignPSBTInput required keys for the non-witness script, leaving owned inputs unsigned. The change also ensures FillPSBT immediately returns MISSING_INPUTS when non_witness_utxo is malformed or txid-mismatched. No fund safety issues were involved as this bug only led to incomplete PSBTs rather than bad signatures.",
+ "changed_since_previous": "The core fix remains the same, organized into two commits that document and unit-test PSBTInput::GetUTXO resolution behavior before updating FillPSBT.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'When the two disagreed, FillPSBT loaded keys for the witness_utxo script while SignPSBTInput signed the non_witness_utxo spend. This could lead to an incomplete input even though the wallet owns the appropriate non_witness_utxo script.'",
+  "Regression test fillpsbt_signs_despite_conflicting_witness_utxo confirms that signing an owned input succeeded only after routing script selection through GetUTXO."
+ ],
+ "head_sha": "7aed7f8d176c7b7d4c147df45e194994c3bf0fea",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35747,
+ "patch_id": "3179e70ff3f71a74",
+ "problem": "When a PSBT input includes both witness_utxo and non_witness_utxo with conflicting scriptPubKeys, FillPSBT selected signing keys matching witness_utxo while SignPSBTInput attempted to sign for non_witness_utxo. As a result, the wallet would fail to produce a complete signature even if it owned the keys for the non_witness_utxo spend.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet"
+  ],
+  "why": "Flaws in UTXO extraction or key provider selection could cause the wallet to fail to sign legitimate PSBT inputs or mishandle malformed transactions."
+ },
+ "run": "run:20260921-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 94,
+  "deletions": 7,
+  "files": 4,
+  "test_lines": 85
+ },
+ "summary": "Updates DescriptorScriptPubKeyMan::FillPSBT to select signing providers via PSBTInput::GetUTXO instead of inspecting witness_utxo directly. This aligns FillPSBT with SignPSBTInput by prioritizing a verified non_witness_utxo over witness_utxo and immediately rejecting mismatched or malformed non-witness UTXOs.",
+ "uncertainties": []
+}

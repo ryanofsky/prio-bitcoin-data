@@ -1,0 +1,45 @@
+{
+ "run": "run:20260923-0123-assess",
+ "pr": "bitcoin/bitcoin#35675",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-23T01:24:01+00:00",
+ "usage": {
+  "input_tokens": 17588,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1768
+ },
+ "cost_usd": 0.0115941,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Introduces `node::BlockTemplateManager` to consolidate block template creation, block submission, tip-wait helpers, and init-time mining options into a single node component. Internal callers, tests, and mining RPCs now interact directly with `BlockTemplateManager`, removing `NodeContext::mining`. It also optimizes `getblocktemplate` to copy only block headers and reference transactions and metadata directly from the template.\",\n  \"problem\": \"Block template generation logic, tip-wait helpers, block submission callbacks, and init-time options were fragmented across `NodeContext`, `miner.cpp`, and `interfaces::Mining`. Internal callers like RPCs and tests routed through the IPC mining interface, causing unnecessary full block copies and retaining `NodeContext` references across template lifetimes during shutdown.\",\n  \"evidence\": [\n   \"Description notes: 'keeps the IPC Mining interface focused on IPC-facing mining objects, while RPC and tests use the block template manager directly' and 'prevents some redundant copies previously done when using the mining interface to create a block template and then retrieve the template data.'\",\n   \"Commit 951fac807d notes: 'The transactions, fees and sigops costs, and the coinbase outputs are only read, so reference them from the template instead of copying them out of it.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#33922\",\n      \"#35581\"\n    ]\n  },\n  \"scope_notes\": \"Touches initialization, teardown order, and mock setups across multiple test harnesses (unit tests and fuzz targets) because `BlockTemplateManager` must be reset before its `mempool` and `chainman` dependencies.\",\n  \"changed_since_previous\": \"Enforces IWYU for `block_template_manager.cpp` in CI and updates fuzz exclusions in `rpc.cpp` to skip `generateblock` and `waitfor*` RPCs that now execute instead of failing on a missing `Mining` interface.\",\n  \"card\": \"Introduces node::BlockTemplateManager to centralize block template creation, block submission, tip-waiting helpers, and default mining options in a single node component. In-process RPCs and tests are routed directly through the template manager instead of through interfaces::Mining, allowing NodeContext::mining to be removed. This refactor enables getblocktemplate to avoid copying entire blocks by referencing template transactions directly, while avoiding NodeContext references during shutdown. Merging this PR unblocks template non-mempool memory tracking in #33922 and waitNext fee inflow tracking in #35581.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"rpc_api\",\n      \"tests\"\n    ],\n    \"why\": \"A flaw in template construction, default option merging, or block submission could lead to invalid block generation or cause longpolling RPCs to hang.\"\n  }\n}",
+ "result": {
+  "summary": "Introduces `node::BlockTemplateManager` to consolidate block template creation, block submission, tip-wait helpers, and init-time mining options into a single node component. Internal callers, tests, and mining RPCs now interact directly with `BlockTemplateManager`, removing `NodeContext::mining`. It also optimizes `getblocktemplate` to copy only block headers and reference transactions and metadata directly from the template.",
+  "problem": "Block template generation logic, tip-wait helpers, block submission callbacks, and init-time options were fragmented across `NodeContext`, `miner.cpp`, and `interfaces::Mining`. Internal callers like RPCs and tests routed through the IPC mining interface, causing unnecessary full block copies and retaining `NodeContext` references across template lifetimes during shutdown.",
+  "evidence": [
+   "Description notes: 'keeps the IPC Mining interface focused on IPC-facing mining objects, while RPC and tests use the block template manager directly' and 'prevents some redundant copies previously done when using the mining interface to create a block template and then retrieve the template data.'",
+   "Commit 951fac807d notes: 'The transactions, fees and sigops costs, and the coinbase outputs are only read, so reference them from the template instead of copying them out of it.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#33922",
+    "#35581"
+   ]
+  },
+  "scope_notes": "Touches initialization, teardown order, and mock setups across multiple test harnesses (unit tests and fuzz targets) because `BlockTemplateManager` must be reset before its `mempool` and `chainman` dependencies.",
+  "changed_since_previous": "Enforces IWYU for `block_template_manager.cpp` in CI and updates fuzz exclusions in `rpc.cpp` to skip `generateblock` and `waitfor*` RPCs that now execute instead of failing on a missing `Mining` interface.",
+  "card": "Introduces node::BlockTemplateManager to centralize block template creation, block submission, tip-waiting helpers, and default mining options in a single node component. In-process RPCs and tests are routed directly through the template manager instead of through interfaces::Mining, allowing NodeContext::mining to be removed. This refactor enables getblocktemplate to avoid copying entire blocks by referencing template transactions directly, while avoiding NodeContext references during shutdown. Merging this PR unblocks template non-mempool memory tracking in #33922 and waitNext fee inflow tracking in #35581.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api",
+    "tests"
+   ],
+   "why": "A flaw in template construction, default option merging, or block submission could lead to invalid block generation or cause longpolling RPCs to hang."
+  }
+ }
+}

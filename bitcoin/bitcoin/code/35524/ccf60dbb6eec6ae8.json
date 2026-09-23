@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-23T01:24:02+00:00",
+ "card": "Prevents block data clobbering and file truncation during file preallocation on Windows and platforms lacking posix_fallocate (*BSD, OmniOS). The fallback implementation previously sought to the target offset and unconditionally zero-filled the range, corrupting blk*.dat files during -reindex and leaving nodes with only the genesis block. Both the fallback and Windows paths now check the current file size and only extend the file when the requested range exceeds its existing size. This fixes open issue 33128.",
+ "changed_since_previous": "Squashed into a single commit; the core approach of checking existing file size before extending or zero-filling files on Windows and fallback platforms remains unchanged.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Linked issue #33128: '*BSD, OmniOS: `-reindex` is broken'",
+  "PR description: 'on systems where posix_fallocate() is unavailable, the fallback implementation of AllocateFileRange() can overwrite parts of blk00000.dat with zeroes. as a result, -reindex appears to complete successfully, but only the genesis block is recovered'",
+  "Commit a1c412e93c: 'The fallback variant of AllocateFileRange (introduced in #1677) unconditionally zero-filled the requested range, which could overwrite existing block data in blk*.dat files during -reindex before the reindex scan ran.'"
+ ],
+ "head_sha": "a1c412e93cc35b0b896af0325fe74f9f6d9b1603",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35524,
+ "patch_id": "ccf60dbb6eec6ae8",
+ "problem": "On platforms without `posix_fallocate` (such as *BSD and illumos distributions like OmniOS), running `-reindex` invokes the fallback `AllocateFileRange` which overwrites block data in `blk*.dat` with zeroes. As a result, `-reindex` finishes without error but only recovers the genesis block. On Windows, unconditionally calling `SetEndOfFile` risks truncating files if the requested allocation offset and length are smaller than the existing file size.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "other"
+  ],
+  "why": "Flaws in file preallocation logic could truncate or overwrite raw block storage files on disk, corrupting the blockchain database and forcing a re-download."
+ },
+ "run": "run:20260923-0123-assess",
+ "scope_notes": "Small 26-line change in `src/util/fs_helpers.cpp` targeting platform-specific and fallback file pre-allocation paths.",
+ "size": {
+  "additions": 26,
+  "deletions": 15,
+  "files": 1,
+  "test_lines": 0
+ },
+ "summary": "Fixes `AllocateFileRange` in `src/util/fs_helpers.cpp` for both Windows and platforms lacking `posix_fallocate` so file contents are not overwritten or truncated. On the generic fallback path, the function now checks the existing file size before writing bytes instead of seeking to the given offset and unconditionally zero-filling. On Windows, `SetEndOfFile` is now only called if the requested range extends beyond the current file size.",
+ "uncertainties": []
+}

@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-23T01:24:12+00:00",
+ "card": "Adds server debug logging for bytes received per HTTP client connection and rewrites the receive-throttle regression test in interface_http.py to assert against server logs. The original test introduced in #36123 suffered intermittent CI failures (#36216) because client-side socket send timing is distorted by OS TCP stack heuristics, particularly on macOS. Testing throttle behavior via server debug logs eliminates client TCP timing dependencies, matching the approach used for send-side throttling in #36174.",
+ "changed_since_previous": "Now includes the full diff, confirming the counter and debug log in `HTTPRemoteClient::Receive()` and the background-thread flood with log polling in `interface_http.py`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Closes open issue #36216 ('qa: Intermittent failure in `interface_http.py`').",
+  "Author documented root cause from packet captures during hundreds of test runs on macOS: 'Macos for example may suddenly re-open a TCP window size based on heuristics out of our control (`SB_AUTOSIZE`)... [and] delay transmission of data between 5-60 seconds as the TCP window shrinks'.",
+  "Mirrors the server debug log assertion strategy established in merged PR #36174 for the send-side throttle test."
+ ],
+ "head_sha": "f86eb92d9a5b2ef349c7002fb3bcb44f371870e0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36303,
+ "patch_id": "14bc7e295dc69880",
+ "problem": "The receive-throttle regression test added in #36123 fails intermittently in CI (#36216). Client-side socket assertions are unreliable across operating systems because platform-specific TCP stack heuristics (especially on macOS, such as window autosizing and persist timers) can delay or resume transmissions independently of whether bitcoind is actually draining the socket.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests",
+   "rpc_api"
+  ],
+  "why": "Only adds an internal debug log message in the HTTP server read loop and updates a functional test."
+ },
+ "run": "run:20260923-0123-assess",
+ "scope_notes": "Touches only 13 lines in `src/httpserver.{h,cpp}` to add a counter and log line; the remainder is functional test code.",
+ "size": {
+  "additions": 102,
+  "deletions": 46,
+  "files": 3,
+  "test_lines": 135
+ },
+ "summary": "Adds debug logging for bytes received and buffered per client connection in the HTTP server, and rewrites the receive-throttle test in `interface_http.py` to verify throttling using those server debug logs. The test switches from inferring server reads via client socket backpressure to polling server-side log counters while flooding the connection from a background thread.",
+ "uncertainties": []
+}

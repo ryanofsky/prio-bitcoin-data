@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-23T01:23:57+00:00",
+ "card": "Converts DescriptorScriptPubKeyMan's mutex from a public RecursiveMutex to a private non-recursive Mutex (m_desc_mutex) as part of the project-wide effort to eliminate recursive mutexes (issue #19303). Public methods manage synchronization internally, shared internal routines are split into lock-held helpers, and external callers stop acquiring the lock directly. Address-availability notification callbacks are deferred until the lock is released to prevent re-entrancy deadlocks when synchronous subscribers query descriptor state. No change to RPC behavior, wallet storage, or external signer semantics is intended.",
+ "changed_since_previous": "Rebased without substantive changes to the approach or architecture.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Part of https://github.com/bitcoin/bitcoin/issues/19303'",
+  "Commit 30c44a175e: 'Compare availability before and after each operation under the mutex, then notify after unlocking so synchronous callbacks can query the wallet safely. Notify only for a net change, including partial updates that throw, and rethrow captured exceptions after notification.'"
+ ],
+ "head_sha": "3d5e0777ac1a779191562d0fe7ad2b00f2a83f46",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35444,
+ "patch_id": "20cb21c935d079e7",
+ "problem": "DescriptorScriptPubKeyMan relied on a public RecursiveMutex, obscuring lock hierarchies, bypassing compile-time thread-safety analysis, and permitting recursive call paths. Additionally, dispatching availability change signals while holding the mutex risked re-entrancy deadlocks if synchronous listeners (such as the GUI) queried the descriptor manager during the callback.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet"
+  ],
+  "why": "Mistakes in descriptor locking or notification deferral could introduce wallet deadlocks or race conditions during key generation and address queries."
+ },
+ "run": "run:20260923-0123-assess",
+ "scope_notes": "The final commit is a scripted-diff replacing cs_desc_man with m_desc_mutex. A new unit test in scriptpubkeyman_tests.cpp specifically exercises re-entrant synchronous notification behavior.",
+ "size": {
+  "additions": 507,
+  "deletions": 213,
+  "files": 8,
+  "test_lines": 120
+ },
+ "summary": "Converts DescriptorScriptPubKeyMan's internal mutex from a public RecursiveMutex to a private non-recursive Mutex renamed to m_desc_mutex. External callers across the wallet, RPC, and fuzzing harnesses are migrated to self-locking public member functions, while internal recursive routines are separated into lock-held helper methods. Address-availability notifications are deferred until after the mutex is released so that synchronous callbacks can safely query wallet state.",
+ "uncertainties": []
+}

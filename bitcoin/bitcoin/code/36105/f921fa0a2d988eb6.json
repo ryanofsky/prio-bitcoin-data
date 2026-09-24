@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-09-24T02:52:53+00:00",
+ "card": "Fixes util::ExecVp on Windows so the bitcoin.exe wrapper blocks until its child process exits and forwards the child exit status. Previously, _execvp exited the parent wrapper immediately upon spawning the child, preventing scripts and test harnesses on Windows from capturing process output or checking exit codes. The change switches to _spawnvp(_P_NOWAIT) followed by _cwait, fixes errno reporting on exec failures, and re-enables tool_bitcoin.py and interface_gui.py on Windows.",
+ "changed_since_previous": "Dropped the workaround handling msvcrt-specific EINVAL returns when probing for non-existent candidate binaries in src/bitcoin.cpp, keeping only the std::generic_category errno exception fix.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#36190"
+  ]
+ },
+ "evidence": [
+  "Description and commit 4453ead327: 'Switch from _execvp to _spawnvp(_P_NOWAIT) + _cwait so bitcoin.exe waits for the child process to finish and forwards its exit code. Previously _execvp would exit the parent as soon as the child started, making it impossible for anything waiting on bitcoin.exe (such as a test framework) to track whether the child succeeded or failed.'",
+  "Commit 7fc08852e4 removes skips in `tool_bitcoin.py` and `interface_gui.py` that were previously introduced in #33229 and #35551 due to this exact Windows behavior."
+ ],
+ "head_sha": "ad98271f512d89fb37cc1debe3a9319165210a22",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36105,
+ "patch_id": "f921fa0a2d988eb6",
+ "problem": "On Windows, the `bitcoin.exe` wrapper calls CRT `_execvp`, which spawns the child process and immediately exits the parent wrapper with code 0. External callers, scripts, and the Python test framework cannot wait for the child, capture output, or inspect the exit status.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tooling",
+   "tests"
+  ],
+  "why": "A flaw would only affect Windows process execution within the bitcoin multi-process wrapper binary and test harness."
+ },
+ "run": "run:20260924-0252-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 29,
+  "deletions": 21,
+  "files": 7,
+  "test_lines": 33
+ },
+ "summary": "Fix `util::ExecVp` on Windows to wait for child processes to finish and forward their exit codes instead of having the wrapper process exit immediately. Use `std::generic_category()` instead of `std::system_category()` when reporting POSIX `errno` errors from `ExecVp` failures on Windows. Re-enable the `tool_bitcoin.py` and non-vcpkg `interface_gui.py` functional tests on Windows.",
+ "uncertainties": []
+}

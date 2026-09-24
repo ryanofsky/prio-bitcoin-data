@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-24T02:52:47+00:00",
+ "card": "This PR eliminates default construction and public `Init()` from `PrecomputedTransactionData`, making all instances immutably tied to a single transaction at creation. Validation now uses `std::optional` to lazily construct txdata only upon script cache misses, and block connection avoids allocating txdata containers when assumevalid bypasses script checks. It also fixes an unintended copy of precomputed txdata in the experimental kernel C verification API, supported by a compiler reproducer. No open dependencies are declared.",
+ "changed_since_previous": "Added commit ffc8cf187b to prevent `btck_script_pubkey_verify()` from copying caller-supplied `PrecomputedTransactionData` on each call.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit ffc8cf187b provides a compiler reproducer (Godbolt link) demonstrating that GCC copied caller-supplied `PrecomputedTransactionData` on every kernel script verification call prior to the fix.",
+  "PR description highlights that the previous `Init()` check only asserted `!m_spent_outputs_ready`, leaving state tracking incomplete after forced initialization without spent outputs."
+ ],
+ "head_sha": "e7e202bfe2451069b4a90920439edfc7221ed9ee",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35662,
+ "patch_id": "454b045ca9e50872",
+ "problem": "Allowing `PrecomputedTransactionData` to exist without transaction data enabled an error-prone reuse path where cached BIP143 and BIP341 sighash data could theoretically carry over across transactions. Furthermore, the kernel verification C API inadvertently copied caller-supplied precomputed txdata on every invocation due to a ternary expression mixing lvalues and prvalues, and block connection needlessly allocated txdata memory during assumevalid verification.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "Mistakes in constructing or referencing precomputed sighash data during script checks could lead to incorrect signature verification and cause a consensus failure or chain split."
+ },
+ "run": "run:20260924-0252-assess",
+ "scope_notes": "Touches the script interpreter, block and mempool validation logic, and the experimental libbitcoinkernel C API.",
+ "size": {
+  "additions": 83,
+  "deletions": 88,
+  "files": 17,
+  "test_lines": 74
+ },
+ "summary": "This PR removes default construction and the public `Init()` method from `PrecomputedTransactionData`, requiring transaction and spent-output context at construction time. Validation and test call sites that require deferred precomputation now hold an `std::optional<PrecomputedTransactionData>` and emplace it only after script-cache misses. In `ConnectBlock()`, txdata vector allocation is skipped entirely when script checks are bypassed under assumevalid, and `btck_script_pubkey_verify()` in the kernel C API is fixed to avoid copying caller-supplied txdata on every call.",
+ "uncertainties": []
+}

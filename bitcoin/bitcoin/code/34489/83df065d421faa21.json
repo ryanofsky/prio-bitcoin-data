@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-09-24T02:52:42+00:00",
+ "card": "This PR modifies index initial synchronization to process block ranges in batches of up to 500 blocks rather than flushing LevelDB writes on every block. Currently, writing per-block causes heavy disk I/O on HDDs and creates excessive LevelDB files, while locking cs_main per block degrades node responsiveness during validation and IBD. The author claims this significantly reduces disk write overhead and lock contention during initial sync, while extracting foundation work for parallelized indexing in #26966. Depends on merged PR #34897.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#34897"
+  ],
+  "enables": [
+   "#26966"
+  ]
+ },
+ "evidence": [
+  "PR description: 'Batch DB writes instead of flushing per block, which improves sync time on HDD due to the reduced number of disk write operations.'",
+  "PR description: 'Reduce cs_main lock contention, which improves the overall node responsiveness (and primarily IBD) while the indexes threads are syncing.'",
+  "PR description cites reducing the number of generated LDB files and decoupling pre-work from #26966."
+ ],
+ "head_sha": "1497086cdb0e64df861100e0715ffd975d4c41cf",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34489,
+ "patch_id": "83df065d421faa21",
+ "problem": "During initial synchronization, node indexes write LevelDB records to disk block-by-block and acquire cs_main once per block. On spinning disks, this per-block I/O degrades sync performance and generates an excessive number of LevelDB files, while frequent cs_main contention slows down concurrent block validation and initial block download.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "other"
+  ],
+  "why": "Flawed batching or crash-recovery logic during initial index sync could lead to corrupted index databases or failed sync resumption after an unclean shutdown, requiring a complete reindex."
+ },
+ "run": "run:20260924-0252-assess",
+ "scope_notes": "Refactors the virtual CustomAppend interface on BaseIndex and all four index implementations (coinstats, txindex, txospender, and blockfilter) to accept CDBBatch references.",
+ "size": {
+  "additions": 300,
+  "deletions": 74,
+  "files": 11,
+  "test_lines": 195
+ },
+ "summary": "Batches index database writes into windows of up to 500 blocks during initial sync, passing an active CDBBatch to each index's CustomAppend method. Updates the sync loop to fetch block ranges via NextSyncRange under a single cs_main acquisition rather than locking cs_main on every block. Adds unit test coverage for batch sync windows, reorg handling mid-sync, and locator persistence across batch boundaries on shutdown.",
+ "uncertainties": []
+}

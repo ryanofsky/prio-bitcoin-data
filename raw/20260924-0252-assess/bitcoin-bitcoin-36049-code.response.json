@@ -1,0 +1,42 @@
+{
+ "run": "run:20260924-0252-assess",
+ "pr": "bitcoin/bitcoin#36049",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-24T02:52:55+00:00",
+ "usage": {
+  "input_tokens": 5408,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1482
+ },
+ "cost_usd": 0.0096135,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Clear pending buffer bytes before invoking the underlying stream write in `BufferedWriter::flush()` to avoid re-attempting writes during exception unwinding. Explicitly call `flush()` within try-catch blocks in `BlockManager::WriteBlock` and `BlockManager::WriteBlockUndo` so disk write errors trigger clean fatal error handling instead of aborting the process.\",\n \"problem\": \"When block or undo writes fail due to disk issues (such as a full filesystem), `AutoFile::write_buffer()` throws an exception. Because `BufferedWriter` previously flushed pending bytes in its implicitly `noexcept` destructor, write failures invoked `std::terminate` instead of normal node storage error handling, and a failed explicit `flush()` would re-attempt the write upon destructor unwinding.\",\n \"evidence\": [\n  \"Author report: 'my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often.'\",\n  \"PR description provides a minimal reproduction script demonstrating that short writes previously resulted in process aborts rather than a clean exit with 'Failed to write genesis block'.\",\n  \"The bug was introduced in merged PR #31551, which added `BufferedWriter`.\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"\",\n \"changed_since_previous\": \"No substantial changes to the code or approach; commits now credit a co-author and refine unit test coverage.\",\n \"card\": \"Prevents bitcoind from abruptly crashing via std::terminate when block or undo writes fail due to disk storage errors such as a full disk. BlockManager now explicitly flushes buffered writers within try-catch blocks to route errors to standard shutdown procedures, and BufferedWriter clears pending buffer offsets before writing to avoid re-triggering writes during stack unwinding. The author observed repeated crashes on 1 TB benchmark servers running out of space and provided a reproducer demonstrating that write failures now exit cleanly.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"validation\"\n  ],\n  \"why\": \"A flaw in block and undo write flush handling could lead to silent data loss or premature fatal errors during block storage.\"\n }\n}",
+ "result": {
+  "summary": "Clear pending buffer bytes before invoking the underlying stream write in `BufferedWriter::flush()` to avoid re-attempting writes during exception unwinding. Explicitly call `flush()` within try-catch blocks in `BlockManager::WriteBlock` and `BlockManager::WriteBlockUndo` so disk write errors trigger clean fatal error handling instead of aborting the process.",
+  "problem": "When block or undo writes fail due to disk issues (such as a full filesystem), `AutoFile::write_buffer()` throws an exception. Because `BufferedWriter` previously flushed pending bytes in its implicitly `noexcept` destructor, write failures invoked `std::terminate` instead of normal node storage error handling, and a failed explicit `flush()` would re-attempt the write upon destructor unwinding.",
+  "evidence": [
+   "Author report: 'my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often.'",
+   "PR description provides a minimal reproduction script demonstrating that short writes previously resulted in process aborts rather than a clean exit with 'Failed to write genesis block'.",
+   "The bug was introduced in merged PR #31551, which added `BufferedWriter`."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No substantial changes to the code or approach; commits now credit a co-author and refine unit test coverage.",
+  "card": "Prevents bitcoind from abruptly crashing via std::terminate when block or undo writes fail due to disk storage errors such as a full disk. BlockManager now explicitly flushes buffered writers within try-catch blocks to route errors to standard shutdown procedures, and BufferedWriter clears pending buffer offsets before writing to avoid re-triggering writes during stack unwinding. The author observed repeated crashes on 1 TB benchmark servers running out of space and provided a reproducer demonstrating that write failures now exit cleanly.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "A flaw in block and undo write flush handling could lead to silent data loss or premature fatal errors during block storage."
+  }
+ }
+}

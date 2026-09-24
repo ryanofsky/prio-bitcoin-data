@@ -1,0 +1,41 @@
+{
+ "run": "run:20260924-0252-assess",
+ "pr": "bitcoin/bitcoin#35728",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-24T02:52:47+00:00",
+ "usage": {
+  "input_tokens": 8274,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1379
+ },
+ "cost_usd": 0.01137675,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"This PR updates transaction lookup paths in `node::GetTransaction`, `TxIndex::FindTx`, and `ProcessPSBT` to throw a `std::runtime_error` when disk I/O, deserialization, or index corruption errors occur instead of silently treating the transaction as missing. It also adds a call to `CheckBlockDataAvailability` in `getrawtransaction` when querying a specific block hash so that pruned or un-downloaded blocks return descriptive errors rather than generic not-found or I/O failure messages. Functional tests are added to verify error handling across `getrawtransaction`, `gettxoutproof`, and `utxoupdatepsbt`.\",\n  \"problem\": \"When disk reads or index lookups fail due to file I/O or data corruption, `GetTransaction` and `TxIndex::FindTx` return null/optional values indistinguishable from a transaction that simply does not exist. Callers and downstream clients receive misleading \\\"transaction not found\\\" errors instead of being alerted to disk failures or index corruption.\",\n  \"evidence\": [\n    \"PR description: \\\"Currently the GetTransaction return value is a nullable transaction pointer, where nullptr represents two different outcomes: I/O error and missing tx. Reporting a confirmed transaction as missing is wrong, so properly return an error instead.\\\"\",\n    \"Commit fadc37ca72: \\\"...a -txindex corruption may also point to a larger system corruption and it seems better to notify the user properly by throwing an exception.\\\"\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Changes error reporting strategy for I/O and corruption failures in transaction lookup from returning null/optional to throwing std::runtime_error (which the RPC layer catches and surfaces as JSONRPCError).\",\n  \"changed_since_previous\": \"Replaced the previous refactor that changed GetTransaction and FindTx return types to util::Expected with an approach that throws std::runtime_error directly on disk and corruption errors. Resolved the previous regression where pruned blocks threw I/O errors by calling CheckBlockDataAvailability in getrawtransaction.\",\n  \"card\": \"This PR modifies transaction lookup in node::GetTransaction and txindex to throw runtime exceptions on disk read, deserialization, or index corruption errors rather than returning null. Currently, disk I/O failures falsely report confirmed transactions as missing or not found, hiding potential disk or index corruption from RPC users and downstream services. It also ensures getrawtransaction with a block hash properly reports pruned or pending blocks via CheckBlockDataAvailability before attempting a read.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"rpc_api\"],\n    \"why\": \"Uncaught exceptions or unexpected RPC error responses on disk faults or corrupted indexes could break downstream client error handling.\"\n  }\n}",
+ "result": {
+  "summary": "This PR updates transaction lookup paths in `node::GetTransaction`, `TxIndex::FindTx`, and `ProcessPSBT` to throw a `std::runtime_error` when disk I/O, deserialization, or index corruption errors occur instead of silently treating the transaction as missing. It also adds a call to `CheckBlockDataAvailability` in `getrawtransaction` when querying a specific block hash so that pruned or un-downloaded blocks return descriptive errors rather than generic not-found or I/O failure messages. Functional tests are added to verify error handling across `getrawtransaction`, `gettxoutproof`, and `utxoupdatepsbt`.",
+  "problem": "When disk reads or index lookups fail due to file I/O or data corruption, `GetTransaction` and `TxIndex::FindTx` return null/optional values indistinguishable from a transaction that simply does not exist. Callers and downstream clients receive misleading \"transaction not found\" errors instead of being alerted to disk failures or index corruption.",
+  "evidence": [
+   "PR description: \"Currently the GetTransaction return value is a nullable transaction pointer, where nullptr represents two different outcomes: I/O error and missing tx. Reporting a confirmed transaction as missing is wrong, so properly return an error instead.\"",
+   "Commit fadc37ca72: \"...a -txindex corruption may also point to a larger system corruption and it seems better to notify the user properly by throwing an exception.\""
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Changes error reporting strategy for I/O and corruption failures in transaction lookup from returning null/optional to throwing std::runtime_error (which the RPC layer catches and surfaces as JSONRPCError).",
+  "changed_since_previous": "Replaced the previous refactor that changed GetTransaction and FindTx return types to util::Expected with an approach that throws std::runtime_error directly on disk and corruption errors. Resolved the previous regression where pruned blocks threw I/O errors by calling CheckBlockDataAvailability in getrawtransaction.",
+  "card": "This PR modifies transaction lookup in node::GetTransaction and txindex to throw runtime exceptions on disk read, deserialization, or index corruption errors rather than returning null. Currently, disk I/O failures falsely report confirmed transactions as missing or not found, hiding potential disk or index corruption from RPC users and downstream services. It also ensures getrawtransaction with a block hash properly reports pruned or pending blocks via CheckBlockDataAvailability before attempting a read.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "Uncaught exceptions or unexpected RPC error responses on disk faults or corrupted indexes could break downstream client error handling."
+  }
+ }
+}

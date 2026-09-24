@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-24T02:52:41+00:00",
+ "card": "Updates wallet history accounting in gettransaction, listtransactions, and listsinceblock for mixed-input transactions such as CoinJoins and Payjoins. Currently, the wallet assumes all inputs are wallet-owned, calculating incorrect or negative fees and fabricating recipient entries for non-wallet outputs. Addressing issue #14136 without relying on lost transaction intent metadata, the wallet now retains normal attribution only when foreign inputs have verified zero value (like anchors); otherwise, it reports an unattributed aggregate debit send, omits foreign outputs and fees, and exposes involves_mixed_inputs, wallet_debit, and wallet_credit fields.",
+ "changed_since_previous": "The accounting approach is unchanged; updates include refined locking annotations, cache invalidation handling when parent transactions are inserted, and release notes documentation.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Addresses long-standing issue #14136 ('rpc: Wrong `gettransaction` info for a coinjoin'), open since 2018.",
+  "PR description: 'The wallet can safely know: wallet_debit = 1.00, wallet_credit = 0.80, wallet_net = -0.20. But it cannot reliably know, from wallet history alone, the foreign input value, the total fee, the wallet's fee share, or which non-wallet output should be attributed as the user's payment. This is especially important after restore, rescan, or descriptor import, where any local transaction-intent metadata may be missing.'"
+ ],
+ "head_sha": "66763e7068e0264fef85c259b677e319c90f2201",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34872,
+ "patch_id": "a1b33e9a8913ddb6",
+ "problem": "When a wallet transaction includes both wallet and external inputs (e.g., CoinJoins or Payjoins), history RPCs assume all inputs belong to the wallet. This produces fabricated per-recipient send entries and nonsensical or negative fee calculations, which cannot be corrected from on-chain history alone following a rescan or descriptor import.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api"
+  ],
+  "why": "Incorrect accounting logic or faulty cache invalidation could distort reported wallet transaction amounts or break downstream accounting software consuming gettransaction and listtransactions."
+ },
+ "run": "run:20260924-0252-assess",
+ "scope_notes": "More than 750 lines of the ~1,150-line diff consist of Python functional tests (notably the new test wallet_gettransaction_mixed_inputs.py).",
+ "size": {
+  "additions": 1095,
+  "deletions": 60,
+  "files": 11,
+  "test_lines": 839
+ },
+ "summary": "Updates wallet history RPCs (gettransaction, listtransactions, and listsinceblock) to handle transactions that spend both wallet-owned and foreign inputs. When all non-wallet inputs are known to have zero value (such as pay-to-anchor outputs), normal per-output send and fee accounting is retained. For other mixed-input transactions, the wallet reports an aggregate send debit without speculative recipient outputs or fee calculations, preserves receive entries for wallet outputs, and adds new RPC metadata fields indicating mixed-input status and debit/credit amounts.",
+ "uncertainties": []
+}

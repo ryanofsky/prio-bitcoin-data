@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-24T02:53:21+00:00",
+ "card": "Makes the default combined fee estimator in estimatesmartfee fall back to the block policy estimate whenever the mempool estimator cannot produce an estimate, rather than returning an error. It changes the mempool estimator to return an error instead of the relay fee floor when the mempool lacks enough transaction data to fill target block percentiles, preventing severe fee underestimation on nodes with empty or sparse mempools. In addition, when mempool loading fails at startup, the estimator clears its mined-block history so it will not serve estimates until new blocks are observed.",
+ "changed_since_previous": "The 144-block warmup period was dropped. Instead, unfilled percentiles in the mempool estimator now return an error unconditionally, and a failed mempool load directly clears the tracked mined-block window so that insufficient block data is reported until the window refills.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"Previously, case (ii) with a healthy mempool will returned the fee rate floor (the higher of the minimum relay fee and the current mempool minimum fee). This can be a significant underestimation, since the now-missing mempool may have held much higher-feerate transactions. The remaining cases surfaced the mempool error directly from the combined estimate.\""
+ ],
+ "head_sha": "86ef5cc27782ee7b51394753065c1d23215268a4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36182,
+ "patch_id": "3493f2ff13b2806d",
+ "problem": "When the mempool is empty or sparse\u2014such as after a restart without persistence or with a corrupt mempool.dat\u2014the mempool estimator previously returned the fee floor (the higher of minimum relay fee and mempool min fee), risking significant fee underestimation. In other situations where the mempool estimator was not ready (startup, low coverage, or during mempool loading), the combined estimator surfaced the mempool error directly instead of using available block policy estimates.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "mempool_policy"
+  ],
+  "why": "Bugs in fallback logic could cause RPC fee estimation callers to receive unexpected errors or inaccurate fee rates, leading to overpaying or delayed transactions."
+ },
+ "run": "run:20260924-0252-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 214,
+  "deletions": 108,
+  "files": 8,
+  "test_lines": 165
+ },
+ "summary": "Makes the default combined fee estimator fall back to the block policy estimate whenever the mempool estimator cannot produce an estimate, rather than surfacing an error. Changes the mempool estimator to return an error when the mempool is too sparse to calculate requested block percentiles instead of returning the minimum relay fee floor. In addition, clears the mempool estimator's tracked mined-block window on startup if mempool loading fails.",
+ "uncertainties": []
+}

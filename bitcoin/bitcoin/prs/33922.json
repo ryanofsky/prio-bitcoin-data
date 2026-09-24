@@ -5,12 +5,53 @@
    "at": "2025-11-21",
    "author": "ismaelsadeeq",
    "author_replies": [
-    "c:3563799563",
     "c:3570105870"
    ],
    "clears_with": "answer",
    "fix": null,
-   "harm": "relying on external IPC clients rather than internal FIFO eviction to free template memory could lead to node OOM",
+   "from_schema": 2,
+   "harm": "delegating template eviction responsibility to the client can cause out of memory crashes if handled poorly",
+   "hash": "3753921b35c03023",
+   "history": [
+    {
+     "at": "2026-09-24T23:12:57+00:00",
+     "by": "run:20260924-2308",
+     "cause": "c:3564018931",
+     "clears_with": "answer",
+     "status": "answered",
+     "type": "objection"
+    }
+   ],
+   "id": "c:3564018931",
+   "kind": "approach",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "Delegating template eviction responsibility to the client can put us in a situation where they handle it poorly and cause us to OOM",
+   "request": "",
+   "status": "answered",
+   "status_by": {
+    "at": "2025-11-24",
+    "by": "Sjors",
+    "id": "c:3570105870",
+    "quote": "In the scenario where they handle it poorly, we can use FIFO deletion. All `getMemoryLoad()` does is give clients an opportunity to handle it better."
+   },
+   "status_note": "author explained client responsibility is inherent to multiprocess and FIFO eviction can be used as a fallback if needed",
+   "type": "objection",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#issuecomment-3564018931"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2025-11-21",
+   "author": "ismaelsadeeq",
+   "author_replies": [
+    "c:3563799563"
+   ],
+   "clears_with": "answer",
+   "fix": null,
+   "from_schema": 2,
+   "harm": "use internal memory management with a memory budget and FIFO template release rather than relying on IPC clients",
    "hash": "21281572c8b93bab",
    "history": [
     {
@@ -23,21 +64,66 @@
    ],
    "id": "r:3493499544",
    "kind": "approach",
+   "other_replies": [],
    "part": 1,
    "pin": null,
    "question": "",
-   "quote": "Delegating template eviction responsibility to the client can put us in a situation where they handle it poorly and cause us to OOM",
+   "quote": "In my opinion, we should not rely on the IPC client to manage our memory.",
    "request": "",
    "status": "answered",
    "status_by": {
-    "at": "2025-11-24",
+    "at": "2025-11-21",
     "by": "Sjors",
-    "id": "c:3570105870",
-    "quote": "In the scenario where they handle it poorly, we can use FIFO deletion. All `getMemoryLoad()` does is give clients an opportunity to handle it better. If they're fine with FIFO, then they never have to call this method."
+    "id": "c:3563799563",
+    "quote": "It seems counter intuitive, but from a memory management perspective IPC clients are treated no different than our own code. And if we started FIFO deleting templates that are used by our own code, we'd crash."
    },
-   "status_note": "",
+   "status_note": "author explained internal memory management treats IPC clients no differently than internal code, and FIFO eviction can be a last resort",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/33922#pullrequestreview-3493499544"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2025-12-02",
+   "author": "brunoerg",
+   "author_replies": [
+    "rc:2584340016"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "8e34754bb8d83ea5e2682a8eeb067ee3421610f0"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "ec203d841c27dd46",
+   "history": [
+    {
+     "at": "2026-09-24T23:12:57+00:00",
+     "by": "run:20260924-2308",
+     "cause": "rc:2581145624",
+     "clears_with": "answer",
+     "status": "accepted",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:2581145624",
+   "kind": "correctness",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "Just ran a mutation testing for this PR and this is the only unkilled mutant - feel free to ignore if it doesn't make sense to address",
+   "request": "add test coverage for the unkilled mutant in template_tx_refs reference counting",
+   "status": "accepted",
+   "status_by": {
+    "at": "2025-12-04",
+    "by": "brunoerg",
+    "id": "rc:2587699846",
+    "quote": "Nice, thank you!"
+   },
+   "status_note": "author adjusted interface_ipc.py test to cover the mutant, which reviewer confirmed",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r2581145624"
   },
   {
    "association": "MEMBER",
@@ -49,8 +135,9 @@
    "clears_with": "change",
    "fix": {
     "at": null,
-    "sha": "1647b291ccae0c0c5c79f0117adcbb0d73231221"
+    "sha": "8e34754bb8d83ea5e2682a8eeb067ee3421610f0"
    },
+   "from_schema": 2,
    "harm": "template_tx_refs map accessed across multiple threads without synchronization creates data race hazards",
    "hash": "6fbffba75bb144d5",
    "history": [
@@ -64,6 +151,7 @@
    ],
    "id": "rc:2590041765",
    "kind": "safety",
+   "other_replies": [],
    "part": 1,
    "pin": null,
    "question": "",
@@ -76,28 +164,202 @@
     "id": "rc:2592303231",
     "quote": "To limit the scope of this PR, I only added the mutex, but called it `template_state_mutex` in anticipation."
    },
-   "status_note": "",
+   "status_note": "author added template_state_mutex",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r2590041765"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2025-12-04",
+   "author": "ryanofsky",
+   "author_replies": [
+    "rc:2591987168"
+   ],
+   "clears_with": "answer",
+   "fix": null,
+   "from_schema": 2,
+   "harm": "",
+   "hash": "13cdad352fc0f98f",
+   "history": [
+    {
+     "at": "2026-09-24T23:12:57+00:00",
+     "by": "run:20260924-2308",
+     "cause": "rc:2590089590",
+     "clears_with": "answer",
+     "status": "answered",
+     "type": "question"
+    }
+   ],
+   "id": "rc:2590089590",
+   "kind": "approach",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "ask if there was a particular reason to assert that the bench log message is logged",
+   "quote": "Seems ok to assert this log message is logged, but I'm wondering if there was a particular reason for doing this.",
+   "request": "",
+   "status": "answered",
+   "status_by": {
+    "at": "2025-12-05",
+    "by": "Sjors",
+    "id": "rc:2591987168",
+    "quote": "This just checks that bench logging happens."
+   },
+   "status_note": "author explained it checks that bench logging happens",
+   "type": "question",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r2590089590"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-03-03",
+   "author": "vasild",
+   "author_replies": [
+    "rc:2891914696"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "8e34754bb8d83ea5e2682a8eeb067ee3421610f0"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "47c2edcc84e7bf5b",
+   "history": [
+    {
+     "at": "2026-09-24T23:12:57+00:00",
+     "by": "run:20260924-2308",
+     "cause": "rc:2878931110",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:2878931110",
+   "kind": "approach",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "std::map has lookup `O(log(size))` whereas `std::unordered_map` has `O(1)`. Here we do not need the entries to be ordered.",
+   "request": "use std::unordered_map instead of std::map since ordered entries are not needed",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-03-05",
+    "by": "Sjors",
+    "id": "rc:2891914696",
+    "quote": "Done both."
+   },
+   "status_note": "author switched TxTemplateMap to std::unordered_map",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r2878931110"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-03-06",
+   "author": "vasild",
+   "author_replies": [
+    "c:4205258678",
+    "rc:3050397606"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "8e34754bb8d83ea5e2682a8eeb067ee3421610f0"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "37af10a904781295",
+   "history": [
+    {
+     "at": "2026-09-24T23:12:57+00:00",
+     "by": "run:20260924-2308",
+     "cause": "rc:2894597519",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:2894597519",
+   "kind": "correctness",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "it is the same for `map` and `unordered_map` when used with `shared_ptr` (or `CTransactionRef`) - they compare pointers.",
+   "request": "use custom salted hasher and comparator for CTransactionRef in TxTemplateMap rather than comparing pointers",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-04-09",
+    "by": "vasild",
+    "id": "r:4081459739",
+    "quote": "ACK 10acf818ed70d4cd2af864278a35a6b64de0bb16"
+   },
+   "status_note": "author adopted CTransactionRefSaltedHash and CTransactionRefComp",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r2894597519"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-04-16",
+   "author": "hebasto",
+   "author_replies": [
+    "rc:3100650418"
+   ],
+   "clears_with": "answer",
+   "fix": null,
+   "from_schema": 2,
+   "harm": "",
+   "hash": "797025651b3b60ed",
+   "history": [
+    {
+     "at": "2026-09-24T23:12:57+00:00",
+     "by": "run:20260924-2308",
+     "cause": "rc:3093561704",
+     "clears_with": "answer",
+     "status": "answered",
+     "type": "question"
+    }
+   ],
+   "id": "rc:3093561704",
+   "kind": "correctness",
+   "other_replies": [
+    "rc:3101810363"
+   ],
+   "part": 1,
+   "pin": null,
+   "question": "whether std::hash<CTransactionRef> parameter type should be CTransactionRef instead of const CTransactionRef&",
+   "quote": "Should this be `CTransactionRef` instead of `const CTransactionRef&`?",
+   "request": "",
+   "status": "answered",
+   "status_by": {
+    "at": "2026-04-17",
+    "by": "maflcko",
+    "id": "rc:3101810363",
+    "quote": "No, I am sure the docs just refer to the logical type"
+   },
+   "status_note": "maflcko confirmed the docs refer to the logical type; the commit was later moved to #35101",
+   "type": "question",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r3093561704"
   },
   {
    "association": "MEMBER",
    "at": "2026-04-17",
    "author": "maflcko",
    "author_replies": [
+    "c:4270824311",
     "rc:3100822626",
     "rc:3101139032",
     "rc:3101448908",
     "rc:3101665167",
-    "rc:3102893023",
-    "c:4270824311"
+    "rc:3102893023"
    ],
    "clears_with": "change",
    "fix": {
     "at": null,
-    "sha": "1647b291ccae0c0c5c79f0117adcbb0d73231221"
+    "sha": "8e34754bb8d83ea5e2682a8eeb067ee3421610f0"
    },
-   "harm": "",
+   "from_schema": 2,
+   "harm": "IWYU workaround in primitives/transaction.h is wrong and harmful",
    "hash": "0c25b1f6053b15b8",
    "history": [
     {
@@ -109,7 +371,8 @@
     }
    ],
    "id": "rc:3100806462",
-   "kind": "style",
+   "kind": "maintenance",
+   "other_replies": [],
    "part": 1,
    "pin": null,
    "question": "",
@@ -122,7 +385,7 @@
     "id": "c:4270824311",
     "quote": "The safety commit for `CTransactionRef` and IWYU changes are now in #35101 and dropped from this PR."
    },
-   "status_note": "",
+   "status_note": "IWYU workaround and CTransactionRef hasher commit moved to #35101 and dropped from this PR",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/33922#discussion_r3100806462"
   }
@@ -220,9 +483,26 @@
     "c:5061490367"
    ],
    "run": "run:20260918-0314"
+  },
+  {
+   "at": "2026-09-24T23:12:57+00:00",
+   "changes": [
+    "claim c:3564018931 added (objection, clears with answer, answered) by ismaelsadeeq",
+    "claim rc:2581145624 added (suggestion, clears with answer, accepted) by brunoerg",
+    "claim rc:2590089590 added (question, clears with answer, answered) by ryanofsky",
+    "claim rc:2878931110 added (suggestion, clears with answer, fixed) by vasild",
+    "claim rc:2894597519 added (suggestion, clears with answer, fixed) by vasild",
+    "claim rc:3093561704 added (question, clears with answer, answered) by hebasto",
+    "waiting on: reviewer (reviews on the latest rebase building on top of landed #35675 (BlockTemplateManager)), reviewer (review of the rebased PR on top of merged #35675 BlockTemplateManager)"
+   ],
+   "cost_usd": 0.16979,
+   "events": [
+    "c:5812662660"
+   ],
+   "run": "run:20260924-2308"
   }
  ],
- "notes": "All objections were resolved: ismaelsadeeq's concern about memory management strategy was clarified without opposition, ryanofsky's concurrency concern was fixed by adding template_state_mutex, and maflcko's NACK on the IWYU workaround was resolved by moving the CTransactionRef hasher into PR #35101. The PR is currently marked draft pending #35675.",
+ "notes": "Brought up to date under current rules. Separated ismaelsadeeq's r:3493499544 (suggestion for internal FIFO memory management) from c:3564018931 (objection that delegating eviction risks OOM). Added suggestions and questions from brunoerg, ryanofsky, vasild, and hebasto. The branch was re-architected on top of BlockTemplateManager from #35675 and is awaiting fresh reviews. / Brought claims up to date under current rules, capturing questions and suggestions from brunoerg, ryanofsky, vasild, and h",
  "number": 33922,
  "participants": [
   {
@@ -231,7 +511,7 @@
    "first": "2025-11-21",
    "last": "2025-11-21",
    "login": "ismaelsadeeq",
-   "note": "Concept ACK with concern about relying on clients to manage template memory rather than node FIFO eviction",
+   "note": "Concept ACK, but objected that delegating template eviction to clients rather than node FIFO eviction could lead to OOM",
    "stance": "objection"
   },
   {
@@ -240,7 +520,7 @@
    "first": "2025-12-02",
    "last": "2025-12-04",
    "login": "brunoerg",
-   "note": "reported mutation testing mutant in interfaces.cpp, which Sjors covered with a test update",
+   "note": "reported unkilled mutant from mutation testing, which was resolved with a test update",
    "stance": "neutral"
   },
   {
@@ -249,7 +529,7 @@
    "first": "2025-12-03",
    "last": "2025-12-04",
    "login": "ryanofsky",
-   "note": "Concept ACK; raised concurrency concern on template_tx_refs map which Sjors addressed with a mutex",
+   "note": "Concept ACK; raised thread safety mutex requirement on template_tx_refs which was fixed",
    "stance": "support"
   },
   {
@@ -258,7 +538,7 @@
    "first": "2026-03-03",
    "last": "2026-04-27",
    "login": "vasild",
-   "note": "approved changes across rebases; suggested salted hashing for CTransactionRef map keys",
+   "note": "approved across multiple rebases; suggested unordered_map and salted hasher for CTransactionRef map keys",
    "stance": "support"
   },
   {
@@ -267,7 +547,7 @@
    "first": "2026-04-06",
    "last": "2026-04-06",
    "login": "enirox001",
-   "note": "tested and ACKed all commits",
+   "note": "reviewed commit ordering, locking, and ran tests",
    "stance": "support"
   },
   {
@@ -285,12 +565,12 @@
    "first": "2026-04-17",
    "last": "2026-04-17",
    "login": "maflcko",
-   "note": "NACKed IWYU workaround in primitives/transaction.h, leading Sjors to move the hasher work to #35101",
+   "note": "NACKed IWYU workaround in primitives/transaction.h, leading Sjors to move the CTransactionRef hasher to #35101",
    "stance": "objection"
   }
  ],
  "processed": {
-  "description_hash": "acaf6ca37da84ad1",
+  "description_hash": "0e5b9c15b4fb1d6d",
   "events": {
    "c:3563543871": "85b262de413631f6",
    "c:3563799563": "7287edda35bbb6e0",
@@ -322,6 +602,7 @@
    "c:4792978996": "cfaeb1c1a32864f8",
    "c:4912627133": "0028354754766fb3",
    "c:5061490367": "5bb107bf3fccace3",
+   "c:5812662660": "893e159df85ae461",
    "r:3493499544": "21281572c8b93bab",
    "r:3541246611": "fdba3424da811649",
    "r:3883009585": "c2b233ee527ba898",
@@ -368,17 +649,20 @@
    "rc:3136909052": "c0ae0a5a21b3fbdd",
    "rc:3136911634": "b422c95617a7ccd7"
   },
-  "head_sha": "1647b291ccae0c0c5c79f0117adcbb0d73231221",
-  "last_event_at": "2026-07-23T17:37:32Z",
-  "patch_id": "7c2a47c8eae5e361"
+  "head_sha": "8e34754bb8d83ea5e2682a8eeb067ee3421610f0",
+  "last_event_at": "2026-09-24T10:50:34Z",
+  "patch_id": "21b6219616f2c90e",
+  "schema_floor": 2
  },
  "repo": "bitcoin/bitcoin",
  "schema": 2,
  "support": [
   {
+   "areas": [],
    "association": "MEMBER",
    "at": "2025-12-03",
    "author": "ryanofsky",
+   "evidence": "read",
    "hash": "e67f37e30ab0eee3",
    "id": "c:3608940825",
    "reason": "The `getMemoryLoad()` function seems useful by itself and the underlying tracking would seem to provide almost everything needed to limit memory used by block templates.",
@@ -387,9 +671,11 @@
    "verdict": "Concept ACK"
   },
   {
+   "areas": [],
    "association": "MEMBER",
    "at": "2026-03-03",
    "author": "vasild",
+   "evidence": "none",
    "hash": "c2b233ee527ba898",
    "id": "r:3883009585",
    "reason": "reviewed code c37d715c1d32020fe16ddc92f7ca95f585cc6b4b",
@@ -398,9 +684,11 @@
    "verdict": "ACK"
   },
   {
+   "areas": [],
    "association": "MEMBER",
    "at": "2026-03-06",
    "author": "vasild",
+   "evidence": "none",
    "hash": "d34324c766e09f69",
    "id": "r:3902381313",
    "reason": "reviewed code 04553cd6612f08d757fb20287fe111007bfb6db1",
@@ -409,9 +697,18 @@
    "verdict": "ACK"
   },
   {
+   "areas": [
+    "context.h",
+    "interface_ipc_mining.py",
+    "interfaces.cpp",
+    "miner.cpp",
+    "mining.h",
+    "test/functional/interface_ipc_mining.py"
+   ],
    "association": "CONTRIBUTOR",
    "at": "2026-04-06",
    "author": "enirox001",
+   "evidence": "both",
    "hash": "1a731c382c4d641c",
    "id": "r:4061578431",
    "reason": "verified commit ordering, lifetime/locking of template_tx_refs and mempool.cs, and ran interface_ipc_mining.py",
@@ -420,9 +717,11 @@
    "verdict": "ACK"
   },
   {
+   "areas": [],
    "association": "MEMBER",
    "at": "2026-04-09",
    "author": "vasild",
+   "evidence": "none",
    "hash": "169481b2a648baa3",
    "id": "r:4081459739",
    "reason": "reviewed code 10acf818ed70d4cd2af864278a35a6b64de0bb16",
@@ -431,9 +730,11 @@
    "verdict": "ACK"
   },
   {
+   "areas": [],
    "association": "MEMBER",
    "at": "2026-04-27",
    "author": "vasild",
+   "evidence": "none",
    "hash": "3e5e896ac4179ac1",
    "id": "r:4179948443",
    "reason": "PGP-signed ACK for d37e0fc16c235ff511bd9485ef505f0c5615d9e4",
@@ -442,5 +743,21 @@
    "verdict": "ACK"
   }
  ],
- "updated": "2026-09-18T04:00:36+00:00"
+ "updated": "2026-09-24T23:12:57+00:00",
+ "waiting_on": [
+  {
+   "at": "2026-09-24",
+   "id": "c:5812662660",
+   "on": "reviewer",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#issuecomment-5812662660",
+   "what": "reviews on the latest rebase building on top of landed #35675 (BlockTemplateManager)"
+  },
+  {
+   "at": "2026-09-24",
+   "id": "c:5812662660",
+   "on": "reviewer",
+   "url": "https://github.com/bitcoin/bitcoin/pull/33922#issuecomment-5812662660",
+   "what": "review of the rebased PR on top of merged #35675 BlockTemplateManager"
+  }
+ ]
 }

@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-25T01:29:59+00:00",
+ "card": "Updates package mempool acceptance so that transactions accepted and immediately evicted by mempool size limits return TX_RECONSIDERABLE instead of TX_MEMPOOL_POLICY. Previously, if a low-feerate package pushed the mempool over capacity and was trimmed, the parent entered peer reject filters, preventing subsequent higher-fee children from bumping it until the next block. The PR fixes this unneeded censorship across all trimmed package transactions by returning reconsiderable fee failure results. Author notes this was uncovered by Loupe and verified by Red Team.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author description: 'In-master, if a package is entered into mempool at the lowerst chunk feerate, pushing the mempool oversize, this causes that transaction (package) to be trimmed immediately... but the returned validation result TX_MEMPOOL_POLICY precludes the now-evicted parent from being considered again (i.e. fetched / processed as package) until after another block is found.'",
+  "Author description: 'Related to finding made by Loupe, and subsequently Red Team.'"
+ ],
+ "head_sha": "3c6cd0c00ab3d81ec6c9615ed812a8976083749c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36328,
+ "patch_id": "2e47c294da30bf5e",
+ "problem": "When a package is accepted at the bottom of the mempool and pushes it over its size limit, the package transactions are immediately evicted. Because they return `TX_MEMPOOL_POLICY` rather than `TX_RECONSIDERABLE`, the evicted transactions (such as the parent in a 1p1c package) enter peer reject filters and cannot be fetched or re-evaluated with higher-fee child bumps until a new block arrives.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy"
+  ],
+  "why": "A mistake in package accept result classification or feerate tracking could bypass mempool reject filters or mishandle package eviction relay state."
+ },
+ "run": "run:20260925-0128-assess",
+ "scope_notes": "Small validation logic change in `MemPoolAccept::AcceptPackage()` with unit test coverage in `txpackage_tests.cpp` and functional coverage in `p2p_opportunistic_1p1c.py`.",
+ "size": {
+  "additions": 194,
+  "deletions": 7,
+  "files": 3,
+  "test_lines": 172
+ },
+ "summary": "Updates `AcceptPackage` validation handling so package transactions evicted by `LimitMempoolSize()` immediately after acceptance return `TX_RECONSIDERABLE` with `FeeFailure` rather than `TX_MEMPOOL_POLICY`. This covers multi-transaction package submissions, transactions accepted individually earlier in the same call, and transactions already present in the mempool (including same-txid different-witness entries) that are subsequently trimmed. It also records the effective feerate and calculation inputs so package retry logic has the necessary context.",
+ "uncertainties": []
+}

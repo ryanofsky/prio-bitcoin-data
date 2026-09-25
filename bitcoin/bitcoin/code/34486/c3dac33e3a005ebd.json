@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-25T01:29:30+00:00",
+ "card": "PR #34486 wires the lifecycle of NAT-PMP port mapping and Tor control connections into CConnman's network-active state so that both pause when networking is disabled and resume upon reactivation. It fixes issue #34190, where bitcoind continued background gateway queries and Tor control reconnect attempts despite running with -networkactive=0. Reconnection backoff is reset on reactivation, and concurrent state changes between RPC and GUI are serialized to avoid desynchronization.",
+ "changed_since_previous": "Added commit 799116c005 serializing auxiliary network lifecycle callbacks under `m_network_active_mutex` to protect against concurrent RPC and GUI preference toggles, handled reconnect backoff resetting during rapid off/on cycles while sleeping, and added unit and functional tests covering these edge cases.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes linked issue #34190 ('bitcoind shouldn't perform network activity if the option networkactive=0')",
+  "Author description: 'When networkactive=0 is set, NAT-PMP port mapping and Tor control connections still run in the background, mapping ports and logging retry attempts despite the node being \"inactive.\"'"
+ ],
+ "head_sha": "799116c00551f1c36f53b4d7f14a3b79318fa854",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34486,
+ "patch_id": "c3dac33e3a005ebd",
+ "problem": "When `-networkactive=0` is set or networking is toggled off, bitcoind continues performing local network activity: NAT-PMP continues querying local gateways, and the Tor controller repeatedly attempts to connect or reconnect to the Tor control port in the background, violating user expectations of a completely disabled network state.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Flaws in the synchronization of network active state or thread interruption in mapport and torcontrol could cause deadlocks or prevent Tor hidden services and port mapping from initializing properly."
+ },
+ "run": "run:20260925-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 356,
+  "deletions": 34,
+  "files": 13,
+  "test_lines": 217
+ },
+ "summary": "This pull request wires NAT-PMP port mapping and Tor control port connections into CConnman's network-active lifecycle. When networking is disabled via `-networkactive=0` or the `setnetworkactive` RPC, NAT-PMP mapping stops and the Tor controller idles without attempting connection or reconnection. Auxiliary network lifecycle updates and subsystem callbacks are serialized under a mutex so state changes cannot race across RPC and GUI calls.",
+ "uncertainties": []
+}

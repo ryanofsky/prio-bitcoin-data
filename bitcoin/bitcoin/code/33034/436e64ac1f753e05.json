@@ -1,0 +1,44 @@
+{
+ "assessed_at": "2026-09-25T01:28:55+00:00",
+ "card": "This PR begins shifting Bitcoin Core SQLite wallets away from flat key-value records toward relational tables, starting with a dedicated transactions table. Storing transaction fields across dedicated columns allows loading them strictly in wallet position order via SQL queries, simplifying transaction state and UTXO tracking. It enables downstream improvements such as tracking no-longer-spendable TXOs in #27865. The work depends on #32895 for feature-flagged database upgrades and #33033 for SQLite statement management.",
+ "changed_since_previous": "Rebased on top of updated dependencies (#32895 and #33033) with no changes to the core approach.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#32895",
+   "#33033"
+  ],
+  "enables": [
+   "#27865"
+  ]
+ },
+ "evidence": [
+  "Author description: 'The wallet uses SQLite as a key-value store even though SQLite is a powerful relational database engine. This causes us numerous headaches due to the need to serialize multiple fields together, and since record read from the database during loading can come in any order.'",
+  "Author description notes downstream benefits: 'Notably, for transactions, if we were able to load them in the transaction order assigned by the wallet, PRs like #27865 would be a bit simpler and easier to reason about.'"
+ ],
+ "head_sha": "8122a278165feb4fc9439e72059def8cefbfafde",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 33034,
+ "patch_id": "436e64ac1f753e05",
+ "problem": "The wallet uses SQLite as a flat key-value store, forcing complex composite serialization and reading records back in arbitrary database order. Out-of-order transaction loading complicates wallet state initialization and makes logic that relies on sequential transaction history harder to reason about.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "Mistakes in transaction serialization, table migration, or SQL read queries could lead to wallet database corruption or missing transactions on load."
+ },
+ "run": "run:20260925-0128-assess",
+ "scope_notes": "This PR builds on top of #32895 (client feature flags) and #33033 (SQLiteStatement RAII encapsulation); those commits are included in the branch.",
+ "size": {
+  "additions": 1076,
+  "deletions": 256,
+  "files": 15,
+  "test_lines": 14
+ },
+ "summary": "Transitions transaction persistence in SQLite wallets from the generic key-value table to a dedicated relational 'transactions' table where CWalletTx fields occupy distinct columns. Loads transactions ordered by position using a SQL query, and handles automatic schema upgrades using client feature flags. Continues to write to legacy records during transition to support upgrade-downgrade cycles.",
+ "uncertainties": []
+}

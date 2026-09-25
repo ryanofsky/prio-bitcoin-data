@@ -1,0 +1,44 @@
+{
+ "run": "run:20260925-0128-assess",
+ "pr": "bitcoin/bitcoin#35581",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-25T01:29:49+00:00",
+ "usage": {
+  "input_tokens": 19224,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1945
+ },
+ "cost_usd": 0.010734225,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Consolidates block template creation, waiting, and submission helpers into a `BlockTemplateManager` class registered with validation signals. Adds a `MempoolUpdated` validation interface event that tracks before-and-after fee rate diagram chunks with transaction references. Leverages these diagram snapshots to monitor mempool fee inflow per active template, replacing the polling loop in `waitNext` that assembled full blocks on each tick.\",\n  \"problem\": \"To check whether newly arriving transactions justify issuing a fresh block template, `waitNext` in the IPC mining interface repeatedly acquires `cs_main` and builds complete block templates solely to sum and compare their fees. Additionally, mining utility functions are free functions scattered across `miner.cpp` requiring manual threading of dependencies, and `SubmitBlock` allocates a throwaway validation listener on every block submitted.\",\n  \"evidence\": [\n    \"PR description: 'Currently, to decide whether mempool fee inflow rose enough to be worth a new template, waitNext locks cs_main and assembles a full block template every tick just to sum its fees and compare. After cluster mempool... we shouldn\\\\'t have to build a whole block template to answer that question.'\",\n    \"PR description links to Delving Bitcoin research: 'determining-blocktemplate-fee-increase-using-fee-rate-diagram/2052'.\",\n    \"Author notes the fuzz harness for the new manager uncovered a miner chunk-limit check bug fixed in merged PR #35580.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"About half of the patch (+1090 lines) consists of tests, including a new fuzz harness for `BlockTemplateManager` and unit tests in `mempool_update_tests.cpp`. The manager refactor was originally split into #35675 (now merged), and this branch retains the commits up through fee-inflow tracking.\",\n  \"changed_since_previous\": \"The prior dependency #35675 was merged upstream; this branch remains to be rebased on top of it.\",\n  \"card\": \"Introduces a BlockTemplateManager and adds a MempoolUpdated validation interface signal carrying fee rate diagram chunk changes. Currently, waitNext repeatedly acquires cs_main and constructs full block templates every tick solely to determine if fee increases justify a new template. By tracking fee-rate diagram deltas across mempool updates, waitNext detects staleness without redundant block assembly. Mining helper functions and block submission are also centralized into the manager.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"mempool_policy\",\n      \"validation\",\n      \"tests\"\n    ],\n    \"why\": \"Mistakes in mempool chunk fee tracking or validation signal ordering could cause mining clients to stall, miss profitable transactions, or encounter deadlocks.\"\n  }\n}",
+ "result": {
+  "summary": "Consolidates block template creation, waiting, and submission helpers into a `BlockTemplateManager` class registered with validation signals. Adds a `MempoolUpdated` validation interface event that tracks before-and-after fee rate diagram chunks with transaction references. Leverages these diagram snapshots to monitor mempool fee inflow per active template, replacing the polling loop in `waitNext` that assembled full blocks on each tick.",
+  "problem": "To check whether newly arriving transactions justify issuing a fresh block template, `waitNext` in the IPC mining interface repeatedly acquires `cs_main` and builds complete block templates solely to sum and compare their fees. Additionally, mining utility functions are free functions scattered across `miner.cpp` requiring manual threading of dependencies, and `SubmitBlock` allocates a throwaway validation listener on every block submitted.",
+  "evidence": [
+   "PR description: 'Currently, to decide whether mempool fee inflow rose enough to be worth a new template, waitNext locks cs_main and assembles a full block template every tick just to sum its fees and compare. After cluster mempool... we shouldn\\'t have to build a whole block template to answer that question.'",
+   "PR description links to Delving Bitcoin research: 'determining-blocktemplate-fee-increase-using-fee-rate-diagram/2052'.",
+   "Author notes the fuzz harness for the new manager uncovered a miner chunk-limit check bug fixed in merged PR #35580."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "About half of the patch (+1090 lines) consists of tests, including a new fuzz harness for `BlockTemplateManager` and unit tests in `mempool_update_tests.cpp`. The manager refactor was originally split into #35675 (now merged), and this branch retains the commits up through fee-inflow tracking.",
+  "changed_since_previous": "The prior dependency #35675 was merged upstream; this branch remains to be rebased on top of it.",
+  "card": "Introduces a BlockTemplateManager and adds a MempoolUpdated validation interface signal carrying fee rate diagram chunk changes. Currently, waitNext repeatedly acquires cs_main and constructs full block templates every tick solely to determine if fee increases justify a new template. By tracking fee-rate diagram deltas across mempool updates, waitNext detects staleness without redundant block assembly. Mining helper functions and block submission are also centralized into the manager.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "mempool_policy",
+    "validation",
+    "tests"
+   ],
+   "why": "Mistakes in mempool chunk fee tracking or validation signal ordering could cause mining clients to stall, miss profitable transactions, or encounter deadlocks."
+  }
+ }
+}

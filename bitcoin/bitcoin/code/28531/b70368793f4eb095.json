@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-25T01:29:06+00:00",
+ "card": "Updates MallocUsage() with a modern formula to calculate allocator overhead and heap memory consumption more accurately across platforms, while refining std::unordered_map accounting. Because the UTXO coins cache (-dbcache) and mempool (-maxmempool) rely on these numbers to stay within configured memory bounds, allocator drift risks OOM kills or premature cache flushes. The change is accompanied by rewrites to validation flush tests and functional test mempool helpers, but currently contains a temporary commit intentionally failing CI to gather platform data.",
+ "changed_since_previous": "Added an empirical allocator measurement test in `src/test/util_malloc_usage_tests.cpp` (including a temporary failing assertion for CI diagnostics), and reworked `src/test/validation_flush_tests.cpp` to fill the coins cache dynamically to percentage thresholds rather than asserting on hardcoded coin counts.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"accuracy has degraded as memory allocation libraries have evolved. It's used when it's important that large data structures, such as the coins cache and mempool, should use a predictable, configurable (limited) amount of physical memory...\"",
+  "PR description: references an expression derived by Pieter Wuille in PR #27748 review discussion to compute allocator overhead dynamically"
+ ],
+ "head_sha": "b36b234197f189db7241b2062b37c0e93cfc4e73",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 28531,
+ "patch_id": "b70368793f4eb095",
+ "problem": "`MallocUsage()` was calibrated in 2015 against Linux glibc 2.19, and its estimates of heap overhead have drifted from modern allocators and cross-platform behavior. Large memory-bounded structures like the UTXO coins cache (`-dbcache`) and mempool (`-maxmempool`) rely on these calculations, meaning inaccurate accounting risks either premature cache flushing or out-of-memory crashes.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy",
+   "tests"
+  ],
+  "why": "Incorrect heap overhead estimation could cause nodes to flush their coins cache prematurely or exceed configured memory limits and crash with an out-of-memory error."
+ },
+ "run": "run:20260925-0128-assess",
+ "scope_notes": "The branch currently includes an intentional temporary commit with an explicit test failure (`BOOST_CHECK(false)` in `src/test/util_malloc_usage_tests.cpp`) to collect allocator diagnostic output across CI platforms.",
+ "size": {
+  "additions": 234,
+  "deletions": 103,
+  "files": 5,
+  "test_lines": 280
+ },
+ "summary": "Replaces the heuristic calculation in `memusage::MallocUsage()` with a modernized formula based on platform alignment and allocator overhead, and adjusts `DynamicUsage` for `std::unordered_map` and `std::unordered_set` to conservatively account for two-pointer bucket elements. It also updates the cache flush unit test and the test framework's mempool filling helper to reflect the adjusted memory accounting.",
+ "uncertainties": []
+}

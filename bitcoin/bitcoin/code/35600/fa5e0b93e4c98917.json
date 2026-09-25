@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-25T01:29:32+00:00",
+ "card": "Tracks in-flight manual P2P connection attempts in CConnman to prevent duplicate connections to the same target. Concurrent manual connection attempts\u2014such as `-connect` and `-addnode` specifying the same destination during startup\u2014race past existing duplicate checks because those checks only inspect peers already added to `m_nodes`. Target addresses and hostnames are now reserved during `OpenNetworkConnection()` so concurrent attempts are rejected while a dial is pending. This addresses long-standing issue #5299 with a new functional test reproducing the race condition.",
+ "changed_since_previous": "Dropped changes to `ThreadOpenAddedConnections()`, leaving the addnode scheduler untouched. Connection reservation is now scoped strictly inside `OpenNetworkConnection()` via an RAII guard.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Addresses issue #5299 ('Initial connection management'), which reported duplicate manual connections during initial node startup.",
+  "PR description: '-connect and -addnode can attempt the same manual connection concurrently during startup. The existing duplicate checks cannot see a peer until it has been added to m_nodes, so both attempts can pass and open connections.'",
+  "Adds a functional test in `test/functional/p2p_duplicate_manual_connections.py` verifying that holding a connection attempt during a proxy handshake blocks duplicate connection attempts."
+ ],
+ "head_sha": "081ba2b98cb1280310eb4d611a47bdf963b5facd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35600,
+ "patch_id": "fa5e0b93e4c98917",
+ "problem": "Concurrent manual connection attempts to the same target\u2014such as overlapping `-connect` and `-addnode` parameters during startup or concurrent `addnode onetry` calls\u2014can race past duplicate checks. Because existing checks only inspect peers already published to `m_nodes`, multiple connections to the same remote peer can be established before either completes its handshake.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Flaws in the destination reservation tracking could fail to release keys or mismatch addresses, blocking valid manual connections and reconnections."
+ },
+ "run": "run:20260925-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 165,
+  "deletions": 1,
+  "files": 4,
+  "test_lines": 118
+ },
+ "summary": "Tracks in-flight manual P2P connection attempts in `CConnman` using a set of pending destination keys to prevent duplicate connections. When `OpenNetworkConnection()` initiates a manual connection, it registers the target in `m_manual_connection_in_progress` and clears it upon exit using an RAII guard. Secondary attempts to the same numeric address or hostname string while an attempt is already dialing are rejected.",
+ "uncertainties": []
+}

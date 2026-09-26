@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-26T01:25:40+00:00",
+ "card": "Validation synchronously reads and deserializes blocks from disk immediately before connecting each block, preventing disk I/O from overlapping with CPU-bound block verification. This pull request introduces a background `BlockFetcher` thread pool (defaulting to 2 threads and a queue size of 4, configurable via `-blockreadahead`) to prefetch blocks from disk ahead of connection and during chain reorgs. The author's benchmarks demonstrate a ~1.5x speedup for reindex-chainstate on both SSD and HDD hardware and a 1.13x speedup during full initial block download.",
+ "changed_since_previous": "Exposed the `-blockreadahead=<n>` command-line option to configure the number of worker threads or disable read-ahead with 0, along with documentation and test coverage for the option.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmarks for `reindex-chainstate` to block 964,469 show a 1.53x speedup on an i7 HDD system (30,017s down to 19,609s), a 1.57x speedup on an i9 SSD system (14,955s down to 9,499s), and a 1.19x speedup on a Raspberry Pi 5 SSD setup (37,267s down to 31,225s).",
+  "Author benchmarks for full initial block download to block 964,469 on a Ryzen SSD system show a 1.13x speedup (18,326s down to 16,192s).",
+  "PR description notes the idea was previously implemented and verified with comparable results by bitcoindev1337."
+ ],
+ "head_sha": "b41f38584892787bba965ea4677889950bced6ce",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36000,
+ "patch_id": "03f55cccaefe40cd",
+ "problem": "Block reading and deserialization from disk occur synchronously immediately before block connection, preventing I/O-bound disk operations from overlapping with CPU-bound transaction and script validation during reindexing and initial block download.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "Threading bugs, data races, or incorrect block cache state in the prefetcher could stall chain activation, crash the node, or cause spurious block connection failures during reindex and reorgs."
+ },
+ "run": "run:20260926-0125-assess",
+ "scope_notes": "Adds a new `node::BlockFetcher` utility in `src/node/blockfetcher.{h,cpp}` that is linked into both the node and `bitcoinkernel` libraries.",
+ "size": {
+  "additions": 208,
+  "deletions": 14,
+  "files": 11,
+  "test_lines": 63
+ },
+ "summary": "Introduces a Chainstate-owned `BlockFetcher` thread pool that asynchronously reads and deserializes upcoming blocks from disk ahead of validation during chain activation and reorgs. It maintains a sliding queue of up to 4 queued reads across 2 background threads by default, configurable via the new `-blockreadahead` option. Caller-provided blocks bypass the queue to avoid duplicate I/O, and validation falls back to synchronous loading if a prefetched block is unavailable or does not match the requested hash.",
+ "uncertainties": []
+}

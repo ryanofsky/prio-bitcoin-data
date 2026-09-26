@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-26T01:25:46+00:00",
+ "card": "Require an exact wtxid match before marking a mempool transaction as mined during block connection, removing same-txid witness variants as conflicts instead. Previously, removeForBlock matched only by txid, allowing unmined witness variants to count as confirmed, skewing mempool fee estimator health calculations and misinforming fee tracking, wallet notifications, and ZMQ subscribers. In addition to emitting conflict notifications for mismatched witnesses, the mempool estimator now evaluates coverage using mined block transaction weights directly.",
+ "changed_since_previous": "The PR now updates CTxMemPool::removeForBlock to check for exact wtxid matches, evicting witness-mismatched entries as conflicts instead of reporting them as mined block inclusions. Documentation and release notes were added detailing the resulting ZMQ sequence notifications and wallet effects.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 847f90a0d7 test demonstration: 'Record that the estimator counts a heavier local mempool variant and marks the window healthy even though the matching mined transactions fall below the coverage threshold.'",
+  "Commit 4cc6c2c1e9: 'Only report a mempool transaction as mined when its wtxid matches the connected block. Report a same-txid witness variant as CONFLICT. The block policy estimator then removes the local variant from tracking instead of recording a confirmation.'"
+ ],
+ "head_sha": "08b3d87de87fe1bff5a967747bb57c7fb09f6ab1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36317,
+ "patch_id": "6404b61a36aa71ca",
+ "problem": "CTxMemPool::removeForBlock matched transactions only by txid, which does not commit to witness data. A local mempool transaction with a different witness than the mined version was marked as mined and confirmed by fee estimators, skewing mempool coverage health statistics, improperly confirming unmined witness variants in the block policy fee estimator, and failing to signal a conflict removal to wallets and ZMQ subscribers.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "mempool_policy",
+   "wallet",
+   "rpc_api"
+  ],
+  "why": "Alters mempool removal reasons and validation event notifications when blocks connect, which could trigger unexpected wallet state updates or ZMQ notifications if an edge case is mishandled."
+ },
+ "run": "run:20260926-0125-assess",
+ "scope_notes": "Changes validation interface notifications: same-txid different-witness transactions will now emit MemPoolRemovalReason::CONFLICT, sending an 'R' ZMQ sequence event and potentially triggering an extra unconfirmed wallet notification.",
+ "size": {
+  "additions": 107,
+  "deletions": 24,
+  "files": 10,
+  "test_lines": 69
+ },
+ "summary": "Require exact witness transaction ID (wtxid) matches when removing mempool transactions for a newly connected block. When a transaction in a block matches an entry in the local mempool by txid but differs in witness data, the local entry is removed with MemPoolRemovalReason::CONFLICT instead of BLOCK and excluded from the list of mined mempool transactions. In the mempool fee estimator, block coverage is calculated using the mined transactions' weights in a single pass over block data.",
+ "uncertainties": []
+}

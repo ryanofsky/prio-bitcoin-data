@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-09-27T01:28:24+00:00",
+ "card": "Prevents cached block validation flags from persisting across different consensus parameters in the libbitcoinkernel C API. Because `btck_Block` wraps a shared `CBlock`, running block validation caches `fChecked` on the underlying object, causing later checks against different chain parameters (such as testing a regtest block against mainnet rules, or processing blocks across different signet challenges) to erroneously pass. The PR makes `btck_block_check` and `btck_chainstate_manager_process_block` validate against an unfagged copy of the block sharing the transaction pointers. Two reproduction test cases are added in `test_kernel.cpp`.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description notes: 'a regtest block fails btck_block_check with mainnet params and ALL flags. After it has been checked once with regtest params, the same call with mainnet params returns 1.'",
+  "PR description demonstrates a bug where a signet block valid under an OP_TRUE challenge is connected by a second chainstate manager configured with an OP_RETURN challenge, leaving the second chain unable to read its own tip back via ReadBlock.",
+  "PR description reports two new test cases in `test_kernel.cpp` reproducing the issues, which fail on master with four failures and pass with this change."
+ ],
+ "head_sha": "9d735dae130dff17153c0aa5678b5cfb1999f00d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36353,
+ "patch_id": "nopatch",
+ "problem": "In the kernel C API, `btck_Block` wraps a shared `CBlock`. Once validation marks `block.fChecked` under one set of consensus parameters (e.g., regtest or a permissive signet challenge), any subsequent check on the same shared block instance bypasses full validation under different parameters, allowing invalid blocks to pass validation or be accepted by a chainstate manager. Additionally, modifying `fChecked` inside `btck_block_check` mutates caller state without holding `cs_main`.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A flaw in block copying or validation flag handling in the kernel API could cause valid blocks to be rejected or invalid blocks to be connected by kernel consumers."
+ },
+ "run": "run:20260927-0127-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 50,
+  "deletions": 2,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Ensure libbitcoinkernel validation entry points do not mutate or reuse cached validation flags on caller-provided block objects. When invoking `btck_block_check` or `btck_chainstate_manager_process_block`, validation now runs on a shallow copy of the block containing fresh validation state flags while sharing transaction pointers.",
+ "uncertainties": []
+}

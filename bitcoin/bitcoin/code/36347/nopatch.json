@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-27T01:28:23+00:00",
+ "card": "Removes the noexcept specifier from LogOversizedDbCache and adds a test for invalid dbcache values in settings.json. Setting a non-integer value such as 4096.5 causes GetIntArg to throw an exception that hits the noexcept boundary and aborts the node via std::terminate during startup. Removing noexcept allows the exception to propagate to the AppInit handler, letting the node exit cleanly with status 1 and a descriptive error message.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description reproduces the startup crash: `libc++abi: terminating due to uncaught exception of type std::runtime_error: JSON integer out of range`"
+ ],
+ "head_sha": "75e297d79101f817b7b550747c8e6434e619d2f5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36347,
+ "patch_id": "nopatch",
+ "problem": "When `settings.json` contains a malformed or out-of-range number for `dbcache` (such as a floating-point value like `4096.5`), `GetIntArg` throws a `std::runtime_error`. Because `LogOversizedDbCache` is marked `noexcept`, this exception causes `std::terminate` to immediately abort `bitcoind` during startup rather than failing gracefully.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests",
+   "other"
+  ],
+  "why": "Removing noexcept on a startup logging function allows expected parsing exceptions to be handled gracefully without risk to runtime consensus or state."
+ },
+ "run": "run:20260927-0127-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 7,
+  "deletions": 2,
+  "files": 3,
+  "test_lines": null
+ },
+ "summary": "Removes the `noexcept` specifier from `LogOversizedDbCache` so exceptions thrown during configuration parsing can propagate to the outer `AppInit` handler. This allows the node to exit cleanly with an error message instead of aborting via `std::terminate` when `settings.json` contains an invalid `-dbcache` value. A test case is added to `feature_settings.py` to verify graceful failure.",
+ "uncertainties": []
+}

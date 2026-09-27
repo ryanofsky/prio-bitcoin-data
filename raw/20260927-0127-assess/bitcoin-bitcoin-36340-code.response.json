@@ -1,0 +1,43 @@
+{
+ "run": "run:20260927-0127-assess",
+ "pr": "bitcoin/bitcoin#36340",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-27T01:28:13+00:00",
+ "usage": {
+  "input_tokens": 3337,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1174
+ },
+ "cost_usd": 0.00690525,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Cap timeout values in `Sock::WaitMany` to `INT_MAX` milliseconds and introduce a dedicated `Sock::NO_TIMEOUT` sentinel. `bitcoin-cli` uses this sentinel when `-rpcclienttimeout=0` is specified instead of converting the request into an arbitrary 5-year timeout.\",\n  \"problem\": \"On platforms without `USE_POLL` such as macOS, `Sock::WaitMany` uses `select()`, which rejects timeouts greater than 10^8 seconds with `EINVAL`. Because `bitcoin-cli` previously approximated zero timeout as a 5-year duration (~1.58 * 10^8 seconds), running `bitcoin-cli -rpcclienttimeout=0` on macOS immediately fails with 'Could not connect to the server'.\",\n  \"evidence\": [\n    \"PR description: '`bitcoin-cli -rpcclienttimeout=0` is documented as \\\"no timeout\\\", but on macOS it fails with \\\"Could not connect to the server\\\" since #34342 (it's in v32.0rc1/rc2).'\",\n    \"PR description: 'The new `sock_tests/wait_large_timeout` test waits with a 5 year timeout on a socket that already has data. It fails on master on macOS and passes with this change.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"bitcoin-cli -rpcclienttimeout=0 is documented as disabling timeouts, but it currently fails immediately on macOS with 'Could not connect to the server'. This regression occurred in #34342 because the CLI converted zero into a 5-year timeout, exceeding macOS select() limit of 10^8 seconds and returning EINVAL. This PR caps timeouts in Sock::WaitMany to INT_MAX milliseconds and adds an explicit Sock::NO_TIMEOUT mode passed as null to select() and -1 to poll().\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"low\",\n    \"touches\": [\n      \"other\"\n    ],\n    \"why\": \"A flaw in socket timeout arithmetic or polling could cause network waits in bitcoin-cli or other Sock users to time out early or hang indefinitely.\"\n  }\n}",
+ "result": {
+  "summary": "Cap timeout values in `Sock::WaitMany` to `INT_MAX` milliseconds and introduce a dedicated `Sock::NO_TIMEOUT` sentinel. `bitcoin-cli` uses this sentinel when `-rpcclienttimeout=0` is specified instead of converting the request into an arbitrary 5-year timeout.",
+  "problem": "On platforms without `USE_POLL` such as macOS, `Sock::WaitMany` uses `select()`, which rejects timeouts greater than 10^8 seconds with `EINVAL`. Because `bitcoin-cli` previously approximated zero timeout as a 5-year duration (~1.58 * 10^8 seconds), running `bitcoin-cli -rpcclienttimeout=0` on macOS immediately fails with 'Could not connect to the server'.",
+  "evidence": [
+   "PR description: '`bitcoin-cli -rpcclienttimeout=0` is documented as \"no timeout\", but on macOS it fails with \"Could not connect to the server\" since #34342 (it's in v32.0rc1/rc2).'",
+   "PR description: 'The new `sock_tests/wait_large_timeout` test waits with a 5 year timeout on a socket that already has data. It fails on master on macOS and passes with this change.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "",
+  "card": "bitcoin-cli -rpcclienttimeout=0 is documented as disabling timeouts, but it currently fails immediately on macOS with 'Could not connect to the server'. This regression occurred in #34342 because the CLI converted zero into a 5-year timeout, exceeding macOS select() limit of 10^8 seconds and returning EINVAL. This PR caps timeouts in Sock::WaitMany to INT_MAX milliseconds and adds an explicit Sock::NO_TIMEOUT mode passed as null to select() and -1 to poll().",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "low",
+   "touches": [
+    "other"
+   ],
+   "why": "A flaw in socket timeout arithmetic or polling could cause network waits in bitcoin-cli or other Sock users to time out early or hang indefinitely."
+  }
+ }
+}

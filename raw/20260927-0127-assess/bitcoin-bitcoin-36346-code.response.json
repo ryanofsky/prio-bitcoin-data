@@ -1,0 +1,44 @@
+{
+ "run": "run:20260927-0127-assess",
+ "pr": "bitcoin/bitcoin#36346",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-27T01:28:14+00:00",
+ "usage": {
+  "input_tokens": 2992,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 910
+ },
+ "cost_usd": 0.0056565,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Recheck that the mempool is empty after populating an assumeutxo snapshot before activating it. If new transactions arrived while `cs_main` was released during snapshot population, the node aborts snapshot activation and cleans up rather than hitting an assertion failure in `AddChainstate`.\",\n  \"problem\": \"`ActivateSnapshot` checks that the mempool is empty at invocation, but runs `PopulateAndValidateSnapshot` without holding `cs_main`. If a transaction enters the mempool during that multi-minute window, `AddChainstate` hits an assertion failure, crashing `bitcoind` after snapshot metadata has already been written to disk and forcing a full `-reindex` on restart.\",\n  \"evidence\": [\n    \"PR description documents the crash: `Assertion failed: (!prev_chainstate.m_mempool || prev_chainstate.m_mempool->size() == 0), function AddChainstate, file validation.cpp, line 6201` followed by restart failure `Witness data for blocks after height 0 requires validation. Please restart with -reindex..`\",\n    \"Commit ceeee32b3c adds reproduction test `test_mempool_filled_during_load` in `feature_assumeutxo.py` using a FIFO to inject a transaction during snapshot population.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Diff not provided in input; metadata shows a small change (+52/-0 across 2 files) containing validation handling and a functional test in `feature_assumeutxo.py`.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"During assumeutxo snapshot loading, `ActivateSnapshot` verifies an empty mempool before releasing `cs_main` to populate the snapshot chainstate. If any transaction enters the mempool during the population phase, `AddChainstate` triggers an assertion failure that crashes `bitcoind` and corrupts startup state such that the node requires `-reindex`. This change rechecks the mempool after re-acquiring `cs_main` and routes through `cleanup_bad_snapshot` if transactions are present. It also adds a functional test reproducing the race condition.\",\n  \"needs\": [\"diff\"],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"validation\", \"tests\"],\n    \"why\": \"Alters chainstate activation error paths in validation, where mistakes could improperly abort snapshot loading or leave chainstate tracking in an inconsistent state.\"\n  }\n}",
+ "result": {
+  "summary": "Recheck that the mempool is empty after populating an assumeutxo snapshot before activating it. If new transactions arrived while `cs_main` was released during snapshot population, the node aborts snapshot activation and cleans up rather than hitting an assertion failure in `AddChainstate`.",
+  "problem": "`ActivateSnapshot` checks that the mempool is empty at invocation, but runs `PopulateAndValidateSnapshot` without holding `cs_main`. If a transaction enters the mempool during that multi-minute window, `AddChainstate` hits an assertion failure, crashing `bitcoind` after snapshot metadata has already been written to disk and forcing a full `-reindex` on restart.",
+  "evidence": [
+   "PR description documents the crash: `Assertion failed: (!prev_chainstate.m_mempool || prev_chainstate.m_mempool->size() == 0), function AddChainstate, file validation.cpp, line 6201` followed by restart failure `Witness data for blocks after height 0 requires validation. Please restart with -reindex..`",
+   "Commit ceeee32b3c adds reproduction test `test_mempool_filled_during_load` in `feature_assumeutxo.py` using a FIFO to inject a transaction during snapshot population."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Diff not provided in input; metadata shows a small change (+52/-0 across 2 files) containing validation handling and a functional test in `feature_assumeutxo.py`.",
+  "changed_since_previous": "",
+  "card": "During assumeutxo snapshot loading, `ActivateSnapshot` verifies an empty mempool before releasing `cs_main` to populate the snapshot chainstate. If any transaction enters the mempool during the population phase, `AddChainstate` triggers an assertion failure that crashes `bitcoind` and corrupts startup state such that the node requires `-reindex`. This change rechecks the mempool after re-acquiring `cs_main` and routes through `cleanup_bad_snapshot` if transactions are present. It also adds a functional test reproducing the race condition.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation",
+    "tests"
+   ],
+   "why": "Alters chainstate activation error paths in validation, where mistakes could improperly abort snapshot loading or leave chainstate tracking in an inconsistent state."
+  }
+ }
+}

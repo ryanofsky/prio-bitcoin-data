@@ -1,0 +1,44 @@
+{
+ "assessed_at": "2026-09-27T01:28:15+00:00",
+ "card": "Reject duplicate UTXO inputs passed to the sendall RPC. Previously, supplying duplicate inputs caused sendall to sum the UTXO value multiple times and generate consensus-invalid transactions (bad-txns-inputs-duplicate) that failed mempool acceptance and corrupted wallet balances until abandoned. The author demonstrates reproducible regtest behavior where a 1 BTC UTXO produced an un-broadcastable 2 BTC spend and a negative wallet balance.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author provides reproduction on regtest: running `sendall '[\"<addr>\"]' '{\"inputs\": [<utxo>, <utxo>]}'` creates an invalid transaction with double the output value that fails mempool validation with `bad-txns-inputs-duplicate` and produces `nonmempool: -1.0` in `getbalances`.",
+  "Author notes other RPCs like `send` avoid this because `CCoinControl::Select` deduplicates inputs, whereas `sendall` did not."
+ ],
+ "head_sha": "c46a0b34fd06c874191cf880ba7082790b96c194",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36344,
+ "patch_id": "nopatch",
+ "problem": "When duplicate inputs are passed to `sendall`, the wallet sums the input value repeatedly and creates an invalid transaction containing duplicate inputs. The resulting transaction fails mempool acceptance with `bad-txns-inputs-duplicate` but remains committed in the local wallet, locking the affected UTXO and causing negative balance reporting until manually abandoned.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api",
+   "tests"
+  ],
+  "why": "A flaw in wallet input validation or RPC parameter handling could erroneously reject valid coin control inputs or create unexpected wallet spending behavior."
+ },
+ "run": "run:20260927-0127-assess",
+ "scope_notes": "Small patch (+18/-0) adding an input validation check and an associated functional test.",
+ "size": {
+  "additions": 18,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Validates the `inputs` argument in the `sendall` RPC to reject duplicate outpoints. An RPC error (RPC_INVALID_PARAMETER) is returned if the caller supplies the same UTXO more than once.",
+ "uncertainties": [
+  "The patch diff was omitted from the prompt, so the exact check implementation and test coverage cannot be directly inspected."
+ ]
+}

@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-27T01:28:13+00:00",
+ "card": "bitcoin-cli -rpcclienttimeout=0 is documented as disabling timeouts, but it currently fails immediately on macOS with 'Could not connect to the server'. This regression occurred in #34342 because the CLI converted zero into a 5-year timeout, exceeding macOS select() limit of 10^8 seconds and returning EINVAL. This PR caps timeouts in Sock::WaitMany to INT_MAX milliseconds and adds an explicit Sock::NO_TIMEOUT mode passed as null to select() and -1 to poll().",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: '`bitcoin-cli -rpcclienttimeout=0` is documented as \"no timeout\", but on macOS it fails with \"Could not connect to the server\" since #34342 (it's in v32.0rc1/rc2).'",
+  "PR description: 'The new `sock_tests/wait_large_timeout` test waits with a 5 year timeout on a socket that already has data. It fails on master on macOS and passes with this change.'"
+ ],
+ "head_sha": "d63703355af2c929c6b242e8f2bcbc4c873c9c42",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36340,
+ "patch_id": "nopatch",
+ "problem": "On platforms without `USE_POLL` such as macOS, `Sock::WaitMany` uses `select()`, which rejects timeouts greater than 10^8 seconds with `EINVAL`. Because `bitcoin-cli` previously approximated zero timeout as a 5-year duration (~1.58 * 10^8 seconds), running `bitcoin-cli -rpcclienttimeout=0` on macOS immediately fails with 'Could not connect to the server'.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "other"
+  ],
+  "why": "A flaw in socket timeout arithmetic or polling could cause network waits in bitcoin-cli or other Sock users to time out early or hang indefinitely."
+ },
+ "run": "run:20260927-0127-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 60,
+  "deletions": 16,
+  "files": 4,
+  "test_lines": null
+ },
+ "summary": "Cap timeout values in `Sock::WaitMany` to `INT_MAX` milliseconds and introduce a dedicated `Sock::NO_TIMEOUT` sentinel. `bitcoin-cli` uses this sentinel when `-rpcclienttimeout=0` is specified instead of converting the request into an arbitrary 5-year timeout.",
+ "uncertainties": []
+}

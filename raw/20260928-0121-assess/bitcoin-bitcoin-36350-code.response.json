@@ -1,0 +1,42 @@
+{
+ "run": "run:20260928-0121-assess",
+ "pr": "bitcoin/bitcoin#36350",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-28T01:22:28+00:00",
+ "usage": {
+  "input_tokens": 5745,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 988
+ },
+ "cost_usd": 0.00801375,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Counts accumulated chainwork during anti-DoS headers presync when checking outbound peers for chain sync eviction in `PeerManagerImpl::ConsiderEviction`. If the peer's accumulated presync work meets or exceeds the local node's tip work, the chain sync timeout is reset even though headers have not yet been stored in the block index. A new functional test reproduces the eviction timeout during slow presync and verifies that the peer remains connected.\",\n  \"problem\": \"When a node's best header is below `-minimumchainwork`, incoming headers are held in presync and not stored in the block index, leaving `pindexBestKnownBlock` null for that peer. Chain sync eviction treats the peer as if it never announced a block and disconnects it after roughly 22 minutes (`CHAIN_SYNC_TIMEOUT` plus `HEADERS_RESPONSE_TIME`). On slow or high-latency links such as Tor or I2P, the ~480 round trips needed for mainnet presync can exceed 22 minutes, causing the node to repeatedly disconnect the sync peer and discard all presync progress.\",\n  \"evidence\": [\n    \"PR description explains the interaction between #11490 (chain sync eviction) and #25717 (anti-DoS headers sync): 'The chain sync logic is from #11490, presync came later in #25717, and the two were never connected.'\",\n    \"PR description notes mainnet impact: 'On mainnet presync is roughly 480 headers round trips. If that takes more than ~22 minutes (about 2.5 s per round trip, e.g. over slow Tor or I2P), the sync peer gets evicted before presync can finish, and the same thing can happen with the next peer.'\",\n    \"The added functional test reproduces the bug: 'On master the peer is disconnected after 24 minutes. With the fix it stays connected and presynced_headers keeps going up.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Initial description of the patch; no changes to the implementation.\",\n  \"card\": \"Prevents premature eviction of outbound sync peers during anti-DoS headers presync. When syncing headers below minimum chainwork, headers are processed in presync without being added to the block index, leaving the peer's best known block pointer null. On high-latency connections like Tor or I2P, the 22-minute chain sync timeout can trigger before the ~480 round trips finish, disconnecting the peer and wiping presync progress. The patch resets the eviction timeout if the work demonstrated so far in presync equals or exceeds the local tip's work, supported by a functional test reproducing the disconnect on master.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"p2p\"],\n    \"why\": \"A flaw in peer eviction logic or locking around headers sync could either fail to disconnect stalled outbound peers or introduce locking anomalies in net_processing.\"\n  }\n}",
+ "result": {
+  "summary": "Counts accumulated chainwork during anti-DoS headers presync when checking outbound peers for chain sync eviction in `PeerManagerImpl::ConsiderEviction`. If the peer's accumulated presync work meets or exceeds the local node's tip work, the chain sync timeout is reset even though headers have not yet been stored in the block index. A new functional test reproduces the eviction timeout during slow presync and verifies that the peer remains connected.",
+  "problem": "When a node's best header is below `-minimumchainwork`, incoming headers are held in presync and not stored in the block index, leaving `pindexBestKnownBlock` null for that peer. Chain sync eviction treats the peer as if it never announced a block and disconnects it after roughly 22 minutes (`CHAIN_SYNC_TIMEOUT` plus `HEADERS_RESPONSE_TIME`). On slow or high-latency links such as Tor or I2P, the ~480 round trips needed for mainnet presync can exceed 22 minutes, causing the node to repeatedly disconnect the sync peer and discard all presync progress.",
+  "evidence": [
+   "PR description explains the interaction between #11490 (chain sync eviction) and #25717 (anti-DoS headers sync): 'The chain sync logic is from #11490, presync came later in #25717, and the two were never connected.'",
+   "PR description notes mainnet impact: 'On mainnet presync is roughly 480 headers round trips. If that takes more than ~22 minutes (about 2.5 s per round trip, e.g. over slow Tor or I2P), the sync peer gets evicted before presync can finish, and the same thing can happen with the next peer.'",
+   "The added functional test reproduces the bug: 'On master the peer is disconnected after 24 minutes. With the fix it stays connected and presynced_headers keeps going up.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Initial description of the patch; no changes to the implementation.",
+  "card": "Prevents premature eviction of outbound sync peers during anti-DoS headers presync. When syncing headers below minimum chainwork, headers are processed in presync without being added to the block index, leaving the peer's best known block pointer null. On high-latency connections like Tor or I2P, the 22-minute chain sync timeout can trigger before the ~480 round trips finish, disconnecting the peer and wiping presync progress. The patch resets the eviction timeout if the work demonstrated so far in presync equals or exceeds the local tip's work, supported by a functional test reproducing the disconnect on master.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A flaw in peer eviction logic or locking around headers sync could either fail to disconnect stalled outbound peers or introduce locking anomalies in net_processing."
+  }
+ }
+}

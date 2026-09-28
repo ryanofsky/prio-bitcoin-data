@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-28T01:22:25+00:00",
+ "card": "Removes noexcept from LogOversizedDbCache so invalid dbcache settings fail with an error instead of aborting the process. When settings.json contains a non-integer or out-of-range dbcache value (e.g. 4096.5), GetIntArg throws std::runtime_error, which hit the noexcept boundary and caused std::terminate to abort bitcoind during startup. Removing noexcept allows AppInit to catch the exception and exit cleanly with status 1 and an error message.",
+ "changed_since_previous": "No changes to the patch; this update provides the diff.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description notes the abort crash during startup: 'libc++abi: terminating due to uncaught exception of type std::runtime_error: JSON integer out of range'",
+  "The PR includes a functional test in `test/functional/feature_settings.py` reproducing the issue with `{\"dbcache\": 4096.5}` and asserting that `AppInit` catches the exception."
+ ],
+ "head_sha": "75e297d79101f817b7b550747c8e6434e619d2f5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36347,
+ "patch_id": "9bac37a321f622e5",
+ "problem": "`LogOversizedDbCache` calls `CalculateDbCacheBytes` which calls `GetIntArg`. If `settings.json` contains a non-integer or out-of-range integer for `dbcache` (such as `4096.5`), `GetIntArg` throws a `std::runtime_error`; because `LogOversizedDbCache` was marked `noexcept`, the exception triggers an immediate `std::terminate` abort during startup instead of being caught by the `AppInit` exception handler.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests"
+  ],
+  "why": "Only removes a noexcept qualification to allow an existing startup exception to propagate to the main exception handler."
+ },
+ "run": "run:20260928-0121-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 7,
+  "deletions": 2,
+  "files": 3,
+  "test_lines": 5
+ },
+ "summary": "Removes the `noexcept` specifier from `LogOversizedDbCache` so exceptions thrown during cache size calculations can propagate to `AppInit`. This prevents `bitcoind` from aborting via `std::terminate` when `settings.json` contains a malformed `-dbcache` value, allowing it to exit cleanly with an error message instead.",
+ "uncertainties": []
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-28T01:22:31+00:00",
+ "card": "Stops the custom HTTP server from reading and processing pipelined requests after a 'Connection: close' reply has been queued. Previously, a request pipelined behind a closing request was still executed by RPC workers while its reply was dropped on disconnect, potentially causing clients to re-send and execute side-effecting RPCs twice in violation of RFC 9112 section 9.6. This fixes a regression introduced by the replacement of libevent in #35182.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "RFC 9112 section 9.6 requires a server that sends a close response not to process any further requests on that connection.",
+  "Description notes this is a regression from #35182: \"The libevent based server freed the connection right after writing the close reply (evhttp_send_done() \u2192 evhttp_connection_free()), discarding any pipelined bytes\"."
+ ],
+ "head_sha": "3c37828971420b0bacfd4f757abda15d44d42255",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36355,
+ "patch_id": "nopatch",
+ "problem": "Following the custom HTTP server implementation in #35182, the server still parses remaining bytes in the receive buffer after queuing a close reply, executing pipelined requests whose replies are then dropped upon client disconnection. If an RPC client adheres to RFC 9112 section 9.6 and resends requests that received no response on a closed connection, RPC methods with side effects can execute twice.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Bugs in HTTP connection handling could drop valid RPC requests or stall client connections to the RPC server."
+ },
+ "run": "run:20260928-0121-assess",
+ "scope_notes": "Modifies internal HTTP connection state handling, adjusts existing HTTP state machine unit tests, and adds a functional test pipelining an RPC command.",
+ "size": {
+  "additions": 131,
+  "deletions": 1,
+  "files": 4,
+  "test_lines": null
+ },
+ "summary": "Stops the internal HTTP server from reading or executing subsequent requests pipelined behind a \"Connection: close\" request. The server records when a closing reply has been queued or a disconnection has been flagged, preventing queued bytes in the receive buffer from being handed to RPC workers.",
+ "uncertainties": []
+}

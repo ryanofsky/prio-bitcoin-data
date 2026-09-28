@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-28T01:22:19+00:00",
+ "card": "bitcoin-cli -rpcclienttimeout=0 is documented to disable timeouts, but currently fails immediately on macOS with 'Could not connect to the server'. A regression from PR 34342 caused the CLI to translate a zero timeout into a 5-year duration, exceeding macOS select() limit of 10^8 seconds and failing with EINVAL. This change caps durations in Sock::WaitMany to INT_MAX milliseconds and introduces an explicit Sock::NO_TIMEOUT sentinel passed directly to the underlying polling primitives. Unit tests are added to verify behavior with infinite and oversized timeouts.",
+ "changed_since_previous": "No functional changes to the approach; provides the full diff and test cases matching the earlier version.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"`bitcoin-cli -rpcclienttimeout=0` is documented as 'no timeout', but on macOS it fails with 'Could not connect to the server' since #34342 (it's in v32.0rc1/rc2).\"",
+  "PR description: \"The new sock_tests/wait_large_timeout test waits with a 5 year timeout on a socket that already has data. It fails on master on macOS and passes with this change.\""
+ ],
+ "head_sha": "d63703355af2c929c6b242e8f2bcbc4c873c9c42",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36340,
+ "patch_id": "beb8d7a3821898c1",
+ "problem": "Setting -rpcclienttimeout=0 in bitcoin-cli is documented to disable timeouts, but fails immediately on macOS and BSD systems with 'Could not connect to the server'. This happens because zero was mapped to a 5-year duration (~1.58 * 10^8 seconds), which exceeds the 10^8-second limit enforced by select() on macOS and returns EINVAL.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api",
+   "other",
+   "tests"
+  ],
+  "why": "A flaw in timeout calculations could cause socket operations in bitcoin-cli to block indefinitely or abort prematurely."
+ },
+ "run": "run:20260928-0121-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 60,
+  "deletions": 16,
+  "files": 4,
+  "test_lines": 28
+ },
+ "summary": "Caps the timeout argument in Sock::WaitMany at INT_MAX milliseconds and introduces a Sock::NO_TIMEOUT constant that delegates to an infinite wait in poll() and select(). Updates bitcoin-cli to use this sentinel when -rpcclienttimeout is set to 0 instead of simulating an infinite wait with a 5-year timeout.",
+ "uncertainties": []
+}

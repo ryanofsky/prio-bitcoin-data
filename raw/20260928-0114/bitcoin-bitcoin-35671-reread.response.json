@@ -1,0 +1,429 @@
+{
+ "run": "run:20260928-0114",
+ "pr": "bitcoin/bitcoin#35671",
+ "stage": "reread",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 2,
+ "created": "2026-09-28T01:16:47+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16611,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 5188
+ },
+ "cost_usd": 0.06266025,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"ismaelsadeeq\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK; asked about collapsing IPC steps to reduce round trips\"\n    },\n    {\n      \"login\": \"ViniciusCestarii\",\n      \"stance\": \"objection\",\n      \"note\": \"raised concern on order-dependent addMissingTxs handling, suggested interface split, and demonstrated pipelining\"\n    },\n    {\n      \"login\": \"gmaxwell\",\n      \"stance\": \"objection\",\n      \"note\": \"noted non-differential indices risk buffer overflows or OOM; author explained IPC trust model\"\n    },\n    {\n      \"login\": \"pablomartin4btc\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK; suggested input size checking on wtxids and locking cleanup\"\n    },\n    {\n      \"login\": \"enirox001\",\n      \"stance\": \"objection\",\n      \"note\": \"Concept ACK; raised concern on lack of weight check in addMissingTxs; suggested locking and test improvements\"\n    },\n    {\n      \"login\": \"jeanpablojp\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK after testing; asked about reject reasons and suggested test and documentation improvements\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:4902377507\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"approach\",\n      \"text\": \"whether collectTxs() can return missing transaction positions directly to reduce an IPC round trip\",\n      \"quote\": \"This could be collapsed to the response \\\"JDS calls TxCollection::collectTxs() (this PR) with that Wtxid list\\\" to reduce the round trip?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained collectTxs is a constructor returning an interface and pipelining can chain requests\",\n      \"author_replies\": [\n        \"c:4902958777\"\n      ],\n      \"other_replies\": [\n        \"c:4928438822\",\n        \"c:4962003449\"\n      ],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:4902958777\",\n      \"status_by_quote\": \"collectTxs() is the constructor so it needs to return an interface. I don't think it can return both the TxCollection interface and the list of missing transactions.\"\n    },\n    {\n      \"id\": \"rc:3544794067\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"order-dependent addition in addMissingTxs could leave partially applied state if an invalid transaction aborts the loop early\",\n      \"quote\": \"AddMissingTxs is order-dependent, a bad entry aborts the loop at that point, so [valid, invalid] keeps valid but [invalid, valid] doesn't. Is this intentional? Correct me if I am wrong but validate-then-apply seems to be a safer approach.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"addressed in rebase\",\n      \"author_replies\": [\n        \"c:5062080068\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5062080068\",\n      \"status_by_quote\": \"Addressed @ViniciusCestarii's inline comments https://github.com/bitcoin/bitcoin/pull/35671#pullrequestreview-4655098156\"\n    },\n    {\n      \"id\": \"rc:3554795720\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"interface\",\n      \"text\": \"split into two Cap'n Proto interfaces (ExternalBlockTemplate and BlockTemplate) so disallowed methods fail at compile-time rather than throwing at runtime\",\n      \"quote\": \"would it be worth splitting into two capnp interfaces instead of throwing on methods: an ExternalBlockTemplate with just getBlockHeader/getBlock/getCoinbaseMerklePath/submitSolution and BlockTemplate extends(ExternalBlockTemplate)\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"reviewer stated they are fine either way after author raised concerns about client duplication\",\n      \"author_replies\": [\n        \"rc:3640469762\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:3640976129\",\n      \"status_by_quote\": \"The split just removes what's currently unclear to a client consuming the interface (methods that appear callable but are guaranteed to throw). Just my two cents. I'm fine either way\"\n    },\n    {\n      \"id\": \"c:4974409738\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"safety\",\n      \"text\": \"non-differential indices allow repeated requests for the same transaction, risking buffer overflow or out-of-memory errors\",\n      \"quote\": \"compact blocks uses a differential index not primarily for efficiency... but so that the wire format is safe by construction against an attack that applies the same large transaction over and over again (e.g. if index 5 is some giant txn, you request 5,5,5,5,5,5...) and overflows a buffer or OOMs an implementation explicitly constructs the block and without having to have expensive duplication checks.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained Mining IPC client trust model and local host assumption\",\n      \"author_replies\": [\n        \"c:4978780547\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:4978780547\",\n      \"status_by_quote\": \"the Mining IPC client is expected to run on the same machine, so unknownTxPos() and addMissingTxs() are not designed for bandwidth efficiency. We also (currently) more or less trust the IPC client.\"\n    },\n    {\n      \"id\": \"rc:3642746508\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"safety\",\n      \"text\": \"check the size of wtxids before looping using MAX_BLOCK_WEIGHT / MIN_TRANSACTION_WEIGHT\",\n      \"quote\": \"Should the size of `wtxids` be checked before the loop (e.g. perhaps using existing constants \u2014 `MAX_BLOCK_WEIGHT / MIN_TRANSACTION_WEIGHT`)?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added the limit check in miner.cpp\",\n      \"author_replies\": [\n        \"rc:3644987599\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3644987599\",\n      \"status_by_quote\": \"Added (similar check as in merkleblock.cpp), along with a test.\"\n    },\n    {\n      \"id\": \"rc:3642761322\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"avoid locking m_mutex in TxCollection constructor since the object is not yet shared\",\n      \"quote\": \"nit: does the `m_mutex` need to be locked in the constructor? \u2014 the object isn't shared until after construction returns, so no concurrent access is possible yet.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author dropped the mutex lock in the constructor\",\n      \"author_replies\": [\n        \"rc:3644987886\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3644987886\",\n      \"status_by_quote\": \"Dropped\"\n    },\n    {\n      \"id\": \"rc:3765415437\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"safety\",\n      \"text\": \"check for duplicate wtxids in the constructor before locking the mempool\",\n      \"quote\": \"I think the constructor could check for duplicates before locking the mempool? As the duplicate is entirely visible from the input.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added duplicate wtxid check prior to mempool lock\",\n      \"author_replies\": [\n        \"rc:3820760263\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820760263\",\n      \"status_by_quote\": \"Done, checking duplicates first without a lock now.\"\n    },\n    {\n      \"id\": \"rc:3765562606\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"call reserve on m_transactions before acquiring the mempool lock\",\n      \"quote\": \"since the collection size is known, we could reserve it before acquiring the mempool lock to avoid the reallocating and rehashing while the mempool is locked\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented reserve prior to lock\",\n      \"author_replies\": [\n        \"rc:3820760065\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820760065\",\n      \"status_by_quote\": \"Done\"\n    },\n    {\n      \"id\": \"rc:3766518873\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"correctness\",\n      \"text\": \"add a test verifying that TxCollection retains transactions when they leave the mempool\",\n      \"quote\": \"I think an improvement to this test would be adding a test to verify the mempool snapshot behavior. such that it tests that after the collection is constructed with a transaction in the mempool, if the transaction is removed from the mempool it does not report it as missing.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author incorporated suggested snapshot test\",\n      \"author_replies\": [\n        \"rc:3820759831\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759831\",\n      \"status_by_quote\": \"Taken\"\n    },\n    {\n      \"id\": \"rc:3767165227\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"document that all non-coinbase transactions must already be present in block.vtx before calling the coinbase helper\",\n      \"quote\": \"The current documentation here does not mention that all the transactions must be present before calling this so that this does not happen.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added doc comment\",\n      \"author_replies\": [\n        \"rc:3820759626\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759626\",\n      \"status_by_quote\": \"Taken.\"\n    },\n    {\n      \"id\": \"rc:3767376523\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"calculate height locally as a const in the coinbase helper instead of modifying BlockAssembler member\",\n      \"quote\": \"I think a cleaner approach to this helper would be to have it calculate its own height... const int height{pIndexPrev.nHeight + 1}\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author adopted local calculation and made helper const\",\n      \"author_replies\": [\n        \"rc:3820759345\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759345\",\n      \"status_by_quote\": \"Taken, and made it a const member function.\"\n    },\n    {\n      \"id\": \"rc:3768124604\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"limit m_mutex scope in MakeTemplate to checking completeness and copying transactions into a local vector\",\n      \"quote\": \"Could we limit its scope to checking completeness and copying the ordered m_transactions into a local vector? The references remain valid after the lock is released, so block construction and TestBlockValidity would not need to hold the collection mutex.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author narrowed lock scope\",\n      \"author_replies\": [\n        \"rc:3820759018\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759018\",\n      \"status_by_quote\": \"Done\"\n    },\n    {\n      \"id\": \"rc:3768262990\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"interface\",\n      \"text\": \"why interruptWait is permitted on external templates when waitNext throws\",\n      \"quote\": \"waitNext is disabled for external templates, but interruptWait is still allowed? Is there a reason for this?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author acknowledged oversight and disabled interruptWait as well\",\n      \"author_replies\": [\n        \"rc:3820758849\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820758849\",\n      \"status_by_quote\": \"Good catch, I probably missed this in a rebase (before I opened the PR).\"\n    },\n    {\n      \"id\": \"rc:3768404613\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"addMissingTxs checks transaction count rather than weight, permitting oversized transaction payloads to be stored before block validation\",\n      \"quote\": \"The check here is against the size, but it does not check the weight. So even though it can reject a million tiny transactions, it can accept 16666 large ones... This would be eventually rejected as oversized in makeTemplate when TestBlockValidity is called, but that is a bit too late.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author declined duplicating consensus checks done by TestBlockValidity\",\n      \"author_replies\": [\n        \"rc:3820690848\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:3820690848\",\n      \"status_by_quote\": \"I don't think we should take over too much work that TestBlockValidity() does for us. Duplicating consensus checks could introduce new bugs.\"\n    },\n    {\n      \"id\": \"r:5125552680\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"interface\",\n      \"text\": \"why makeTemplate() uses stale-prevblk for ancestor prevhash when TestBlockValidity and checkBlock use inconclusive-not-best-prevblk\",\n      \"quote\": \"makeTemplate() reports an ancestor prevhash as `stale-prevblk`, but `Mining::checkBlock()` reports that same case as `inconclusive-not-best-prevblk`... Was that difference deliberate?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author switched to inconclusive-not-best-prevblk\",\n      \"author_replies\": [\n        \"c:5817134744\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5817134744\",\n      \"status_by_quote\": \"Also addressed @jeanpablojp's feedback: switched to `inconclusive-not-best-prevblk`\"\n    },\n    {\n      \"id\": \"rc:3944180465\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"correctness\",\n      \"text\": \"add a test case for makeTemplate rejecting a coinbase with a mismatched witness commitment\",\n      \"quote\": \"The amount case is covered, the witness commitment one isn't, and that's the one that pins which transactions the coinbase commits to. I flipped a bit of the commitment and it gives bad-witness-merkle-match. Would a case next to this one be worth it?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added test for mismatched witness commitment\",\n      \"author_replies\": [\n        \"c:5817134744\",\n        \"rc:4095390984\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4095390984\",\n      \"status_by_quote\": \"Added such a test.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:4902377507\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:4769906047\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:4907232495\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Concept ACK, intending to benchmark this approach against the previous one\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:4914769141\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization, transfers only transactions the node is missing, and lets external templates be reconstructed and validated using existing validation logic.\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\n        \"src/node/interfaces.cpp\",\n        \"src/node/miner.cpp\",\n        \"src/node/miner.h\",\n        \"test/functional/interface_ipc_mining_tx_collection.py\"\n      ]\n    },\n    {\n      \"id\": \"r:5125552680\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Ran the new tests and the mining suite, and checked the coinbase commit against its parent.\",\n      \"substantive\": true,\n      \"evidence\": \"both\",\n      \"areas\": [\n        \"src/node/miner.cpp\",\n        \"src/interfaces/mining.h\",\n        \"test/functional/interface_ipc_mining_tx_collection.py\"\n      ]\n    }\n  ],\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"review of the rebase addressing jeanpablojp's comments and integrating BlockTemplateManager\",\n      \"id\": \"c:5817134744\"\n    }\n  ],\n  \"notes\": \"Updated the record with reviews, questions, and suggestions from ViniciusCestarii, pablomartin4btc, enirox001, and jeanpablojp. Objections by gmaxwell and enirox001 remain answered without pushback; other suggestions and questions have been answered or fixed in subsequent pushes.\"\n}\n\n=== second read ===\n\n{\n  \"participants\": [\n    {\n      \"login\": \"ismaelsadeeq\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK; asked about collapsing IPC steps to reduce round trips\"\n    },\n    {\n      \"login\": \"ViniciusCestarii\",\n      \"stance\": \"objection\",\n      \"note\": \"raised order-dependency objection on addMissingTxs, suggested interface split, demonstrated capnp pipelining\"\n    },\n    {\n      \"login\": \"gmaxwell\",\n      \"stance\": \"objection\",\n      \"note\": \"objected that non-differential indices allow repeating large txs risking buffer overflow or OOM\"\n    },\n    {\n      \"login\": \"pablomartin4btc\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK; suggested wtxids size check, mutex cleanup, Assert vs Assume\"\n    },\n    {\n      \"login\": \"enirox001\",\n      \"stance\": \"objection\",\n      \"note\": \"Concept ACK; objected to lack of weight check in addMissingTxs, suggested lock and test improvements\"\n    },\n    {\n      \"login\": \"jeanpablojp\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK; asked about reject reasons and suggested witness commitment mismatch test\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:4902377507\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"interface\",\n      \"text\": \"Whether collectTxs() could return missing transactions directly to reduce IPC round trips\",\n      \"quote\": \"This could be collapsed to the response \\\"JDS calls TxCollection::collectTxs() (this PR) with that Wtxid list\\\" to reduce the round trip?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained collectTxs is a constructor returning an interface and mentioned pipelining\",\n      \"author_replies\": [\n        \"c:4902958777\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:4902958777\",\n      \"status_by_quote\": \"collectTxs() is the constructor so it needs to return an interface. I don't think it can return both the TxCollection interface and the list of missing transactions.\"\n    },\n    {\n      \"id\": \"rc:3544794067\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"Order-dependent addition in addMissingTxs can leave partial state if an invalid transaction aborts early\",\n      \"quote\": \"AddMissingTxs is order-dependent, a bad entry aborts the loop at that point, so [valid, invalid] keeps valid but [invalid, valid] doesn't. Is this intentional? Correct me if I am wrong but validate-then-apply seems to be a safer approach.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"addressed by author in rebase\",\n      \"author_replies\": [\n        \"c:5062080068\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5062080068\",\n      \"status_by_quote\": \"Addressed @ViniciusCestarii's inline comments https://github.com/bitcoin/bitcoin/pull/35671#pullrequestreview-4655098156\"\n    },\n    {\n      \"id\": \"rc:3554795720\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"interface\",\n      \"text\": \"Split into two capnp interfaces (ExternalBlockTemplate and BlockTemplate extending it) instead of throwing on unsupported methods\",\n      \"quote\": \"would it be worth splitting into two capnp interfaces instead of throwing on methods: an ExternalBlockTemplate with just getBlockHeader/getBlock/getCoinbaseMerklePath/submitSolution and BlockTemplate extends(ExternalBlockTemplate) adding getTxFees/getTxSigops/getCoinbaseTx/waitNext/interruptWait?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"author replied noting client code duplication concerns, reviewer clarified and dropped insistence\",\n      \"author_replies\": [\n        \"rc:3640469762\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:3640976129\",\n      \"status_by_quote\": \"Just my two cents. I'm fine either way\"\n    },\n    {\n      \"id\": \"c:4974409738\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"safety\",\n      \"text\": \"Non-differential indices allow repeating the same transaction, risking buffer overflow or OOM without duplicate checks\",\n      \"quote\": \"compact blocks uses a differential index not primarily for efficiency... but so that the wire format is safe by construction against an attack that applies the same large transaction over and over again (e.g. if index 5 is some giant txn, you request 5,5,5,5,5,5...) and overflows a buffer or OOMs an implementation explicitly constructs the block and without having to have expensive duplication checks.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained the IPC client trust model and matching Stratum v2 spec\",\n      \"author_replies\": [\n        \"c:4978780547\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:4978780547\",\n      \"status_by_quote\": \"the Mining IPC client is expected to run on the same machine, so unknownTxPos() and addMissingTxs() are not designed for bandwidth efficiency.\"\n    },\n    {\n      \"id\": \"rc:3642746508\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"safety\",\n      \"text\": \"Check wtxids size against MAX_BLOCK_WEIGHT / MIN_TRANSACTION_WEIGHT before the loop\",\n      \"quote\": \"Should the size of `wtxids` be checked before the loop (e.g. perhaps using existing constants \u2014 `MAX_BLOCK_WEIGHT / MIN_TRANSACTION_WEIGHT`)?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added size check and test\",\n      \"author_replies\": [\n        \"rc:3644987599\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3644987599\",\n      \"status_by_quote\": \"Added (similar check as in merkleblock.cpp), along with a test.\"\n    },\n    {\n      \"id\": \"rc:3765415437\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"safety\",\n      \"text\": \"Check for duplicate wtxids in the constructor before acquiring the mempool lock\",\n      \"quote\": \"I think the constructor could check for duplicates before locking the mempool? As the duplicate is entirely visible from the input.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added duplicate check before lock\",\n      \"author_replies\": [\n        \"rc:3820760263\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820760263\",\n      \"status_by_quote\": \"Done, checking duplicates first without a lock now.\"\n    },\n    {\n      \"id\": \"rc:3765562606\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"Reserve m_transactions size before acquiring mempool lock\",\n      \"quote\": \"The check above this line helps keep it within the proper limit, but since the collection size is known, we could reserve it before acquiring the mempool lock to avoid the reallocating and rehashing while the mempool is locked\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added reserve call\",\n      \"author_replies\": [\n        \"rc:3820760065\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820760065\",\n      \"status_by_quote\": \"Done\"\n    },\n    {\n      \"id\": \"rc:3766518873\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"correctness\",\n      \"text\": \"Add a functional test verifying that TxCollection retains transactions after they leave the mempool\",\n      \"quote\": \"I think an improvement to this test would be adding a test to verify the mempool snapshot behavior. such that it tests that after the collection is constructed with a transaction in the mempool, if the transaction is removed from the mempool it does not report it as missing.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added test case\",\n      \"author_replies\": [\n        \"rc:3820759831\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759831\",\n      \"status_by_quote\": \"Taken\"\n    },\n    {\n      \"id\": \"rc:3767165227\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"Document on coinbase transaction helper that all non-coinbase transactions must already be present so witness commitment is accurate\",\n      \"quote\": \"The current documentation here does not mention that all the transactions must be present before calling this so that this does not happen.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author updated comments\",\n      \"author_replies\": [\n        \"rc:3820759626\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759626\",\n      \"status_by_quote\": \"Taken.\"\n    },\n    {\n      \"id\": \"rc:3767376523\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"Compute height locally inside coinbase helper rather than updating member variable\",\n      \"quote\": \"I think a cleaner approach to this helper would be to have it calculate its own height\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author updated helper to calculate height locally as a const member function\",\n      \"author_replies\": [\n        \"rc:3820759345\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759345\",\n      \"status_by_quote\": \"Taken, and made it a const member function.\"\n    },\n    {\n      \"id\": \"rc:3768124604\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"Limit m_mutex scope in MakeTemplate to checking completeness and copying transactions into a local vector\",\n      \"quote\": \"It looks like m_mutex is held longer than necessary here? Could we limit its scope to checking completeness and copying the ordered m_transactions into a local vector?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author adopted scoped lock suggestion\",\n      \"author_replies\": [\n        \"rc:3820759018\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820759018\",\n      \"status_by_quote\": \"Done\"\n    },\n    {\n      \"id\": \"rc:3768262990\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"interface\",\n      \"text\": \"Why interruptWait is still allowed when waitNext is disabled for external templates\",\n      \"quote\": \"waitNext is disabled for external templates, but interruptWait is still allowed? Is there a reason for this?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author acknowledged and fixed oversight\",\n      \"author_replies\": [\n        \"rc:3820758849\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3820758849\",\n      \"status_by_quote\": \"Good catch, I probably missed this in a rebase (before I opened the PR).\"\n    },\n    {\n      \"id\": \"rc:3768404613\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"addMissingTxs checks count rather than weight, allowing oversized transaction payloads to be stored before block validation\",\n      \"quote\": \"The check here is against the size, but it does not check the weight. So even though it can reject a million tiny transactions, it can accept 16666 large ones... This would be eventually rejected as oversized in makeTemplate when TestBlockValidity is called, but that is a bit too late.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author declined duplicating consensus checks performed by TestBlockValidity\",\n      \"author_replies\": [\n        \"rc:3820690848\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:3820690848\",\n      \"status_by_quote\": \"I don't think we should take over too much work that TestBlockValidity() does for us. Duplicating consensus checks could introduce new bugs.\"\n    },\n    {\n      \"id\": \"r:5125552680\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"interface\",\n      \"text\": \"Whether returning stale-prevblk instead of inconclusive-not-best-prevblk on ancestor prevhash was deliberate\",\n      \"quote\": \"A question about the reject reasons. makeTemplate() reports an ancestor prevhash as stale-prevblk, but Mining::checkBlock() reports that same case as inconclusive-not-best-prevblk, since it lands in TestBlockValidity()... Was that difference deliberate?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author switched reject reason to inconclusive-not-best-prevblk\",\n      \"author_replies\": [\n        \"c:5817134744\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5817134744\",\n      \"status_by_quote\": \"switched to inconclusive-not-best-prevblk (https://github.com/bitcoin/bitcoin/pull/35671#pullrequestreview-5125552680)\"\n    },\n    {\n      \"id\": \"rc:3944180465\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"correctness\",\n      \"text\": \"Add a test checking that makeTemplate rejects a client-provided coinbase with a mismatched witness commitment\",\n      \"quote\": \"The amount case is covered, the witness commitment one isn't, and that's the one that pins which transactions the coinbase commits to. I flipped a bit of the commitment and it gives bad-witness-merkle-match. Would a case next to this one be worth it?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added test case\",\n      \"author_replies\": [\n        \"rc:4095390984\",\n        \"c:5817134744\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4095390984\",\n      \"status_by_quote\": \"Added such a test.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:4902377507\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:4769906047\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:4907232495\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Concept ACK, I intend to benchmark this approach with the previous one to measure the improvement made here\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:4914769141\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization, transfers only transactions the node is missing, and lets external templates be reconstructed and validated using existing validation logic.\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\n        \"src/node/interfaces.cpp\",\n        \"src/node/miner.cpp\",\n        \"src/node/miner.h\",\n        \"test/functional/interface_ipc_mining_tx_collection.py\"\n      ]\n    },\n    {\n      \"id\": \"r:5125552680\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"Ran the new tests and the mining suite, and checked the coinbase commit against its parent.\",\n      \"substantive\": true,\n      \"evidence\": \"both\",\n      \"areas\": [\n        \"test/functional/interface_ipc_mining_tx_collection.py\",\n        \"src/node/miner.cpp\"\n      ]\n    }\n  ],\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"review of rebased commits and addressed comments from enirox001 and jeanpablojp\",\n      \"id\": \"c:5817134744\"\n    }\n  ],\n  \"notes\": \"Brought record up to current rules by recording suggestions and questions previously omitted. ViniciusCestarii, pablomartin4btc, enirox001, and jeanpablojp suggestions/questions were addressed and fixed or settled by author. Objections by gmaxwell and enirox001 were answered directly.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "ismaelsadeeq",
+    "stance": "support",
+    "note": "Concept ACK; asked about collapsing IPC steps to reduce round trips"
+   },
+   {
+    "login": "ViniciusCestarii",
+    "stance": "objection",
+    "note": "raised concern on order-dependent addMissingTxs handling, suggested interface split, and demonstrated pipelining"
+   },
+   {
+    "login": "gmaxwell",
+    "stance": "objection",
+    "note": "noted non-differential indices risk buffer overflows or OOM; author explained IPC trust model"
+   },
+   {
+    "login": "pablomartin4btc",
+    "stance": "support",
+    "note": "Concept ACK; suggested input size checking on wtxids and locking cleanup"
+   },
+   {
+    "login": "enirox001",
+    "stance": "objection",
+    "note": "Concept ACK; raised concern on lack of weight check in addMissingTxs; suggested locking and test improvements"
+   },
+   {
+    "login": "jeanpablojp",
+    "stance": "support",
+    "note": "Concept ACK after testing; asked about reject reasons and suggested test and documentation improvements"
+   }
+  ],
+  "claims": [
+   {
+    "id": "c:4902377507",
+    "part": 1,
+    "type": "question",
+    "kind": "approach",
+    "text": "whether collectTxs() can return missing transaction positions directly to reduce an IPC round trip",
+    "quote": "This could be collapsed to the response \"JDS calls TxCollection::collectTxs() (this PR) with that Wtxid list\" to reduce the round trip?",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author explained collectTxs is a constructor returning an interface and pipelining can chain requests",
+    "author_replies": [
+     "c:4902958777"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:4902958777",
+    "status_by_quote": "collectTxs() is the constructor so it needs to return an interface. I don't think it can return both the TxCollection interface and the list of missing transactions."
+   },
+   {
+    "id": "rc:3544794067",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "order-dependent addition in addMissingTxs could leave partially applied state if an invalid transaction aborts the loop early",
+    "quote": "AddMissingTxs is order-dependent, a bad entry aborts the loop at that point, so [valid, invalid] keeps valid but [invalid, valid] doesn't. Is this intentional? Correct me if I am wrong but validate-then-apply seems to be a safer approach.",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "addressed in rebase",
+    "author_replies": [
+     "c:5062080068"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:5062080068",
+    "status_by_quote": "Addressed @ViniciusCestarii's inline comments https://github.com/bitcoin/bitcoin/pull/35671#pullrequestreview-4655098156"
+   },
+   {
+    "id": "rc:3554795720",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "interface",
+    "text": "split into two Cap'n Proto interfaces (ExternalBlockTemplate and BlockTemplate) so disallowed methods fail at compile-time rather than throwing at runtime",
+    "quote": "would it be worth splitting into two capnp interfaces instead of throwing on methods: an ExternalBlockTemplate with just getBlockHeader/getBlock/getCoinbaseMerklePath/submitSolution and BlockTemplate extends(ExternalBlockTemplate)",
+    "clears_with": "answer",
+    "status": "accepted",
+    "status_note": "reviewer stated they are fine either way after author raised concerns about client duplication",
+    "author_replies": [
+     "rc:3640469762"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:3640976129",
+    "status_by_quote": "The split just removes what's currently unclear to a client consuming the interface (methods that appear callable but are guaranteed to throw). Just my two cents. I'm fine either way"
+   },
+   {
+    "id": "c:4974409738",
+    "part": 1,
+    "type": "objection",
+    "kind": "safety",
+    "text": "non-differential indices allow repeated requests for the same transaction, risking buffer overflow or out-of-memory errors",
+    "quote": "compact blocks uses a differential index not primarily for efficiency... but so that the wire format is safe by construction against an attack that applies the same large transaction over and over again (e.g. if index 5 is some giant txn, you request 5,5,5,5,5,5...) and overflows a buffer or OOMs an implementation explicitly constructs the block and without having to have expensive duplication checks.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author explained Mining IPC client trust model and local host assumption",
+    "author_replies": [
+     "c:4978780547"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:4978780547",
+    "status_by_quote": "the Mining IPC client is expected to run on the same machine, so unknownTxPos() and addMissingTxs() are not designed for bandwidth efficiency. We also (currently) more or less trust the IPC client."
+   },
+   {
+    "id": "rc:3642746508",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "safety",
+    "text": "check the size of wtxids before looping using MAX_BLOCK_WEIGHT / MIN_TRANSACTION_WEIGHT",
+    "quote": "Should the size of `wtxids` be checked before the loop (e.g. perhaps using existing constants \u2014 `MAX_BLOCK_WEIGHT / MIN_TRANSACTION_WEIGHT`)?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author added the limit check in miner.cpp",
+    "author_replies": [
+     "rc:3644987599"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3644987599",
+    "status_by_quote": "Added (similar check as in merkleblock.cpp), along with a test."
+   },
+   {
+    "id": "rc:3642761322",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "avoid locking m_mutex in TxCollection constructor since the object is not yet shared",
+    "quote": "nit: does the `m_mutex` need to be locked in the constructor? \u2014 the object isn't shared until after construction returns, so no concurrent access is possible yet.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author dropped the mutex lock in the constructor",
+    "author_replies": [
+     "rc:3644987886"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3644987886",
+    "status_by_quote": "Dropped"
+   },
+   {
+    "id": "rc:3765415437",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "safety",
+    "text": "check for duplicate wtxids in the constructor before locking the mempool",
+    "quote": "I think the constructor could check for duplicates before locking the mempool? As the duplicate is entirely visible from the input.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author added duplicate wtxid check prior to mempool lock",
+    "author_replies": [
+     "rc:3820760263"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820760263",
+    "status_by_quote": "Done, checking duplicates first without a lock now."
+   },
+   {
+    "id": "rc:3765562606",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "call reserve on m_transactions before acquiring the mempool lock",
+    "quote": "since the collection size is known, we could reserve it before acquiring the mempool lock to avoid the reallocating and rehashing while the mempool is locked",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author implemented reserve prior to lock",
+    "author_replies": [
+     "rc:3820760065"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820760065",
+    "status_by_quote": "Done"
+   },
+   {
+    "id": "rc:3766518873",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "correctness",
+    "text": "add a test verifying that TxCollection retains transactions when they leave the mempool",
+    "quote": "I think an improvement to this test would be adding a test to verify the mempool snapshot behavior. such that it tests that after the collection is constructed with a transaction in the mempool, if the transaction is removed from the mempool it does not report it as missing.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author incorporated suggested snapshot test",
+    "author_replies": [
+     "rc:3820759831"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820759831",
+    "status_by_quote": "Taken"
+   },
+   {
+    "id": "rc:3767165227",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "document that all non-coinbase transactions must already be present in block.vtx before calling the coinbase helper",
+    "quote": "The current documentation here does not mention that all the transactions must be present before calling this so that this does not happen.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author added doc comment",
+    "author_replies": [
+     "rc:3820759626"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820759626",
+    "status_by_quote": "Taken."
+   },
+   {
+    "id": "rc:3767376523",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "calculate height locally as a const in the coinbase helper instead of modifying BlockAssembler member",
+    "quote": "I think a cleaner approach to this helper would be to have it calculate its own height... const int height{pIndexPrev.nHeight + 1}",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author adopted local calculation and made helper const",
+    "author_replies": [
+     "rc:3820759345"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820759345",
+    "status_by_quote": "Taken, and made it a const member function."
+   },
+   {
+    "id": "rc:3768124604",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "limit m_mutex scope in MakeTemplate to checking completeness and copying transactions into a local vector",
+    "quote": "Could we limit its scope to checking completeness and copying the ordered m_transactions into a local vector? The references remain valid after the lock is released, so block construction and TestBlockValidity would not need to hold the collection mutex.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author narrowed lock scope",
+    "author_replies": [
+     "rc:3820759018"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820759018",
+    "status_by_quote": "Done"
+   },
+   {
+    "id": "rc:3768262990",
+    "part": 1,
+    "type": "question",
+    "kind": "interface",
+    "text": "why interruptWait is permitted on external templates when waitNext throws",
+    "quote": "waitNext is disabled for external templates, but interruptWait is still allowed? Is there a reason for this?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author acknowledged oversight and disabled interruptWait as well",
+    "author_replies": [
+     "rc:3820758849"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3820758849",
+    "status_by_quote": "Good catch, I probably missed this in a rebase (before I opened the PR)."
+   },
+   {
+    "id": "rc:3768404613",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "addMissingTxs checks transaction count rather than weight, permitting oversized transaction payloads to be stored before block validation",
+    "quote": "The check here is against the size, but it does not check the weight. So even though it can reject a million tiny transactions, it can accept 16666 large ones... This would be eventually rejected as oversized in makeTemplate when TestBlockValidity is called, but that is a bit too late.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author declined duplicating consensus checks done by TestBlockValidity",
+    "author_replies": [
+     "rc:3820690848"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:3820690848",
+    "status_by_quote": "I don't think we should take over too much work that TestBlockValidity() does for us. Duplicating consensus checks could introduce new bugs."
+   },
+   {
+    "id": "r:5125552680",
+    "part": 1,
+    "type": "question",
+    "kind": "interface",
+    "text": "why makeTemplate() uses stale-prevblk for ancestor prevhash when TestBlockValidity and checkBlock use inconclusive-not-best-prevblk",
+    "quote": "makeTemplate() reports an ancestor prevhash as `stale-prevblk`, but `Mining::checkBlock()` reports that same case as `inconclusive-not-best-prevblk`... Was that difference deliberate?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author switched to inconclusive-not-best-prevblk",
+    "author_replies": [
+     "c:5817134744"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:5817134744",
+    "status_by_quote": "Also addressed @jeanpablojp's feedback: switched to `inconclusive-not-best-prevblk`"
+   },
+   {
+    "id": "rc:3944180465",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "correctness",
+    "text": "add a test case for makeTemplate rejecting a coinbase with a mismatched witness commitment",
+    "quote": "The amount case is covered, the witness commitment one isn't, and that's the one that pins which transactions the coinbase commits to. I flipped a bit of the commitment and it gives bad-witness-merkle-match. Would a case next to this one be worth it?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author added test for mismatched witness commitment",
+    "author_replies": [
+     "c:5817134744",
+     "rc:4095390984"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4095390984",
+    "status_by_quote": "Added such a test."
+   }
+  ],
+  "support": [
+   {
+    "id": "c:4902377507",
+    "verdict": "Concept ACK",
+    "reason": "Concept ACK",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "r:4769906047",
+    "verdict": "Concept ACK",
+    "reason": "Concept ACK",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "r:4907232495",
+    "verdict": "Concept ACK",
+    "reason": "Concept ACK, intending to benchmark this approach against the previous one",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "r:4914769141",
+    "verdict": "Concept ACK",
+    "reason": "Reusing Bitcoin Core's mempool avoids duplicating transaction storage and continuous mirror synchronization, transfers only transactions the node is missing, and lets external templates be reconstructed and validated using existing validation logic.",
+    "substantive": true,
+    "evidence": "read",
+    "areas": [
+     "src/node/interfaces.cpp",
+     "src/node/miner.cpp",
+     "src/node/miner.h",
+     "test/functional/interface_ipc_mining_tx_collection.py"
+    ]
+   },
+   {
+    "id": "r:5125552680",
+    "verdict": "Concept ACK",
+    "reason": "Ran the new tests and the mining suite, and checked the coinbase commit against its parent.",
+    "substantive": true,
+    "evidence": "both",
+    "areas": [
+     "src/interfaces/mining.h",
+     "src/node/miner.cpp",
+     "test/functional/interface_ipc_mining_tx_collection.py"
+    ]
+   }
+  ],
+  "waiting_on": [
+   {
+    "on": "reviewer",
+    "what": "review of the rebase addressing jeanpablojp's comments and integrating BlockTemplateManager",
+    "id": "c:5817134744"
+   },
+   {
+    "on": "reviewer",
+    "what": "review of rebased commits and addressed comments from enirox001 and jeanpablojp",
+    "id": "c:5817134744"
+   }
+  ],
+  "notes": "Updated the record with reviews, questions, and suggestions from ViniciusCestarii, pablomartin4btc, enirox001, and jeanpablojp. Objections by gmaxwell and enirox001 remain answered without pushback; other suggestions and questions have been answered or fixed in subsequent pushes. / Brought record up to current rules by recording suggestions and questions previously omitted. ViniciusCestarii, pablomartin4btc, enirox001, and jeanpablojp suggestions/questions were addressed and fixed or settled by author. Objections by gmaxwell and enirox001 were answered directly."
+ },
+ "applied": {
+  "changes": [
+   "claim c:4902377507 added (question, clears with answer, answered) by ismaelsadeeq",
+   "claim rc:3544794067: objection/answer/fixed -> objection/change/fixed",
+   "claim rc:3554795720 added (suggestion, clears with answer, accepted) by ViniciusCestarii",
+   "claim rc:3642746508 added (suggestion, clears with answer, fixed) by pablomartin4btc",
+   "claim rc:3642761322 added (suggestion, clears with answer, fixed) by pablomartin4btc",
+   "claim rc:3765415437 added (suggestion, clears with answer, fixed) by enirox001",
+   "claim rc:3765562606 added (suggestion, clears with answer, fixed) by enirox001",
+   "claim rc:3766518873 added (suggestion, clears with answer, fixed) by enirox001",
+   "claim rc:3767165227 added (suggestion, clears with answer, fixed) by enirox001",
+   "claim rc:3767376523 added (suggestion, clears with answer, fixed) by enirox001",
+   "claim rc:3768124604 added (suggestion, clears with answer, fixed) by enirox001",
+   "claim rc:3768262990 added (question, clears with answer, fixed) by enirox001",
+   "claim r:5125552680 added (question, clears with answer, fixed) by jeanpablojp",
+   "claim rc:3944180465 added (suggestion, clears with answer, fixed) by jeanpablojp",
+   "support r:4907232495 added by enirox001",
+   "waiting on: reviewer (review of the rebase addressing jeanpablojp's comments and integrating BlockTemplateManager), reviewer (review of rebased commits and addressed comments from enirox001 and jeanpablojp)"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-28T01:22:12+00:00",
+ "card": "Fixes a node crash in the listtransactions wallet RPC caused by signed integer overflow when the sum of the count and skip arguments exceeds INT_MAX. On unpatched nodes, supplying count + skip >= 2^31 causes an arithmetic overflow that calculates an out-of-bounds reverse iterator range, crashing bitcoind. The PR widens the additions to int64_t and adds functional tests covering large parameter inputs.",
+ "changed_since_previous": "No changes to the PR; the diff confirms the patch matches the earlier description.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author description: \"On master this crashes the node. The overflowed sum is negative, so the loop stops after the first entry. The clamp after the loop overflows the same way and doesn't fix nCount, so push_backV gets an iterator range about 2^31 elements before rend(). UBSan reports signed integer overflow: 1 + 2147483647 at transactions.cpp:584, and ASan then reports a BUS error in UniValue::push_backV.\"",
+  "Author reproduction: running `bitcoin-cli -regtest listtransactions \"*\" 2147483647 1` reproduces the crash on master, whereas functional tests verify it passes with the fix."
+ ],
+ "head_sha": "6aca05e7b9148130122b4c674284fdcde1fb5841",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36339,
+ "patch_id": "a497855ff1f0fee6",
+ "problem": "Calling `listtransactions` with large non-negative `count` and `skip` parameters whose sum exceeds `INT_MAX` causes signed integer overflow. This leads to an improper negative result, prematurely halting transaction collection and passing an out-of-bounds iterator range to `UniValue::push_backV`, crashing the node.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api"
+  ],
+  "why": "A flaw in wallet RPC transaction pagination logic could cause incorrect transaction history reporting or RPC crashes."
+ },
+ "run": "run:20260928-0121-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 9,
+  "deletions": 2,
+  "files": 2,
+  "test_lines": 7
+ },
+ "summary": "Fix a signed integer overflow crash in the `listtransactions` RPC when the sum of `count` and `skip` exceeds `INT_MAX`. The calculation of `nFrom + nCount` is widened to `int64_t` to ensure the collection loop and bounds clamping correctly handle large parameter values, accompanied by functional test coverage.",
+ "uncertainties": []
+}

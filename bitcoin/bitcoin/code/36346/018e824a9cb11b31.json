@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-28T01:22:36+00:00",
+ "card": "Validation rejects incoming mempool transactions and packages while an assumeutxo snapshot is being loaded. ActivateSnapshot verifies an empty mempool before releasing cs_main during snapshot population; transactions entering the mempool during that multi-minute window trigger an assertion failure in AddChainstate that crashes the node and requires a -reindex. This sets an m_snapshot_loading flag on ChainstateManager during ActivateSnapshot to reject transactions with a snapshot-loading policy error and blocks concurrent snapshot loads.",
+ "changed_since_previous": "Instead of letting transactions into the mempool and then aborting snapshot activation upon re-checking the mempool, the PR now prevents transactions from being accepted into the mempool while snapshot loading is in progress via an m_snapshot_loading flag.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit and description cite the exact assertion failure in AddChainstate: `Assertion failed: (!prev_chainstate.m_mempool || prev_chainstate.m_mempool->size() == 0), function AddChainstate, file validation.cpp, line 6201`.",
+  "Functional test in feature_assumeutxo.py reproduces the race using a FIFO and confirms the node aborts on master when a transaction is submitted during the load."
+ ],
+ "head_sha": "ca21d8f5fbc9961f2a9d0622c0cf4e23f2a82b82",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36346,
+ "patch_id": "018e824a9cb11b31",
+ "problem": "ActivateSnapshot requires an empty mempool, but releases cs_main during PopulateAndValidateSnapshot, which can take several minutes. Any transaction entering the mempool during that window causes AddChainstate to hit an assertion failure, terminating the process after metadata is written to disk and forcing a full -reindex to recover.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy"
+  ],
+  "why": "Flaws in state tracking could leave the snapshot loading flag stuck on, permanently rejecting valid mempool submissions."
+ },
+ "run": "run:20260928-0121-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 82,
+  "deletions": 0,
+  "files": 3,
+  "test_lines": 54
+ },
+ "summary": "Sets a flag on ChainstateManager for the duration of ActivateSnapshot to reject new transactions and packages in AcceptToMemoryPool and ProcessNewPackage. Also rejects concurrent loadtxoutset calls if a snapshot is already being loaded.",
+ "uncertainties": []
+}

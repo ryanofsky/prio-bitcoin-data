@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-28T01:22:12+00:00",
+ "card": "Prevents silent block data destruction during `-reindex` and index recovery on platforms without native `posix_fallocate` (*BSD, OmniOS). `ChainstateManager::LoadGenesisBlock()` now checks for an existing genesis block in block file 0 before writing a new one, avoiding calls to `AllocateFileRange` that previously zeroed out subsequent blocks. In addition, the Windows and fallback implementations of `AllocateFileRange` are fixed to only extend files rather than clobbering existing bytes. This resolves issue #33128.",
+ "changed_since_previous": "Added changes to `ChainstateManager::LoadGenesisBlock()` in `src/validation.cpp` to inspect `blk00000.dat` for an existing genesis block at offset {0, 0} and reuse it instead of unconditionally invoking `WriteBlock()`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Linked issue #33128 ('*BSD, OmniOS: -reindex is broken') reports that running `-reindex` with deleted block index files silently destroyed subsequent blocks, leaving the node at height 0.",
+  "Commit message: 'The log reports reindexing finished, but the blocks after genesis are gone and the chain height comes back as 0. Now, we check whether a valid genesis block is already present before writing one, and reuse it when possible.'"
+ ],
+ "head_sha": "fd2d21053f014e76f44fb72ff081240cd3a2b519",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35524,
+ "patch_id": "76b57f3764e49b3c",
+ "problem": "On platforms without native `posix_fallocate` (such as *BSD and illumos distributions like OmniOS), running `-reindex` or recovering from a missing block index overwrites valid block data in `blk00000.dat`. When `ChainstateManager::LoadGenesisBlock()` unconditionally rewrites the genesis block, `AllocateFileRange` zeroes out subsequent block data, causing `-reindex` to quietly finish with the chain height stuck at 0.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "Mistakes in genesis block detection or disk allocation handling could prevent node startup, corrupt block files, or misinitialize the block index."
+ },
+ "run": "run:20260928-0121-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 40,
+  "deletions": 19,
+  "files": 2,
+  "test_lines": 0
+ },
+ "summary": "Avoids rewriting the genesis block to disk during block index recovery if a valid genesis block is already present at block position {0, 0}. Additionally, updates `AllocateFileRange` on Windows and in the zero-fill fallback so existing file contents are not overwritten or truncated when preallocating space within the current file boundaries.",
+ "uncertainties": []
+}

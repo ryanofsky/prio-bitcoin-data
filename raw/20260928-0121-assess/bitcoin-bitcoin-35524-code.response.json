@@ -1,0 +1,41 @@
+{
+ "run": "run:20260928-0121-assess",
+ "pr": "bitcoin/bitcoin#35524",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-28T01:22:12+00:00",
+ "usage": {
+  "input_tokens": 5008,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1094
+ },
+ "cost_usd": 0.0078585,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Avoids rewriting the genesis block to disk during block index recovery if a valid genesis block is already present at block position {0, 0}. Additionally, updates `AllocateFileRange` on Windows and in the zero-fill fallback so existing file contents are not overwritten or truncated when preallocating space within the current file boundaries.\",\n \"problem\": \"On platforms without native `posix_fallocate` (such as *BSD and illumos distributions like OmniOS), running `-reindex` or recovering from a missing block index overwrites valid block data in `blk00000.dat`. When `ChainstateManager::LoadGenesisBlock()` unconditionally rewrites the genesis block, `AllocateFileRange` zeroes out subsequent block data, causing `-reindex` to quietly finish with the chain height stuck at 0.\",\n \"evidence\": [\n  \"Linked issue #33128 ('*BSD, OmniOS: -reindex is broken') reports that running `-reindex` with deleted block index files silently destroyed subsequent blocks, leaving the node at height 0.\",\n  \"Commit message: 'The log reports reindexing finished, but the blocks after genesis are gone and the chain height comes back as 0. Now, we check whether a valid genesis block is already present before writing one, and reuse it when possible.'\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"\",\n \"changed_since_previous\": \"Added changes to `ChainstateManager::LoadGenesisBlock()` in `src/validation.cpp` to inspect `blk00000.dat` for an existing genesis block at offset {0, 0} and reuse it instead of unconditionally invoking `WriteBlock()`.\",\n \"card\": \"Prevents silent block data destruction during `-reindex` and index recovery on platforms without native `posix_fallocate` (*BSD, OmniOS). `ChainstateManager::LoadGenesisBlock()` now checks for an existing genesis block in block file 0 before writing a new one, avoiding calls to `AllocateFileRange` that previously zeroed out subsequent blocks. In addition, the Windows and fallback implementations of `AllocateFileRange` are fixed to only extend files rather than clobbering existing bytes. This resolves issue #33128.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"validation\"\n  ],\n  \"why\": \"Mistakes in genesis block detection or disk allocation handling could prevent node startup, corrupt block files, or misinitialize the block index.\"\n }\n}",
+ "result": {
+  "summary": "Avoids rewriting the genesis block to disk during block index recovery if a valid genesis block is already present at block position {0, 0}. Additionally, updates `AllocateFileRange` on Windows and in the zero-fill fallback so existing file contents are not overwritten or truncated when preallocating space within the current file boundaries.",
+  "problem": "On platforms without native `posix_fallocate` (such as *BSD and illumos distributions like OmniOS), running `-reindex` or recovering from a missing block index overwrites valid block data in `blk00000.dat`. When `ChainstateManager::LoadGenesisBlock()` unconditionally rewrites the genesis block, `AllocateFileRange` zeroes out subsequent block data, causing `-reindex` to quietly finish with the chain height stuck at 0.",
+  "evidence": [
+   "Linked issue #33128 ('*BSD, OmniOS: -reindex is broken') reports that running `-reindex` with deleted block index files silently destroyed subsequent blocks, leaving the node at height 0.",
+   "Commit message: 'The log reports reindexing finished, but the blocks after genesis are gone and the chain height comes back as 0. Now, we check whether a valid genesis block is already present before writing one, and reuse it when possible.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Added changes to `ChainstateManager::LoadGenesisBlock()` in `src/validation.cpp` to inspect `blk00000.dat` for an existing genesis block at offset {0, 0} and reuse it instead of unconditionally invoking `WriteBlock()`.",
+  "card": "Prevents silent block data destruction during `-reindex` and index recovery on platforms without native `posix_fallocate` (*BSD, OmniOS). `ChainstateManager::LoadGenesisBlock()` now checks for an existing genesis block in block file 0 before writing a new one, avoiding calls to `AllocateFileRange` that previously zeroed out subsequent blocks. In addition, the Windows and fallback implementations of `AllocateFileRange` are fixed to only extend files rather than clobbering existing bytes. This resolves issue #33128.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "Mistakes in genesis block detection or disk allocation handling could prevent node startup, corrupt block files, or misinitialize the block index."
+  }
+ }
+}

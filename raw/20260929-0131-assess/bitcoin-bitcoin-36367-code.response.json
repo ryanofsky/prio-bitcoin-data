@@ -1,0 +1,45 @@
+{
+ "run": "run:20260929-0131-assess",
+ "pr": "bitcoin/bitcoin#36367",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-29T01:32:08+00:00",
+ "usage": {
+  "input_tokens": 3226,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1139
+ },
+ "cost_usd": 0.00669075,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Reject prioritisetransaction fee_delta values outside [-MAX_MONEY, MAX_MONEY] in the RPC interface, and clamp accumulated deltas in CTxMemPool::PrioritiseTransaction to that same range. When modifying an in-mempool transaction, the modified fee is updated by the net change in the clamped delta.\",\n  \"problem\": \"CTxMemPool::PrioritiseTransaction stacks int64 fee deltas up to INT64_MAX. Cluster mempool calculations add modified fees across clusters in FeeFrac without overflow protection, triggering signed integer overflow, producing negative chunk fees, and causing miners using getblocktemplate to omit valid transactions.\",\n  \"evidence\": [\n    \"Author provides a concrete reproduction with parent and child transactions prioritized by large int64 values: getmempoolcluster reports negative chunk fees, getblocktemplate emits an empty block template with only coinbase, and UBSan reports 'feefrac.h:108:13: runtime error: signed integer overflow' from linearization.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The patch was not provided in the prompt, but metadata indicates a small 40-line addition across 3 files with functional test coverage.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Clamps prioritisetransaction fee deltas to [-MAX_MONEY, MAX_MONEY] at both the RPC boundary and within CTxMemPool::PrioritiseTransaction. Unbounded int64 fee deltas previously triggered signed integer overflow in cluster mempool calculations (FeeFrac), leading to negative chunk fees, UBSan runtime errors, and omitting transactions from block templates. This protects miners and node operators using fee prioritisation from corrupt cluster linearizations.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"medium\",\n  \"uncertainties\": [\n    \"Patch diff was omitted from the prompt, so internal clamping logic and exact RPC error formatting could not be directly verified.\"\n  ],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"mempool_policy\",\n      \"rpc_api\"\n    ],\n    \"why\": \"Incorrect fee delta bounds or clamping calculations could distort transaction prioritization and block template generation for miners.\"\n  }\n}",
+ "result": {
+  "summary": "Reject prioritisetransaction fee_delta values outside [-MAX_MONEY, MAX_MONEY] in the RPC interface, and clamp accumulated deltas in CTxMemPool::PrioritiseTransaction to that same range. When modifying an in-mempool transaction, the modified fee is updated by the net change in the clamped delta.",
+  "problem": "CTxMemPool::PrioritiseTransaction stacks int64 fee deltas up to INT64_MAX. Cluster mempool calculations add modified fees across clusters in FeeFrac without overflow protection, triggering signed integer overflow, producing negative chunk fees, and causing miners using getblocktemplate to omit valid transactions.",
+  "evidence": [
+   "Author provides a concrete reproduction with parent and child transactions prioritized by large int64 values: getmempoolcluster reports negative chunk fees, getblocktemplate emits an empty block template with only coinbase, and UBSan reports 'feefrac.h:108:13: runtime error: signed integer overflow' from linearization."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The patch was not provided in the prompt, but metadata indicates a small 40-line addition across 3 files with functional test coverage.",
+  "changed_since_previous": "",
+  "card": "Clamps prioritisetransaction fee deltas to [-MAX_MONEY, MAX_MONEY] at both the RPC boundary and within CTxMemPool::PrioritiseTransaction. Unbounded int64 fee deltas previously triggered signed integer overflow in cluster mempool calculations (FeeFrac), leading to negative chunk fees, UBSan runtime errors, and omitting transactions from block templates. This protects miners and node operators using fee prioritisation from corrupt cluster linearizations.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Patch diff was omitted from the prompt, so internal clamping logic and exact RPC error formatting could not be directly verified."
+  ],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "mempool_policy",
+    "rpc_api"
+   ],
+   "why": "Incorrect fee delta bounds or clamping calculations could distort transaction prioritization and block template generation for miners."
+  }
+ }
+}

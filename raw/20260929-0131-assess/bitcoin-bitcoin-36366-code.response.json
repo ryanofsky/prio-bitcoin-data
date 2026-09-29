@@ -1,0 +1,46 @@
+{
+ "run": "run:20260929-0131-assess",
+ "pr": "bitcoin/bitcoin#36366",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-29T01:32:10+00:00",
+ "usage": {
+  "input_tokens": 2993,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1378
+ },
+ "cost_usd": 0.00741225,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Validates the bantime parameter in the setban RPC to reject values that would cause an integer overflow when added to the current timestamp. If the sum of the relative duration and the current time exceeds the maximum 64-bit integer, the call now fails with an RPC_INVALID_PARAMETER error. A functional regression test is also added to rpc_setban.py.\",\n  \"problem\": \"BanMan calculates the end of a ban as GetTime() plus the provided duration using signed 64-bit integers. Passing a relative bantime close to INT64_MAX causes a signed integer overflow (undefined behavior detected by UBSan); without sanitizers, the wrapped negative timestamp causes the ban to be treated as immediately expired and silently discarded despite the RPC reporting success.\",\n  \"evidence\": [\n    \"Author notes reproducible UBSan runtime error: 'src/banman.cpp:140:73: runtime error: signed integer overflow: 1790412558 + 9223372036854775807 cannot be represented in type int64_t' (description)\",\n    \"Author confirms that on master, 'setban 1.2.3.5 add 9223372036854775807' returns success but listbanned remains empty because the ban is treated as expired (description)\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Small patch touching RPC parameter validation and an accompanying functional test.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Validates the bantime parameter in the setban RPC to prevent signed integer overflow when calculating ban expiration timestamps. Currently, passing a relative bantime near INT64_MAX causes undefined behavior under UBSan or wraps negative in standard builds, leading the node to silently discard the ban while reporting success to the caller. The RPC now rejects overflowing durations with RPC_INVALID_PARAMETER, supported by a functional regression test.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"medium\",\n  \"uncertainties\": [\n    \"The patch diff was not provided, though the scope and mechanism are clear from the metadata and description.\"\n  ],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"rpc_api\",\n      \"tests\"\n    ],\n    \"why\": \"A flaw in the duration check could unintentionally reject legitimate ban durations or disrupt setban RPC functionality.\"\n  }\n}",
+ "result": {
+  "summary": "Validates the bantime parameter in the setban RPC to reject values that would cause an integer overflow when added to the current timestamp. If the sum of the relative duration and the current time exceeds the maximum 64-bit integer, the call now fails with an RPC_INVALID_PARAMETER error. A functional regression test is also added to rpc_setban.py.",
+  "problem": "BanMan calculates the end of a ban as GetTime() plus the provided duration using signed 64-bit integers. Passing a relative bantime close to INT64_MAX causes a signed integer overflow (undefined behavior detected by UBSan); without sanitizers, the wrapped negative timestamp causes the ban to be treated as immediately expired and silently discarded despite the RPC reporting success.",
+  "evidence": [
+   "Author notes reproducible UBSan runtime error: 'src/banman.cpp:140:73: runtime error: signed integer overflow: 1790412558 + 9223372036854775807 cannot be represented in type int64_t' (description)",
+   "Author confirms that on master, 'setban 1.2.3.5 add 9223372036854775807' returns success but listbanned remains empty because the ban is treated as expired (description)"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Small patch touching RPC parameter validation and an accompanying functional test.",
+  "changed_since_previous": "",
+  "card": "Validates the bantime parameter in the setban RPC to prevent signed integer overflow when calculating ban expiration timestamps. Currently, passing a relative bantime near INT64_MAX causes undefined behavior under UBSan or wraps negative in standard builds, leading the node to silently discard the ban while reporting success to the caller. The RPC now rejects overflowing durations with RPC_INVALID_PARAMETER, supported by a functional regression test.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The patch diff was not provided, though the scope and mechanism are clear from the metadata and description."
+  ],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api",
+    "tests"
+   ],
+   "why": "A flaw in the duration check could unintentionally reject legitimate ban durations or disrupt setban RPC functionality."
+  }
+ }
+}

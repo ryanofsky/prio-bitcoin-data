@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-29T01:31:59+00:00",
+ "card": "Prevents the built-in HTTP server from reading and executing requests pipelined behind a 'Connection: close' request. Following the HTTP server rewrite in #35182, pipelined requests behind a close reply were still executed by worker threads before the connection was severed and their replies dropped, which can cause compliant clients to retry and duplicate RPCs with side effects (violating RFC 9112 \u00a79.6). The PR records closing state on the client to halt further reads and adds unit and functional test coverage.",
+ "changed_since_previous": "Now includes the complete patch and test coverage; the approach and mechanics match the earlier description.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'RFC 9112 section 9.6 requires a server that sends a close response not to process any further requests on that connection. A client that relies on this and resends the request executes it twice, which matters for RPCs with side effects.'",
+  "PR description: 'The libevent based server freed the connection right after writing the close reply (evhttp_send_done() \u2192 evhttp_connection_free()), discarding any pipelined bytes, so this is a regression from #35182.'"
+ ],
+ "head_sha": "3c37828971420b0bacfd4f757abda15d44d42255",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36355,
+ "patch_id": "e21ebafd6b5a8221",
+ "problem": "After the replacement of libevent in #35182, the HTTP server continued to parse and dispatch pipelined requests sitting in the receive buffer after queuing a close response. Once the close response was sent, the server disconnected the client and dropped subsequent replies; per RFC 9112 \u00a79.6, clients expecting unserved requests to be unexecuted may retry them, leading to duplicate execution of RPCs with side effects.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Flaws in HTTP connection handling could stall RPC requests, drop active client connections prematurely, or mishandle pipelined traffic."
+ },
+ "run": "run:20260929-0131-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 131,
+  "deletions": 1,
+  "files": 4,
+  "test_lines": 119
+ },
+ "summary": "Prevents the built-in HTTP server from reading or executing requests pipelined behind a \"Connection: close\" request. The server now tracks when a closing reply has been queued or a disconnection has been flagged, aborting further request parsing on that connection even if additional bytes remain in the receive buffer.",
+ "uncertainties": []
+}

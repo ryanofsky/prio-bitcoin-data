@@ -1,0 +1,41 @@
+{
+ "run": "run:20260929-0131-assess",
+ "pr": "bitcoin/bitcoin#36355",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-09-29T01:31:59+00:00",
+ "usage": {
+  "input_tokens": 6826,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1376
+ },
+ "cost_usd": 0.0102795,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Prevents the built-in HTTP server from reading or executing requests pipelined behind a \\\"Connection: close\\\" request. The server now tracks when a closing reply has been queued or a disconnection has been flagged, aborting further request parsing on that connection even if additional bytes remain in the receive buffer.\",\n  \"problem\": \"After the replacement of libevent in #35182, the HTTP server continued to parse and dispatch pipelined requests sitting in the receive buffer after queuing a close response. Once the close response was sent, the server disconnected the client and dropped subsequent replies; per RFC 9112 \u00a79.6, clients expecting unserved requests to be unexecuted may retry them, leading to duplicate execution of RPCs with side effects.\",\n  \"evidence\": [\n    \"PR description: 'RFC 9112 section 9.6 requires a server that sends a close response not to process any further requests on that connection. A client that relies on this and resends the request executes it twice, which matters for RPCs with side effects.'\",\n    \"PR description: 'The libevent based server freed the connection right after writing the close reply (evhttp_send_done() \u2192 evhttp_connection_free()), discarding any pipelined bytes, so this is a regression from #35182.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Now includes the complete patch and test coverage; the approach and mechanics match the earlier description.\",\n  \"card\": \"Prevents the built-in HTTP server from reading and executing requests pipelined behind a 'Connection: close' request. Following the HTTP server rewrite in #35182, pipelined requests behind a close reply were still executed by worker threads before the connection was severed and their replies dropped, which can cause compliant clients to retry and duplicate RPCs with side effects (violating RFC 9112 \u00a79.6). The PR records closing state on the client to halt further reads and adds unit and functional test coverage.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"rpc_api\"\n    ],\n    \"why\": \"Flaws in HTTP connection handling could stall RPC requests, drop active client connections prematurely, or mishandle pipelined traffic.\"\n  }\n}",
+ "result": {
+  "summary": "Prevents the built-in HTTP server from reading or executing requests pipelined behind a \"Connection: close\" request. The server now tracks when a closing reply has been queued or a disconnection has been flagged, aborting further request parsing on that connection even if additional bytes remain in the receive buffer.",
+  "problem": "After the replacement of libevent in #35182, the HTTP server continued to parse and dispatch pipelined requests sitting in the receive buffer after queuing a close response. Once the close response was sent, the server disconnected the client and dropped subsequent replies; per RFC 9112 \u00a79.6, clients expecting unserved requests to be unexecuted may retry them, leading to duplicate execution of RPCs with side effects.",
+  "evidence": [
+   "PR description: 'RFC 9112 section 9.6 requires a server that sends a close response not to process any further requests on that connection. A client that relies on this and resends the request executes it twice, which matters for RPCs with side effects.'",
+   "PR description: 'The libevent based server freed the connection right after writing the close reply (evhttp_send_done() \u2192 evhttp_connection_free()), discarding any pipelined bytes, so this is a regression from #35182.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Now includes the complete patch and test coverage; the approach and mechanics match the earlier description.",
+  "card": "Prevents the built-in HTTP server from reading and executing requests pipelined behind a 'Connection: close' request. Following the HTTP server rewrite in #35182, pipelined requests behind a close reply were still executed by worker threads before the connection was severed and their replies dropped, which can cause compliant clients to retry and duplicate RPCs with side effects (violating RFC 9112 \u00a79.6). The PR records closing state on the client to halt further reads and adds unit and functional test coverage.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "Flaws in HTTP connection handling could stall RPC requests, drop active client connections prematurely, or mishandle pipelined traffic."
+  }
+ }
+}

@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-09-29T01:32:02+00:00",
+ "card": "Moves the getblocktemplate RPC template cache from function-local static variables into BlockTemplateManager. This eliminates hidden process-scoped state that can leave dangling CBlockIndex pointers across multiple node contexts in tests, enforces compile-time thread safety under cs_main, and adds unit tests for template invalidation rules. The refactor advances the BlockTemplateManager tracking issue #33758 and unblocks #36357.",
+ "changed_since_previous": "Initial full patch provided; no structural divergence from the previous description.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#36357"
+  ]
+ },
+ "evidence": [
+  "Author description cites tracking issue #33758: 'This addresses the getblocktemplate part of the \"Remove remaining global states\" TODO in #33758, as suggested in #35675 review.'",
+  "Author description notes concrete failure mode in tests: 'cached CBlockIndex* can outlive the ChainstateManager that owns it when a process creates more than one node context (as the unit tests do)'."
+ ],
+ "head_sha": "5cbfbc6b92a303589391f586e8e9eaa972a26e7c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36356,
+ "patch_id": "1da99f83c9920d41",
+ "problem": "getblocktemplate caches block templates using process-scoped function-local statics. Because of this global lifetime, cached raw CBlockIndex pointers can outlive the ChainstateManager in multi-node test environments, locking requirements are not verified at compile time, and the caching and invalidation logic cannot be directly unit tested.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "A flaw in template refresh logic could cause miners calling getblocktemplate to construct blocks on a stale tip, producing invalid blocks and lost hashpower."
+ },
+ "run": "run:20260929-0131-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 130,
+  "deletions": 32,
+  "files": 4,
+  "test_lines": 64
+ },
+ "summary": "Moves the getblocktemplate template cache from function-local statics into BlockTemplateManager. The cache is encapsulated in the node context, protected by cs_main with Clang thread-safety annotations, and references block tips by hash rather than storing raw CBlockIndex pointers. It also adds unit test coverage for cache rebuild rules and failure recovery.",
+ "uncertainties": []
+}

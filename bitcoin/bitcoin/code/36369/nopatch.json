@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-09-29T01:32:10+00:00",
+ "card": "This PR fixes four edge cases in P2P orphan handling and 1P1C package relay where an alternative parent variant disrupts transaction relay. A peer sending a parent with the same txid but an altered or missing witness could poison reject filters, erase an honest child from the orphanage, or cancel in-flight parent requests from honest announcers. This stalls CPFP fee-bumping packages until new announcements arrive or the parent confirms. PR #36371 depends on these fixes to enforce new download manager invariants.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#36371"
+  ]
+ },
+ "evidence": [
+  "PR description: 'A peer sending a variant of a parent with the same txid and a different or missing witness could make the node drop the honest child, cancel the honest peer's request for the parent, or reject later children of that parent. Each case delays a CPFP package until a new announcer appears or the parent confirms.'",
+  "Commit c0d03dddb7 notes that ProcessPackageResult passed TX_RECONSIDERABLE to ProcessInvalidTx, which 'erased the child from the orphanage for all of its announcers', even though the feerate failure is specific to that wtxid pair.",
+  "Commit d8dc948e13 notes that TX_RECONSIDERABLE clears wtxids from TxRequestTracker across all peers; because wtxid equals txid for witnessless transactions, this 'cancelled every announcer's request for the parent, and the orphan stayed unresolved'.",
+  "Commit 3b16af7e7a notes that fuzzing the txdownloadman_impl target without biased operations allowed reverting the witnessless-parent bug fix to survive 57,000 runs unnoticed."
+ ],
+ "head_sha": "32cf270494c5dfbf626b34c3c7eae61adc48afe3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36369,
+ "patch_id": "nopatch",
+ "problem": "Opportunistic 1P1C package relay and orphan resolution request missing parents by txid while indexing rejections and cache state by wtxid. A peer providing a parent transaction variant with the same txid but a different or absent witness can poison reject filters, cancel in-flight parent download requests from honest announcers, or evict valid child transactions from the orphanage, stalling CPFP packages until a new announcer appears or the parent confirms.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "mempool_policy"
+  ],
+  "why": "Bugs in orphan handling, TxRequestTracker, or package rejection logic could stall transaction propagation or cause nodes to repeatedly re-request rejected transactions."
+ },
+ "run": "run:20260929-0131-assess",
+ "scope_notes": "The PR consists of four discrete, interconnected bug fixes and their accompanying functional tests and fuzzing harness updates across TxRequestTracker, TxDownloadManager, and orphan handling.",
+ "size": {
+  "additions": 728,
+  "deletions": 55,
+  "files": 12,
+  "test_lines": null
+ },
+ "summary": "Fix four edge cases in P2P opportunistic 1P1C package relay and orphan resolution where peer state collisions disrupt transaction propagation. Prevent reconsiderable package feerate rejections from clearing child orphans across all peers, avoid cancelling txid-based parent requests when a witnessless parent is rejected, track only truly missing parents rather than all inputs for orphan resolution, and stop adding TX_CONFLICT results to reject filters.",
+ "uncertainties": []
+}

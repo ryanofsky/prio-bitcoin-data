@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-29T14:36:05+00:00",
+ "card": "Fixes a node crash in the listtransactions wallet RPC when count + skip exceeds INT_MAX. On unpatched nodes, supplying large non-negative integer arguments triggers a signed integer overflow that passes invalid reverse iterator offsets to UniValue, crashing bitcoind. The PR switches argument parsing to uint32_t via self.Arg, computes their limit in uint64_t, and adds regression tests for boundary values.",
+ "changed_since_previous": "Switched from widening existing int parameters to parsing `count` and `skip` as `uint32_t` via `self.Arg`. Removed manual negative value checks in favor of RPC schema validation (changing the error code on negative inputs from RPC_INVALID_PARAMETER (-8) to RPC_INVALID_REQUEST (-1)), and refactored clamping logic using `std::min` with `size_t`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author description: \"On master this crashes the node... UBSan reports 'signed integer overflow: 1 + 2147483647' at transactions.cpp:584, and ASan then reports a BUS error in UniValue::push_backV.\"",
+  "Test reproducer added in functional tests confirms that calling `listtransactions(count=INT_MAX, skip=1)` causes unpatched nodes to crash."
+ ],
+ "head_sha": "9cff82fd5b15bc2aa2c7778b61212876433a8219",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36339,
+ "patch_id": "66cbabfdccdd9b01",
+ "problem": "Calling `listtransactions` with valid non-negative `count` and `skip` values whose sum exceeds `INT_MAX` (for example, `count=2147483647` and `skip=1`) results in a signed integer overflow. The overflow leads to invalid iterator offsets passed into `UniValue::push_backV`, crashing bitcoind with a bus error or segfault.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api"
+  ],
+  "why": "A mistake in iterator bounding could crash the node during RPC execution or return truncated transaction history."
+ },
+ "run": "run:20260929-1435-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 22,
+  "deletions": 20,
+  "files": 2,
+  "test_lines": 15
+ },
+ "summary": "Fix a node crash in the `listtransactions` wallet RPC caused by signed integer overflow when the sum of `count` and `skip` exceeds `INT_MAX`. Arguments are now parsed as `uint32_t` using `self.Arg`, their sum is computed in 64-bit unsigned arithmetic, and result slice bounds are clamped using `std::min`.",
+ "uncertainties": []
+}

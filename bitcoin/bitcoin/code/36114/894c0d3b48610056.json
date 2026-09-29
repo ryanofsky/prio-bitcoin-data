@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-09-29T14:35:57+00:00",
+ "card": "Bitcoin Core's external signer interface previously trusted hardware signers completely, replacing the wallet's PSBT wholesale with the signer's response. This PR hardens PSBT validation by merging the response into the original PSBT, verifying matching PSBT versions, rejecting finalized inputs, and rejecting signatures that use unsafe sighash types like SIGHASH_NONE or SIGHASH_SINGLE. It also replaces the static functional test mock with an offline descriptor wallet to test misbehaving, stripped, and tampered signer responses. This absorbs and supersedes #35358.",
+ "changed_since_previous": "Added checks requiring matching PSBT versions and rejecting finalized PSBT inputs (preventing signers from concealing unsafe sighash types inside final scriptSig or witness fields), documented these external signer requirements in doc/external-signer.md, enforced IWYU on src/external_signer.cpp, and added corresponding functional tests.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#35358"
+  ]
+ },
+ "evidence": [
+  "PR commit 3529725f4c: 'Previously the PSBT returned by the external signer replaced the original wholesale, trusting the signer not to modify the transaction. Merge it instead. This rejects a response that describes a different transaction.'",
+  "PR commit ecaf464249: 'A signature with SIGHASH_NONE or SIGHASH_SINGLE doesn't commit to all outputs, letting anyone alter them after signing. Reject a PSBT from an external signer that declares such a sighash type or contains signatures made with one.'",
+  "PR description: 'This PR absorbs the scenarios from #35358, but is better able to test them thanks to the new mock signer implementation.'"
+ ],
+ "head_sha": "50270c0793957454fd818439663336abd59230a3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36114,
+ "patch_id": "894c0d3b48610056",
+ "problem": "Previously, the wallet trusted external signers not to tamper with the transaction, replacing its PSBT wholesale with the signer's response. A compromised or buggy signer could change output scripts, divert amounts to fees, finalize inputs, or use sighash types that allow third parties to modify outputs after signing. Additionally, the functional test mock could only echo pre-baked PSBTs, making it impossible to test misbehaving signers or multi-party signing.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "tests",
+   "docs"
+  ],
+  "why": "A bug in external signer PSBT validation or sighash inspection could reject valid signatures from legitimate hardware signers or cause signing failures during wallet transaction broadcast."
+ },
+ "run": "run:20260929-1435-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 331,
+  "deletions": 69,
+  "files": 6,
+  "test_lines": 331
+ },
+ "summary": "Hardens external signer PSBT validation in Bitcoin Core's wallet and revamps the functional test mock. When receiving a signed PSBT from an external signer, the wallet now verifies matching PSBT versions, rejects responses containing finalized inputs, rejects unsafe sighash types such as SIGHASH_NONE and SIGHASH_SINGLE, and merges the response into the original PSBT instead of replacing it wholesale. The functional test mock is updated to run against an offline descriptor wallet, enabling dynamic tests for tampering, stripped fields, and misbehaving signers.",
+ "uncertainties": []
+}

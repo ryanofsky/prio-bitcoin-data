@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-29T14:36:18+00:00",
+ "card": "Clamps prioritisetransaction fee deltas and accumulated mempool deltas to the range [-MAX_MONEY, MAX_MONEY]. Unbounded int64 fee deltas previously allowed stacked transaction fees to cause signed integer overflow in cluster mempool FeeFrac arithmetic, producing negative chunk fees and causing getblocktemplate to exclude prioritised transactions from mined blocks. Restricting individual and accumulated deltas ensures cluster fee calculations stay within int64 limits, preventing undefined behaviour and broken block templates for miners.",
+ "changed_since_previous": "No changes to the patch or approach; full diff is now provided.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description documents reproducible UBSan failure: \"feefrac.h:108:13: runtime error: signed integer overflow, reached from linearization via getrawmempool\".",
+  "PR description demonstrates that prioritising a parent by 2^62 and a child by INT64_MAX causes getmempoolcluster to report \"chunkfee: -46116860184.27356705\" and getblocktemplate to exclude both transactions."
+ ],
+ "head_sha": "0d168345063e6ba56155bfd97f647bbad4687546",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36367,
+ "patch_id": "381dea01a57af2b9",
+ "problem": "CTxMemPool::PrioritiseTransaction allowed accumulated transaction fee deltas to reach INT64_MAX. When cluster mempool aggregates modified fees across multiple transactions in FeeFrac, the calculation experiences signed integer overflow, resulting in negative chunk fees and causing getblocktemplate to omit affected transactions.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "mempool_policy",
+   "rpc_api"
+  ],
+  "why": "A flaw in delta clamping or modified fee accounting could cause incorrect chunk fee calculations in the cluster mempool or corrupt block template construction for miners."
+ },
+ "run": "run:20260929-1435-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 40,
+  "deletions": 3,
+  "files": 3,
+  "test_lines": 29
+ },
+ "summary": "Bound fee deltas in the `prioritisetransaction` RPC and mempool prioritisation tracking to the range between `-MAX_MONEY` and `MAX_MONEY`. CTxMemPool::PrioritiseTransaction clamps accumulated deltas to this range and adjusts modified fees by the difference. This prevents transaction fee sums across cluster mempool chunks from overflowing 64-bit integer limits.",
+ "uncertainties": []
+}

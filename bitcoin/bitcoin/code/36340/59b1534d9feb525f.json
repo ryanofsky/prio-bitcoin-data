@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-09-29T14:36:04+00:00",
+ "card": "Caps the timeout argument in Sock::WaitMany to INT_MAX milliseconds (~24.8 days) to prevent large timeout values from failing select() or overflowing poll(). Setting -rpcclienttimeout=0 (no timeout) currently fails immediately on macOS with 'Could not connect to the server' because bitcoin-cli maps 0 to a 5-year duration, exceeding macOS select()'s 10^8-second limit. The fix applies universally to Sock::WaitMany callers and includes a unit test reproducing the 5-year timeout failure.",
+ "changed_since_previous": "Dropped the Sock::NO_TIMEOUT constant and changes to bitcoin-cli callers; the PR now simply clamps timeout values directly in Sock::WaitMany.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'bitcoin-cli -rpcclienttimeout=0 is documented as \"no timeout\", but on macOS it fails with \"Could not connect to the server\" since #34342 (it's in v32.0rc1/rc2).'",
+  "PR description: 'The new sock_tests/wait_large_timeout test waits with a 5 year timeout on a socket that already has data. It fails on master on macOS and passes with this change.'"
+ ],
+ "head_sha": "efde1fa215b30fd5f8af70828ff37d4643b63d5e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36340,
+ "patch_id": "59b1534d9feb525f",
+ "problem": "Running bitcoin-cli with -rpcclienttimeout=0 (documented as no timeout) fails immediately on macOS and BSD systems with 'Could not connect to the server'. bitcoin-cli converts a zero timeout into a 5-year duration (~1.58 * 10^8 seconds), which causes select() to fail with EINVAL on platforms like macOS that reject timeouts exceeding 10^8 seconds.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api",
+   "tests"
+  ],
+  "why": "Incorrect timeout clamping could cause socket operations to return earlier than expected, but INT_MAX milliseconds (~24.8 days) is far beyond normal RPC wait times."
+ },
+ "run": "run:20260929-1435-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 23,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": 18
+ },
+ "summary": "Caps the timeout duration in Sock::WaitMany to INT_MAX milliseconds (~24.8 days). This prevents extremely large timeout values from failing system calls like select() or overflowing poll() parameter types.",
+ "uncertainties": []
+}

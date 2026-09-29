@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-29T14:35:55+00:00",
+ "card": "Validates Tor onion service IDs and private keys received from Tor control connections and cached on disk. It prevents an unprivileged local process or compromised Tor control endpoint from injecting arbitrary Tor control commands (via CRLF) or command arguments (via spaces) on reconnect. Keys must strictly match NEW:ED25519-V3 or decode to a 64-byte Ed25519 v3 key, and invalid service IDs or replies missing a service ID are rejected before caching or advertising.",
+ "changed_since_previous": "Now explicitly isolates reply variables locally so that an `ADD_ONION` reply lacking a service ID cannot adopt keys or reuse the ID from a previous reply, removing the `m_service_id` class member.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Tor reply parsing unescapes quoted values, so a control endpoint can return a value containing a line break or space. On reconnect, the node inserts that value unquoted into an ADD_ONION command. CRLF frames the remainder as a separate command, while a space adds further arguments.'",
+  "Functional tests added in test/functional/feature_torcontrol.py explicitly demonstrate injecting 'SIGNAL SHUTDOWN' via CRLF and 'Flags=Detach' via spaces in returned and cached private keys."
+ ],
+ "head_sha": "0a53d12589c3116495a50a694006ce5ee220fb2d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36142,
+ "patch_id": "f87f8aff2c6d6b4b",
+ "problem": "Tor reply parsing unescapes quoted strings, allowing a rogue or compromised Tor control port to return a `PrivateKey` containing CRLF line breaks or spaces. Because the node inserts cached keys unquoted into `ADD_ONION` commands on reconnect, CRLF enables Tor control command injection (such as `SIGNAL SHUTDOWN`) and spaces inject command arguments. In addition, previous logic retained state across replies and attempted to advertise and cache keys for invalid service IDs.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Mistakes in Tor control parsing or key validation could cause nodes running onion hidden services to fail to bind or advertise their Tor address."
+ },
+ "run": "run:20260929-1435-assess",
+ "scope_notes": "Small diff across torcontrol.cpp and functional tests. Drops the `m_service_id` member variable to isolate per-reply state.",
+ "size": {
+  "additions": 141,
+  "deletions": 24,
+  "files": 3,
+  "test_lines": 122
+ },
+ "summary": "Validates Tor onion service IDs and private keys returned by the Tor control port and read from disk before using or caching them. It requires service IDs to resolve to valid Tor v3 addresses, verifies private keys against the Ed25519 v3 format with 64-byte payloads, and ensures replies without service IDs do not adopt keys or reuse state.",
+ "uncertainties": []
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-09-30T01:26:15+00:00",
+ "card": "Validation currently reads and deserializes blocks from disk synchronously on the main thread immediately before connection, stalling validation during initial block download and reindex. This pull request adds an asynchronous BlockFetcher thread pool to prefetch upcoming blocks from disk while the current block is connected, configurable with -blockfetchthreads (defaulting to 2 threads and 4 queued blocks). Author benchmarks demonstrate a 1.57x speedup on SSD and 1.53x speedup on HDD for reindex-chainstate, and a 1.13x speedup for initial block download. It has no open dependencies.",
+ "changed_since_previous": "The configuration argument was renamed from `-blockreadahead` to `-blockfetchthreads`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's benchmarks for `reindex-chainstate` to block 964,469 show a 1.57x speedup on an SSD test machine (down from 14,954s to 9,499s) and a 1.53x speedup on an HDD machine (down from 30,017s to 19,609s).",
+  "Author's benchmarks for initial block download (IBD) to block 964,469 show a 1.13x speedup on an 8-core SSD system (down from 18,325s to 16,192s)."
+ ],
+ "head_sha": "50be249a4acb8a7d078947cfde588d61d9e6eff7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36000,
+ "patch_id": "4692b73e87dc16d6",
+ "problem": "Blocks stored on disk are read and deserialized synchronously on the main validation thread right before connection. This stalls the validation thread waiting on disk I/O, slowing down initial block download and reindexing.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A race condition, incorrect block queue lookup, or memory leak in the prefetcher could stall chain activation, crash the node, or trigger validation errors during IBD or reorgs."
+ },
+ "run": "run:20260930-0125-assess",
+ "scope_notes": "Adds a new `node::BlockFetcher` helper component and integrates queue filling into `Chainstate::ActivateBestChainStep` and `Chainstate::ConnectTip`.",
+ "size": {
+  "additions": 263,
+  "deletions": 14,
+  "files": 19,
+  "test_lines": 98
+ },
+ "summary": "Introduces an asynchronous block read-ahead mechanism using a thread pool owned by Chainstate to prefetch blocks from disk ahead of validation. It maintains a sliding window of pending block reads (two blocks per reader thread, defaulting to two threads) while earlier blocks are being connected, and initiates prefetching of fork blocks during reorgs. The configuration option `-blockfetchthreads` controls the number of worker threads, with zero disabling read-ahead.",
+ "uncertainties": []
+}

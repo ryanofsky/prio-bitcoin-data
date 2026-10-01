@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-01T01:29:17+00:00",
+ "card": "Validates outbound message types and payload sizes in CConnman::PushMessage() before queuing, asserting in debug builds and dropping oversized messages in release builds. Outbound transports assume a 12-byte message type and a 4 MB payload limit; exceeding them previously caused V1 encoding to abort, caused V2 encoding to write out of bounds or truncate types, and allowed sendmsgtopeer to send payloads that triggered peer disconnections. The sendmsgtopeer RPC now returns an RPC error when payloads exceed 4 MB. It has no PR dependencies.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description and commit caea75f11b: 'V1 aborts on a longer type, while V2 sends a truncated type with the payload intact or writes past its encoding buffer when the payload is shorter than the excess type bytes.'",
+  "Commit 0dfdd0c4a0: 'Record that PushMessage() queues oversized types and payloads, and that sendmsgtopeer sends an oversized payload which disconnects its peer.'"
+ ],
+ "head_sha": "48ca5ed0cd563d1d319df8fafe4d072210df5aa8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35888,
+ "patch_id": "b06ae206e9e9246a",
+ "problem": "CConnman did not enforce the 12-byte type limit or the 4 MB payload limit before queueing outbound messages. An oversized type causes V1 transport encoding to abort, and causes V2 transport to either send a truncated type or write out of bounds into its encoding buffer when the payload is shorter than the excess type bytes. Oversized payloads passed to sendmsgtopeer were sent over the wire and caused the remote peer to disconnect.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api"
+  ],
+  "why": "Incorrectly dropping outbound messages or failing assumptions in PushMessage could disrupt peer communications or crash debug builds."
+ },
+ "run": "run:20261001-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 79,
+  "deletions": 13,
+  "files": 7,
+  "test_lines": 72
+ },
+ "summary": "Validates outbound message types and payload sizes in CConnman::PushMessage() before queuing them for transport, dropping and logging violations in release builds and triggering an Assume failure in debug builds. Updates the sendmsgtopeer RPC to reject payloads exceeding the 4 MB MAX_PROTOCOL_MESSAGE_LENGTH with an RPC error instead of sending them. Constrains fuzz inputs and adds unit tests verifying that messages with 12-byte types and 4 MB payloads are accepted while oversized ones are rejected.",
+ "uncertainties": []
+}

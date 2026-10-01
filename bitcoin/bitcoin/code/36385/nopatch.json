@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-01T01:29:37+00:00",
+ "card": "Fixes request body deserialization for the /rest/getutxos POST endpoint. Writing the POST body to DataStream using operator<< prepended a CompactSize string length prefix, misaligning parsed fields and causing valid POST queries to return empty results. The change also enforces the 15-outpoint limit during vector deserialization to prevent premature memory allocation and uses SpanReader to eliminate an in-memory copy of up to 32 MiB.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Binary GET and POST requests to /rest/getutxos for the same outpoints should agree. GET finds the unspent output, but POST incorrectly reports no hit.'",
+  "Commit 54a22f65ea explains that the existing test failed to catch the bug because it wrote txids in display byte order, querying different outpoints than the GET test."
+ ],
+ "head_sha": "0cc326caae461e57c1c26f3e5f6eab96ed6837b5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36385,
+ "patch_id": "nopatch",
+ "problem": "POST requests to /rest/getutxos incorrectly report no UTXO hits for valid outpoints. The body decoder uses operator<< on a DataStream, prepending a CompactSize string length prefix that the parser misreads as the checkmempool flag, misaligning all subsequent field offsets. In addition, the POST decoder unnecessarily copied up to 32 MiB of request payload and allowed unbounded vector reservations prior to validating outpoint counts.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Mistakes in REST payload parsing could break outpoint queries or introduce memory exhaustion issues when processing HTTP requests."
+ },
+ "run": "run:20261001-0128-assess",
+ "scope_notes": "The diff was not provided in the prompt metadata, but commit logs indicate a small (+10/-9) change across the REST handler and functional tests.",
+ "size": {
+  "additions": 10,
+  "deletions": 9,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Fixes binary and hex POST body deserialization in the /rest/getutxos endpoint by parsing the incoming payload directly instead of writing it through operator<< into a DataStream. It also bounds vector decoding to the existing 15-outpoint limit before allocating memory, and switches to SpanReader to parse the request body without copying it.",
+ "uncertainties": []
+}

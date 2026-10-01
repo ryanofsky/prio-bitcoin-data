@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-01T01:29:16+00:00",
+ "card": "This pull request migrates headers presync DoS-protection parameters (the commitment period and redownload buffer size) from static chainparams constants to dynamic runtime calculation at node startup. Previously, release maintainers had to manually run an offline Python script during each release cycle to guess the release's active lifespan and commit fixed parameters into the codebase, creating maintenance friction and causing security parameters to slowly degrade over time. The ported C++ solver also corrects a modeling flaw in the original Python script where attackers were assumed unable to stop mid-batch. The offline devtool is deleted, and the new algorithm is verified with fuzz targets and unit tests checking 50 inputs against exhaustive search optima. There are no dependencies.",
+ "changed_since_previous": "None observed; the scope, commit structure, and implementation details match the previous version, reflecting a routine rebase.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Automatically adapts based on time (as opposed to needing to predict the lifetime of the software).' and 'Less work for maintainers that need to occasionally run the current contrib/devtools/headerssync-params.py script. Less room for mistakes in that process.'",
+  "PR description: 'The old Python code did that, but actually got it (slightly) wrong by missing the fact that attackers are capable of strategically deciding to stop the attack in the middle of a batch (found by darosior).'",
+  "doc/release-process.md diff: removes the step requiring maintainers to run the PyPy script and paste its output into chainparams.cpp for each release."
+ ],
+ "head_sha": "9f7bcfe874729d8b20c46dd61d9dab8a0e5ea3fa",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35642,
+ "patch_id": "e78e1ba781314f02",
+ "problem": "Release maintainers currently have to run an offline Python script during release preparation to calculate static sync parameters, estimating how long into the future the release will be run. The parameters gradually lose optimality as the software ages, and the offline script relied on an attack model that failed to account for attackers strategically aborting mid-batch.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "validation"
+  ],
+  "why": "A math bug or overflow in parameter calculation at startup could crash the node or produce suboptimal buffer sizes, exposing nodes to headers flooding DoS attacks or breaking initial header synchronization."
+ },
+ "run": "run:20261001-0128-assess",
+ "scope_notes": "The largest portion of the diff (+292 lines in src/headerssync.cpp, omitted from the patch view) implements the closed-form continuous relaxation and parameter search algorithm in C++.",
+ "size": {
+  "additions": 550,
+  "deletions": 414,
+  "files": 18,
+  "test_lines": 558
+ },
+ "summary": "Computes headers presync DoS-protection parameters (commitment period and redownload buffer size) at node startup instead of storing hardcoded constants in chainparams. A C++ optimizer in headerssync calculates these values based on the time elapsed since genesis and the consensus minimum chainwork height. The offline parameter generator script contrib/devtools/headerssync-params.py is removed, and testing passes precomputed constants to avoid repeated recalculation across peer connections.",
+ "uncertainties": []
+}

@@ -1,0 +1,197 @@
+{
+ "run": "run:20261001-0121",
+ "pr": "bitcoin/bitcoin#35354",
+ "stage": "reread",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 2,
+ "created": "2026-10-01T01:21:32+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 12458,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2066
+ },
+ "cost_usd": 0.028797675,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"sedited\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to handling the race at the index level, prefer handling in net_processing\"\n    },\n    {\n      \"login\": \"ajtowns\",\n      \"stance\": \"support\",\n      \"note\": \"supported handling the race, suggested handling all cfilter messages and pausing the peer instead of reordering messages\"\n    },\n    {\n      \"login\": \"mzumsande\",\n      \"stance\": \"support\",\n      \"note\": \"supported handling the race in net_processing, objected to touching index internals\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:4763387253\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers\",\n      \"quote\": \"Reading through this, I don't think this should be handled on the index level.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author moved the handling out of the index into net_processing\",\n      \"author_replies\": [\"c:5106448059\", \"c:5186487219\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5186487219\",\n      \"status_by_quote\": \"Added deferring of a response, we store the racing request in a PendingCFilterRequest struct in a Peer and then check it\"\n    },\n    {\n      \"id\": \"rc:3759737064\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"interface\",\n      \"text\": \"Touching index internals violates separation of concerns when GetSummary already exposes sufficient state\",\n      \"quote\": \"Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author removed IsRacing and used GetSummary without touching index code\",\n      \"author_replies\": [\"rc:3785273391\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3785273391\",\n      \"status_by_quote\": \"Removed IsRacing, now using GetSummary. No changes in GetSummary were required.\"\n    },\n    {\n      \"id\": \"rc:3754782852\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"Remove the benchmarking commit instead of squashing it, and mark PR as draft while commits need replacing\",\n      \"quote\": \"The benchmarking commit should be removed, not squashed, presumably? It doesn't seem like it'll be useful beyond developing this PR?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"benchmark commit removed\",\n      \"author_replies\": [\"rc:3785268150\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3785268150\",\n      \"status_by_quote\": \"Removed benchmark commit.\"\n    },\n    {\n      \"id\": \"rc:3754789371\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"interface\",\n      \"text\": \"Use std::list instead of std::optional for pending cfilter requests to handle multiple requests and save memory\",\n      \"quote\": \"Rather than an optional, I'd suggest considering std::list<PendingCFilterREquest> and using push_back to add requests to the end\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"switched to std::list with a limit\",\n      \"author_replies\": [\"rc:3785270902\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3785270902\",\n      \"status_by_quote\": \"Changed an optional in favor of a list with up to MAX_PENDING_CFILTER_REQUESTS=2 entries.\"\n    },\n    {\n      \"id\": \"c:5305915719\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"scope\",\n      \"text\": \"Handle getcfheaders and getcfcheckpt the same as getcfilters since disconnects happen frequently for getcfheaders\",\n      \"quote\": \"Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author agreed that all three messages should be handled identically\",\n      \"author_replies\": [\"c:5331744681\", \"c:5427136075\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:5331744681\",\n      \"status_by_quote\": \"Yes, all three cbf messages should be handled the same way.\"\n    },\n    {\n      \"id\": \"c:5305915719\",\n      \"part\": 2,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"Pause the peer entirely on a pending cfilter request instead of queueing cfilter responses and continuing to process other messages\",\n      \"quote\": \"I wonder if it wouldn't be better to adopt the \\\"pause this peer\\\" approach, rather than queueing messages but continuing.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author adopted the approach on top of ajtowns' branch and benchmarked it\",\n      \"author_replies\": [\"c:5331744681\", \"c:5427136075\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:5427136075\",\n      \"status_by_quote\": \"I took some time to gain more understanding on how net_processing works and your comments make a perfect sense.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:5127234440\",\n      \"verdict\": \"\",\n      \"reason\": \"Compact filter calculations are slow enough that races occur occasionally even for peers not on high-bandwidth compact block relay, so the issue is worth handling\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\"src/net_processing.cpp\"]\n    },\n    {\n      \"id\": \"c:5130725304\",\n      \"verdict\": \"\",\n      \"reason\": \"Agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects and avoid delaying getblocktxn responses\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\"src/net_processing.cpp\"]\n    }\n  ],\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"ajtowns review of author's benchmarks and suggestions on top of the peer-pausing approach\",\n      \"id\": \"c:5907939364\"\n    }\n  ],\n  \"notes\": \"Reread under schema 2: ajtowns and mzumsande stances changed to support as both support addressing the race in net_processing and their objections were either suggestions or settled interface concerns. Reclassified ajtowns' c:5305915719 claims as suggestions (scope and approach) and added his inline suggestions from rc:3754782852 and rc:3754789371. The PR is waiting on ajtowns to review the latest suggestions and benchmarks.\"\n}\n\n=== second read ===\n\n{\n  \"participants\": [\n    {\n      \"login\": \"sedited\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to handling the race condition in BaseIndex and suggested moving logic to net_processing\"\n    },\n    {\n      \"login\": \"ajtowns\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to missing getcfheaders/getcfcheckpt and suggested pausing the peer instead of queueing out-of-order\"\n    },\n    {\n      \"login\": \"mzumsande\",\n      \"stance\": \"objection\",\n      \"note\": \"supported addressing the race in net_processing but objected to modifying index internals when GetSummary suffices\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:4763387253\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers\",\n      \"quote\": \"Reading through this, I don't think this should be handled on the index level.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"logic moved to net_processing with deferred responses\",\n      \"author_replies\": [\n        \"c:5106448059\",\n        \"c:5186487219\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5186487219\",\n      \"status_by_quote\": \"Added deferring of a response, we store the racing request in a PendingCFilterRequest struct in a Peer and then check it\"\n    },\n    {\n      \"id\": \"rc:3754782852\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"Remove the benchmarking commit instead of squashing it\",\n      \"quote\": \"The benchmarking commit should be removed, not squashed, presumably? It doesn't seem like it'll be useful beyond developing this PR?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"benchmark commit removed\",\n      \"author_replies\": [\n        \"rc:3785268150\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3785268150\",\n      \"status_by_quote\": \"Removed benchmark commit.\"\n    },\n    {\n      \"id\": \"rc:3754789371\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"Use std::list with push_back and front instead of an optional to allow bounded multiple requests and waste less memory\",\n      \"quote\": \"Rather than an optional, I'd suggest considering std::list<PendingCFilterREquest> and using push_back to add requests to the end, and front to get the oldest request in order to attempt to service it.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author switched to std::list with MAX_PENDING_CFILTER_REQUESTS=2\",\n      \"author_replies\": [\n        \"rc:3785270902\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3785270902\",\n      \"status_by_quote\": \"Changed an optional in favor of a list with up to MAX_PENDING_CFILTER_REQUESTS=2 entries.\"\n    },\n    {\n      \"id\": \"rc:3759737064\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"interface\",\n      \"text\": \"Touching index internals violates separation of concerns when GetSummary already exposes sufficient state\",\n      \"quote\": \"Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author removed IsRacing and used GetSummary without touching index code\",\n      \"author_replies\": [\n        \"rc:3785273391\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:3785273391\",\n      \"status_by_quote\": \"Removed IsRacing, now using GetSummary. No changes in GetSummary were required.\"\n    },\n    {\n      \"id\": \"c:5305915719\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"scope\",\n      \"text\": \"Handling only getcfilters leaves getcfheaders and getcfcheckpt unhandled, which are responsible for most disconnects in practice\",\n      \"quote\": \"Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author agreed that all three messages should be handled and adopted the approach\",\n      \"author_replies\": [\n        \"c:5331744681\",\n        \"c:5427136075\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:5331744681\",\n      \"status_by_quote\": \"Yes, all three cbf messages should be handled the same way.\"\n    },\n    {\n      \"id\": \"c:5305915719\",\n      \"part\": 2,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"Pause message processing for the peer instead of queueing responses out-of-order\",\n      \"quote\": \"I wonder if it wouldn't be better to adopt the \\\"pause this peer\\\" approach, rather than queueing messages but continuing.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"author accepted the peer-pausing approach, benchmarked it, and built on top of ajtowns' branch\",\n      \"author_replies\": [\n        \"c:5331744681\",\n        \"c:5427136075\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:5427136075\",\n      \"status_by_quote\": \"I took some time to gain more understanding on how net_processing works and your comments make a perfect sense.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:5127234440\",\n      \"verdict\": \"\",\n      \"reason\": \"Compact filter calculations are slow enough that races occur occasionally even for peers not on high-bandwidth compact block relay, so the issue is worth handling\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"c:5130725304\",\n      \"verdict\": \"\",\n      \"reason\": \"Agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects and avoid delaying getblocktxn responses\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": []\n    }\n  ],\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"ajtowns review on the peer-parking branch adaptations and benchmarks\",\n      \"id\": \"c:5907939364\"\n    }\n  ],\n  \"notes\": \"Added ajtowns' suggestions regarding benchmark commit removal (rc:3754782852), using std::list (rc:3754789371), and pausing the peer (c:5305915719 part 2). Author has adopted the paused-peer approach on top of ajtowns' branch and is awaiting review.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "sedited",
+    "stance": "objection",
+    "note": "objected to handling the race at the index level, prefer handling in net_processing"
+   },
+   {
+    "login": "ajtowns",
+    "stance": "objection",
+    "note": "objected to missing getcfheaders/getcfcheckpt and suggested pausing the peer instead of queueing out-of-order"
+   },
+   {
+    "login": "mzumsande",
+    "stance": "objection",
+    "note": "supported addressing the race in net_processing but objected to modifying index internals when GetSummary suffices"
+   }
+  ],
+  "claims": [
+   {
+    "id": "c:4763387253",
+    "part": 1,
+    "type": "objection",
+    "kind": "approach",
+    "text": "Handling peer race conditions inside BaseIndex couples indexing code to P2P transport concerns and risks stalls in other callers",
+    "quote": "Reading through this, I don't think this should be handled on the index level.",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author moved the handling out of the index into net_processing",
+    "author_replies": [
+     "c:5106448059",
+     "c:5186487219"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:5186487219",
+    "status_by_quote": "Added deferring of a response, we store the racing request in a PendingCFilterRequest struct in a Peer and then check it"
+   },
+   {
+    "id": "rc:3759737064",
+    "part": 1,
+    "type": "objection",
+    "kind": "interface",
+    "text": "Touching index internals violates separation of concerns when GetSummary already exposes sufficient state",
+    "quote": "Races in net_processing shouldn't be the business of indexes, and GetSummary() should have enough info... so I'd prefer if the index code was not touched at all",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author removed IsRacing and used GetSummary without touching index code",
+    "author_replies": [
+     "rc:3785273391"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3785273391",
+    "status_by_quote": "Removed IsRacing, now using GetSummary. No changes in GetSummary were required."
+   },
+   {
+    "id": "rc:3754782852",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "Remove the benchmarking commit instead of squashing it, and mark PR as draft while commits need replacing",
+    "quote": "The benchmarking commit should be removed, not squashed, presumably? It doesn't seem like it'll be useful beyond developing this PR?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "benchmark commit removed",
+    "author_replies": [
+     "rc:3785268150"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3785268150",
+    "status_by_quote": "Removed benchmark commit."
+   },
+   {
+    "id": "rc:3754789371",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "interface",
+    "text": "Use std::list instead of std::optional for pending cfilter requests to handle multiple requests and save memory",
+    "quote": "Rather than an optional, I'd suggest considering std::list<PendingCFilterREquest> and using push_back to add requests to the end",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "switched to std::list with a limit",
+    "author_replies": [
+     "rc:3785270902"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:3785270902",
+    "status_by_quote": "Changed an optional in favor of a list with up to MAX_PENDING_CFILTER_REQUESTS=2 entries."
+   },
+   {
+    "id": "c:5305915719",
+    "part": 1,
+    "type": "objection",
+    "kind": "scope",
+    "text": "Handle getcfheaders and getcfcheckpt the same as getcfilters since disconnects happen frequently for getcfheaders",
+    "quote": "Based on the logs in #29655 this seems backwards -- there were more disconnects for getcfheaders than getcfilters? So I think this ought to be handled for all the cases?",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author agreed that all three messages should be handled identically",
+    "author_replies": [
+     "c:5331744681",
+     "c:5427136075"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:5331744681",
+    "status_by_quote": "Yes, all three cbf messages should be handled the same way."
+   },
+   {
+    "id": "c:5305915719",
+    "part": 2,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "Pause the peer entirely on a pending cfilter request instead of queueing cfilter responses and continuing to process other messages",
+    "quote": "I wonder if it wouldn't be better to adopt the \"pause this peer\" approach, rather than queueing messages but continuing.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author adopted the approach on top of ajtowns' branch and benchmarked it",
+    "author_replies": [
+     "c:5331744681",
+     "c:5427136075"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:5427136075",
+    "status_by_quote": "I took some time to gain more understanding on how net_processing works and your comments make a perfect sense."
+   }
+  ],
+  "support": [
+   {
+    "id": "c:5127234440",
+    "verdict": "",
+    "reason": "Compact filter calculations are slow enough that races occur occasionally even for peers not on high-bandwidth compact block relay, so the issue is worth handling",
+    "substantive": true,
+    "evidence": "read",
+    "areas": [
+     "src/net_processing.cpp"
+    ]
+   },
+   {
+    "id": "c:5130725304",
+    "verdict": "",
+    "reason": "Agrees that handling racing compact filter requests in net_processing makes sense to prevent disconnects and avoid delaying getblocktxn responses",
+    "substantive": true,
+    "evidence": "read",
+    "areas": [
+     "src/net_processing.cpp"
+    ]
+   }
+  ],
+  "waiting_on": [
+   {
+    "on": "reviewer",
+    "what": "ajtowns review of author's benchmarks and suggestions on top of the peer-pausing approach",
+    "id": "c:5907939364"
+   },
+   {
+    "on": "reviewer",
+    "what": "ajtowns review on the peer-parking branch adaptations and benchmarks",
+    "id": "c:5907939364"
+   }
+  ],
+  "notes": "Reread under schema 2: ajtowns and mzumsande stances changed to support as both support addressing the race in net_processing and their objections were either suggestions or settled interface concerns. Reclassified ajtowns' c:5305915719 claims as suggestions (scope and approach) and added his inline suggestions from rc:3754782852 and rc:3754789371. The PR is waiting on ajtowns to review the latest suggestions and benchmarks. / Added ajtowns' suggestions regarding benchmark commit removal (rc:3754782852), using std::list (rc:3754789371), and pausing the peer (c:5305915719 part 2). Author has adopted the paused-peer approach on top of ajtowns' branch and is awaiting review."
+ },
+ "applied": {
+  "changes": [
+   "claim rc:3759737064: objection/answer/fixed -> objection/change/fixed",
+   "claim rc:3754782852 added (suggestion, clears with answer, fixed) by ajtowns",
+   "claim rc:3754789371 added (suggestion, clears with answer, fixed) by ajtowns",
+   "claim c:5305915719: objection/answer/fixed -> objection/answer/answered",
+   "claim c:5305915719#2 added (suggestion, clears with answer, answered) by ajtowns",
+   "waiting on: reviewer (ajtowns review of author's benchmarks and suggestions on top of the peer-pausing approach), reviewer (ajtowns review on the peer-parking branch adaptations and benchmarks)"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

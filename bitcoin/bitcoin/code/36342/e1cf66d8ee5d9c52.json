@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-01T01:29:29+00:00",
+ "card": "Validates that each recipient amount and their running sum fall within MoneyRange in CreateTransactionInternal before coin selection. Without this check, transactions with large outputs passed through RPCs like fundrawtransaction can overflow the int64 recipients sum, causing node crashes via assertion failures in coin selection or wrapping to fund transactions exceeding MAX_MONEY. Functional tests are added to verify rejection of oversized outputs, cumulative overflow, and negative amounts.",
+ "changed_since_previous": "No functional changes; the commit was rebased or re-formatted.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author description demonstrates a reproducible node crash on master with fundrawtransaction: 'Assertion failed: (!m_selected_inputs.empty()), function RecalculateWaste, file coinselection.cpp, line 904.'",
+  "Author notes that with other wrapped sums, 'fundrawtransaction returns success for a tx with outputs of 46116860184 BTC each.'"
+ ],
+ "head_sha": "bab579e56aa8b80a6f2923285e55cbcb2a7730b8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36342,
+ "patch_id": "e1cf66d8ee5d9c52",
+ "problem": "CreateTransaction only checked that recipient amounts were not negative, omitting upper-bound checks against MAX_MONEY for both individual amounts and their sum. When funding transactions with large amounts (via fundrawtransaction, walletcreatefundedpsbt, or sendmany), recipients_sum could overflow int64, triggering UBSan errors, an assertion failure crash in RecalculateWaste, or wrapping around to a small positive sum and incorrectly funding outputs exceeding 21 million BTC.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet"
+  ],
+  "why": "A flaw in recipient amount validation during transaction creation could reject legitimate payments or disrupt wallet funding operations."
+ },
+ "run": "run:20261001-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 25,
+  "deletions": 4,
+  "files": 2,
+  "test_lines": 22
+ },
+ "summary": "Validates that each recipient amount and the running sum of recipient amounts satisfy MoneyRange in CreateTransactionInternal before coin selection starts. Removes the separate non-negative check in CreateTransaction, which is now subsumed by the MoneyRange check.",
+ "uncertainties": []
+}

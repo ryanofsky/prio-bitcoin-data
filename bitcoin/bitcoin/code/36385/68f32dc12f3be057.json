@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-02T01:28:32+00:00",
+ "card": "Fixes request body deserialization in the /rest/getutxos endpoint for HTTP POST requests. Writing the POST payload into a DataStream with operator<< injected a CompactSize string length prefix, misaligning the parsed fields and causing valid POST queries to return no UTXO hits. The change switches to SpanReader to eliminate an unnecessary memory copy of up to 32 MiB and bounds vector deserialization with LIMITED_VECTOR before allocating memory. The functional test is updated to assert that binary GET and POST requests return matching output.",
+ "changed_since_previous": "None. The diff is now available and directly aligns with the earlier description.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'GET finds the unspent output, but POST incorrectly reports no hit. The POST decoder writes the body into a DataStream with operator<<, serializing it as a string and prepending a CompactSize length. It then reads the first byte of that added length as the checkmempool flag, misaligning the later request fields.'",
+  "Diff in test/functional/interface_rest.py adds an explicit check that identical GET and POST queries produce identical binary responses: 'assert_equal(bin_response, bin_uri_response)'."
+ ],
+ "head_sha": "0cc326caae461e57c1c26f3e5f6eab96ed6837b5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36385,
+ "patch_id": "68f32dc12f3be057",
+ "problem": "Binary and hex POST requests to `/rest/getutxos` fail to return UTXOs that are present. The POST handler streams the body into `DataStream` using `operator<<`, which prepends a `CompactSize` length prefix and shifts all parsed fields out of alignment. Additionally, vector deserialization without `LIMITED_VECTOR` could allocate memory based on an unverified count prefix before validating against the 15-outpoint limit.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "A parsing error in the REST interface could cause malformed responses or server errors when handling client queries."
+ },
+ "run": "run:20261002-0127-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 10,
+  "deletions": 9,
+  "files": 2,
+  "test_lines": 13
+ },
+ "summary": "Fixes request body deserialization for the `/rest/getutxos` POST endpoint by parsing the incoming bytes directly rather than streaming the string into a `DataStream` with `operator<<`. It uses `SpanReader` to avoid copying the request body and enforces `MAX_GETUTXOS_OUTPOINTS` during deserialization using `LIMITED_VECTOR`.",
+ "uncertainties": []
+}

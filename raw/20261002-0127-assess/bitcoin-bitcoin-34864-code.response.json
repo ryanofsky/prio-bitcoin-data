@@ -1,0 +1,42 @@
+{
+ "run": "run:20261002-0127-assess",
+ "pr": "bitcoin/bitcoin#34864",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-02T01:28:14+00:00",
+ "usage": {
+  "input_tokens": 16594,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1684
+ },
+ "cost_usd": 0.0187605,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"This PR refactors `CCoinsCacheEntry` to derive an entry's dirty status directly from its presence in the dirty linked list rather than maintaining a redundant `DIRTY` bitflag. It eliminates standalone `FRESH` and spent `FRESH` states, asserts that all cursor entries during `BatchWrite()` are dirty, and updates `SpendCoin()` to return false without mutating caller output or emitting tracepoints on already-spent entries while marking it `[[nodiscard]]`.\",\n  \"problem\": \"`CCoinsCacheEntry` tracked dirty status both through linked-list pointers and an independent `DIRTY` bitflag, allowing invalid or unreachable states (such as fresh but not dirty, or spent fresh entries) to be represented in memory and test harnesses. In addition, `SpendCoin()` allowed repeated spends against already-spent cached entries without returning an error or leaving caller-provided `Coin` output buffers untouched.\",\n  \"evidence\": [\n    \"PR description: 'The coins cache still exposed and tested states that production code should not create: standalone FRESH entries, non-dirty BatchWrite() cursor entries, and spent FRESH entries. That makes the representation harder to reason about, because CCoinsCacheEntry stores a separate DIRTY bit even though dirty entries are already tracked in the linked list.'\",\n    \"Revives and splits earlier work from closed PRs #30673 and #33018, with commits co-authored by Andrew Toth.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Modifies core UTXO cache entry state representations in `src/coins.h` and validation callers in `src/txdb.cpp`, `src/validation.cpp`, and `src/txmempool.cpp`, alongside corresponding updates to coin cache unit and fuzz tests.\",\n  \"changed_since_previous\": \"No substantial architectural changes; commit structure and approach remain the same as the previous version.\",\n  \"card\": \"This PR simplifies the consensus-critical UTXO cache by deriving dirty status directly from linked-list membership rather than a separate flag, making fresh-without-dirty states impossible to represent. It eliminates unreachable states in cache tests, asserts that all BatchWrite cursor entries are dirty, and throws on spent fresh entries. It also tightens SpendCoin to return false on already-spent coins without mutating caller buffers and enforces [[nodiscard]] across callers.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\"consensus\", \"validation\"],\n    \"why\": \"A logic error in UTXO cache dirty tracking, freshness handling, or spending invariants could lead to state desynchronization between memory and the coins database, causing consensus validation failures or chain forks.\"\n  }\n}",
+ "result": {
+  "summary": "This PR refactors `CCoinsCacheEntry` to derive an entry's dirty status directly from its presence in the dirty linked list rather than maintaining a redundant `DIRTY` bitflag. It eliminates standalone `FRESH` and spent `FRESH` states, asserts that all cursor entries during `BatchWrite()` are dirty, and updates `SpendCoin()` to return false without mutating caller output or emitting tracepoints on already-spent entries while marking it `[[nodiscard]]`.",
+  "problem": "`CCoinsCacheEntry` tracked dirty status both through linked-list pointers and an independent `DIRTY` bitflag, allowing invalid or unreachable states (such as fresh but not dirty, or spent fresh entries) to be represented in memory and test harnesses. In addition, `SpendCoin()` allowed repeated spends against already-spent cached entries without returning an error or leaving caller-provided `Coin` output buffers untouched.",
+  "evidence": [
+   "PR description: 'The coins cache still exposed and tested states that production code should not create: standalone FRESH entries, non-dirty BatchWrite() cursor entries, and spent FRESH entries. That makes the representation harder to reason about, because CCoinsCacheEntry stores a separate DIRTY bit even though dirty entries are already tracked in the linked list.'",
+   "Revives and splits earlier work from closed PRs #30673 and #33018, with commits co-authored by Andrew Toth."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Modifies core UTXO cache entry state representations in `src/coins.h` and validation callers in `src/txdb.cpp`, `src/validation.cpp`, and `src/txmempool.cpp`, alongside corresponding updates to coin cache unit and fuzz tests.",
+  "changed_since_previous": "No substantial architectural changes; commit structure and approach remain the same as the previous version.",
+  "card": "This PR simplifies the consensus-critical UTXO cache by deriving dirty status directly from linked-list membership rather than a separate flag, making fresh-without-dirty states impossible to represent. It eliminates unreachable states in cache tests, asserts that all BatchWrite cursor entries are dirty, and throws on spent fresh entries. It also tightens SpendCoin to return false on already-spent coins without mutating caller buffers and enforces [[nodiscard]] across callers.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "validation"
+   ],
+   "why": "A logic error in UTXO cache dirty tracking, freshness handling, or spending invariants could lead to state desynchronization between memory and the coins database, causing consensus validation failures or chain forks."
+  }
+ }
+}

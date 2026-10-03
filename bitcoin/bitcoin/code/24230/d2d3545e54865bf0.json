@@ -1,0 +1,45 @@
+{
+ "assessed_at": "2026-10-03T01:28:33+00:00",
+ "card": "Refactors secondary indexes (txindex, blockfilterindex, coinstatsindex, txospenderindex) to interact with node state via interfaces rather than internal types like CBlockIndex, eliminating the requirement to hold cs_main during index synchronization and notification dispatch. Sync logic is extracted from BaseIndex into node::SyncChain and consolidated with standard notification handlers, which fixes a startup race condition under -reindex-chainstate and avoids returning stale spending data during reorgs. This decoupling enables running indexes in separate processes (#10102) and reusing sync logic for wallet rescans (#15719).",
+ "changed_since_previous": "Rebased to adapt the recently merged txospenderindex to the decoupled interfaces, adjusted BlockInfo placement following #34079, and updated functional tests (such as feature_init.py) to accommodate sync threads only running when an index is behind.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#10102",
+   "#15719",
+   "#11756"
+  ]
+ },
+ "evidence": [
+  "Author commit 09601cbece notes fixing an easily reproducible startup race: 'indexes set m_synced = true too early, while there are still notifications from previously connected blocks in the validationinterface queue, causing those blocks to trigger the Rewind() call in the BaseIndex::BlockConnected notification handler, and pointlessly remove and then re-append the same blocks... easy to reproduce just by running the test/functional/feature_coinstatsindex.py \"Test that the index works with -reindex-chainstate\" test.'",
+  "Author commit 9171e838d9 cites performance improvements from locking changes: 'avoids holding cs_main while processing all indexing notifications. Previously cs_main was held while sending some notifications in the attachChain sync thread.'"
+ ],
+ "head_sha": "bbb1c9e816daab6dc05420588f89535f38cd4cdb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 24230,
+ "patch_id": "d2d3545e54865bf0",
+ "problem": "Secondary indexes access internal node structures directly and hold cs_main during indexing notifications and sync, creating lock contention and blocking out-of-process index execution. Furthermore, separate sync and notification paths previously led to race conditions during startup or -reindex-chainstate (triggering unnecessary rewinds) and left stale data queryable during block reorgs.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "rpc_api",
+   "p2p",
+   "other"
+  ],
+  "why": "Bugs in index synchronization or reorg rewind handling could cause indexes to corrupt, become permanently desynced, or serve incorrect data to RPC and BIP 157 P2P filter queries."
+ },
+ "run": "run:20261003-0128-assess",
+ "scope_notes": "Large multi-commit refactoring across index code, interfaces, node logic, and unit/functional tests. Adapts all secondary indexes including the recently merged txospenderindex.",
+ "size": {
+  "additions": 1142,
+  "deletions": 580,
+  "files": 42,
+  "test_lines": 290
+ },
+ "summary": "Decouples secondary indexes (txindex, blockfilterindex, coinstatsindex, and txospenderindex) from node internals by removing references to node types like CBlockIndex, CChain, and CChainState. Extracts chain synchronization from BaseIndex into a shared node::SyncChain function and avoids holding cs_main during index sync and notification handling. Consolidates block appending and rewinding logic into unified notification callbacks and only spawns sync threads when indexing is actually needed.",
+ "uncertainties": []
+}

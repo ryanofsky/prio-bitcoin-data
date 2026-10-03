@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-03T01:28:51+00:00",
+ "card": "Prevents a node abort in the transaction orphanage when high peer counts exceed the default global latency limit of 3,000. When more than 3,000 peers announce orphans, integer division sets each peer's latency allowance to zero, causing an assertion crash when GetDosScore() calculates peer eviction priority. The fix floors the peer latency allowance at one during trimming and permits eviction of peers with a DoS score of exactly one. This crash only affects nodes configured with connection limits well above the default of 200.",
+ "changed_since_previous": "Replaced assert() with Assert() in GetDosScore() and added a commit clarifying orphanage eviction guarantees in header documentation and comments.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'When an orphan announcement raises the number of represented peers above 3,000, integer division gives each peer an allowance of zero. Trimming then triggers an assertion and aborts the node.'",
+  "Commit a198535975: 'When the peer count exceeds the global latency score limit, integer division produces a zero share and LimitOrphans() aborts while calculating a peer's DoS score.'"
+ ],
+ "head_sha": "4964850c16a94c84c2efbc596b63a8126368b5d8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35919,
+ "patch_id": "d09cba1e42ad02b0",
+ "problem": "The orphanage calculates a peer's latency limit by dividing a global score (default 3,000) by the number of peers currently holding orphans. When more than 3,000 peers announce orphans, integer division evaluates the per-peer limit to zero, causing an assertion failure in GetDosScore() during trimming and crashing the node. This affects nodes configured with unusually high connection limits on operating systems supporting high file descriptor counts.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A flaw in orphanage trimming or eviction logic could improperly evict legitimate orphan transactions or fail to evict spam, harming transaction relay."
+ },
+ "run": "run:20261003-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 37,
+  "deletions": 19,
+  "files": 4,
+  "test_lines": 23
+ },
+ "summary": "Prevents an assertion abort in the transaction orphanage when more than 3,000 peers have active orphan announcements. Floors the per-peer latency allowance at one during trimming calculations and allows peers with a DoS score of exactly one to be selected for eviction. Updates documentation, unit tests, and fuzz coverage to reflect the floored share.",
+ "uncertainties": []
+}

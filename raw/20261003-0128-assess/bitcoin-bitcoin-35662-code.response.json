@@ -1,0 +1,43 @@
+{
+ "run": "run:20261003-0128-assess",
+ "pr": "bitcoin/bitcoin#35662",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-03T01:28:47+00:00",
+ "usage": {
+  "input_tokens": 13491,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1904
+ },
+ "cost_usd": 0.01725825,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Removes default construction and the public `Init()` method from `PrecomputedTransactionData`, requiring transaction context and optional spent outputs at construction time. Validation and test call sites that defer precomputation now use `std::optional<PrecomputedTransactionData>`, emplacing the object only after a script-cache miss. The PR also skips txdata allocation during block connection when assumevalid bypasses script checks, and eliminates an unintended copy of caller-supplied txdata in the kernel C API.\",\n  \"problem\": \"Default-constructing `PrecomputedTransactionData` and initializing it later through `Init()` allowed instances to exist uninitialized or be reused across transactions. The old `Init()` safety guard checked only `m_spent_outputs_ready`, which stayed false after forced initialization without spent outputs even though BIP143 sighash hashes were cached. Additionally, the experimental kernel C verification API copied caller txdata on every call due to ternary expression typing, and `ConnectBlock()` allocated unused txdata memory during assumevalid verification.\",\n  \"evidence\": [\n    \"PR description: \\\"The old Init() guard only checked m_spent_outputs_ready, which remained false after forced initialization without spent outputs even though force=true cached the BIP143 prevout, sequence, and output hashes for witness-v0 sighash.\\\"\",\n    \"Commit d07c727ff8: \\\"Reproducer: https://godbolt.org/z/PzcKGW9da (GCC 15.2: one copy before, none after).\\\"\",\n    \"PR description references closed PR #35663 (\\\"validation: avoid preallocating unused txdata during assumevalid\\\"), whose memory optimization is incorporated directly into ConnectBlock().\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Touches 17 files, but most edits are mechanical adaptations across call sites (PSBT, wallet feebumper, fuzz targets, test fixtures) replacing two-step `PrecomputedTransactionData` initialization with direct construction or `std::optional` wrapping.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Removes default construction and the public Init() method from PrecomputedTransactionData, ensuring instances are immutably bound to a specific transaction and spent outputs upon construction. Validation and tests now hold an std::optional to defer construction until a script-cache miss, while ConnectBlock skips allocating txdata vectors entirely when assumevalid bypasses script verification. It also fixes an unintended copy of caller-supplied txdata on every call in the experimental bitcoinkernel C API, corroborated by a compiler reproducer.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"consensus\",\n      \"validation\"\n    ],\n    \"why\": \"A mistake in initializing or binding PrecomputedTransactionData could corrupt sighash computations during script execution, causing invalid transactions to be accepted or valid blocks to be rejected.\"\n  }\n}",
+ "result": {
+  "summary": "Removes default construction and the public `Init()` method from `PrecomputedTransactionData`, requiring transaction context and optional spent outputs at construction time. Validation and test call sites that defer precomputation now use `std::optional<PrecomputedTransactionData>`, emplacing the object only after a script-cache miss. The PR also skips txdata allocation during block connection when assumevalid bypasses script checks, and eliminates an unintended copy of caller-supplied txdata in the kernel C API.",
+  "problem": "Default-constructing `PrecomputedTransactionData` and initializing it later through `Init()` allowed instances to exist uninitialized or be reused across transactions. The old `Init()` safety guard checked only `m_spent_outputs_ready`, which stayed false after forced initialization without spent outputs even though BIP143 sighash hashes were cached. Additionally, the experimental kernel C verification API copied caller txdata on every call due to ternary expression typing, and `ConnectBlock()` allocated unused txdata memory during assumevalid verification.",
+  "evidence": [
+   "PR description: \"The old Init() guard only checked m_spent_outputs_ready, which remained false after forced initialization without spent outputs even though force=true cached the BIP143 prevout, sequence, and output hashes for witness-v0 sighash.\"",
+   "Commit d07c727ff8: \"Reproducer: https://godbolt.org/z/PzcKGW9da (GCC 15.2: one copy before, none after).\"",
+   "PR description references closed PR #35663 (\"validation: avoid preallocating unused txdata during assumevalid\"), whose memory optimization is incorporated directly into ConnectBlock()."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Touches 17 files, but most edits are mechanical adaptations across call sites (PSBT, wallet feebumper, fuzz targets, test fixtures) replacing two-step `PrecomputedTransactionData` initialization with direct construction or `std::optional` wrapping.",
+  "changed_since_previous": "",
+  "card": "Removes default construction and the public Init() method from PrecomputedTransactionData, ensuring instances are immutably bound to a specific transaction and spent outputs upon construction. Validation and tests now hold an std::optional to defer construction until a script-cache miss, while ConnectBlock skips allocating txdata vectors entirely when assumevalid bypasses script verification. It also fixes an unintended copy of caller-supplied txdata on every call in the experimental bitcoinkernel C API, corroborated by a compiler reproducer.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "consensus",
+    "validation"
+   ],
+   "why": "A mistake in initializing or binding PrecomputedTransactionData could corrupt sighash computations during script execution, causing invalid transactions to be accepted or valid blocks to be rejected."
+  }
+ }
+}

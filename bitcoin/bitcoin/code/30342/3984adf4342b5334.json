@@ -1,0 +1,45 @@
+{
+ "assessed_at": "2026-10-03T01:28:32+00:00",
+ "card": "This pull request passes Logger instances into core kernel objects such as ChainstateManager, BlockManager, and CDBWrapper, routing kernel logging to these local instances instead of a global singleton. In libbitcoinkernel, this isolates logging so that each context delivers entries strictly to its own logging connection, solving the issue where multiple chainstate contexts produce an interleaved log stream. It removes global logging state from the kernel library while preserving default logging for bitcoind and other executables. The PR depends on #34778, #34374, #29256, and #33847, and unblocks contextual wallet logging in #30343.",
+ "changed_since_previous": "Now explicitly based on #34374 alongside #34778, #29256, and #33847; adds the final context-routing commit that removes the process-wide KernelLogger so context log output is delivered strictly to the context's connection.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#34778",
+   "#34374",
+   "#29256",
+   "#33847"
+  ],
+  "enables": [
+   "#30343"
+  ]
+ },
+ "evidence": [
+  "PR description: 'An application that opens two chainstates (say mainnet and signet, or a test creating several contexts) gets log lines from both in one interleaved stream, with no way to tell which context each came from. #33847 lets an application set a logging connection on each context, but kernel code still logs through one global logger, so every connection receives every context's output.'"
+ ],
+ "head_sha": "2f6341bf981004a9bea27f65e59859f7aab64319",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 30342,
+ "patch_id": "3984adf4342b5334",
+ "problem": "Applications using libbitcoinkernel or multi-context tests that initialize multiple chainstates receive an interleaved log stream across all contexts with no mechanism to separate them. Even with per-context connection options introduced in #33847, kernel internals still logged to a single global logger, delivering all messages to every connection.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "other"
+  ],
+  "why": "Mistakes in logger lifetime management or context wiring across core validation and database wrapper classes could cause use-after-free crashes or lost error diagnostics."
+ },
+ "run": "run:20261003-0128-assess",
+ "scope_notes": "Large mechanical refactor across kernel, validation, indexing, and storage subsystems to pass explicit Logger/Context instances through constructors and functions. Also requires standalone binaries, tests, and fuzz targets to explicitly instantiate BCLog::Logger.",
+ "size": {
+  "additions": 1569,
+  "deletions": 838,
+  "files": 79,
+  "test_lines": 600
+ },
+ "summary": "Pass Logger instances into Bitcoin Core kernel objects (including ChainstateManager, BlockManager, CTxMemPool, CCoinsViewDB, and CDBWrapper) and direct internal kernel logging calls to those local instances instead of a global logger. Update the kernel C API so that each context's log output is routed exclusively to its own btck_LoggingConnection, eliminating global logging state from libbitcoinkernel while preserving existing bitcoind logging behavior.",
+ "uncertainties": []
+}

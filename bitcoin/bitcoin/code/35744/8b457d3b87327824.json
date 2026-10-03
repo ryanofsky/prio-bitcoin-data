@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-03T01:28:49+00:00",
+ "card": "Prevents node crashes caused by AssumeUTXO cache rebalancing resetting the coins database while UTXO scan RPCs are active. Commands like gettxoutsetinfo and scantxoutset keep LevelDB cursors open without cs_main; if ResizeCache destroys the underlying database wrapper during a scan, LevelDB aborts. The PR introduces SharedMutex synchronization primitives so cursors and compaction take shared locks while ResizeCache waits for exclusive access. Discovered during review of PR 35465 and covered by new regression tests.",
+ "changed_since_previous": "Added support for non-LIFO lock release in DEBUG_LOCKORDER tracking, unified lock acquisition under EnterLock(), and transitioned SignatureCache and cuckoo cache tests to use the new SharedMutex wrapper.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Reported during review of PR #35465 (coins: compact chainstate regularly) at discussion_r3428902672.",
+  "Author provides regression unit tests in test/coins_tests.cpp reproducing the failure and timeout behavior."
+ ],
+ "head_sha": "99b9c21e404032fc4df3f418fd8aa21cde27fb3d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35744,
+ "patch_id": "8b457d3b87327824",
+ "problem": "Long-running RPC commands like gettxoutsetinfo, scantxoutset, and dumptxoutset retain LevelDB iterators after releasing cs_main. If AssumeUTXO cache rebalancing calls ResizeCache() concurrently, the underlying CDBWrapper is destroyed while an iterator is still live, causing LevelDB to abort and crashing the node.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A lock inversion or concurrency mistake between cs_main and m_db_mutex could cause a deadlock during UTXO cache resizing, stalling block validation."
+ },
+ "run": "run:20261003-0128-assess",
+ "scope_notes": "Modifies core synchronization utilities in sync.h and sync.cpp to support checked shared mutexes and non-LIFO lock release under DEBUG_LOCKORDER, and adopts SharedMutex in SignatureCache as well.",
+ "size": {
+  "additions": 194,
+  "deletions": 49,
+  "files": 9,
+  "test_lines": 114
+ },
+ "summary": "Introduce SharedMutex and SharedLock primitives and use them to protect coins database lifetime during cache resizing. Coins database cursors and background compaction hold a shared lock on m_db_mutex for their duration, while ResizeCache() acquires an exclusive lock. This ensures active LevelDB iterators are not destroyed when AssumeUTXO rebalances cache sizes.",
+ "uncertainties": []
+}

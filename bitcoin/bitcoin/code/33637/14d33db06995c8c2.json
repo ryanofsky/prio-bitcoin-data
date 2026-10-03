@@ -1,0 +1,37 @@
+{
+ "assessed_at": "2026-10-03T01:28:34+00:00",
+ "card": "This PR optimizes block index work comparisons by inlining `CBlockIndexWorkComparator` and `arith_uint256` three-way comparisons in headers using `std::tie` and `operator<=>`. It eliminates out-of-line function calls and branching cascades during candidate chain searches and validation checks. The author reports a 6.5x to 6.8x speedup in isolated work comparisons and a 1.4x to 1.6x speedup in `CheckBlockIndex`. Equivalence fuzz targets and deterministic sorting tests verify that work ordering and pointer tie-breaking behavior are unchanged. No dependencies are stated.",
+ "changed_since_previous": "Reorganized the commit stack to separate inlining from per-word `<=>` comparison changes, and extended the benchmark to test 12-bit and 96-bit chainwork cases alongside 256-bit cases.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's benchmarks show `CBlockIndexWorkComparator` throughput increases 6.5x\u20136.8x (from ~100M cmp/s to ~660-680M cmp/s across GCC and Clang) and `CheckBlockIndex` improves 1.4x\u20131.6x (from ~9-10k ops/s to ~14.4-14.8k ops/s)."
+ ],
+ "head_sha": "62ddd1197c519da4aa65faf99c9929c4cf6c60d0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 33637,
+ "patch_id": "14d33db06995c8c2",
+ "problem": "Block index ordering in `setBlockIndexCandidates` and functions like `CheckBlockIndex` and `FindMostWorkChain` executes `CBlockIndexWorkComparator` heavily. The comparator and its underlying `arith_uint256` work comparisons were defined out-of-line with cascading conditionals, preventing compiler inlining and introducing unnecessary branch overhead.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "validation"
+  ],
+  "why": "A flaw in block index work comparison or tie-breaking could alter best-chain selection, potentially leading to chain forks or failure to activate the valid tip."
+ },
+ "run": "run:20261003-0128-assess",
+ "scope_notes": "Includes differential fuzz tests comparing the new comparator and arithmetic ordering implementations directly against pre-refactor snapshots.",
+ "size": {
+  "additions": 270,
+  "deletions": 43,
+  "files": 12,
+  "test_lines": 244
+ },
+ "summary": "Inlines and optimizes `CBlockIndexWorkComparator` and `arith_uint256` comparisons by defining them directly in headers using `std::tie`, `noexcept`, and C++20 `operator<=>`. Replaces the out-of-line `CompareTo` member function on `base_uint` with an inline per-word three-way comparison loop. Adds dedicated microbenchmarks across multiple work bit-widths, unit tests, and differential fuzz tests.",
+ "uncertainties": []
+}

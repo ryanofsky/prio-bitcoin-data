@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-03T01:28:42+00:00",
+ "card": "Streamlines internal Logger state by replacing a category bitfield, global log level threshold, and mutex-protected override map with a two-element array of atomic category bitmasks for Debug and Trace levels. This removes mutex locking and hash map lookups from log checks while eliminating redundant methods across the codebase. Dynamic re-enabling of categories at runtime via the logging RPC or kernel API now consistently sets them to Debug level instead of preserving prior Trace settings from startup options. No other PRs depend on this refactor.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author notes in PR description: \"Bitcoin Core has only ~30 log categories and 2 conditional log levels, so a mutex-protected hash map, a bitset, and a separate global level are unnecessary. The added complexity is also harmful: it makes the code harder to follow, and basic operations like setting a category's level require coordinating multiple fields and method calls.\"",
+  "Commit 2973664876 notes: \"Each category now has a single level threshold (Trace, Debug, or Info), eliminating the separate enabled/disabled flag and stored global log level. This reduces the number of possible states, removes mutex locking and hash lookups from log-level checks...\""
+ ],
+ "head_sha": "22d0bc8ec636ea79b3610ab3827dbad7db37079d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35322,
+ "patch_id": "66871278ced4fb92",
+ "problem": "Logger tracked enabled categories and severity levels redundantly across three separate fields (m_categories bitmask, atomic m_log_level, and a mutex-guarded std::unordered_map). This required acquiring a mutex and performing hash map lookups on log-level checks, while coordinating multiple fields across method calls.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api",
+   "other"
+  ],
+  "why": "A bug in bitmask operations or option parsing could incorrectly filter log messages or cause unexpected log verbosity when configuring categories via CLI arguments or RPC."
+ },
+ "run": "run:20261003-0128-assess",
+ "scope_notes": "Changes a minor behavior in the logging RPC and kernel API: re-enabling a category dynamically at runtime always enables it at Debug level, rather than restoring a Trace level previously specified via -loglevel at startup.",
+ "size": {
+  "additions": 207,
+  "deletions": 197,
+  "files": 14,
+  "test_lines": 166
+ },
+ "summary": "Simplifies internal Logger state by replacing a category bitmask, a global log level threshold, and a mutex-protected map of per-category level overrides with a two-element array of atomic category bitmasks for Debug and Trace levels. It removes obsolete methods like EnableCategory, DisableCategory, LogLevel, and GetCategoryMask in favor of SetCategoryLogLevel and lock-free WillLogCategoryLevel checks.",
+ "uncertainties": []
+}

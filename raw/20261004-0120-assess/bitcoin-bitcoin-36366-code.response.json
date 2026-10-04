@@ -1,0 +1,40 @@
+{
+ "run": "run:20261004-0120-assess",
+ "pr": "bitcoin/bitcoin#36366",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-04T01:20:31+00:00",
+ "usage": {
+  "input_tokens": 4930,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1412
+ },
+ "cost_usd": 0.0089925,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Caps relative ban durations to UINT32_MAX in both the setban RPC and the -bantime configuration argument. The setban RPC rejects relative ban durations exceeding UINT32_MAX with an invalid parameter error, while -bantime clamps values greater than UINT32_MAX using std::min. Absolute timestamps remain unaffected.\",\n  \"problem\": \"BanMan calculates ban expiration as GetTime() + bantime using signed 64-bit integers. If a relative ban duration near INT64_MAX is provided, the addition overflows, causing a signed integer overflow runtime error under UBSan; without UBSan, it wraps negative, causing the node to treat the ban as already expired and silently drop it while setban still returns success.\",\n  \"evidence\": [\n    \"PR description quotes a UBSan runtime error: src/banman.cpp:140:73: runtime error: signed integer overflow: 1790412558 + 9223372036854775807 cannot be represented in type 'int64_t'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Switched from parsing -bantime as uint32_t to keeping GetIntArg and clamping with std::min so oversized values in settings.json do not abort node startup, and added a test for settings.json.\",\n  \"card\": \"Caps relative ban durations to UINT32_MAX across the setban RPC and the -bantime startup option. Relative ban durations near INT64_MAX currently cause signed 64-bit integer overflow in BanMan, triggering UBSan errors and wrapping to negative timestamps that silently discard bans while reporting success. With this change, setban rejects relative durations exceeding UINT32_MAX, and -bantime clamps larger values without failing startup.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"rpc_api\"],\n    \"why\": \"A flaw in duration validation could reject valid bans or cause bans to expire at unintended times for node operators.\"\n  }\n}",
+ "result": {
+  "summary": "Caps relative ban durations to UINT32_MAX in both the setban RPC and the -bantime configuration argument. The setban RPC rejects relative ban durations exceeding UINT32_MAX with an invalid parameter error, while -bantime clamps values greater than UINT32_MAX using std::min. Absolute timestamps remain unaffected.",
+  "problem": "BanMan calculates ban expiration as GetTime() + bantime using signed 64-bit integers. If a relative ban duration near INT64_MAX is provided, the addition overflows, causing a signed integer overflow runtime error under UBSan; without UBSan, it wraps negative, causing the node to treat the ban as already expired and silently drop it while setban still returns success.",
+  "evidence": [
+   "PR description quotes a UBSan runtime error: src/banman.cpp:140:73: runtime error: signed integer overflow: 1790412558 + 9223372036854775807 cannot be represented in type 'int64_t'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Switched from parsing -bantime as uint32_t to keeping GetIntArg and clamping with std::min so oversized values in settings.json do not abort node startup, and added a test for settings.json.",
+  "card": "Caps relative ban durations to UINT32_MAX across the setban RPC and the -bantime startup option. Relative ban durations near INT64_MAX currently cause signed 64-bit integer overflow in BanMan, triggering UBSan errors and wrapping to negative timestamps that silently discard bans while reporting success. With this change, setban rejects relative durations exceeding UINT32_MAX, and -bantime clamps larger values without failing startup.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "A flaw in duration validation could reject valid bans or cause bans to expire at unintended times for node operators."
+  }
+ }
+}

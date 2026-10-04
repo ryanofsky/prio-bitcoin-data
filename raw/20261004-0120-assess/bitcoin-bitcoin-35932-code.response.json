@@ -1,0 +1,41 @@
+{
+ "run": "run:20261004-0120-assess",
+ "pr": "bitcoin/bitcoin#35932",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-04T01:20:24+00:00",
+ "usage": {
+  "input_tokens": 27811,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2236
+ },
+ "cost_usd": 0.02924325,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Separates connection teardown from destruction in libmultiprocess and adds server object tracking so callers can wait for in-flight calls to drain. Updates Bitcoin Core's `ipc::disconnectIncoming` to wait off the event loop thread until active server call bodies finish executing before freeing node state during shutdown. Also brings in libmultiprocess fixes for races and use-after-free bugs during connection disconnects.\",\n  \"problem\": \"During node shutdown, `Ipc::disconnectIncoming` drops incoming client connections and cancels pending promises, but does not wait for asynchronous C++ call bodies already executing on worker threads (such as `Mining.checkBlock`) to complete. A still-running call body can dereference node components after `Shutdown()` frees them, triggering assertion failures such as `Assert(m_node.chainman)`.\",\n  \"evidence\": [\n    \"Antithesis bug report in #35845 and #33387: 'if asynchronous IPC mining calls are made when the node is shutting down it's possible for assert(m_node.chainman) to trigger'\",\n    \"Commit 6023bbb113: 'A still-running body (an in-flight Mining.checkBlock) could then dereference m_node.chainman after chainman.reset() nulled it, aborting on Assert(m_node.chainman)'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Contains a subtree bump for `src/ipc/libmultiprocess` along with direct commits modifying the subtree before upstream merge; includes a temporary lint workaround disabling subtree link checks that must be removed before merging.\",\n  \"changed_since_previous\": \"Incorporated upstream libmultiprocess fixes for double-free races and thread map teardown use-after-free on disconnect, added compiler warning suppressions for C++23 lambda attributes, and temporarily bypassed the subtree lint check.\",\n  \"card\": \"This PR updates IPC disconnect handling to wait for active asynchronous call bodies executing on worker threads to drain before node shutdown continues. This resolves an assertion failure and potential crash reported by Antithesis in #35845 and #33387, where in-flight mining calls access node state after it has been cleared during shutdown. It also includes several fixes for disconnect-time race conditions in libmultiprocess. It is currently a draft dependent on upstream changes in bitcoin-core/libmultiprocess#335.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"other\"],\n    \"why\": \"A flaw in connection draining or reference counting could cause node shutdown to hang indefinitely or introduce race conditions in multiprocess IPC.\"\n  }\n}",
+ "result": {
+  "summary": "Separates connection teardown from destruction in libmultiprocess and adds server object tracking so callers can wait for in-flight calls to drain. Updates Bitcoin Core's `ipc::disconnectIncoming` to wait off the event loop thread until active server call bodies finish executing before freeing node state during shutdown. Also brings in libmultiprocess fixes for races and use-after-free bugs during connection disconnects.",
+  "problem": "During node shutdown, `Ipc::disconnectIncoming` drops incoming client connections and cancels pending promises, but does not wait for asynchronous C++ call bodies already executing on worker threads (such as `Mining.checkBlock`) to complete. A still-running call body can dereference node components after `Shutdown()` frees them, triggering assertion failures such as `Assert(m_node.chainman)`.",
+  "evidence": [
+   "Antithesis bug report in #35845 and #33387: 'if asynchronous IPC mining calls are made when the node is shutting down it's possible for assert(m_node.chainman) to trigger'",
+   "Commit 6023bbb113: 'A still-running body (an in-flight Mining.checkBlock) could then dereference m_node.chainman after chainman.reset() nulled it, aborting on Assert(m_node.chainman)'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Contains a subtree bump for `src/ipc/libmultiprocess` along with direct commits modifying the subtree before upstream merge; includes a temporary lint workaround disabling subtree link checks that must be removed before merging.",
+  "changed_since_previous": "Incorporated upstream libmultiprocess fixes for double-free races and thread map teardown use-after-free on disconnect, added compiler warning suppressions for C++23 lambda attributes, and temporarily bypassed the subtree lint check.",
+  "card": "This PR updates IPC disconnect handling to wait for active asynchronous call bodies executing on worker threads to drain before node shutdown continues. This resolves an assertion failure and potential crash reported by Antithesis in #35845 and #33387, where in-flight mining calls access node state after it has been cleared during shutdown. It also includes several fixes for disconnect-time race conditions in libmultiprocess. It is currently a draft dependent on upstream changes in bitcoin-core/libmultiprocess#335.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "other"
+   ],
+   "why": "A flaw in connection draining or reference counting could cause node shutdown to hang indefinitely or introduce race conditions in multiprocess IPC."
+  }
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "assessed_at": "2026-10-04T01:20:31+00:00",
+ "card": "Caps relative ban durations to UINT32_MAX across the setban RPC and the -bantime startup option. Relative ban durations near INT64_MAX currently cause signed 64-bit integer overflow in BanMan, triggering UBSan errors and wrapping to negative timestamps that silently discard bans while reporting success. With this change, setban rejects relative durations exceeding UINT32_MAX, and -bantime clamps larger values without failing startup.",
+ "changed_since_previous": "Switched from parsing -bantime as uint32_t to keeping GetIntArg and clamping with std::min so oversized values in settings.json do not abort node startup, and added a test for settings.json.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description quotes a UBSan runtime error: src/banman.cpp:140:73: runtime error: signed integer overflow: 1790412558 + 9223372036854775807 cannot be represented in type 'int64_t'"
+ ],
+ "head_sha": "514ff32e2f2024555bb9f157a6e16e311af9fd9f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36366,
+ "patch_id": "5088b93bfc05eb4c",
+ "problem": "BanMan calculates ban expiration as GetTime() + bantime using signed 64-bit integers. If a relative ban duration near INT64_MAX is provided, the addition overflows, causing a signed integer overflow runtime error under UBSan; without UBSan, it wraps negative, causing the node to treat the ban as already expired and silently drop it while setban still returns success.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "A flaw in duration validation could reject valid bans or cause bans to expire at unintended times for node operators."
+ },
+ "run": "run:20261004-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 31,
+  "deletions": 1,
+  "files": 3,
+  "test_lines": 25
+ },
+ "summary": "Caps relative ban durations to UINT32_MAX in both the setban RPC and the -bantime configuration argument. The setban RPC rejects relative ban durations exceeding UINT32_MAX with an invalid parameter error, while -bantime clamps values greater than UINT32_MAX using std::min. Absolute timestamps remain unaffected.",
+ "uncertainties": []
+}

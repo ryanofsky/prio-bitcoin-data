@@ -10,7 +10,7 @@
    "clears_with": "answer",
    "fix": {
     "at": null,
-    "sha": "bb5dc52082129001b2c711d3dc1022c380940215"
+    "sha": "23dbc1fe5cc02bb3afa681b530f8ebdecdd9a51a"
    },
    "from_schema": 2,
    "harm": "",
@@ -40,7 +40,7 @@
    "pin": null,
    "question": "",
    "quote": "This can use `insert_or_assign` rather than setting the fields afterwards on failed emplacement.",
-   "request": "Use insert_or_assign instead of setting fields on failed emplacement",
+   "request": "Use insert_or_assign rather than setting the fields afterwards on failed emplacement",
    "status": "fixed",
    "status_by": {
     "at": "2026-09-30",
@@ -51,6 +51,40 @@
    "status_note": "author updated the code to use insert_or_assign",
    "type": "suggestion",
    "url": "https://github.com/bitcoin/bitcoin/pull/36313#discussion_r4138795110"
+  },
+  {
+   "association": "NONE",
+   "at": "2026-10-03",
+   "author": "jcastros",
+   "author_replies": [],
+   "clears_with": "change",
+   "fix": null,
+   "from_schema": 2,
+   "harm": "A non-persistent lock overwrites an existing persistent lock in memory without removing the db record, causing spent outputs to be restored as locked on reload",
+   "hash": "f7b2f520e3a1df8b",
+   "history": [
+    {
+     "at": "2026-10-04T01:18:55+00:00",
+     "by": "run:20261004-0117",
+     "cause": "c:5970820999",
+     "clears_with": "change",
+     "status": "open",
+     "type": "objection"
+    }
+   ],
+   "id": "c:5970820999",
+   "kind": "correctness",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "The other direction looks broken. Lock the coin with `lockunspent` persistent, then spend that same coin. On the base, `listlockunspent` is empty before and after a reload. On this commit it is empty before the reload and the spent output is back afterwards",
+   "request": "",
+   "status": "open",
+   "status_by": null,
+   "status_note": "",
+   "type": "objection",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36313#issuecomment-5970820999"
   }
  ],
  "log": [
@@ -102,9 +136,22 @@
     "rc:4141254523"
    ],
    "run": "run:20261001-0121"
+  },
+  {
+   "at": "2026-10-04T01:18:55+00:00",
+   "changes": [
+    "claim c:5970820999 added (objection, clears with change, open) by jcastros",
+    "support c:5970820999 added by jcastros",
+    "waiting on: author (addressing regression where non-persistent lock downgrades persistent lock), author (address regression where non-persistent lock clears persistent lock and restores spent coins on reload)"
+   ],
+   "cost_usd": 0.05604,
+   "events": [
+    "c:5970820999"
+   ],
+   "run": "run:20261004-0117"
   }
  ],
- "notes": "Author updated the implementation to use insert_or_assign in response to achow101's suggestion.",
+ "notes": "Added jcastros as a participant and recorded their objection regarding the regression introduced by insert_or_assign downgrading persistent locks to non-persistent locks. / Added jcastros's Concept ACK to support and recorded their objection regarding a regression where a later non-persistent lock overwrites a persistent lock in memory. The PR is now waiting on the author to address this regression.",
  "number": 36313,
  "participants": [
   {
@@ -124,27 +171,40 @@
    "login": "achow101",
    "note": "suggested using insert_or_assign",
    "stance": "neutral"
+  },
+  {
+   "association": "NONE",
+   "comments": 1,
+   "first": "2026-10-03",
+   "last": "2026-10-03",
+   "login": "jcastros",
+   "note": "Concept ACK on fixing the issue, but identified a regression where non-persistent locks overwrite persistent ones",
+   "stance": "objection"
   }
  ],
  "processed": {
   "description_hash": "089332851cabe246",
   "events": {
+   "c:5970820999": "f7b2f520e3a1df8b",
    "r:5291418009": "9e5ba31210f5803e",
    "rc:4082789218": "74b514fb6b6740c2",
    "rc:4088801045": "5b26536e36f7527d",
    "rc:4138795110": "9469dcd2348eab7e",
    "rc:4141254523": "fa5faa98fe350baa"
   },
-  "head_sha": "bb5dc52082129001b2c711d3dc1022c380940215",
-  "last_event_at": "2026-09-30T05:58:03Z",
+  "head_sha": "23dbc1fe5cc02bb3afa681b530f8ebdecdd9a51a",
+  "last_event_at": "2026-10-03T15:57:46Z",
   "patch_id": "dc1773784369b27e",
-  "schema_floor": 1
+  "schema_floor": 2
  },
  "repo": "bitcoin/bitcoin",
  "schema": 2,
  "support": [
   {
-   "areas": [],
+   "areas": [
+    "src/wallet/rpc/coins.cpp",
+    "src/wallet/rpc/coins.cpp:328"
+   ],
    "association": "CONTRIBUTOR",
    "at": "2026-09-23",
    "author": "vicjuma",
@@ -157,27 +217,57 @@
    "verdict": "Concept ACK"
   },
   {
-   "areas": [],
+   "areas": [
+    "src/wallet/wallet.cpp"
+   ],
    "association": "CONTRIBUTOR",
    "at": "2026-09-23",
    "author": "vicjuma",
    "evidence": "tested",
    "hash": "74b514fb6b6740c2",
    "id": "rc:4082789218",
-   "reason": "Your solution works as expected",
+   "reason": "tested solution and confirmed before/after behavior works as expected",
    "substantive": true,
    "url": "https://github.com/bitcoin/bitcoin/pull/36313#discussion_r4082789218",
    "verdict": ""
+  },
+  {
+   "areas": [
+    "rpc/spend.cpp",
+    "spend.cpp",
+    "src/wallet/rpc/spend.cpp:1581",
+    "src/wallet/spend.cpp:1543",
+    "src/wallet/wallet.cpp:801",
+    "wallet.cpp",
+    "wallet_basic.py"
+   ],
+   "association": "NONE",
+   "at": "2026-10-03",
+   "author": "jcastros",
+   "evidence": "both",
+   "hash": "f7b2f520e3a1df8b",
+   "id": "c:5970820999",
+   "reason": "Concept ACK on fixing #36304",
+   "substantive": true,
+   "url": "https://github.com/bitcoin/bitcoin/pull/36313#issuecomment-5970820999",
+   "verdict": "Concept ACK"
   }
  ],
- "updated": "2026-10-02T01:22:37+00:00",
+ "updated": "2026-10-04T01:18:55+00:00",
  "waiting_on": [
   {
-   "at": "2026-09-30",
-   "id": "rc:4141254523",
-   "on": "reviewer",
-   "url": "https://github.com/bitcoin/bitcoin/pull/36313#discussion_r4141254523",
-   "what": "achow101 to re-review after the update to insert_or_assign"
+   "at": "2026-10-03",
+   "id": "c:5970820999",
+   "on": "author",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36313#issuecomment-5970820999",
+   "what": "addressing regression where non-persistent lock downgrades persistent lock"
+  },
+  {
+   "at": "2026-10-03",
+   "id": "c:5970820999",
+   "on": "author",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36313#issuecomment-5970820999",
+   "what": "address regression where non-persistent lock clears persistent lock and restores spent coins on reload"
   }
  ]
 }

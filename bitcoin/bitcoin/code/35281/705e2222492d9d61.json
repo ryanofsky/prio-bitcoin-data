@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-04T01:20:22+00:00",
+ "card": "Fixes out-of-bounds reads in UniValue's JSON tokenizer by respecting the buffer end pointer during keyword matching and number validation. Previously, parsing non-null-terminated string views could read past the buffer end when encountering truncated keywords or bare minus/zero prefixes. This resolves issue #28260 and updates UniValue unit and fuzz tests to exercise bounded string views.",
+ "changed_since_previous": "Removed trailing whitespace trimming from the UniValue unit tester by stripping newlines from round-trip JSON test files.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes #28260 ('getJsonToken assumes underlying string is null-terminated but requires end pointer')",
+  "PR description: 'Avoid reading past the supplied end pointer in two places: matching JSON keywords with strncmp; validating number prefixes with firstDigit[1].'"
+ ],
+ "head_sha": "045b0ef7b42d50975cedaa6deeb9a39c879af92f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35281,
+ "patch_id": "705e2222492d9d61",
+ "problem": "UniValue's `getJsonToken` accepts explicit `raw` and `end` pointers to parse bounded string views without requiring null termination. In two places\u2014matching `null`, `true`, and `false` via `strncmp`, and checking `firstDigit[1]` to reject leading zeros\u2014the parser inspected bytes past `end` if the input terminated prematurely, causing out-of-bounds reads.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "other"
+  ],
+  "why": "A flaw in JSON tokenization could incorrectly reject valid JSON or crash the node during RPC and REST request handling."
+ },
+ "run": "run:20261004-0120-assess",
+ "scope_notes": "Modifies internal UniValue parsing code, strips trailing newlines from UniValue test JSON files to eliminate rtrim logic, and changes the parse_univalue fuzz target from std::string to std::string_view.",
+ "size": {
+  "additions": 34,
+  "deletions": 30,
+  "files": 10,
+  "test_lines": 5
+ },
+ "summary": "Enforces buffer end boundaries in UniValue's JSON tokenizer when matching keyword literals and inspecting number prefixes. Replaces `strncmp` keyword checks with `std::string_view::starts_with` and adds bounds checks before indexing into adjacent digit characters. Also updates the UniValue unit tests, roundtrip test data, and fuzz harness to exercise non-null-terminated string views.",
+ "uncertainties": []
+}

@@ -1,0 +1,44 @@
+{
+ "run": "run:20261005-0118-assess",
+ "pr": "bitcoin/bitcoin#36244",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-05T01:18:44+00:00",
+ "usage": {
+  "input_tokens": 20490,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1651
+ },
+ "cost_usd": 0.02155875,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Decouples block persistence and chain activation from the P2P message thread by introducing a dedicated single-worker queue in ChainstateManager that processes admitted blocks asynchronously via futures. Initial validation checks remain synchronous on the P2P thread to decide admission, and each peer is limited to one queued or processing block at a time. The PR also removes cs_main requirements from peer block download tracking and compact block reconstruction, while allowing SendMessages to defer work when cs_main is contended.\",\n  \"problem\": \"The P2P message thread validates and activates blocks synchronously while holding cs_main. During initial block download or heavy block processing at the tip, message handling for all other peers stalls, leading to severe latency spikes for pings, block serving, and compact block reconstruction.\",\n  \"evidence\": [\n    \"PR description benchmarks across a 10,000-block IBD segment: PING/PONG latency dropped 98% from 41.8 ms to 0.77 ms, and block-serving latency decreased by 32% (single connection) and 45% (four connections).\",\n    \"PR description: Total IBD download and validation time for the benchmark segment fell by ~5% (473.6 s to 450.3 s) with four download connections.\"\n  ],\n  \"dependencies\": {\n   \"depends_on\": [],\n   \"enables\": []\n  },\n  \"scope_notes\": \"Roughly 67% of the diff consists of unit, fuzz, and integration test coverage. The remaining ~1,100 lines touch sensitive concurrency paths across validation, net_processing, and the kernel C-API.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Moves block storage and chainstate activation off the P2P message loop to a single-threaded asynchronous validation worker, returning outcomes via futures and limiting each peer to one pending block. It also decouples block download tracking and compact-block reconstruction from cs_main. This solves stalls in P2P message handling where nodes become unresponsive to pings and serving requests while validating blocks. In author IBD benchmarks, PING latency dropped by 98% and block-serving latency decreased by 32-45%.\",\n  \"needs\": [\n    \"rest_of_diff\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"validation\",\n      \"p2p\"\n    ],\n    \"why\": \"Altering lock ordering around cs_main and shifting block validation to an asynchronous worker could introduce race conditions, peer misattribution, deadlocks, or state corruption during chain activation.\"\n  }\n}",
+ "result": {
+  "summary": "Decouples block persistence and chain activation from the P2P message thread by introducing a dedicated single-worker queue in ChainstateManager that processes admitted blocks asynchronously via futures. Initial validation checks remain synchronous on the P2P thread to decide admission, and each peer is limited to one queued or processing block at a time. The PR also removes cs_main requirements from peer block download tracking and compact block reconstruction, while allowing SendMessages to defer work when cs_main is contended.",
+  "problem": "The P2P message thread validates and activates blocks synchronously while holding cs_main. During initial block download or heavy block processing at the tip, message handling for all other peers stalls, leading to severe latency spikes for pings, block serving, and compact block reconstruction.",
+  "evidence": [
+   "PR description benchmarks across a 10,000-block IBD segment: PING/PONG latency dropped 98% from 41.8 ms to 0.77 ms, and block-serving latency decreased by 32% (single connection) and 45% (four connections).",
+   "PR description: Total IBD download and validation time for the benchmark segment fell by ~5% (473.6 s to 450.3 s) with four download connections."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Roughly 67% of the diff consists of unit, fuzz, and integration test coverage. The remaining ~1,100 lines touch sensitive concurrency paths across validation, net_processing, and the kernel C-API.",
+  "changed_since_previous": "",
+  "card": "Moves block storage and chainstate activation off the P2P message loop to a single-threaded asynchronous validation worker, returning outcomes via futures and limiting each peer to one pending block. It also decouples block download tracking and compact-block reconstruction from cs_main. This solves stalls in P2P message handling where nodes become unresponsive to pings and serving requests while validating blocks. In author IBD benchmarks, PING latency dropped by 98% and block-serving latency decreased by 32-45%.",
+  "needs": [
+   "rest_of_diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "validation",
+    "p2p"
+   ],
+   "why": "Altering lock ordering around cs_main and shifting block validation to an asynchronous worker could introduce race conditions, peer misattribution, deadlocks, or state corruption during chain activation."
+  }
+ }
+}

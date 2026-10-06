@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-10-06T01:20:19+00:00",
+ "card": "This pull request fixes a P2P transaction relay hole where orphan transactions scheduled for reconsideration are permanently stranded if their selected announcer disconnects or gets evicted before processing. Under the bug, other peers announcing the same transaction cannot trigger processing because the node already holds it, allowing peers to intentionally delay CPFP package entry until orphanage eviction. The change reassigns reconsideration to another remaining announcer upon disconnection and introduces an end-to-end P2P fuzz harness that catches liveness failures in parent-child relay.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit e974d21b4e notes: 'This keeps e.g. a CPFP child of a parent that pays for itself out of the mempool until the orphan is evicted, and an announcer can cause it on purpose.'",
+  "PR description explains the newly added fuzz harness reliably reproduced the flaw: 'With that flag turned off, the target finds this bug on master from an empty corpus in under an hour on one core; an earlier version found it first (#36371).'"
+ ],
+ "head_sha": "e974d21b4e44ff637345b00e6f4dd74b45100fdb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36437,
+ "patch_id": "nopatch",
+ "problem": "When an orphan transaction's missing parent arrives and is accepted, the orphan is scheduled in a single announcer's work set for reconsideration. If that peer disconnects or is evicted before the retry executes, the orphan is abandoned in the orphanage without being re-evaluated, and re-announcements from other peers are ignored because the node already holds the orphan. An adversary can exploit this to stall relay of transactions such as CPFP children until the orphan expires.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p",
+   "tests"
+  ],
+  "why": "A flaw in P2P transaction relay and orphan handling can stall transaction propagation across the network or expose nodes to remote denial-of-service."
+ },
+ "run": "run:20261006-0120-assess",
+ "scope_notes": "The bulk of the line count (+628 lines) is the new end-to-end fuzz harness p2p_1p1c_liveness; the actual bugfix in TxOrphanage is a small logic adjustment.",
+ "size": {
+  "additions": 628,
+  "deletions": 10,
+  "files": 6,
+  "test_lines": null
+ },
+ "summary": "Fixes a transaction relay liveness bug in TxOrphanage where an orphan transaction pending reconsideration is dropped if its assigned announcer disconnects or is evicted before processing. Reconsideration is handed over to a remaining announcer with the lowest NodeId instead. Also adds a new end-to-end P2P fuzz target, p2p_1p1c_liveness, that verifies parent-and-child relay liveness across adversarial peer interactions.",
+ "uncertainties": []
+}

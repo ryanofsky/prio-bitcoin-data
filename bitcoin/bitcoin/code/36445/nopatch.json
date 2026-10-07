@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-10-07T01:16:15+00:00",
+ "card": "Skips acquiring cs_main in ProcessOrphanTx when a peer has no orphan transactions queued, checking under m_tx_download_mutex first. Currently, ProcessMessages takes cs_main unconditionally for every peer on every message-handling pass, causing message processing to block on active validation or RPC operations. In author benchmarks with cs_main held for 50 ms, ping handling latency dropped from 50.1 ms to 0.02 ms. Intended to reduce lock contention independently while paving the way for asynchronous block processing in #36244.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#36244"
+  ]
+ },
+ "evidence": [
+  "Author benchmark: when another thread holds cs_main for 50 ms, handling a ping message in ProcessMessages drops from 50.1 ms on master to 0.02 ms with this change (PR description)."
+ ],
+ "head_sha": "6549bb4bd6ae27c339c7a277bab9d48ed2fb730c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36445,
+ "patch_id": "nopatch",
+ "problem": "ProcessMessages calls ProcessOrphanTx for each connected peer on every loop pass (at least every 100 ms), acquiring cs_main unconditionally even when the peer has no orphan work. This causes the P2P message handler to unnecessarily block on validation, RPC, or wallet threads holding cs_main, delaying processing of unrelated messages such as pings.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "validation"
+  ],
+  "why": "Incorrect locking or race conditions during orphan transaction reconsideration could lead to orphaned transactions being skipped or deadlocks between m_tx_download_mutex and cs_main."
+ },
+ "run": "run:20261007-0115-assess",
+ "scope_notes": "Small change (+38/-0 across 2 files) including a unit or functional test; the diff was omitted from the prompt.",
+ "size": {
+  "additions": 38,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Checks for pending peer orphan transactions under m_tx_download_mutex before acquiring cs_main in ProcessOrphanTx. When a peer has no orphan transactions to reconsider, ProcessMessages returns early without locking cs_main. A test is added verifying that ProcessMessages completes without cs_main contention when no orphan work is pending.",
+ "uncertainties": []
+}

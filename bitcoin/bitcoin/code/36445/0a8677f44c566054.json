@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-08T01:23:13+00:00",
+ "card": "Skips acquiring cs_main in ProcessOrphanTx when a peer has no orphan transactions queued, checking under m_tx_download_mutex first. Currently, ProcessMessages acquires cs_main unconditionally on every peer handler pass, blocking P2P message processing whenever validation, RPC, or wallet threads hold cs_main. In author benchmarks where cs_main was held for 50 ms, ping handling latency dropped from 50.1 ms to 0.02 ms. The PR is self-contained and related to broader lock-reduction work in #36244.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author microbenchmarks show ProcessMessages handling a ping taking 50.1 ms on master when cs_main is held for 50 ms by another thread, dropping to 0.02 ms with this change.",
+  "A unit test (process_messages_without_orphan_work) reproduces the block on master and passes with this change."
+ ],
+ "head_sha": "6549bb4bd6ae27c339c7a277bab9d48ed2fb730c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36445,
+ "patch_id": "0a8677f44c566054",
+ "problem": "ProcessMessages routinely calls ProcessOrphanTx on each message-processing pass, acquiring cs_main unconditionally even when a peer has no orphan work. P2P message processing for that peer then blocks whenever validation, RPC, or wallet threads hold cs_main.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A race condition or locking bug here could delay orphan transaction processing or cause deadlocks during P2P message handling."
+ },
+ "run": "run:20261008-0122-assess",
+ "scope_notes": "Small two-line change in net_processing.cpp paired with a multithreaded unit test in peerman_tests.cpp.",
+ "size": {
+  "additions": 38,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": 36
+ },
+ "summary": "Check whether a peer has orphan transactions waiting under m_tx_download_mutex before acquiring cs_main in ProcessOrphanTx. When no orphan work is queued, ProcessOrphanTx returns immediately without contending for cs_main. A unit test verifies ProcessMessages completes while cs_main is held elsewhere.",
+ "uncertainties": []
+}

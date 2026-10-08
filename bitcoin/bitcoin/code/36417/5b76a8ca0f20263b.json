@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-08T01:23:12+00:00",
+ "card": "Fixes public key extraction validation in BIP-352 silent payments processing (GetPubKeyFromInput). Previously, redeem script hashes for P2SH inputs and witness program matches for P2WPKH inputs were not verified, allowing non-P2WPKH inputs to be falsely included in the silent payment aggregate input key and silently corrupting shared secret derivation. The PR adds checks for redeem script hash matching, single-push scriptSig constraints, two-element witness stacks, and witness program hash equality, backed by unit tests.",
+ "changed_since_previous": "No functional changes to the implementation; commit rebased or refreshed.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's PR description: 'Because GetPubKeyFromInput() operates in isolation without full transaction script verification, an input spending any arbitrary P2SH UTXO (e.g. multisig, escrow, DLC) whose scriptSig evaluates to a valid P2WPKH script is erroneously identified as an eligible BIP-352 input. Its public key is extracted and added to A_sum, silently corrupting the input hash and the derived shared secret.'"
+ ],
+ "head_sha": "d403c68d96f2b93e0424937bb65aa77c53bb55db",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36417,
+ "patch_id": "5b76a8ca0f20263b",
+ "problem": "Because `GetPubKeyFromInput` evaluates inputs in isolation and clears `Solver` solutions before checking the redeem script, non-P2WPKH P2SH inputs (such as multisig) spending with a P2WPKH redeem script in scriptSig were mistakenly treated as eligible silent payment inputs. Additionally, witness stack size constraints and public key hash matches were not verified, allowing mismatched or non-standard inputs to contribute unintended public keys to the silent payment aggregate sum (`A_sum`) and corrupt derived shared secrets.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "other"
+  ],
+  "why": "A flaw in silent payment input public key extraction could cause sender and receiver to compute divergent shared secrets, making silent payment transactions undetectable or misdirected."
+ },
+ "run": "run:20261008-0122-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 82,
+  "deletions": 3,
+  "files": 2,
+  "test_lines": 75
+ },
+ "summary": "Validates redeem scripts, pubkey hashes, and witness stack sizes within BIP-352 silent payments input public key extraction (`GetPubKeyFromInput`). For nested P2SH-P2WPKH, it checks that the scriptSig pushes exactly one element whose hash matches the UTXO's script hash. For both native and nested P2WPKH inputs, it enforces a two-element witness stack and verifies that the extracted public key hashes to the witness program.",
+ "uncertainties": []
+}

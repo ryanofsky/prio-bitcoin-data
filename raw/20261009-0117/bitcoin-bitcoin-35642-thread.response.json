@@ -1,0 +1,480 @@
+{
+ "run": "run:20261009-0117",
+ "pr": "bitcoin/bitcoin#35642",
+ "stage": "thread",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 1,
+ "created": "2026-10-09T01:18:25+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 16027,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 15329
+ },
+ "cost_usd": 0.069504,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"ajtowns\",\n      \"stance\": \"support\",\n      \"note\": \"Approach ACK; asked about potential anonymity impact of NodeClock::now()\"\n    },\n    {\n      \"login\": \"sedited\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK\"\n    },\n    {\n      \"login\": \"darosior\",\n      \"stance\": \"objection\",\n      \"note\": \"ACK; found mid-batch abort rate underestimation; suggested simplifying Step 2 and moving param struct\"\n    },\n    {\n      \"login\": \"shuv-amp\",\n      \"stance\": \"objection\",\n      \"note\": \"flagged potential int overflow in presync height and solver infinite loops on edge-case inputs\"\n    },\n    {\n      \"login\": \"fjahr\",\n      \"stance\": \"support\",\n      \"note\": \"Concept ACK\"\n    },\n    {\n      \"login\": \"l0rinc\",\n      \"stance\": \"objection\",\n      \"note\": \"Concept ACK but requested changes; flagged floating-point bisection loop hang on x87; suggested moving HeadersSyncParams, dropping fuzz override, and calculation simplifications\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"rc:3514402726\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"safety\",\n      \"text\": \"whether NodeClock::now() influencing the parameters causes an anonymity break\",\n      \"quote\": \"Is there any anonymity breaking via `NodeClock::now()` influencing these parameters?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author showed parameters change only roughly every 22 days and quantizing would not gain much\",\n      \"author_replies\": [\"rc:3514568670\", \"rc:3514828065\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:3514828065\",\n      \"status_by_quote\": \"It looks like the output parameters only change roughly every 22 days. I don't think quantizing further gains us much\"\n    },\n    {\n      \"id\": \"c:5269371252\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"presync height can exceed INT_MAX and overflow on long timewarp chains\",\n      \"quote\": \"For the long timewarp chains you mention, the presync height can exceed `INT_MAX` and overflow.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author added a commit to use int64_t\",\n      \"author_replies\": [\"c:5296342342\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5296342342\",\n      \"status_by_quote\": \"That's mostly independent of this PR, but added a commit to address that.\"\n    },\n    {\n      \"id\": \"c:5297347941\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"ComputeHeadersSyncParams() hangs indefinitely for small minchainwork heights and short timespans\",\n      \"quote\": \"ComputeHeadersSyncParams() doesn't terminate for a small minchainwork_headers combined with a short timespan\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"fixed with bounded loop iterations and assumptions\",\n      \"author_replies\": [\"c:5346650795\", \"c:5357592309\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5346650795\",\n      \"status_by_quote\": \"Fixed, and added some extra `Assume()`s in the code.\"\n    },\n    {\n      \"id\": \"c:5546533833\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"move the HeadersSyncParams definition from chainparams to the headersync module\",\n      \"quote\": \"The `HeadersSyncParams` definition can now be moved from chainparams to the headersync module.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"moved to headerssync.h in a later commit\",\n      \"author_replies\": [\"rc:4223054953\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223054953\",\n      \"status_by_quote\": \"Done, in a later commit.\"\n    },\n    {\n      \"id\": \"rc:4009020433\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"avoid square root indirection by using gamma and memory_factor directly\",\n      \"quote\": \"Why is this square root \\\"indirection\\\" necessary? Using `gamma = bufsize / period` (intuitively \\\"bits of security\\\") and `memory_factor = (max_headers - mcw_headers) / COMPACT_HEADER_SIZE` directly seem\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"superseded when author rewrote the algorithm to drop batch assumptions\",\n      \"author_replies\": [\"c:5671114593\", \"c:5685669580\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"r:5250047249\",\n      \"status_by_quote\": \"ACK 526db3911d400b793e5715c0f989f1d3b66ac12e\"\n    },\n    {\n      \"id\": \"rc:4009670918\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"the parameter search underestimates attack rate by assuming attackers cannot abort mid-batch\",\n      \"quote\": \"this routine underestimates the rate, because an incomplete batch sent by an attacker may be detected, but will still lead to processing as many headers from the buffer\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"rewritten with single-header arrival model\",\n      \"author_replies\": [\"c:5671114593\", \"c:5685669580\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:5685669580\",\n      \"status_by_quote\": \"Rewritten to take that approach. The commit history is simpler now too\"\n    },\n    {\n      \"id\": \"rc:4048544161\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"usefulness\",\n      \"text\": \"asks whether Step 2 is still useful under the new approach and suggests dropping or simplifying it\",\n      \"quote\": \"Is Step 2 really useful anymore with the new approach?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"author simplified Step 2 to check only floor and ceil of optimal period, which reviewer accepted\",\n      \"author_replies\": [\"rc:4050560007\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4050783818\",\n      \"status_by_quote\": \"Neat.\"\n    },\n    {\n      \"id\": \"rc:4214406451\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"safety\",\n      \"text\": \"asks why Assume is used rather than Assert for preconditions, and whether zero inputs could cause division by zero or infinity-to-integer conversion in production\",\n      \"quote\": \"is there a reason to use `Assume` (rather than `Assert`) for these preconditions? Shouldn't these abort in production? It seems to me that zero inputs could theoretically still lead to division by zero or an infinity-to-integer conversion.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"open\",\n      \"status_note\": \"\",\n      \"author_replies\": [],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"\",\n      \"status_by_quote\": \"\"\n    },\n    {\n      \"id\": \"rc:4215432352\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"the floating-point bisection loop can infinite-loop due to x87 excess precision\",\n      \"quote\": \"Digging further with AI pointed to x87 excess precision: a midpoint can compare between the endpoints, then round back to one when stored, leaving the loop with no progress.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author switched to integer bisection over bufsize\",\n      \"author_replies\": [\"rc:4223034868\", \"rc:4223043409\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223043409\",\n      \"status_by_quote\": \"Fixed, but with a much better alternative: do the bisection over integer `bufsize` values\"\n    },\n    {\n      \"id\": \"rc:4215548260\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"move HeadersSyncParams and return the struct directly from ComputeHeadersSyncParams instead of std::pair\",\n      \"quote\": \"Since we already have a `HeadersSyncParams` type could we move it and use it here as well (as @darosior also hinted I think)?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"moved HeadersSyncParams to headerssync.h in a later commit\",\n      \"author_replies\": [\"rc:4223054953\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223054953\",\n      \"status_by_quote\": \"Done, in a later commit.\"\n    },\n    {\n      \"id\": \"rc:4215563224\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"drop the headers_sync_params test override and use the existing fixed fuzz clocks\",\n      \"quote\": \"With the rewrite down to about 3 \u00b5s per call and fixed clocks already in these fuzz targets, is the override still worth keeping?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author removed the fuzz override and attributed the change\",\n      \"author_replies\": [\"rc:4223057506\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223057506\",\n      \"status_by_quote\": \"Done, and attributed.\"\n    },\n    {\n      \"id\": \"rc:4215577524\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"track only fail_buf while growing the search range and derive succ_buf at the end\",\n      \"quote\": \"Since `fail_buf = 2 * succ_buf + 1` throughout the growth loop, we can grow just `fail_buf` internally and derive `succ_buf` at the end.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author adopted the single-bound growth simplification\",\n      \"author_replies\": [\"rc:4222945901\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4222945901\",\n      \"status_by_quote\": \"Done.\"\n    },\n    {\n      \"id\": \"rc:4216174276\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"style\",\n      \"text\": \"simplify the remainder calculation using the modulo operator\",\n      \"quote\": \"Unless I'm missing something, this could be simplified to modulo, see https://godbolt.org/z/53PfMqxnj.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author adopted the modulo operator\",\n      \"author_replies\": [\"rc:4223031132\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223031132\",\n      \"status_by_quote\": \"Done.\"\n    },\n    {\n      \"id\": \"rc:4216190418\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"drop the unnecessary BasicTestingSetup fixture in headerssync_tests\",\n      \"quote\": \"Nit: this only tests `ComputeHeadersSyncParamsInner` (which doesn\u2019t need the node setup), could we drop the fixture?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author dropped the fixture\",\n      \"author_replies\": [\"rc:4222944637\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4222944637\",\n      \"status_by_quote\": \"Done.\"\n    },\n    {\n      \"id\": \"rc:4216211760\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"keep the COMPACT_HEADER_SIZE assertion in the test rather than the implementation\",\n      \"quote\": \"Since this assertion protects the test vectors (and since `ComputeHeadersSyncParamsInner` is already very complicated), I\u2019d keep it in the test.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author declined to move the assert to avoid risk of disconnect\",\n      \"author_replies\": [\"rc:4222970647\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:4222970647\",\n      \"status_by_quote\": \"I didn't take this, as it risks a disconnect between the two\"\n    },\n    {\n      \"id\": \"rc:4216439505\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"style\",\n      \"text\": \"separate expected headers from probability calculation in attack_rate\",\n      \"quote\": \"Nit: I find the preceding `2^-K * ...` form easier to follow. Could we separate the expected headers from the probability of passing the first `K` checks here?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author adopted the separation\",\n      \"author_replies\": [\"rc:4223032721\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223032721\",\n      \"status_by_quote\": \"Done.\"\n    },\n    {\n      \"id\": \"rc:4216461724\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"explore whether restricting the buffer to whole commitment periods could eliminate both searches\",\n      \"quote\": \"I wonder whether we need to find the optimum this precisely. If we restricted the buffer to whole commitment periods, we could calculate its size directly, and a logarithmic estimate might replace the period search too.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author prefers finding the exact optimum and added a comparison commit with a naive search\",\n      \"author_replies\": [\"rc:4222997179\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:4222997179\",\n      \"status_by_quote\": \"I still like the fact that it actually finds *the* optimal solution (within rounding precision) to a well-defined (but weakened) variant of the real problem\"\n    },\n    {\n      \"id\": \"rc:4216477737\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"precompute std::log2(attack_headers) once in the lambda capture\",\n      \"quote\": \"Nit: The attack budget stays fixed during this search, so we could calculate its logarithm once in the capture.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author precomputed the logarithm in the capture\",\n      \"author_replies\": [\"rc:4223034130\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:4223034130\",\n      \"status_by_quote\": \"Done.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:5069107232\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"no reason given: Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"c:5205781986\",\n      \"verdict\": \"Approach ACK\",\n      \"reason\": \"no reason given: Approach ACK ; needs rebase if wanted for 32.0 I guess?\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"c:5207404954\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"no reason given: Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"c:5367998461\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"no reason given: Concept ACK\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:5250047249\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"substantive: reviewed calculation from scratch; the latest approach is easier to grasp and the looser upper bound is the right tradeoff\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:5252721431\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"no reason given: re-ACK 0e473d175224746c13678db5106f9d4ab1086b9d\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:5368176826\",\n      \"verdict\": \"ACK\",\n      \"reason\": \"no reason given: re-ACK 9f7bcfe8747\",\n      \"substantive\": false,\n      \"evidence\": \"none\",\n      \"areas\": []\n    },\n    {\n      \"id\": \"r:5412352111\",\n      \"verdict\": \"Concept ACK\",\n      \"reason\": \"calculating the parameters at startup from elapsed time since genesis, instead of predicting the release's lifetime\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": []\n    }\n  ],\n  \"waiting_on\": [\n    {\n      \"on\": \"author\",\n      \"what\": \"answer l0rinc's question about Assume vs Assert on preconditions\",\n      \"id\": \"rc:4214406451\"\n    },\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"l0rinc to re-review after author addressed suggestions and fixed integer bisection\",\n      \"id\": \"rc:4223057506\"\n    }\n  ],\n  \"notes\": \"Added review comments from l0rinc and sipa's responses. Darosior's earlier suggestion to move HeadersSyncParams is now marked fixed following author's confirmation.\"\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "ajtowns",
+    "stance": "support",
+    "note": "Approach ACK; asked about potential anonymity impact of NodeClock::now()"
+   },
+   {
+    "login": "sedited",
+    "stance": "support",
+    "note": "Concept ACK"
+   },
+   {
+    "login": "darosior",
+    "stance": "objection",
+    "note": "ACK; found mid-batch abort rate underestimation; suggested simplifying Step 2 and moving param struct"
+   },
+   {
+    "login": "shuv-amp",
+    "stance": "objection",
+    "note": "flagged potential int overflow in presync height and solver infinite loops on edge-case inputs"
+   },
+   {
+    "login": "fjahr",
+    "stance": "support",
+    "note": "Concept ACK"
+   },
+   {
+    "login": "l0rinc",
+    "stance": "objection",
+    "note": "Concept ACK but requested changes; flagged floating-point bisection loop hang on x87; suggested moving HeadersSyncParams, dropping fuzz override, and calculation simplifications"
+   }
+  ],
+  "claims": [
+   {
+    "id": "rc:3514402726",
+    "part": 1,
+    "type": "question",
+    "kind": "safety",
+    "text": "whether NodeClock::now() influencing the parameters causes an anonymity break",
+    "quote": "Is there any anonymity breaking via `NodeClock::now()` influencing these parameters?",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author showed parameters change only roughly every 22 days and quantizing would not gain much",
+    "author_replies": [
+     "rc:3514568670",
+     "rc:3514828065"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:3514828065",
+    "status_by_quote": "It looks like the output parameters only change roughly every 22 days. I don't think quantizing further gains us much"
+   },
+   {
+    "id": "c:5269371252",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "presync height can exceed INT_MAX and overflow on long timewarp chains",
+    "quote": "For the long timewarp chains you mention, the presync height can exceed `INT_MAX` and overflow.",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author added a commit to use int64_t",
+    "author_replies": [
+     "c:5296342342"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:5296342342",
+    "status_by_quote": "That's mostly independent of this PR, but added a commit to address that."
+   },
+   {
+    "id": "c:5297347941",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "ComputeHeadersSyncParams() hangs indefinitely for small minchainwork heights and short timespans",
+    "quote": "ComputeHeadersSyncParams() doesn't terminate for a small minchainwork_headers combined with a short timespan",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "fixed with bounded loop iterations and assumptions",
+    "author_replies": [
+     "c:5346650795",
+     "c:5357592309"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:5346650795",
+    "status_by_quote": "Fixed, and added some extra `Assume()`s in the code."
+   },
+   {
+    "id": "c:5546533833",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "move the HeadersSyncParams definition from chainparams to the headersync module",
+    "quote": "The `HeadersSyncParams` definition can now be moved from chainparams to the headersync module.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "moved to headerssync.h in a later commit",
+    "author_replies": [
+     "rc:4223054953"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223054953",
+    "status_by_quote": "Done, in a later commit."
+   },
+   {
+    "id": "rc:4009020433",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "avoid square root indirection by using gamma and memory_factor directly",
+    "quote": "Why is this square root \"indirection\" necessary? Using `gamma = bufsize / period` (intuitively \"bits of security\") and `memory_factor = (max_headers - mcw_headers) / COMPACT_HEADER_SIZE` directly seem",
+    "clears_with": "answer",
+    "status": "accepted",
+    "status_note": "superseded when author rewrote the algorithm to drop batch assumptions",
+    "author_replies": [
+     "c:5671114593",
+     "c:5685669580"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "r:5250047249",
+    "status_by_quote": "ACK 526db3911d400b793e5715c0f989f1d3b66ac12e"
+   },
+   {
+    "id": "rc:4009670918",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "the parameter search underestimates attack rate by assuming attackers cannot abort mid-batch",
+    "quote": "this routine underestimates the rate, because an incomplete batch sent by an attacker may be detected, but will still lead to processing as many headers from the buffer",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "rewritten with single-header arrival model",
+    "author_replies": [
+     "c:5671114593",
+     "c:5685669580"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:5685669580",
+    "status_by_quote": "Rewritten to take that approach. The commit history is simpler now too"
+   },
+   {
+    "id": "rc:4048544161",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "usefulness",
+    "text": "asks whether Step 2 is still useful under the new approach and suggests dropping or simplifying it",
+    "quote": "Is Step 2 really useful anymore with the new approach?",
+    "clears_with": "answer",
+    "status": "accepted",
+    "status_note": "author simplified Step 2 to check only floor and ceil of optimal period, which reviewer accepted",
+    "author_replies": [
+     "rc:4050560007"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4050783818",
+    "status_by_quote": "Neat."
+   },
+   {
+    "id": "rc:4214406451",
+    "part": 1,
+    "type": "question",
+    "kind": "safety",
+    "text": "asks why Assume is used rather than Assert for preconditions, and whether zero inputs could cause division by zero or infinity-to-integer conversion in production",
+    "quote": "is there a reason to use `Assume` (rather than `Assert`) for these preconditions? Shouldn't these abort in production? It seems to me that zero inputs could theoretically still lead to division by zero or an infinity-to-integer conversion.",
+    "clears_with": "answer",
+    "status": "open",
+    "status_note": "",
+    "author_replies": [],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "",
+    "status_by_quote": ""
+   },
+   {
+    "id": "rc:4215432352",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "the floating-point bisection loop can infinite-loop due to x87 excess precision",
+    "quote": "Digging further with AI pointed to x87 excess precision: a midpoint can compare between the endpoints, then round back to one when stored, leaving the loop with no progress.",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author switched to integer bisection over bufsize",
+    "author_replies": [
+     "rc:4223034868",
+     "rc:4223043409"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223043409",
+    "status_by_quote": "Fixed, but with a much better alternative: do the bisection over integer `bufsize` values"
+   },
+   {
+    "id": "rc:4215548260",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "move HeadersSyncParams and return the struct directly from ComputeHeadersSyncParams instead of std::pair",
+    "quote": "Since we already have a `HeadersSyncParams` type could we move it and use it here as well (as @darosior also hinted I think)?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "moved HeadersSyncParams to headerssync.h in a later commit",
+    "author_replies": [
+     "rc:4223054953"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223054953",
+    "status_by_quote": "Done, in a later commit."
+   },
+   {
+    "id": "rc:4215563224",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "drop the headers_sync_params test override and use the existing fixed fuzz clocks",
+    "quote": "With the rewrite down to about 3 \u00b5s per call and fixed clocks already in these fuzz targets, is the override still worth keeping?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author removed the fuzz override and attributed the change",
+    "author_replies": [
+     "rc:4223057506"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223057506",
+    "status_by_quote": "Done, and attributed."
+   },
+   {
+    "id": "rc:4215577524",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "track only fail_buf while growing the search range and derive succ_buf at the end",
+    "quote": "Since `fail_buf = 2 * succ_buf + 1` throughout the growth loop, we can grow just `fail_buf` internally and derive `succ_buf` at the end.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author adopted the single-bound growth simplification",
+    "author_replies": [
+     "rc:4222945901"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4222945901",
+    "status_by_quote": "Done."
+   },
+   {
+    "id": "rc:4216174276",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "style",
+    "text": "simplify the remainder calculation using the modulo operator",
+    "quote": "Unless I'm missing something, this could be simplified to modulo, see https://godbolt.org/z/53PfMqxnj.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author adopted the modulo operator",
+    "author_replies": [
+     "rc:4223031132"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223031132",
+    "status_by_quote": "Done."
+   },
+   {
+    "id": "rc:4216190418",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "drop the unnecessary BasicTestingSetup fixture in headerssync_tests",
+    "quote": "Nit: this only tests `ComputeHeadersSyncParamsInner` (which doesn\u2019t need the node setup), could we drop the fixture?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author dropped the fixture",
+    "author_replies": [
+     "rc:4222944637"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4222944637",
+    "status_by_quote": "Done."
+   },
+   {
+    "id": "rc:4216211760",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "keep the COMPACT_HEADER_SIZE assertion in the test rather than the implementation",
+    "quote": "Since this assertion protects the test vectors (and since `ComputeHeadersSyncParamsInner` is already very complicated), I\u2019d keep it in the test.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author declined to move the assert to avoid risk of disconnect",
+    "author_replies": [
+     "rc:4222970647"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:4222970647",
+    "status_by_quote": "I didn't take this, as it risks a disconnect between the two"
+   },
+   {
+    "id": "rc:4216439505",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "style",
+    "text": "separate expected headers from probability calculation in attack_rate",
+    "quote": "Nit: I find the preceding `2^-K * ...` form easier to follow. Could we separate the expected headers from the probability of passing the first `K` checks here?",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author adopted the separation",
+    "author_replies": [
+     "rc:4223032721"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223032721",
+    "status_by_quote": "Done."
+   },
+   {
+    "id": "rc:4216461724",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "explore whether restricting the buffer to whole commitment periods could eliminate both searches",
+    "quote": "I wonder whether we need to find the optimum this precisely. If we restricted the buffer to whole commitment periods, we could calculate its size directly, and a logarithmic estimate might replace the period search too.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author prefers finding the exact optimum and added a comparison commit with a naive search",
+    "author_replies": [
+     "rc:4222997179"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:4222997179",
+    "status_by_quote": "I still like the fact that it actually finds *the* optimal solution (within rounding precision) to a well-defined (but weakened) variant of the real problem"
+   },
+   {
+    "id": "rc:4216477737",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "precompute std::log2(attack_headers) once in the lambda capture",
+    "quote": "Nit: The attack budget stays fixed during this search, so we could calculate its logarithm once in the capture.",
+    "clears_with": "answer",
+    "status": "fixed",
+    "status_note": "author precomputed the logarithm in the capture",
+    "author_replies": [
+     "rc:4223034130"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:4223034130",
+    "status_by_quote": "Done."
+   }
+  ],
+  "support": [
+   {
+    "id": "c:5069107232",
+    "verdict": "Concept ACK",
+    "reason": "no reason given: Concept ACK",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "c:5205781986",
+    "verdict": "Approach ACK",
+    "reason": "no reason given: Approach ACK ; needs rebase if wanted for 32.0 I guess?",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "c:5207404954",
+    "verdict": "Concept ACK",
+    "reason": "no reason given: Concept ACK",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "c:5367998461",
+    "verdict": "Concept ACK",
+    "reason": "no reason given: Concept ACK",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "r:5250047249",
+    "verdict": "ACK",
+    "reason": "substantive: reviewed calculation from scratch; the latest approach is easier to grasp and the looser upper bound is the right tradeoff",
+    "substantive": true,
+    "evidence": "read",
+    "areas": []
+   },
+   {
+    "id": "r:5252721431",
+    "verdict": "ACK",
+    "reason": "no reason given: re-ACK 0e473d175224746c13678db5106f9d4ab1086b9d",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "r:5368176826",
+    "verdict": "ACK",
+    "reason": "no reason given: re-ACK 9f7bcfe8747",
+    "substantive": false,
+    "evidence": "none",
+    "areas": []
+   },
+   {
+    "id": "r:5412352111",
+    "verdict": "Concept ACK",
+    "reason": "calculating the parameters at startup from elapsed time since genesis, instead of predicting the release's lifetime",
+    "substantive": true,
+    "evidence": "read",
+    "areas": []
+   }
+  ],
+  "waiting_on": [
+   {
+    "on": "author",
+    "what": "answer l0rinc's question about Assume vs Assert on preconditions",
+    "id": "rc:4214406451"
+   },
+   {
+    "on": "reviewer",
+    "what": "l0rinc to re-review after author addressed suggestions and fixed integer bisection",
+    "id": "rc:4223057506"
+   }
+  ],
+  "notes": "Added review comments from l0rinc and sipa's responses. Darosior's earlier suggestion to move HeadersSyncParams is now marked fixed following author's confirmation."
+ },
+ "applied": {
+  "changes": [
+   "claim c:5546533833: suggestion/answer/open -> suggestion/answer/fixed",
+   "claim rc:4214406451 added (question, clears with answer, open) by l0rinc",
+   "claim rc:4215432352 added (objection, clears with change, fixed) by l0rinc",
+   "claim rc:4215548260 added (suggestion, clears with answer, fixed) by l0rinc",
+   "claim rc:4215563224 added (suggestion, clears with answer, fixed) by l0rinc",
+   "claim rc:4215577524 added (suggestion, clears with answer, fixed) by l0rinc",
+   "claim rc:4216174276 added (suggestion, clears with answer, fixed) by l0rinc",
+   "claim rc:4216190418 added (suggestion, clears with answer, fixed) by l0rinc",
+   "claim rc:4216211760 added (suggestion, clears with answer, answered) by l0rinc",
+   "claim rc:4216439505 added (suggestion, clears with answer, fixed) by l0rinc",
+   "claim rc:4216461724 added (suggestion, clears with answer, answered) by l0rinc",
+   "claim rc:4216477737 added (suggestion, clears with answer, fixed) by l0rinc",
+   "support r:5412352111 added by l0rinc",
+   "waiting on: author (answer l0rinc's question about Assume vs Assert on preconditions), reviewer (l0rinc to re-review after author addressed suggestions and fixed integer bisection)"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

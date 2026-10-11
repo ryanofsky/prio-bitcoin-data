@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-11T01:23:27+00:00",
+ "card": "Bounds descriptor key expansion during import top-ups to start at range_start rather than index 0, and records the derived index directly. Currently, importing a descriptor with range [N, M] derives and caches all keys from 0 to M, making import cost O(M) instead of O(M - N) and causing keys below N to appear as owned during import only to disappear when the wallet is reloaded. The author reports that importing a 10-key range starting at index 600,000 drops from 19.5 seconds to 0.09 seconds, and prevents pathological large range starts from attempting to derive up to 2^31 keys.",
+ "changed_since_previous": "No functional differences; patch rebased or re-formatted.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmark: 'Importing wpkh(xpub/0/*) with \"range\": [600000, 600009] into a blank watch-only wallet goes from 19.5s to 0.09s on this machine.' (PR description)",
+  "Author notes vulnerability to excessive derivation: 'Since ParseDescriptorRange() only bounds the size of the range and not its start, \"range\": [2146483648, 2147483647] is accepted and expands 2^31 indexes into m_map_script_pub_keys before the RPC returns.' (PR description)"
+ ],
+ "head_sha": "20a828b3219844c1f1b7624915254bac0c4de8f9",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36245,
+ "patch_id": "8213ef4a42d9209d",
+ "problem": "When importing a descriptor with range `[N, M]`, the wallet expands and tracks keys starting from index 0 instead of `N`. This causes import times to scale with M rather than the range size M - N, falsely treats scriptPubKeys below N as `IsMine` until wallet restart (causing rescanned transactions below N to lose ownership on reload), can trigger derivation of up to 2^31 keys for high range starts, and causes redundant re-expansions on active wallet reload due to miscalculated `m_max_cached_index`.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet"
+  ],
+  "why": "Flaws in descriptor address derivation or caching could cause wallets to fail to detect incoming transactions or misreport wallet ownership."
+ },
+ "run": "run:20261011-0123-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 43,
+  "deletions": 3,
+  "files": 2,
+  "test_lines": 37
+ },
+ "summary": "Restricts descriptor expansion in `DescriptorScriptPubKeyMan::TopUpWithDB()` to start at `range_start` instead of index 0, and records the derived index directly rather than incrementing an offset from -1. Also aligns `DescriptorScriptPubKeyMan::Load()` to set `m_max_cached_index` to the actual index loaded.",
+ "uncertainties": []
+}

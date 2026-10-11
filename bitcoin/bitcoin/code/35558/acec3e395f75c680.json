@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-11T01:23:28+00:00",
+ "card": "Predictively prefills compact blocks with transactions missing during reconstruction, bounding prefill payload size to the connection's TCP window to avoid adding extra network round-trips. In the author's live network testing, this increased compact block single-round reconstructions from 56.9% to 89.7% at the expense of roughly 1.4 MiB per day in bandwidth. Because it follows the BIP152 protocol without protocol changes, older nodes benefit immediately without upgrades. The branch is stacked on open PR 35724.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#35724"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "Author's 1-month live network measurements (2026-02-15 to 2026-03-16): 'a node receiving prefilled CMPCTBLOCKs limited to the TCP window size was able to reconstruct 89.7% of compact blocks received without a GETBLOCKTXN roundtrip, and a node receiving typical CMPCTBLOCKs with only coinbases prefilled was able to reconstruct 56.9% of blocks received without a GETBLOCKTXN roundtrip.'",
+  "Author bandwidth analysis: 'The mean prefill sent was 1,694.64 bytes and the median was 897 bytes. If all the bytes of every prefill were redundant, the cost... would be 1.39 MiB per node in wasted bandwidth per day'."
+ ],
+ "head_sha": "78483131a19550413918124fda6054da84db2b38",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35558,
+ "patch_id": "acec3e395f75c680",
+ "problem": "Nodes currently only prefill coinbase transactions in compact blocks, causing peers to miss transactions and spend a high-latency round-trip requesting them with GETBLOCKTXN. This extra round-trip delays network-wide block propagation, elevating stale block rates and orphan risks.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Flaws in TCP window calculation or compact block serialization could misformat P2P block messages or stall block propagation across diverse operating systems."
+ },
+ "run": "run:20261011-0123-assess",
+ "scope_notes": "Touches platform-specific socket inspection code across Linux, macOS, FreeBSD, NetBSD, OpenBSD, and Windows; sets minimum Windows target to Windows 10 1703 (NTDDI_VERSION 0x0A000003) to support SIO_TCP_INFO. Incorporates compact block message caching from closed PR #26755.",
+ "size": {
+  "additions": 719,
+  "deletions": 145,
+  "files": 16,
+  "test_lines": 139
+ },
+ "summary": "Improves BIP152 compact block relay by predictively prefilling CMPCTBLOCK messages with transactions the sender lacked in its mempool during reconstruction (those obtained via GETBLOCKTXN, found in the extrapool, or prefilled by another peer). To prevent transport-level latency regressions, prefilled blocks are bounded by checking the peer connection's TCP window (congestion window and receiver window) and sent only if they fit within the same number of TCP windows as an un-prefilled block.",
+ "uncertainties": []
+}

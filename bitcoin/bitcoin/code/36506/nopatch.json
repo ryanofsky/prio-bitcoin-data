@@ -1,0 +1,47 @@
+{
+ "assessed_at": "2026-10-13T01:25:52+00:00",
+ "card": "This PR fixes multiple liveness and pinning vulnerabilities in 1-parent-1-child package relay and orphan management, and introduces an end-to-end fuzz target to verify CPFP relay against adversarial peers. Currently, attackers can prevent valid fee-bumped transactions from reaching the mempool by disconnecting during orphan reconsideration, poisoning reject filters using witnessless txids, or triggering premature orphan eviction through reconsiderable package failures. The patch stops checking reject filters by txid, preserves orphans during retriable package failures, and caches nonstandard-input rejections to limit redownload bandwidth. It depends on #36437 and replaces #36369.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [
+   "#36437"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "Commit messages identify explicit failure mechanisms where adversarial announcements prevent honest parent-child relay, such as witnessless TX_CONFLICT entries blocking honest re-announcements and TX_RECONSIDERABLE package failures purging child transactions for all peers.",
+  "A dedicated end-to-end fuzz target ('fuzz: add end-to-end liveness target for parent and child relay') drives PeerManager with real validation to reproduce and flag known 1p1c liveness failure conditions.",
+  "Author's list of attack vectors: https://gist.github.com/instagibbs/880a76535fd802fced9f9a5253cdbb40"
+ ],
+ "head_sha": "077fd9207423268bc7eb17ca554a87be1237a542",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36506,
+ "patch_id": "nopatch",
+ "problem": "Adversarial peers can exploit orphan and package handling rules to stall or drop honest CPFP transactions. Attackers can orphan-pin by disconnecting while assigned orphan reconsideration work, inject witness-stripped transaction copies that trigger false positives in wtxid-keyed reject filters, cause premature orphan deletion across all peers on reconsiderable package feerate failures, or cancel pending parent txid requests.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p",
+   "mempool_policy",
+   "tests"
+  ],
+  "why": "Mistakes in P2P transaction request tracking, orphan resolution, or reject filters could lead to mempool desync, denial-of-service via unbounded transaction redownloads, or censorship of honest fee-bumping transactions."
+ },
+ "run": "run:20261013-0125-assess",
+ "scope_notes": "The author explicitly keeps this as a draft holding branch to demonstrate full coverage of known 1p1c liveness vectors, planning to peel fixes off into separate follow-up PRs. It includes a major end-to-end fuzz harness and incorporates changes originally proposed in #33066.",
+ "size": {
+  "additions": 1495,
+  "deletions": 152,
+  "files": 18,
+  "test_lines": null
+ },
+ "summary": "Adds an end-to-end liveness fuzz harness and resolves multiple pinning and stalling vectors in 1-parent-1-child (1p1c) package relay and orphan processing. Key fixes include reassigning orphan reconsideration when an announcer disconnects, preserving orphans across package feerate evaluation failures, decoupling txid and wtxid reject tracking, and tracking nonstandard-input rejections in a dedicated exact-match cache. It incorporates and refines the approach from #33066 while superseding #36369.",
+ "uncertainties": [
+  "The diff was omitted from the prompt, so implementation specifics of the reject filter replacement and fuzz target structure rely entirely on commit descriptions."
+ ]
+}

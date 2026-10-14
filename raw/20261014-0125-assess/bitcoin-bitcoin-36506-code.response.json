@@ -1,0 +1,45 @@
+{
+ "run": "run:20261014-0125-assess",
+ "pr": "bitcoin/bitcoin#36506",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-14T01:26:08+00:00",
+ "usage": {
+  "input_tokens": 17845,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2309
+ },
+ "cost_usd": 0.0220425,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Fixes several liveness and stalling bugs in 1-parent-1-child package relay and orphan handling, and adds an end-to-end fuzz harness (`p2p_1p1c_liveness`) to verify bounded propagation time of CPFP transactions under adversarial peer behavior. Fixes include reassigning orphan reconsideration to another announcer upon peer disconnection, preserving orphans during reconsiderable package feerate failures, and re-requesting missing parents when an orphan retry fails. It also decouples txid and wtxid handling in reject tracking and TxRequestTracker, ignoring TX_CONFLICT for reject filters and introducing a small, exact txid cache for nonstandard-input rejections.\",\n  \"problem\": \"Adversarial peers or benign edge cases can stall or permanently block honest 1p1c CPFP transactions from reaching the mempool. Specific vulnerabilities allow peers to orphan-pin by disconnecting while assigned reconsideration, poison wtxid-keyed reject filters with witnessless variants that drop honest orphans sharing the txid, wipe orphan state across all peers on temporary package feerate failures, or abort parent fetching when an accepted parent is evicted before an orphan is retried.\",\n  \"evidence\": [\n    \"Commit 65b48ba1f1: 'If that announcer disconnects or is evicted first, the orphan is never retried, and re-announcements by the other announcers don't fetch it again since it is already held... keeps e.g. a CPFP child of a parent that pays for itself out of the mempool until the orphan is evicted, and an announcer can cause it on purpose.'\",\n    \"Commit cf197bf63b: 'When a 1p1c package fails the package feerate check, the child gets a TX_RECONSIDERABLE result, and ProcessPackageResult passed it to ProcessInvalidTx, which erased the child from the orphanage for all of its announcers.'\",\n    \"Commit 73ce30f555: 'Orphan handling and txid lookups read the recent rejects filter by txid, but the filter is keyed by wtxid and a witnessless transaction's wtxid is its txid, so a rejected witness-stripped copy of any confirmed or mempool transaction made every orphan spending it be dropped.'\"\n  ],\n  \"dependencies\": {\n   \"depends_on\": [\n    \"#36437\"\n   ],\n   \"enables\": []\n  },\n  \"scope_notes\": \"About 900 of the ~1500 added lines are in tests, including a new 578-line end-to-end fuzz harness driving a live PeerManager (`p2p_1p1c_liveness.cpp`). The patch replaces #36369 and incorporates the approach from #33066.\",\n  \"changed_since_previous\": \"Initial description with full diff and commit history. Commits now include the addition and expansion of the end-to-end fuzz harness (`p2p_1p1c_liveness`) supporting child fee bumps.\",\n  \"card\": \"This PR fixes multiple liveness and pinning vulnerabilities in 1-parent-1-child package relay and orphan management, and introduces an end-to-end fuzz target driving a real PeerManager to verify CPFP relay against adversarial peers. Attackers or edge-case network conditions could prevent fee-bumped transactions from entering the mempool by disconnecting while assigned orphan reconsideration work, poisoning wtxid reject filters with witness-stripped txids, dropping orphans across all peers on reconsiderable package feerate failures, or leaving retried orphans without parents. The patch reassigns reconsideration across remaining announcers, stops checking wtxid reject filters by txid, tracks nonstandard inputs in an exact bounded txid cache, and allows typed forgetting in TxRequestTracker. It depends on PR 36437 and replaces PR 36369.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n   \"level\": \"high\",\n   \"touches\": [\n    \"p2p\",\n    \"mempool_policy\"\n   ],\n   \"why\": \"Mistakes in orphan tracking, transaction request lifecycles, or reject cache invariants could cause transaction relay failure, memory leaks, or denial of service against node transaction processing.\"\n  }\n}",
+ "result": {
+  "summary": "Fixes several liveness and stalling bugs in 1-parent-1-child package relay and orphan handling, and adds an end-to-end fuzz harness (`p2p_1p1c_liveness`) to verify bounded propagation time of CPFP transactions under adversarial peer behavior. Fixes include reassigning orphan reconsideration to another announcer upon peer disconnection, preserving orphans during reconsiderable package feerate failures, and re-requesting missing parents when an orphan retry fails. It also decouples txid and wtxid handling in reject tracking and TxRequestTracker, ignoring TX_CONFLICT for reject filters and introducing a small, exact txid cache for nonstandard-input rejections.",
+  "problem": "Adversarial peers or benign edge cases can stall or permanently block honest 1p1c CPFP transactions from reaching the mempool. Specific vulnerabilities allow peers to orphan-pin by disconnecting while assigned reconsideration, poison wtxid-keyed reject filters with witnessless variants that drop honest orphans sharing the txid, wipe orphan state across all peers on temporary package feerate failures, or abort parent fetching when an accepted parent is evicted before an orphan is retried.",
+  "evidence": [
+   "Commit 65b48ba1f1: 'If that announcer disconnects or is evicted first, the orphan is never retried, and re-announcements by the other announcers don't fetch it again since it is already held... keeps e.g. a CPFP child of a parent that pays for itself out of the mempool until the orphan is evicted, and an announcer can cause it on purpose.'",
+   "Commit cf197bf63b: 'When a 1p1c package fails the package feerate check, the child gets a TX_RECONSIDERABLE result, and ProcessPackageResult passed it to ProcessInvalidTx, which erased the child from the orphanage for all of its announcers.'",
+   "Commit 73ce30f555: 'Orphan handling and txid lookups read the recent rejects filter by txid, but the filter is keyed by wtxid and a witnessless transaction's wtxid is its txid, so a rejected witness-stripped copy of any confirmed or mempool transaction made every orphan spending it be dropped.'"
+  ],
+  "dependencies": {
+   "depends_on": [
+    "#36437"
+   ],
+   "enables": []
+  },
+  "scope_notes": "About 900 of the ~1500 added lines are in tests, including a new 578-line end-to-end fuzz harness driving a live PeerManager (`p2p_1p1c_liveness.cpp`). The patch replaces #36369 and incorporates the approach from #33066.",
+  "changed_since_previous": "Initial description with full diff and commit history. Commits now include the addition and expansion of the end-to-end fuzz harness (`p2p_1p1c_liveness`) supporting child fee bumps.",
+  "card": "This PR fixes multiple liveness and pinning vulnerabilities in 1-parent-1-child package relay and orphan management, and introduces an end-to-end fuzz target driving a real PeerManager to verify CPFP relay against adversarial peers. Attackers or edge-case network conditions could prevent fee-bumped transactions from entering the mempool by disconnecting while assigned orphan reconsideration work, poisoning wtxid reject filters with witness-stripped txids, dropping orphans across all peers on reconsiderable package feerate failures, or leaving retried orphans without parents. The patch reassigns reconsideration across remaining announcers, stops checking wtxid reject filters by txid, tracks nonstandard inputs in an exact bounded txid cache, and allows typed forgetting in TxRequestTracker. It depends on PR 36437 and replaces PR 36369.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "p2p",
+    "mempool_policy"
+   ],
+   "why": "Mistakes in orphan tracking, transaction request lifecycles, or reject cache invariants could cause transaction relay failure, memory leaks, or denial of service against node transaction processing."
+  }
+ }
+}

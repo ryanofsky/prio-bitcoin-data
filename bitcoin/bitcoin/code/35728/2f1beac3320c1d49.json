@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-14T01:26:01+00:00",
+ "card": "This PR updates TxIndex and node::GetTransaction to throw std::runtime_error on disk I/O, deserialization, or index corruption errors rather than returning null. Today, disk and index read errors are indistinguishable from absent transactions, masking hardware issues and database corruption from RPC callers. The PR also improves getrawtransaction by returning specific availability errors for pruned or un-downloaded blocks, and refactors ProcessPSBT to reuse GetTransaction.",
+ "changed_since_previous": "No substantial changes to the approach or commit structure; updates appear limited to minor rebasing or cleanup.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Currently the GetTransaction return value is a nullable transaction pointer, where nullptr represents two different outcomes: I/O error and missing tx. Reporting a confirmed transaction as missing is wrong, so properly return an error instead.'",
+  "Commit fa5b2f13da: 'Previously, the RPC returned with a general \"Block not available\" error for pruned blocks or not yet downloaded blocks... Also, IO errors are incorrectly marked as \"No such transaction found in the provided block.\"'",
+  "Commit 3333a91dbf notes that silent fallbacks mask problems: 'a -txindex corruption may also point to a larger system corruption and it seems better to notify the user properly by throwing an exception.'"
+ ],
+ "head_sha": "faa4bb35aea82af43a56d76fa100892860d9feba",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35728,
+ "patch_id": "2f1beac3320c1d49",
+ "problem": "When disk reads or index queries fail due to I/O issues or corrupt records, GetTransaction and TxIndex return null pointers, causing RPC methods to falsely report that a transaction does not exist. This masks underlying disk failures and index corruption from node operators and RPC clients, and misclassifies un-downloaded or pruned blocks as missing transactions.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Throwing std::runtime_error from GetTransaction and TxIndex could cause unexpected RPC crashes or alter API response formats if any call sites expect null pointers rather than exceptions."
+ },
+ "run": "run:20261014-0125-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 123,
+  "deletions": 39,
+  "files": 6,
+  "test_lines": 72
+ },
+ "summary": "Transaction lookup routines in TxIndex and node::GetTransaction are updated to throw runtime exceptions on disk I/O errors, deserialization failures, and index corruptions instead of returning null. In getrawtransaction, explicit block lookups now use CheckBlockDataAvailability to distinguish pruned or un-downloaded blocks from missing transactions. In ProcessPSBT, transaction lookup is refactored to reuse GetTransaction directly.",
+ "uncertainties": []
+}

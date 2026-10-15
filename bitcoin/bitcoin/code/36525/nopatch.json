@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-10-15T01:20:51+00:00",
+ "card": "This pull request fixes a data race in the mining IPC interface where concurrent worker threads access m_block_template without synchronization, particularly between submitSolution and read operations. It introduces a mutex to serialize template access and refactors WaitAndCreateNewBlock to read under lock and release prior to waiting. It also caches total fees directly on CBlockTemplate and provides a getTotalFees method to avoid repeated summation by IPC clients. The primary evidence is bug report #36515 documenting the IPC data race.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes #36515 ('ipc: data race on `m_block_template` members')",
+  "Commit 4774cf1de6: 'IPC calls on different worker threads can race when submitSolution() modifies a template while another call reads it.'"
+ ],
+ "head_sha": "4774cf1de6a4670323686bf93beb93035b3f6dad",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36525,
+ "patch_id": "nopatch",
+ "problem": "Concurrent IPC worker threads can trigger data races when one call modifies m_block_template (such as during submitSolution()) while another reads it, as reported in issue #36515. Additionally, IPC clients that only need aggregate fee information must redundantly sum individual transaction fees.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "other"
+  ],
+  "why": "Synchronization or locking errors in the mining interface could stall block generation or deadlock IPC worker threads."
+ },
+ "run": "run:20261015-0120-assess",
+ "scope_notes": "The diff was not provided in the input, but the PR affects mining IPC and template data structures across 9 files.",
+ "size": {
+  "additions": 76,
+  "deletions": 33,
+  "files": 9,
+  "test_lines": null
+ },
+ "summary": "Protects block template access in the mining interface with a mutex to prevent concurrent IPC threads from racing on template data. Caches total fees directly on CBlockTemplate and exposes a getTotalFees() getter so IPC callers do not have to sum transaction fees manually. Refactors WaitAndCreateNewBlock to accept template hash and fee arguments so callers can release the lock before waiting.",
+ "uncertainties": [
+  "Diff was not provided to verify the locking scope and avoid potential deadlock in WaitAndCreateNewBlock."
+ ]
+}

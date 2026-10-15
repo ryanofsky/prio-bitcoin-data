@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-15T01:20:31+00:00",
+ "card": "Removes the noexcept specifier from LogOversizedDbCache so invalid dbcache values in settings.json produce a clean startup exit instead of a process abort. When settings.json contains a non-integer dbcache value, GetIntArg throws std::runtime_error, which hit the noexcept boundary and caused std::terminate to abort bitcoind during startup. Removing noexcept allows the exception to propagate to the AppInit handler, printing an informative error message and exiting with status 1.",
+ "changed_since_previous": "The functional test in `feature_settings.py` was updated or rebased (testing both valid `300` and invalid `300.5` instead of `4096.5`).",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description and commit note uncaught exception crash during startup: 'libc++abi: terminating due to uncaught exception of type std::runtime_error: JSON integer out of range'",
+  "The diff directly corroborates the mechanism: `LogOversizedDbCache` calls `CalculateDbCacheBytes` which calls `GetIntArg`, while the function was declared `noexcept`."
+ ],
+ "head_sha": "2e00693220d8fae784906f802892c60cba718fb2",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36347,
+ "patch_id": "fb6fcf1f59de08b3",
+ "problem": "If `settings.json` contains a non-integer or out-of-range number for `dbcache` (such as `300.5`), `GetIntArg` throws `std::runtime_error`. Because `LogOversizedDbCache` was marked `noexcept`, this exception triggers `std::terminate` during startup instead of being handled by `AppInit`.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests"
+  ],
+  "why": "Only removes a noexcept specifier on an initialization logging helper to allow standard startup error handling to catch argument parse errors."
+ },
+ "run": "run:20261015-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 14,
+  "deletions": 2,
+  "files": 3,
+  "test_lines": 12
+ },
+ "summary": "Removes the `noexcept` specifier from `LogOversizedDbCache` and adds functional test cases for integer and invalid non-integer `dbcache` values in `settings.json`. This allows parse exceptions from `GetIntArg` to propagate up to `AppInit`'s top-level exception handler, causing the node to exit with an informative error rather than aborting via `std::terminate`.",
+ "uncertainties": []
+}

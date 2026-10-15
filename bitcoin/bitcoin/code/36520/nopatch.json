@@ -1,0 +1,46 @@
+{
+ "assessed_at": "2026-10-15T01:20:47+00:00",
+ "card": "This PR hardens Bitcoin Core's Chain interface implementations against crashes from invalid inputs and catches IPC exceptions originating from notification handlers. Currently, Chain methods assume well-behaved in-process C++ callers, asserting or dereferencing null pointers on invalid inputs and permitting uncaught exceptions on the validation scheduler thread, which crashes the node when exposed to IPC clients. It also fixes an active bug (issue 36472) where findAncestorByHash reports success for unknown descendant blocks. While standalone, this change primarily safeguards the node for multiprocess IPC support in PR 29409.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#29409"
+  ]
+ },
+ "evidence": [
+  "Issue #36472 demonstrates that `findAncestorByHash` returns true when ancestor_hash is known but block_hash is unknown.",
+  "PR description notes that reviewers of multiprocess PR #29409 (zaidmstrr, willcl-ark, xyzconstant) identified that out-of-bounds `getBlockHash` asserts, null transaction arguments cause null dereferences, and uncaught notification IPC exceptions terminate the node."
+ ],
+ "head_sha": "b67d871f95fa1b9c47fc2f8d08d80e27f0a81e16",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36520,
+ "patch_id": "nopatch",
+ "problem": "`interfaces::Chain` was originally written under the assumption of well-behaved in-process callers like the internal wallet. When exposed over multiprocess IPC (as in #29409), omitted fields or invalid parameters cause the node to assert or dereference null, an error returned by an IPC notification handler terminates the validation scheduler thread, and `findAncestorByHash` erroneously returns true when a descendant block is unknown (#36472).",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "tests",
+   "other"
+  ],
+  "why": "Incorrect exception handling on the validation scheduler thread or altered return values in Chain interfaces could mask failures or cause unexpected behavior in wallet and node interactions."
+ },
+ "run": "run:20261015-0120-assess",
+ "scope_notes": "The diff was not provided in the input, but commit messages indicate changes are localized to `src/node/interfaces.cpp` and unit tests in `src/test/interfaces_tests.cpp` across three commits.",
+ "size": {
+  "additions": 120,
+  "deletions": 9,
+  "files": 3,
+  "test_lines": null
+ },
+ "summary": "Hardens node `interfaces::Chain` method implementations against crashes caused by invalid arguments or client errors over IPC. It substitutes assertions and null pointer dereferences with bounds checking and error returns, catches `ipc::Exception` in notification handlers to prevent validation scheduler thread terminations, and fixes a logic bug in `findAncestorByHash`.",
+ "uncertainties": [
+  "The patch diff was not provided, preventing direct verification of the exact error handling implementations."
+ ]
+}

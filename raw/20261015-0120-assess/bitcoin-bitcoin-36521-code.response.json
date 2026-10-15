@@ -1,0 +1,47 @@
+{
+ "run": "run:20261015-0120-assess",
+ "pr": "bitcoin/bitcoin#36521",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-15T01:20:49+00:00",
+ "usage": {
+  "input_tokens": 5880,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1692
+ },
+ "cost_usd": 0.010755,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"CScriptWitness is refactored to store witness stacks in their serialized byte representation within a single allocation rather than as a nested vector of byte vectors. Individual witness elements are accessed via on-the-fly deserialization and spans, shrinking CScriptWitness from 24 to 8 bytes and CTxIn from 112 to 96 bytes. In addition, transactions lacking inputs or outputs are rejected immediately during P2P message deserialization to prevent malicious memory expansion.\",\n  \"problem\": \"Storing witness stacks as vectors of vectors introduces a 24-byte vector overhead and separate heap allocation per element. Malicious or synthetic blocks can exploit this to consume excessive memory upon deserialization (up to 112 MB for a 4 MB block) and cause slow deserialization times (hundreds of milliseconds), exposing nodes to memory and CPU resource exhaustion.\",\n  \"evidence\": [\n    \"PR description benchmarks show block deserialization memory for a 4 MB block containing 2M 1-byte witness elements drops from 112 MB to 4.0 MB, while deserialization time drops from ~110-123 ms to 10.4-15.8 ms.\",\n    \"PR description benchmarks show block deserialization memory for a 4 MB block containing 4M empty witness elements drops from 96 MB to 4.0 MB, with deserialization time dropping from ~317-346 ms to 13.5-19.4 ms.\",\n    \"PR description notes real-world savings: deserialized memory for mainnet block 969729 drops from 3.6 MB to 3.0 MB.\",\n    \"Commit e1cbb976d2 notes that rejecting empty transactions during P2P deserialization caps block deserialization memory expansion from ~17 bytes per byte received to ~6 bytes per byte.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The PR spans 70 files (+989/-237). Much of the churn comes from scripted-diff commit 5f2042ce01 updating witness access sites across the codebase. It also changes P2P behavior: peer messages containing empty transactions are now silently ignored as malformed rather than processed and penalized as invalid blocks or transactions.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"CScriptWitness currently stores stack elements as a vector of vectors, allowing crafted blocks with millions of small witness elements to consume over 110 MB of memory and stall deserialization for over 300 ms. This PR replaces that structure with a single allocation containing the serialized stack, decoding elements on the fly, and rejects transactions with zero inputs or outputs directly during P2P deserialization. Benchmark tests show worst-case 4 MB block deserialization memory drops from 112 MB to 4 MB while deserialization speeds up roughly tenfold, alongside minor memory reductions for standard blocks. The change touches 70 files and includes a scripted diff updating call sites.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"consensus\",\n      \"validation\",\n      \"p2p\"\n    ],\n    \"why\": \"Any error in serializing or decoding witness stack items could alter witness script evaluation in the interpreter and cause consensus divergence or transaction verification failures.\"\n  }\n}",
+ "result": {
+  "summary": "CScriptWitness is refactored to store witness stacks in their serialized byte representation within a single allocation rather than as a nested vector of byte vectors. Individual witness elements are accessed via on-the-fly deserialization and spans, shrinking CScriptWitness from 24 to 8 bytes and CTxIn from 112 to 96 bytes. In addition, transactions lacking inputs or outputs are rejected immediately during P2P message deserialization to prevent malicious memory expansion.",
+  "problem": "Storing witness stacks as vectors of vectors introduces a 24-byte vector overhead and separate heap allocation per element. Malicious or synthetic blocks can exploit this to consume excessive memory upon deserialization (up to 112 MB for a 4 MB block) and cause slow deserialization times (hundreds of milliseconds), exposing nodes to memory and CPU resource exhaustion.",
+  "evidence": [
+   "PR description benchmarks show block deserialization memory for a 4 MB block containing 2M 1-byte witness elements drops from 112 MB to 4.0 MB, while deserialization time drops from ~110-123 ms to 10.4-15.8 ms.",
+   "PR description benchmarks show block deserialization memory for a 4 MB block containing 4M empty witness elements drops from 96 MB to 4.0 MB, with deserialization time dropping from ~317-346 ms to 13.5-19.4 ms.",
+   "PR description notes real-world savings: deserialized memory for mainnet block 969729 drops from 3.6 MB to 3.0 MB.",
+   "Commit e1cbb976d2 notes that rejecting empty transactions during P2P deserialization caps block deserialization memory expansion from ~17 bytes per byte received to ~6 bytes per byte."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The PR spans 70 files (+989/-237). Much of the churn comes from scripted-diff commit 5f2042ce01 updating witness access sites across the codebase. It also changes P2P behavior: peer messages containing empty transactions are now silently ignored as malformed rather than processed and penalized as invalid blocks or transactions.",
+  "changed_since_previous": "",
+  "card": "CScriptWitness currently stores stack elements as a vector of vectors, allowing crafted blocks with millions of small witness elements to consume over 110 MB of memory and stall deserialization for over 300 ms. This PR replaces that structure with a single allocation containing the serialized stack, decoding elements on the fly, and rejects transactions with zero inputs or outputs directly during P2P deserialization. Benchmark tests show worst-case 4 MB block deserialization memory drops from 112 MB to 4 MB while deserialization speeds up roughly tenfold, alongside minor memory reductions for standard blocks. The change touches 70 files and includes a scripted diff updating call sites.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "validation",
+    "p2p"
+   ],
+   "why": "Any error in serializing or decoding witness stack items could alter witness script evaluation in the interpreter and cause consensus divergence or transaction verification failures."
+  }
+ }
+}

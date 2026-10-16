@@ -1,0 +1,40 @@
+{
+ "run": "run:20261016-0118-assess",
+ "pr": "bitcoin/bitcoin#36525",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-16T01:19:08+00:00",
+ "usage": {
+  "input_tokens": 9290,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1013
+ },
+ "cost_usd": 0.01076625,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Protects block template access in the mining interface implementation with a mutex to serialize concurrent IPC worker thread operations. Adds an `m_total_fees` field to `CBlockTemplate` along with a corresponding `getTotalFees()` getter exposed over IPC. Modifies `WaitAndCreateNewBlock` to accept the previous block hash and fee values by value rather than inspecting the template pointer directly, allowing callers to release the template lock before waiting.\",\n  \"problem\": \"Concurrent IPC worker threads can trigger data races when one thread modifies an active `CBlockTemplate` during `submitSolution()` while another thread reads from it. Furthermore, external IPC mining clients requiring total fee figures have to repeatedly retrieve and sum individual transaction fees across the IPC boundary.\",\n  \"evidence\": [\n    \"Commit 4774cf1de6 and PR description state that IPC calls on different worker threads can race when submitSolution modifies a template while another call reads it, fixing issue #36515.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Added a Python functional test (run_concurrent_template_access_test in interface_ipc_mining.py) that exercises concurrent reads and submitSolution operations across separate Cap'n Proto worker threads.\",\n  \"card\": \"This PR resolves a multithreading data race in the mining IPC interface where concurrent worker threads access m_block_template simultaneously, such as when submitSolution modifies a template while another call reads it. It guards template accesses inside BlockTemplateImpl with a mutex and updates WaitAndCreateNewBlock so the template lock can be released before entering the wait loop. In addition, it caches total fees on CBlockTemplate and introduces a getTotalFees() IPC method so clients do not have to aggregate per-transaction fees. The primary motivation is fixing issue #36515.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"other\"],\n    \"why\": \"Mistakes in mutex scoping or lock inversion in BlockTemplateImpl could deadlock IPC mining worker threads or cause mining block submissions to stall.\"\n  }\n}",
+ "result": {
+  "summary": "Protects block template access in the mining interface implementation with a mutex to serialize concurrent IPC worker thread operations. Adds an `m_total_fees` field to `CBlockTemplate` along with a corresponding `getTotalFees()` getter exposed over IPC. Modifies `WaitAndCreateNewBlock` to accept the previous block hash and fee values by value rather than inspecting the template pointer directly, allowing callers to release the template lock before waiting.",
+  "problem": "Concurrent IPC worker threads can trigger data races when one thread modifies an active `CBlockTemplate` during `submitSolution()` while another thread reads from it. Furthermore, external IPC mining clients requiring total fee figures have to repeatedly retrieve and sum individual transaction fees across the IPC boundary.",
+  "evidence": [
+   "Commit 4774cf1de6 and PR description state that IPC calls on different worker threads can race when submitSolution modifies a template while another call reads it, fixing issue #36515."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Added a Python functional test (run_concurrent_template_access_test in interface_ipc_mining.py) that exercises concurrent reads and submitSolution operations across separate Cap'n Proto worker threads.",
+  "card": "This PR resolves a multithreading data race in the mining IPC interface where concurrent worker threads access m_block_template simultaneously, such as when submitSolution modifies a template while another call reads it. It guards template accesses inside BlockTemplateImpl with a mutex and updates WaitAndCreateNewBlock so the template lock can be released before entering the wait loop. In addition, it caches total fees on CBlockTemplate and introduces a getTotalFees() IPC method so clients do not have to aggregate per-transaction fees. The primary motivation is fixing issue #36515.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "other"
+   ],
+   "why": "Mistakes in mutex scoping or lock inversion in BlockTemplateImpl could deadlock IPC mining worker threads or cause mining block submissions to stall."
+  }
+ }
+}

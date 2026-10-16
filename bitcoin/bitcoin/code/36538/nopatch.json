@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-10-16T01:19:21+00:00",
+ "card": "This pull request bounds the -bytespersigop parameter at node startup to [0, 21474] and checks the transaction sigop cost limit before staging transactions in the mempool changeset. Currently, unbounded parameter values or transactions with excessive sigops cause arithmetic overflow when computing sigop-adjusted int32 sizes, triggering debug assertion crashes in fee rate calculations and TxGraphImpl::AddTransaction. The author demonstrates that at -bytespersigop=21474, an incoming transaction with 100,040 sigops overflows INT32_MAX and aborts debug nodes during staging prior to being rejected. The PR requires no external dependencies.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit fac9c100c7 explains that above 21474, a standard 25-transaction package overflows INT32_MAX (25 * 4000 * 21475 = 2147500000) and aborts debug builds on Assume(virtual_bytes >= 0) in CFeeRate::GetFee, while values above 134217 abort single transactions on Assume(feerate.size > 0) in TxGraphImpl::AddTransaction.",
+  "Commit 7d37a758b3 shows that staging occurs before the sigop cost limit check: an otherwise standard transaction with two P2WSH inputs totaling 100,040 sigops results in 100040 * 21474 = 2148258960, which exceeds INT32_MAX and triggers an assertion abort during staging."
+ ],
+ "head_sha": "7d37a758b3f4c1946bd7f1d6d0c37519307f076b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36538,
+ "patch_id": "nopatch",
+ "problem": "-bytespersigop is parsed as an int64_t and stored as an unsigned int, allowing negative numbers to wrap and large numbers to be truncated or overflow int32_t mempool size metrics. Such overflows cause debug builds to crash on Assume assertions in fee rate and transaction graph calculations. Furthermore, checking MAX_STANDARD_TX_SIGOPS_COST only after staging allows transactions with excessive sigops to trigger overflow crashes even under valid -bytespersigop configurations.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy"
+  ],
+  "why": "Altering the ordering of transaction validation checks prior to mempool staging could unintentionally modify acceptance semantics or allow malformed transactions to bypass other sanity checks."
+ },
+ "run": "run:20261016-0118-assess",
+ "scope_notes": "The diff was not provided in the patch data, but the commits indicate changes to init parameter parsing, validation PreChecks transaction staging order, and mempool python tests.",
+ "size": {
+  "additions": 91,
+  "deletions": 6,
+  "files": 5,
+  "test_lines": null
+ },
+ "summary": "Restricts the -bytespersigop configuration setting at node startup to the range [0, 21474] to prevent integer overflow in mempool sigop-adjusted virtual size calculations. In addition, moves the mempool standard sigops cost check earlier in PreChecks so transactions are verified against the limit before being staged in the changeset. Adds functional test coverage for the parameter boundary and package sizing in mempool_sigoplimit.py.",
+ "uncertainties": [
+  "The patch diff was omitted, so exact code changes in validation and initialization cannot be directly confirmed against the commit messages."
+ ]
+}

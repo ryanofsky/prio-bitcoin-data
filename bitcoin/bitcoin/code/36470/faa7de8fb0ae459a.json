@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-16T01:19:02+00:00",
+ "card": "Fixes a test gap in p2p_eviction.py where peer eviction tests passed even if block-time protection logic was disabled or peers never transmitted blocks. In the original test, fallback connection-age protection shielded the block peers, and platform-specific std::sort implementations in netgroup protection produced inconsistent peer selection. The test now connects eviction candidates first with faster pings than block and tx peers, and explicitly validates peer block and transaction timestamps. No dependencies.",
+ "changed_since_previous": "Replaced the previous approach of just connecting block peers last with connecting eviction candidates first and slowing tx and block peer ping responses, resolving netgroup sort discrepancies across standard library implementations; added assertions for `last_transaction` and `last_block` timestamps and explicit waits for `minping`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description demonstrates that removing peer block relay (`block_peer.send_blocks_and_test([block], node, success=True)`) still resulted in a passing test on master.",
+  "Commit message notes that connecting block peers last was insufficient because netgroup sorting with libc++ and MSVC insertion sort retains the youngest peers."
+ ],
+ "head_sha": "f9cdfacdb4fc7420d233ea03637ab59a0aca1fe2",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36470,
+ "patch_id": "faa7de8fb0ae459a",
+ "problem": "The `p2p_eviction.py` test passed even when block-time protection was disabled or bypassed entirely, because block-sending peers were connected first and fell back to connection-age protection. Additionally, because all mock peers share a single netgroup, netgroup protection's peer selection depended on C++ standard library sorting implementations (such as libc++ vs libstdc++ vs MSVC).",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests"
+  ],
+  "why": "Only touches a functional test script, with no risk of affecting node behavior or consensus."
+ },
+ "run": "run:20261016-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 32,
+  "deletions": 20,
+  "files": 1,
+  "test_lines": 52
+ },
+ "summary": "Restructures peer connection order and ping timings in the `p2p_eviction.py` functional test so that peer eviction protection for block and transaction relayers is genuinely exercised. Eviction candidate peers are now connected first and ping faster than tx and block peers, making test assertions independent of platform-specific `std::sort` behavior in netgroup protection. Also adds checks that `last_transaction` and `last_block` are recorded in `getpeerinfo()` and waits for min ping reporting.",
+ "uncertainties": []
+}

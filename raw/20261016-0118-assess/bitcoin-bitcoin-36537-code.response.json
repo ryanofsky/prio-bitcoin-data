@@ -1,0 +1,44 @@
+{
+ "run": "run:20261016-0118-assess",
+ "pr": "bitcoin/bitcoin#36537",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-16T01:19:19+00:00",
+ "usage": {
+  "input_tokens": 3006,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1603
+ },
+ "cost_usd": 0.00826575,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 that wipe their internal hasher states using memory_cleanse(). In MuSig2 partial signature creation, switches the keypair allocation to CKey::ComputeKeyPair() so secret key material resides in secure memory and is cleansed upon return.\",\n  \"problem\": \"CHMAC_SHA256 and CHMAC_SHA512 do not wipe their inner and outer hashers when destroyed, leaving sensitive bytes\u2014such as seeds in CExtKey::SetSeed() and parent private keys in hardened BIP32Hash()\u2014resident in memory. In addition, CreateMuSig2PartialSig() constructs a secp256k1_keypair on the stack and leaves private key material uncleansed on return.\",\n  \"evidence\": [\n    \"Author verified with a small standalone program that \\\"the seed and key bytes are in the HMAC object after Finalize() and gone after its destructor\\\" (PR description)\",\n    \"Follows merged PR #35254, which cleansed rkey and temp stack buffers in the same files (PR description and commit 736aafeb97)\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The diff was not provided in the prompt, but the metadata indicates a small 2-commit patch (+17/-3) touching 5 files.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 that cleanse internal hasher state, and moves MuSig2 partial signing keypairs into secure memory. Currently, HMAC instances retain output bytes and the tail of hashed messages in memory after destruction, exposing master seeds and parent private keys after BIP32 operations, while CreateMuSig2PartialSig leaves key material uncleansed on the stack. The author verified via a test program that key and seed bytes persist in memory after Finalize() and are wiped with the added destructors.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"low\",\n    \"touches\": [\n      \"wallet\",\n      \"other\"\n    ],\n    \"why\": \"A mistake in memory cleansing bounds could corrupt memory or crash the node, but the change only adds zeroing calls on teardown.\"\n  }\n}",
+ "result": {
+  "summary": "Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 that wipe their internal hasher states using memory_cleanse(). In MuSig2 partial signature creation, switches the keypair allocation to CKey::ComputeKeyPair() so secret key material resides in secure memory and is cleansed upon return.",
+  "problem": "CHMAC_SHA256 and CHMAC_SHA512 do not wipe their inner and outer hashers when destroyed, leaving sensitive bytes\u2014such as seeds in CExtKey::SetSeed() and parent private keys in hardened BIP32Hash()\u2014resident in memory. In addition, CreateMuSig2PartialSig() constructs a secp256k1_keypair on the stack and leaves private key material uncleansed on return.",
+  "evidence": [
+   "Author verified with a small standalone program that \"the seed and key bytes are in the HMAC object after Finalize() and gone after its destructor\" (PR description)",
+   "Follows merged PR #35254, which cleansed rkey and temp stack buffers in the same files (PR description and commit 736aafeb97)"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The diff was not provided in the prompt, but the metadata indicates a small 2-commit patch (+17/-3) touching 5 files.",
+  "changed_since_previous": "",
+  "card": "Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 that cleanse internal hasher state, and moves MuSig2 partial signing keypairs into secure memory. Currently, HMAC instances retain output bytes and the tail of hashed messages in memory after destruction, exposing master seeds and parent private keys after BIP32 operations, while CreateMuSig2PartialSig leaves key material uncleansed on the stack. The author verified via a test program that key and seed bytes persist in memory after Finalize() and are wiped with the added destructors.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "low",
+   "touches": [
+    "wallet",
+    "other"
+   ],
+   "why": "A mistake in memory cleansing bounds could corrupt memory or crash the node, but the change only adds zeroing calls on teardown."
+  }
+ }
+}

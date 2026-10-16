@@ -1,0 +1,43 @@
+{
+ "run": "run:20261016-0118-assess",
+ "pr": "bitcoin/bitcoin#36011",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-16T01:18:57+00:00",
+ "usage": {
+  "input_tokens": 6525,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1705
+ },
+ "cost_usd": 0.0112875,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Modifies `btcsignals` to destroy registered callback function objects eagerly upon disconnection rather than retaining them until signal destruction or garbage collection during a subsequent `connect()` call. Introduces an internal `atomic_shared_ptr` wrapper that uses C++20 `std::atomic<std::shared_ptr<T>>` when available, falling back to C++11 `std::atomic_load`/`std::atomic_store` on platforms lacking the library feature. Comprehensive unit tests are added covering callback lifetime under normal, self-disconnecting, and concurrent disconnect conditions.\",\n  \"problem\": \"Disconnected callbacks in `btcsignals` stay alive in memory indefinitely if no further connections are added to the signal. When callbacks capture resources with side effects upon destruction, such as IPC event loop references in multiprocess Bitcoin, this delayed destruction keeps processes alive and causes shutdown deadlocks.\",\n  \"evidence\": [\n    \"PR description: \\\"causes a deadlock on GUI shutdown in #10102 because when the node registers signal callbacks (handleInitMessage, etc) that get forwarded to the GUI, the callbacks own mp::EventLoopRef references, and if the callbacks aren't freed, the node process can't shut down.\\\"\",\n    \"Commit 8bd1cda004: \\\"The concrete fallout was in multiprocess bitcoin-gui, where node notification callbacks own IPC proxy objects: their deferred destruction kept bitcoin-node from exiting and hung interface_gui.py until timeout.\\\"\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#10102\"\n    ]\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"No functional changes to the implementation; commit structure and tests document callback destruction behavior and provide atomic shared pointer fallback support.\",\n  \"card\": \"Modifies btcsignals to eagerly destroy callback function objects when disconnected, restoring boost::signals2 behavior. Currently, callbacks remain alive until the entire signal is destroyed or a subsequent connect call triggers garbage collection. This causes a shutdown hang in multiprocess Bitcoin (#10102) where callbacks hold IPC event loop references that prevent the node process from exiting. It also adds a compatibility fallback for platforms lacking C++20 atomic shared pointer support.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"other\"\n    ],\n    \"why\": \"A concurrency bug or memory mismanagement in core signal dispatching could cause crashes or use-after-free conditions across node subsystems that rely on btcsignals.\"\n  }\n}",
+ "result": {
+  "summary": "Modifies `btcsignals` to destroy registered callback function objects eagerly upon disconnection rather than retaining them until signal destruction or garbage collection during a subsequent `connect()` call. Introduces an internal `atomic_shared_ptr` wrapper that uses C++20 `std::atomic<std::shared_ptr<T>>` when available, falling back to C++11 `std::atomic_load`/`std::atomic_store` on platforms lacking the library feature. Comprehensive unit tests are added covering callback lifetime under normal, self-disconnecting, and concurrent disconnect conditions.",
+  "problem": "Disconnected callbacks in `btcsignals` stay alive in memory indefinitely if no further connections are added to the signal. When callbacks capture resources with side effects upon destruction, such as IPC event loop references in multiprocess Bitcoin, this delayed destruction keeps processes alive and causes shutdown deadlocks.",
+  "evidence": [
+   "PR description: \"causes a deadlock on GUI shutdown in #10102 because when the node registers signal callbacks (handleInitMessage, etc) that get forwarded to the GUI, the callbacks own mp::EventLoopRef references, and if the callbacks aren't freed, the node process can't shut down.\"",
+   "Commit 8bd1cda004: \"The concrete fallout was in multiprocess bitcoin-gui, where node notification callbacks own IPC proxy objects: their deferred destruction kept bitcoin-node from exiting and hung interface_gui.py until timeout.\""
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#10102"
+   ]
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No functional changes to the implementation; commit structure and tests document callback destruction behavior and provide atomic shared pointer fallback support.",
+  "card": "Modifies btcsignals to eagerly destroy callback function objects when disconnected, restoring boost::signals2 behavior. Currently, callbacks remain alive until the entire signal is destroyed or a subsequent connect call triggers garbage collection. This causes a shutdown hang in multiprocess Bitcoin (#10102) where callbacks hold IPC event loop references that prevent the node process from exiting. It also adds a compatibility fallback for platforms lacking C++20 atomic shared pointer support.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "other"
+   ],
+   "why": "A concurrency bug or memory mismanagement in core signal dispatching could cause crashes or use-after-free conditions across node subsystems that rely on btcsignals."
+  }
+ }
+}

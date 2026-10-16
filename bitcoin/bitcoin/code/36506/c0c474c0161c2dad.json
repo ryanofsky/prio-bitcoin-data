@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-10-16T01:19:03+00:00",
+ "card": "This PR fixes several liveness and pinning vulnerabilities in 1-parent-1-child package relay and adds an end-to-end fuzz target verifying bounded CPFP relay propagation against adversarial peers. Adversarial or disconnecting peers could prevent CPFP transactions from reaching the mempool by stranding orphans when assigned announcers disconnect, poisoning reject filters using witnessless copies of known transactions, purging orphans globally on package feerate failures caused by malleated parents, or wiping pending orphan parent requests when txid equals wtxid. The patch reassigns orphan reconsideration upon announcer eviction, excludes conflict results from reject filters, keeps orphans on reconsiderable package errors, and implements typed forgetting in TxRequestTracker. It depends on PR 36437.",
+ "changed_since_previous": "Dropped earlier changes that introduced a dedicated txid cache for nonstandard-input rejections and re-requested missing parents on failed orphan retry; focused the patch set specifically on the peer handover, reject filter handling of conflicts, orphan retention on package feerate failure, and typed announcements forgetting in TxRequestTracker.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36437"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Resolves two fuzz harness \"holes\" and narrows a third. This is a proposed stopping point on resolving the holes, as it's unclear if further work is worth the churn vs a sender-initiated package relay protocol update that would resolve this directly.'",
+  "Commit 65b48ba1f1: 'If that announcer disconnects or is evicted first, the orphan is never retried, and re-announcements by the other announcers don't fetch it again since it is already held. This keeps e.g. a CPFP child of a parent that pays for itself out of the mempool until the orphan is evicted, and an announcer can cause it on purpose.'",
+  "Commit feff499de9: 'When a 1p1c package fails the package feerate check, the child gets a TX_RECONSIDERABLE result, and ProcessPackageResult passed it to ProcessInvalidTx, which erased the child from the orphanage for all of its announcers.'"
+ ],
+ "head_sha": "8d44ac89099393d632ba8e82ca081b6b6c5e7957",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36506,
+ "patch_id": "c0c474c0161c2dad",
+ "problem": "Peers can exploit orphan management and reject filter edge cases to stall or block honest CPFP fee-bump packages from entering the mempool. An announcer assigned to reconsider an orphan can disconnect without the work being reassigned, reject filters can be poisoned by witnessless copies (where txid equals wtxid) of known transactions, temporary package feerate failures with malleated parents erase the child orphan for all announcers, and rejecting a witnessless parent accidentally cancels pending txid-based parent requests.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "mempool_policy"
+  ],
+  "why": "Mistakes in orphan lifecycle management, reject filtering, or TxRequestTracker could cause memory leaks in the orphanage or prevent honest transactions from being downloaded and accepted."
+ },
+ "run": "run:20261016-0118-assess",
+ "scope_notes": "The PR adds a major new fuzz target (`p2p_1p1c_liveness.cpp`) of over 500 lines that drives a real `PeerManager` end-to-end to verify transaction liveness invariants.",
+ "size": {
+  "additions": 1103,
+  "deletions": 22,
+  "files": 15,
+  "test_lines": 1001
+ },
+ "summary": "Plugs several liveness holes in 1-parent-1-child (1p1c) package relay and orphan handling, and introduces an end-to-end fuzz harness (`p2p_1p1c_liveness`) that tests bounded CPFP relay propagation under adversarial conditions. It hands over orphan reconsideration to another peer when the assigned peer disconnects, prevents `TX_CONFLICT` and `DIFFERENT_WITNESS` results from entering the reject filter, retains orphans after package feerate failures, and enables type-specific forgetting in `TxRequestTracker` to prevent witnessless parent rejections from cancelling txid orphan parent requests.",
+ "uncertainties": []
+}

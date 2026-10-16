@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-16T01:18:49+00:00",
+ "card": "Centralizes LevelDB point-read and deserialization error handling in CDBWrapper, logging the error, invoking a fatal shutdown callback, and aborting rather than returning false or propagating exceptions. This eliminates the CCoinsViewErrorCatcher view layer, restricts HaveCoin() to the coins cache view, and marks coin view lookups noexcept. It prevents corrupted index reads from failing isolated RPCs while leaving a damaged node running, and stops corrupted entries from masquerading as missing keys.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'A corrupt txindex point read can consequently fail one RPC while the node continues running.'",
+  "Commit c916a71961: 'When a txindex point read encounters a corrupt LevelDB table, the RPC reports the error and the node continues running. CDBWrapper::Read() throws on a LevelDB failure without running the read-error callback and reports a corrupt value as a missing key.'"
+ ],
+ "head_sha": "846b0e83e1c1de3c7348e9294309cfad8768c2f1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34132,
+ "patch_id": "3274cd5c9c98b4d5",
+ "problem": "CDBWrapper::Read() previously returned false on deserialization failures\u2014making corrupted data appear as non-existent keys\u2014while LevelDB point-read failures threw exceptions without invoking fatal error notifications. Consequently, corrupted index records could fail individual RPC calls while allowing the node to continue running with damaged state, and chainstate required a dedicated CCoinsViewErrorCatcher wrapper layer solely to intercept read errors.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A flaw in database read error classification could trigger unexpected process aborts during normal coin or index lookups, halting the node."
+ },
+ "run": "run:20261016-0118-assess",
+ "scope_notes": "Changes error-handling semantics across CDBWrapper, chainstate UTXO database lookups, and all secondary indexes (txindex, coinstatsindex, blockfilterindex, and txospenderindex).",
+ "size": {
+  "additions": 292,
+  "deletions": 381,
+  "files": 33,
+  "test_lines": 255
+ },
+ "summary": "Centralizes LevelDB point-read and deserialization error handling directly in CDBWrapper by logging errors, invoking a registered fatal-error notification callback, and aborting. Removes the CCoinsViewErrorCatcher view wrapper layer, wiring CCoinsViewCache directly to CCoinsViewDB. Confines HaveCoin() to CCoinsViewCache and marks coin view lookup methods noexcept.",
+ "uncertainties": []
+}

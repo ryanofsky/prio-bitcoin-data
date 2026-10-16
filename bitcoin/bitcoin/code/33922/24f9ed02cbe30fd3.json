@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-16T01:18:44+00:00",
+ "card": "Tracks the memory footprint of transactions pinned only by active block templates after leaving the node's mempool. BlockTemplateManager maintains reference counts for template transactions on template creation and destruction, and a new IPC method getMemoryLoad() exposes this non-mempool memory consumption to clients. This addresses block template memory management for external Stratum v2 mining providers (issue #33899) so clients can observe memory pressure and release stale templates.",
+ "changed_since_previous": "Now copies transaction references under `m_mutex` before querying `mempool.exists()` unlocked in `GetTemplateMemoryUsage()`, avoiding lock contention on template creation/destruction, and adds benchmark timer logging.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Addresses issue #33899: 'Block template memory management (for IPC clients)'",
+  "Commit a9eece073e notes: 'IPC clients can hold on to block templates indefinately... Because each template in turn tracks CTransactionRefs, transactions that are removed from the mempool will not have their memory cleared.'",
+  "Client-side implementation demonstrated in Stratum v2 Template Provider PR stratum-mining/sv2-tp#63"
+ ],
+ "head_sha": "8ea66ad1cbb16e2a4ad9cdc57a2bca8cc0923067",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 33922,
+ "patch_id": "24f9ed02cbe30fd3",
+ "problem": "External IPC mining clients, such as Stratum v2 template providers, can hold references to block templates indefinitely. When transactions in those templates are evicted or replaced in the node's mempool, they remain pinned in memory without any mechanism for clients or node operators to inspect the resulting memory footprint.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api",
+   "other"
+  ],
+  "why": "The logic is isolated to the IPC Mining interface and BlockTemplateManager memory accounting; repeated calls could add minor lock contention on mempool.cs, but mempool state and consensus are untouched."
+ },
+ "run": "run:20261016-0118-assess",
+ "scope_notes": "Moves `CTransactionRefComp` from private broadcast code into `util/hasher.h` alongside a new `CTransactionRefSaltedHash` helper so template transaction references can be keyed in an `std::unordered_map`.",
+ "size": {
+  "additions": 178,
+  "deletions": 14,
+  "files": 9,
+  "test_lines": 33
+ },
+ "summary": "Tracks the memory footprint of transactions retained by active block templates after being removed from the mempool, and exposes the total via a new `getMemoryLoad()` IPC mining interface method. `BlockTemplateManager` maintains reference counts for template transactions across template creation and destruction, calculating non-mempool memory on demand without holding locks across the mempool checks.",
+ "uncertainties": []
+}

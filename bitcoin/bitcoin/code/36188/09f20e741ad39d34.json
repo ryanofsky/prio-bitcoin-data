@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-17T01:21:19+00:00",
+ "card": "This PR integrates Bitcoin Core's hardware-accelerated SHA256 compression function into libsecp256k1 context instances, replacing libsecp256k1's software-only hashing fallback. It also separates ECC context initialization into dedicated signing and verification contexts managed via a unified RAII lifecycle. Benchmarks show a 7% to 13% reduction in signing latency on architectures with SHA hardware extensions, while verification performance remains essentially unchanged. No prerequisite or dependent pull requests are indicated.",
+ "changed_since_previous": "The underlying approach and commit progression remain consistent with the prior description; changes reflect rebasing and test/benchmark adjustments.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description benchmarks on ARM64 with SHA-NI show ECDSA signing time drops from 79.2 \u00b5s to 69.3 \u00b5s (-13%) and Schnorr signing drops from 39.9 \u00b5s to 37.1 \u00b5s (-7%).",
+  "Commit 3104f72514 notes: 'With ours, ECDSA signing gets ~15% faster on CPUs with SHA extensions, Schnorr signing ~3%.' Verification benchmarks show negligible improvement (0% to -1%)."
+ ],
+ "head_sha": "ecf779fa06cef78ca668715cba21b30a1fda8a06",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36188,
+ "patch_id": "09f20e741ad39d34",
+ "problem": "libsecp256k1 uses its internal pure-software SHA256 compression implementation by default, bypassing available CPU hardware acceleration (such as x86 SHA-NI and ARMv8 cryptography extensions) during elliptic curve signing and verification. Additionally, `secp256k1_context_static` cannot be configured with custom compression hooks, and ECC initialization was tightly coupled to `key.h` primitives.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "consensus",
+   "validation",
+   "wallet"
+  ],
+  "why": "A flaw in the SHA256 compression callback or context initialization could cause silent signature creation errors or misvalidate cryptographic checks across the node."
+ },
+ "run": "run:20261017-0120-assess",
+ "scope_notes": "A significant portion of the 44 changed files is mechanical: updating fuzz targets, benchmarks, and binaries to initialize ECC state via `MakeContextECC()`, plus a scripted-diff substituting `secp256k1_context_static` with `GetSecp256k1VerifyContext()` in `src/pubkey.cpp`.",
+ "size": {
+  "additions": 461,
+  "deletions": 150,
+  "files": 44,
+  "test_lines": 262
+ },
+ "summary": "Plugs Bitcoin Core's hardware-accelerated SHA256 compression function into libsecp256k1 contexts. It restructures `ECC_Context` into a lifecycle manager that provides both signing and verification contexts, moves ECC initialization into `common/ecc_init`, and updates call sites to use the new verification context instead of `secp256k1_context_static`.",
+ "uncertainties": []
+}

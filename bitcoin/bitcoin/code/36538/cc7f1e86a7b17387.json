@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-17T01:21:31+00:00",
+ "card": "This PR caps the -bytespersigop startup option to [0, 21474] and moves the mempool standard sigop limit check before changeset staging. Currently, negative or large -bytespersigop values cause arithmetic overflow in mempool int32_t size metrics, and transactions with extreme sigop counts trigger overflows during staging before their standardness is evaluated. These overflows abort debug builds on internal Assume assertions in fee calculation and transaction graph logic. The change requires no external dependencies.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit fac9c100c7 notes that with -bytespersigop above 21474, \"a package of 25 transactions at the limit aborts a debug build on Assume(virtual_bytes >= 0) in CFeeRate::GetFee; above 134217, so does a single transaction, on Assume(feerate.size > 0) in TxGraphImpl::AddTransaction.\"",
+  "Commit 7d37a758b3 notes that even within the new limit at -bytespersigop=21474, an incoming transaction with 100,040 sigops results in 2,148,258,960 sigop-adjusted weight exceeding INT32_MAX, aborting debug builds on Assume(feerate.size > 0) during staging."
+ ],
+ "head_sha": "7d37a758b3f4c1946bd7f1d6d0c37519307f076b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36538,
+ "patch_id": "cc7f1e86a7b17387",
+ "problem": "-bytespersigop is parsed as int64 and cast to unsigned int, allowing negative numbers to wrap and values of 2^32 or greater to truncate (e.g. 4294967296 silently zeroes the setting). High values cause sigop-adjusted transaction and package sizes to overflow int32_t, crashing debug builds on Assume assertions in fee rate and transaction graph calculations. Furthermore, because PreChecks staged transactions before verifying MAX_STANDARD_TX_SIGOPS_COST, standardness rejection occurred too late to prevent large-sigop transactions from triggering the same overflow during staging.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy"
+  ],
+  "why": "Moving the standard sigop cost check earlier in mempool acceptance could reject transactions prematurely or alter standardness failure codes if dependencies or context assumptions were violated."
+ },
+ "run": "run:20261017-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 91,
+  "deletions": 6,
+  "files": 5,
+  "test_lines": 70
+ },
+ "summary": "Restricts the -bytespersigop configuration option at startup to the range [0, 21474] to keep sigop-adjusted vsize calculations within int32 limits. In addition, moves the standard transaction sigop limit check in MemPoolAccept::PreChecks to run before a transaction is staged in the mempool changeset. Adds functional test coverage for parameter boundary validation and sigop overflow cases.",
+ "uncertainties": []
+}

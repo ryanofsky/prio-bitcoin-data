@@ -1,0 +1,47 @@
+{
+ "run": "run:20261017-0120-assess",
+ "pr": "bitcoin/bitcoin#36548",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-17T01:21:38+00:00",
+ "usage": {
+  "input_tokens": 3761,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1115
+ },
+ "cost_usd": 0.007002,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Avoids full deserialization and reserialization when serving legacy non-witness blocks (`MSG_BLOCK`). Disk-backed block data is read into an owned buffer, verified against expected header proof-of-work and hash, and compacted in place by stripping witness data ranges directly from the serialized byte stream.\",\n  \"problem\": \"Serving `MSG_BLOCK` requests currently decodes blocks into `CBlock` and `CTransaction` objects and reserializes them with `TX_NO_WITNESS`, which wastes CPU cycles on transaction allocations and hash calculations. In contrast, `MSG_WITNESS_BLOCK` serves stored bytes directly from disk.\",\n  \"evidence\": [\n    \"Author's benchmarks show disk read and message creation dropping from 1.31 ms to 0.147 ms (~8.9x speedup) for witness-free blocks and from 3.47 ms to 0.374 ms (~9.3x speedup) for witness-bearing blocks (PR description, commits e2b4f330cb and 0b01ce05e1).\",\n    \"Extends raw disk block serving introduced in merged PR #13151, addressing transaction rehashing concerns previously noted in PR #13011 and PR #13098 (PR description).\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#36476\"\n    ]\n  },\n  \"scope_notes\": \"Extracts shared transaction boundary parsing logic (`UnserializeTransactionBody`) so skipping bytes follows the exact decoding validation rules as standard transaction deserialization. Signet continues to use full `ReadBlock` for solution checks.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Serves disk-backed MSG_BLOCK peer requests by reading raw block bytes and stripping witness data in place rather than fully decoding and reserializing transactions. This eliminates significant CPU overhead and memory allocations for legacy block requests and potential future witnessless IBD schemes. Author benchmarks show an ~8.9x to 9.3x speedup in block read and serialization time. It enables efficient block serving for proposed witnessless assumevalid IBD (#36476).\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"medium\",\n  \"uncertainties\": [\n    \"Diff was not provided, so implementation specifics of the in-place buffer manipulation and error handling cannot be directly inspected.\"\n  ],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"p2p\"\n    ],\n    \"why\": \"Parsing or buffer-stripping bugs when serving MSG_BLOCK could send malformed block data to peers, leading to network disconnects or peers stalling sync.\"\n  }\n}",
+ "result": {
+  "summary": "Avoids full deserialization and reserialization when serving legacy non-witness blocks (`MSG_BLOCK`). Disk-backed block data is read into an owned buffer, verified against expected header proof-of-work and hash, and compacted in place by stripping witness data ranges directly from the serialized byte stream.",
+  "problem": "Serving `MSG_BLOCK` requests currently decodes blocks into `CBlock` and `CTransaction` objects and reserializes them with `TX_NO_WITNESS`, which wastes CPU cycles on transaction allocations and hash calculations. In contrast, `MSG_WITNESS_BLOCK` serves stored bytes directly from disk.",
+  "evidence": [
+   "Author's benchmarks show disk read and message creation dropping from 1.31 ms to 0.147 ms (~8.9x speedup) for witness-free blocks and from 3.47 ms to 0.374 ms (~9.3x speedup) for witness-bearing blocks (PR description, commits e2b4f330cb and 0b01ce05e1).",
+   "Extends raw disk block serving introduced in merged PR #13151, addressing transaction rehashing concerns previously noted in PR #13011 and PR #13098 (PR description)."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36476"
+   ]
+  },
+  "scope_notes": "Extracts shared transaction boundary parsing logic (`UnserializeTransactionBody`) so skipping bytes follows the exact decoding validation rules as standard transaction deserialization. Signet continues to use full `ReadBlock` for solution checks.",
+  "changed_since_previous": "",
+  "card": "Serves disk-backed MSG_BLOCK peer requests by reading raw block bytes and stripping witness data in place rather than fully decoding and reserializing transactions. This eliminates significant CPU overhead and memory allocations for legacy block requests and potential future witnessless IBD schemes. Author benchmarks show an ~8.9x to 9.3x speedup in block read and serialization time. It enables efficient block serving for proposed witnessless assumevalid IBD (#36476).",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "Diff was not provided, so implementation specifics of the in-place buffer manipulation and error handling cannot be directly inspected."
+  ],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "p2p"
+   ],
+   "why": "Parsing or buffer-stripping bugs when serving MSG_BLOCK could send malformed block data to peers, leading to network disconnects or peers stalling sync."
+  }
+ }
+}

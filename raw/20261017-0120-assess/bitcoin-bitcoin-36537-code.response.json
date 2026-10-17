@@ -1,0 +1,42 @@
+{
+ "run": "run:20261017-0120-assess",
+ "pr": "bitcoin/bitcoin#36537",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-17T01:21:25+00:00",
+ "usage": {
+  "input_tokens": 4957,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 949
+ },
+ "cost_usd": 0.0072765,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds explicit destructors to CHMAC_SHA256 and CHMAC_SHA512 to wipe their inner and outer hash states using memory_cleanse(). In CreateMuSig2PartialSig(), replaces stack-allocated secp256k1_keypair structures with KeyPair via CKey::ComputeKeyPair(), ensuring the private key material is kept in secure memory and cleansed on destruction.\",\n  \"problem\": \"CHMAC_SHA256 and CHMAC_SHA512 leave internal hasher states in memory upon destruction, preserving HMAC output and trailing message bytes from sensitive operations such as CExtKey::SetSeed() (seed and master key) and hardened BIP32 derivation (parent private key). Additionally, CreateMuSig2PartialSig() instantiates secp256k1_keypair on the stack without zeroing it on function exit.\",\n  \"evidence\": [\n    \"Author note in PR description: 'I checked with a small program, built from these files, that the seed and key bytes are in the HMAC object after Finalize() and gone after its destructor.'\",\n    \"Continues memory cleansing work from merged PR #35254 ('crypto: cleanse HMAC stack buffers after use and ChainCode').\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 to cleanse inner and outer hasher states and switches MuSig2 partial signing keypair storage to secure memory. Without this, destroyed HMAC instances retain HMAC output and final message blocks in memory, leaving behind seeds from CExtKey::SetSeed() and parent private keys from hardened BIP32 operations, while MuSig2 leaves secret keys on the stack. The author confirmed with a test program that key and seed bytes persist after Finalize() and are zeroed by the new destructors.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"wallet\",\n      \"other\"\n    ],\n    \"why\": \"Touches cryptographic helper destructors and MuSig2 signing key handling; an improper memory wipe or keypair construction error could cause signing failures or memory corruption.\"\n  }\n}",
+ "result": {
+  "summary": "Adds explicit destructors to CHMAC_SHA256 and CHMAC_SHA512 to wipe their inner and outer hash states using memory_cleanse(). In CreateMuSig2PartialSig(), replaces stack-allocated secp256k1_keypair structures with KeyPair via CKey::ComputeKeyPair(), ensuring the private key material is kept in secure memory and cleansed on destruction.",
+  "problem": "CHMAC_SHA256 and CHMAC_SHA512 leave internal hasher states in memory upon destruction, preserving HMAC output and trailing message bytes from sensitive operations such as CExtKey::SetSeed() (seed and master key) and hardened BIP32 derivation (parent private key). Additionally, CreateMuSig2PartialSig() instantiates secp256k1_keypair on the stack without zeroing it on function exit.",
+  "evidence": [
+   "Author note in PR description: 'I checked with a small program, built from these files, that the seed and key bytes are in the HMAC object after Finalize() and gone after its destructor.'",
+   "Continues memory cleansing work from merged PR #35254 ('crypto: cleanse HMAC stack buffers after use and ChainCode')."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "",
+  "card": "Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 to cleanse inner and outer hasher states and switches MuSig2 partial signing keypair storage to secure memory. Without this, destroyed HMAC instances retain HMAC output and final message blocks in memory, leaving behind seeds from CExtKey::SetSeed() and parent private keys from hardened BIP32 operations, while MuSig2 leaves secret keys on the stack. The author confirmed with a test program that key and seed bytes persist after Finalize() and are zeroed by the new destructors.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "wallet",
+    "other"
+   ],
+   "why": "Touches cryptographic helper destructors and MuSig2 signing key handling; an improper memory wipe or keypair construction error could cause signing failures or memory corruption."
+  }
+ }
+}

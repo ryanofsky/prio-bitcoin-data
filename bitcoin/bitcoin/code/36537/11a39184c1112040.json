@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-17T01:21:25+00:00",
+ "card": "Adds destructors to CHMAC_SHA256 and CHMAC_SHA512 to cleanse inner and outer hasher states and switches MuSig2 partial signing keypair storage to secure memory. Without this, destroyed HMAC instances retain HMAC output and final message blocks in memory, leaving behind seeds from CExtKey::SetSeed() and parent private keys from hardened BIP32 operations, while MuSig2 leaves secret keys on the stack. The author confirmed with a test program that key and seed bytes persist after Finalize() and are zeroed by the new destructors.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author note in PR description: 'I checked with a small program, built from these files, that the seed and key bytes are in the HMAC object after Finalize() and gone after its destructor.'",
+  "Continues memory cleansing work from merged PR #35254 ('crypto: cleanse HMAC stack buffers after use and ChainCode')."
+ ],
+ "head_sha": "14b3cb57802cde186c3b4de80a6f174e8942aac1",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36537,
+ "patch_id": "11a39184c1112040",
+ "problem": "CHMAC_SHA256 and CHMAC_SHA512 leave internal hasher states in memory upon destruction, preserving HMAC output and trailing message bytes from sensitive operations such as CExtKey::SetSeed() (seed and master key) and hardened BIP32 derivation (parent private key). Additionally, CreateMuSig2PartialSig() instantiates secp256k1_keypair on the stack without zeroing it on function exit.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "other"
+  ],
+  "why": "Touches cryptographic helper destructors and MuSig2 signing key handling; an improper memory wipe or keypair construction error could cause signing failures or memory corruption."
+ },
+ "run": "run:20261017-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 17,
+  "deletions": 3,
+  "files": 5,
+  "test_lines": 0
+ },
+ "summary": "Adds explicit destructors to CHMAC_SHA256 and CHMAC_SHA512 to wipe their inner and outer hash states using memory_cleanse(). In CreateMuSig2PartialSig(), replaces stack-allocated secp256k1_keypair structures with KeyPair via CKey::ComputeKeyPair(), ensuring the private key material is kept in secure memory and cleansed on destruction.",
+ "uncertainties": []
+}

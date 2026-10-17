@@ -11,9 +11,9 @@
    "clears_with": "answer",
    "fix": {
     "at": null,
-    "sha": "1f6262c5599124a093589725d7f9311645ea92be"
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
    },
-   "from_schema": 1,
+   "from_schema": 2,
    "harm": "Header drags addrman, key_io, and protocol into tests that do not need them, increasing preprocessed lines and causing unnecessary recompilations",
    "hash": "c964e2c529ad6e97",
    "history": [
@@ -31,7 +31,7 @@
    "part": 1,
    "pin": null,
    "question": "",
-   "quote": "feefrac_tests and txgraph_tests only need the FeeFrac printers, but this block drags addrman, key_io and protocol in with it. Touching addrman now rebuilds both, and it's about 12k extra preprocessed ",
+   "quote": "feefrac_tests and txgraph_tests only need the FeeFrac printers, but this block drags addrman, key_io and protocol in with it. Touching addrman now rebuilds both, and it's about 12k extra preprocessed lines in the first one. Would it be worth splitting this by area?",
    "request": "",
    "status": "fixed",
    "status_by": {
@@ -40,7 +40,7 @@
     "id": "rc:3915312526",
     "quote": "Added common.cpp with the implementations and all forward delc to common.h in latest push"
    },
-   "status_note": "Author implemented common.cpp separation",
+   "status_note": "Author moved implementations to common.cpp with forward declarations in common.h",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3886906633"
   },
@@ -51,12 +51,12 @@
    "author_replies": [
     "rc:3888975962"
    ],
-   "clears_with": "answer",
+   "clears_with": "change",
    "fix": {
     "at": null,
-    "sha": "1f6262c5599124a093589725d7f9311645ea92be"
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
    },
-   "from_schema": 1,
+   "from_schema": 2,
    "harm": "Printers omit fields compared by operator==, causing failed checks to display identical values or generic types without diagnostic detail",
    "hash": "5826bb93947c740e",
    "history": [
@@ -66,6 +66,14 @@
      "by": "run:20260918-0314",
      "cause": "rc:3886906634",
      "status": "resolved"
+    },
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3888975962",
+     "clears_with": "change",
+     "status": "fixed",
+     "type": "objection"
     }
    ],
    "id": "rc:3886906634",
@@ -74,16 +82,16 @@
    "part": 1,
    "pin": null,
    "question": "",
-   "quote": "This one leaves out nTime and nServices, which operator== does compare, so in the two addrv1/addrv2 unserialize checks a regression in time or in flags comes out as [::1]:0 != [::1]:0. The CTxDestinat",
+   "quote": "This one leaves out nTime and nServices, which operator== does compare, so in the two addrv1/addrv2 unserialize checks a regression in time or in flags comes out as [::1]:0 != [::1]:0. The CTxDestination one prints CTxDestination() for CNoDestination and PubKeyDestination. Worth checking each printer against the type's operator==?",
    "request": "",
    "status": "fixed",
    "status_by": {
     "at": "2026-08-30",
     "by": "rustaceanrob",
     "id": "rc:3888975962",
-    "quote": "Added additional info for CAddress and took a glance through the rest of the ==, I think all fields should be covered. A"
+    "quote": "Added additional info for CAddress and took a glance through the rest of the ==, I think all fields should be covered. As far as CTxDestination, I added specific displays for each variant"
    },
-   "status_note": "Author added the missing fields in push",
+   "status_note": "Author added missing fields to CAddress and CTxDestination printers",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3886906634"
   },
@@ -94,12 +102,12 @@
    "author_replies": [
     "rc:3888973333"
    ],
-   "clears_with": "answer",
+   "clears_with": "change",
    "fix": {
     "at": null,
-    "sha": "1f6262c5599124a093589725d7f9311645ea92be"
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
    },
-   "from_schema": 1,
+   "from_schema": 2,
    "harm": "Encode asserts on an empty key, causing bip32_tests to abort with SIGABRT instead of reporting failure and continuing the suite",
    "hash": "10361c53e4af2d2e",
    "history": [
@@ -109,6 +117,14 @@
      "by": "run:20260918-0314",
      "cause": "rc:3886906637",
      "status": "resolved"
+    },
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3889310585",
+     "clears_with": "change",
+     "status": "fixed",
+     "type": "objection"
     }
    ],
    "id": "rc:3886906637",
@@ -117,18 +133,372 @@
    "part": 1,
    "pin": null,
    "question": "",
-   "quote": "Encode() asserts on an empty key, which is what DecodeExtKey leaves you with when it fails, and that's the value bip32_tests compares. I broke the decode to see. The case dies on SIGABRT and takes the",
+   "quote": "Encode() asserts on an empty key, which is what DecodeExtKey leaves you with when it fails, and that's the value bip32_tests compares. I broke the decode to see. The case dies on SIGABRT and takes the following ones with it. On master the same break just prints 17 failures and the suite finishes. Worth a guard here and in the CExtPubKey one?",
    "request": "",
    "status": "fixed",
    "status_by": {
     "at": "2026-08-30",
     "by": "jeanpablojp",
     "id": "rc:3889310585",
-    "quote": "Yes, that's what I meant. I broke the decode again and now it prints CExtKey(<invalid>) and the suite finishes, no SIGAB"
+    "quote": "Yes, that's what I meant. I broke the decode again and now it prints CExtKey(<invalid>) and the suite finishes, no SIGABRT."
    },
-   "status_note": "Fix verified by reviewer",
+   "status_note": "Author added length and validity guards, verified by reviewer",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3886906637"
+  },
+  {
+   "association": "CONTRIBUTOR",
+   "at": "2026-08-30",
+   "author": "jeanpablojp",
+   "author_replies": [
+    "rc:3893861842"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "4e5c3e4a09a0b115",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3889309010",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3889309010",
+   "kind": "correctness",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "While checking the changes I noticed a small nit. CService's == compares m_net, which the printer doesn't show, so IPv6 and CJDNS with the same bytes come out identical.",
+   "request": "Include m_net in CService printer so IPv6 and CJDNS with identical bytes do not print identically",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-08-31",
+    "by": "rustaceanrob",
+    "id": "rc:3893861842",
+    "quote": "Added a net field to CService"
+   },
+   "status_note": "Author added net field to CService debug string",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3889309010"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-01",
+   "author": "maflcko",
+   "author_replies": [
+    "rc:3905247025",
+    "rc:3905661593",
+    "rc:3915312526"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "763c00bbb2d20a7f",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3905094388",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3905094388",
+   "kind": "approach",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "Most of the functions can be just the signature and a fwd decl for the type, and the actual stringify can move to a cpp file? This saves re-compilation at least in the other cases",
+   "request": "Move printer implementations to a cpp file with forward declarations in the header to reduce recompilations",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-02",
+    "by": "rustaceanrob",
+    "id": "rc:3915312526",
+    "quote": "Added common.cpp with the implementations and all forward delc to common.h in latest push"
+   },
+   "status_note": "Author moved implementations to common.cpp with forward declarations in common.h",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3905094388"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-01",
+   "author": "purpleKarrot",
+   "author_replies": [
+    "rc:3906361391"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "4f66d000b335e01a",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3906040903",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3906040903",
+   "kind": "approach",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "No need for separate template instantiations for each derived type... And then you can also move the implementation to the source file forward declare FeeFrac in the header.",
+   "request": "De-template FeeFrac stream operator and move implementation to the source file",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-01",
+    "by": "rustaceanrob",
+    "id": "rc:3906361391",
+    "quote": "I de-templated ByRatioNegSize as well because the only intended and current use case is with FeeFrac. Updated in latest push."
+   },
+   "status_note": "Author de-templated FeeFrac and ByRatioNegSize and moved implementations to source file",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3906040903"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-01",
+   "author": "maflcko",
+   "author_replies": [
+    "rc:3912621776"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "642555e5ec1bdcb3",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3906680864",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3906680864",
+   "kind": "approach",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "Why is this pair thing needed? Seems to be a single test-only thing? So either this should be moved to that test, or maybe pair should be handled generally, like the existing optional",
+   "request": "Handle std::pair printer generally or move it to the test to avoid unnecessary includes",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-02",
+    "by": "rustaceanrob",
+    "id": "rc:3912621776",
+    "quote": "I added a requires requires(std::ostream& os, const T& t, const U& u) { os << t; os << u; }, which I think it correct. Otherwise yeah this should be general, updated in latest push."
+   },
+   "status_note": "Author generalized std::pair stream operator with concepts constraint",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3906680864"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-07",
+   "author": "ismaelsadeeq",
+   "author_replies": [
+    "rc:3956364930"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "07740b8643e5d36b",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3952074729",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3952074729",
+   "kind": "interface",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "nit: add context to what we are displaying here and other places.",
+   "request": "Add contextual field labels in debug output representations",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-08",
+    "by": "rustaceanrob",
+    "id": "rc:3956364930",
+    "quote": "Makes sense. Applied those changes as well as adding a addr field to CService and CAddress."
+   },
+   "status_note": "Author applied field labels across debug printers",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3952074729"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-07",
+   "author": "ismaelsadeeq",
+   "author_replies": [
+    "rc:3957091212"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "de90b2a63c1a56d2",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3952120727",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3952120727",
+   "kind": "maintenance",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "Should we make common.h self-advertising so authors discover it without a reviewer? A short header comment listing the types it makes BOOST_CHECK_*-printable",
+   "request": "Add a comment in common.h describing the printable types for discoverability",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-08",
+    "by": "rustaceanrob",
+    "id": "rc:3957091212",
+    "quote": "Added a comment to common.h describing the purpose of the file."
+   },
+   "status_note": "Author added header comment in common.h describing purpose and noting debug-available types",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3952120727"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-07",
+   "author": "ismaelsadeeq",
+   "author_replies": [
+    "rc:3956370768"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "1b32efbda8794602",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3952129720",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3952129720",
+   "kind": "scope",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "It seems you missed some.",
+   "request": "Convert remaining BOOST_CHECK call sites in script_standard_tests",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-08",
+    "by": "rustaceanrob",
+    "id": "rc:3956370768",
+    "quote": "Applied those changes, thanks"
+   },
+   "status_note": "Author updated callsites in script_standard_tests",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3952129720"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-07",
+   "author": "ismaelsadeeq",
+   "author_replies": [
+    "rc:3956383298"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "107b3c88e706346a",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:3952225313",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "rc:3952225313",
+   "kind": "scope",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "Should we add for script too?",
+   "request": "Add stream operator overload for CScript",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-08",
+    "by": "rustaceanrob",
+    "id": "rc:3956383298",
+    "quote": "Yeah, definitely, I added a debug output and modified psbt_tests and script_tests to include it."
+   },
+   "status_note": "Author added CScript debug output and updated psbt_tests and script_tests",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3952225313"
   },
   {
    "association": "CONTRIBUTOR",
@@ -140,9 +510,9 @@
    "clears_with": "answer",
    "fix": {
     "at": null,
-    "sha": "1f6262c5599124a093589725d7f9311645ea92be"
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
    },
-   "from_schema": 1,
+   "from_schema": 2,
    "harm": "ScriptToAsmStr decodes small pushes as numbers, allowing scripts that differ in bytes to display identical string representations on failure",
    "hash": "1c44b8685796b4c8",
    "history": [
@@ -169,9 +539,94 @@
     "id": "rc:3958422747",
     "quote": "added the hex string alongside the ASM in the latest push"
    },
-   "status_note": "Author added hex string alongside ASM",
+   "status_note": "Author added hex string alongside ASM representation",
    "type": "objection",
    "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r3958262109"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-14",
+   "author": "sedited",
+   "author_replies": [
+    "rc:4014061979"
+   ],
+   "clears_with": "answer",
+   "fix": {
+    "at": null,
+    "sha": "cf4412a5929433e58ee18239fb3537f4002fd76b"
+   },
+   "from_schema": 2,
+   "harm": "",
+   "hash": "3df2a6da303b4010",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "rc:4006941579",
+     "clears_with": "answer",
+     "status": "answered",
+     "type": "question"
+    }
+   ],
+   "id": "rc:4006941579",
+   "kind": "scope",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "Ask how exhaustive the conversion of BOOST_CHECK callsites is intended to be",
+   "quote": "How exhaustive is the conversion supposed to be? In this file alone there seem to be more cases where we compare scriptsigs.",
+   "request": "",
+   "status": "answered",
+   "status_by": {
+    "at": "2026-09-15",
+    "by": "rustaceanrob",
+    "id": "rc:4014061979",
+    "quote": "It is intended to be completely exhaustive for the types with << added here. I ran the following: rg -nP ... which showed quite a few additional sites I missed that have been updated now"
+   },
+   "status_note": "Author clarified that conversion is intended to be exhaustive for types with added debug output and converted missed sites",
+   "type": "question",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#discussion_r4006941579"
+  },
+  {
+   "association": "MEMBER",
+   "at": "2026-09-15",
+   "author": "ismaelsadeeq",
+   "author_replies": [
+    "c:5695609943"
+   ],
+   "clears_with": "answer",
+   "fix": null,
+   "from_schema": 2,
+   "harm": "",
+   "hash": "c490067e3f882636",
+   "history": [
+    {
+     "at": "2026-10-17T01:19:42+00:00",
+     "by": "run:20261017-0115",
+     "cause": "c:5683024597",
+     "clears_with": "answer",
+     "status": "fixed",
+     "type": "suggestion"
+    }
+   ],
+   "id": "c:5683024597",
+   "kind": "scope",
+   "other_replies": [],
+   "part": 1,
+   "pin": null,
+   "question": "",
+   "quote": "The PR description should be more explicit about this and the rationale.",
+   "request": "Clarify in PR description whether TxGraph::Ref and integer comparisons are intentionally omitted",
+   "status": "fixed",
+   "status_by": {
+    "at": "2026-09-16",
+    "by": "rustaceanrob",
+    "id": "c:5695609943",
+    "quote": "Thanks, I updated the description to be more thorough as far as what this seeks to accomplish."
+   },
+   "status_note": "Author updated the PR description with rationale for omitted types",
+   "type": "suggestion",
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#issuecomment-5683024597"
   }
  ],
  "log": [
@@ -276,9 +731,38 @@
     "c:5869699716"
    ],
    "run": "run:20260929-0123"
+  },
+  {
+   "at": "2026-10-17T01:19:42+00:00",
+   "changes": [
+    "claim rc:3886906634: objection/answer/fixed -> objection/change/fixed",
+    "claim rc:3886906637: objection/answer/fixed -> objection/change/fixed",
+    "claim rc:3889309010 added (suggestion, clears with answer, fixed) by jeanpablojp",
+    "claim rc:3905094388 added (suggestion, clears with answer, fixed) by maflcko",
+    "claim rc:3906040903 added (suggestion, clears with answer, fixed) by purpleKarrot",
+    "claim rc:3906680864 added (suggestion, clears with answer, fixed) by maflcko",
+    "claim rc:3952074729 added (suggestion, clears with answer, fixed) by ismaelsadeeq",
+    "claim rc:3952120727 added (suggestion, clears with answer, fixed) by ismaelsadeeq",
+    "claim rc:3952129720 added (suggestion, clears with answer, fixed) by ismaelsadeeq",
+    "claim rc:3952225313 added (suggestion, clears with answer, fixed) by ismaelsadeeq",
+    "claim rc:4006941579 added (question, clears with answer, answered) by sedited",
+    "claim c:5683024597 added (suggestion, clears with answer, fixed) by ismaelsadeeq",
+    "support r:5545305112 added by maflcko",
+    "waiting on: nothing"
+   ],
+   "cost_usd": 0.15307,
+   "events": [
+    "rc:4292687600",
+    "rc:4292698009",
+    "rc:4292781750",
+    "rc:4292839500",
+    "c:6212440546",
+    "r:5545305112"
+   ],
+   "run": "run:20261017-0115"
   }
  ],
- "notes": "Added ismaelsadeeq's latest re-ACK (c:5869699716) for commit 1f6262c5599124a093589725d7f9311645ea92be. All claims remain resolved.",
+ "notes": "Added missing suggestions and questions raised across the discussion under the current rules. Recorded maflcko's final review ACK. / Reread reclassified BIP32 abort objection to clear with change (since test crashes are defects) and brought in suggestions and questions previously omitted under schema 1. All objections and suggestions have been fixed or answered, and maflcko gave a full review ACK.",
  "number": 36091,
  "participants": [
   {
@@ -305,16 +789,16 @@
    "first": "2026-08-29",
    "last": "2026-09-08",
    "login": "jeanpablojp",
-   "note": "raised concerns on test aborts from empty BIP32 keys, incomplete equality display, header bloat, and ASM script ambiguity; followed by tested ACK and re-ACK after fixes",
+   "note": "raised objections on BIP32 empty key crash, omitted fields in equality display, header bloat, and ambiguous ASM decoding; subsequently tested and ACKed after fixes",
    "stance": "objection"
   },
   {
    "association": "MEMBER",
-   "comments": 5,
+   "comments": 11,
    "first": "2026-09-01",
-   "last": "2026-09-02",
+   "last": "2026-10-16",
    "login": "maflcko",
-   "note": "Approach ACK; suggested moving printer implementations to common.cpp with forward declarations in common.h",
+   "note": "Approach ACK and ACK; suggested moving printer implementations to common.cpp and generalizing pair printer",
    "stance": "support"
   },
   {
@@ -332,7 +816,7 @@
    "first": "2026-09-07",
    "last": "2026-09-28",
    "login": "ismaelsadeeq",
-   "note": "ACK and repeated re-ACKs on subsequent pushes; suggested adding CScript printer, contextual field labels, and converting remaining call sites",
+   "note": "repeated ACKs; suggested adding CScript printer, contextual field labels, converting remaining call sites, and updating PR description",
    "stance": "support"
   }
  ],
@@ -346,12 +830,14 @@
    "c:5695609943": "4f81d5d82de16f7c",
    "c:5812687726": "f5d3bd60dd7eeb74",
    "c:5869699716": "9213ea60ee612d41",
+   "c:6212440546": "9edb550477dc40af",
    "r:5058427819": "8e6e64796c66682e",
    "r:5088351525": "460ca73252d97115",
    "r:5134691030": "e71c4ddbba6b8660",
    "r:5142163312": "840f837bd792caeb",
    "r:5143725212": "6b28193cde8eedcc",
    "r:5266688709": "ee348734844f3999",
+   "r:5545305112": "36203775fea2811b",
    "rc:3886906633": "c964e2c529ad6e97",
    "rc:3886906634": "5826bb93947c740e",
    "rc:3886906637": "10361c53e4af2d2e",
@@ -386,12 +872,16 @@
    "rc:3958422747": "5e32d6942b09a126",
    "rc:4006941579": "3df2a6da303b4010",
    "rc:4014061979": "1e2f5ef89b853e83",
-   "rc:4062179390": "4ae40c8d3d72bc07"
+   "rc:4062179390": "4ae40c8d3d72bc07",
+   "rc:4292687600": "f43cd5bf0c056101",
+   "rc:4292698009": "b8c2260a434ad67d",
+   "rc:4292781750": "9d02d3144ff13c2b",
+   "rc:4292839500": "8019c6c0cc5a11ef"
   },
-  "head_sha": "1f6262c5599124a093589725d7f9311645ea92be",
-  "last_event_at": "2026-09-28T12:19:25Z",
+  "head_sha": "cf4412a5929433e58ee18239fb3537f4002fd76b",
+  "last_event_at": "2026-10-16T09:27:47Z",
   "patch_id": "d0a8c60d612e9658",
-  "schema_floor": 1
+  "schema_floor": 2
  },
  "repo": "bitcoin/bitcoin",
  "schema": 2,
@@ -538,16 +1028,32 @@
    "substantive": false,
    "url": "https://github.com/bitcoin/bitcoin/pull/36091#issuecomment-5869699716",
    "verdict": "ACK"
+  },
+  {
+   "areas": [
+    "src/test/util/common.cpp",
+    "src/test/util/common.h"
+   ],
+   "association": "MEMBER",
+   "at": "2026-10-16",
+   "author": "maflcko",
+   "evidence": "read",
+   "hash": "36203775fea2811b",
+   "id": "r:5545305112",
+   "reason": "happy to re-ack for the nits, but up to you. review ACK cf4412a5929433e58ee18239fb3537f4002fd76b",
+   "substantive": false,
+   "url": "https://github.com/bitcoin/bitcoin/pull/36091#pullrequestreview-5545305112",
+   "verdict": "ACK"
   }
  ],
- "updated": "2026-09-29T01:24:23+00:00",
+ "updated": "2026-10-17T01:19:42+00:00",
  "waiting_on": [
   {
-   "at": "2026-09-28",
-   "id": "c:5869699716",
+   "at": null,
+   "id": "",
    "on": "nothing",
-   "url": "https://github.com/bitcoin/bitcoin/pull/36091#issuecomment-5869699716",
-   "what": "all objections fixed and latest push re-ACKed"
+   "url": null,
+   "what": ""
   }
  ]
 }

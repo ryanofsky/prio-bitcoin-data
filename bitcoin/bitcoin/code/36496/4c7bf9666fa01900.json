@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-17T01:21:20+00:00",
+ "card": "Reduces per-block allocation overhead in CoinsViewOverlay during parallel prevout prefetching. It reuses the intra-block transaction ID hash set and worker task vector across blocks, omits the block's final transaction ID from the filter, and caps dispatched worker tasks to the queued input count. The author reports a 1% validation speedup, though benchmark numbers and environment details are not provided.",
+ "changed_since_previous": "No functional changes to the overall design; submission handling now passes empty task ranges directly through ThreadPool::Submit, which skips condition variable notification when no tasks were queued.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Besides the simplifications this also results in a 1% validation speedup.' (claimed without benchmark figures or hardware specs)."
+ ],
+ "head_sha": "483c9d0f448a5bcd6d24e24b00d45a8f22975fb7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "benchmark_numbers"
+ ],
+ "number": 36496,
+ "patch_id": "4c7bf9666fa01900",
+ "problem": "CoinsViewOverlay::StartFetching reallocates and reseeds its earlier-txids hash set and allocates a task vector for every block connected. It also inserts the block's final transaction ID even though subsequent transactions cannot spend it, and dispatches worker threads that do no work when there are fewer queued inputs than workers.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "Mistakes in intra-block prevout tracking or worker dispatch could lead to missed prevout fetches or race conditions during block connection, stalling validation."
+ },
+ "run": "run:20261017-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 35,
+  "deletions": 29,
+  "files": 4,
+  "test_lines": 3
+ },
+ "summary": "Reuses heap allocations in CoinsViewOverlay across blocks during parallel prevout fetching. It persists the intra-block transaction ID filter and worker task vector, avoids inserting the final transaction ID of a block into the filter, and relaxes ThreadPool::Submit to accept non-const lvalues while capping submitted tasks to the queued input count.",
+ "uncertainties": []
+}

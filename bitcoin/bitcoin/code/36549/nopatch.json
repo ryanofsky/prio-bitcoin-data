@@ -1,0 +1,45 @@
+{
+ "assessed_at": "2026-10-17T01:21:39+00:00",
+ "card": "This PR updates `memusage::MallocUsage` with precise allocator models for glibc, musl, macOS, and Windows, while adding empirical unit tests that measure allocator spacing across sizes. The previous formula, based on glibc 2.19, significantly misestimated chunk sizes across platforms and lacked mmap modeling, distorting memory accounting for caches and pools. Author benchmarks show the new glibc model matches glibc 2.43 across 16 architectures and over 300,000 request sizes each, with musl matching within 0.2%. The PR is marked WIP and fails CI.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 8b5b4927f4 notes the previous formula 'overestimates the size of glibc chunks by 16 bytes for half of all request sizes, ignores glibc's minimum chunk size, and has no notion of mmapped allocations.'",
+  "Commit 8b5b4927f4 states the new glibc model 'matches glibc 2.43 exactly on x86_64, i386, aarch64, armhf, armel, riscv64, ppc64, ppc64le, ppc, s390x, loongarch64, alpha, hppa, m68k, sh4 and sparc64 (over 300000 request sizes each)', and musl's table 'matches RSS measurements of musl 1.2.5 within 0.2%.'"
+ ],
+ "head_sha": "60524a8d93749502632aaa4adfcffe99c71b6683",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36549,
+ "patch_id": "nopatch",
+ "problem": "The existing `MallocUsage` formula was based on glibc 2.19, overestimating chunk sizes by 16 bytes for half of all requests, ignoring minimum chunk sizes and mmapped thresholds, and failing to model allocator behavior on macOS, Windows, or musl. This leads to inaccurate memory accounting across the node (such as for the UTXO cache and mempool), and hid container overhead differences across C++ standard library implementations.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy",
+   "tests"
+  ],
+  "why": "If MallocUsage significantly underestimates heap usage, nodes could exceed configured memory boundaries (-dbcache, -maxmempool) and risk being killed by system OOM killers."
+ },
+ "run": "run:20261017-0120-assess",
+ "scope_notes": "The diff was not provided in the patch payload. Commit 60524a8d93 temporarily turns on `ALL_SIZES` exhaustive testing in unit tests, which adds ~25 seconds of test runtime on glibc and is marked WIP.",
+ "size": {
+  "additions": 356,
+  "deletions": 12,
+  "files": 4,
+  "test_lines": null
+ },
+ "summary": "Replaces the heuristic in `memusage::MallocUsage` with platform-specific allocation models for glibc, musl, macOS libmalloc, and Windows heap allocators. Adjusts dynamic container node overhead estimates for libc++ and MSVC STL. Adds unit tests that dynamically measure actual allocation distances across heap requests to verify that `MallocUsage` stays within close bounds of real allocator behavior.",
+ "uncertainties": [
+  "Diff was omitted from the prompt payload.",
+  "PR is explicitly marked WIP and failing CI (commit 60524a8d93 enables full test measurement which might be diagnostic)."
+ ]
+}

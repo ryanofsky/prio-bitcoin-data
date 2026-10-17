@@ -1,0 +1,45 @@
+{
+ "run": "run:20261017-0120-assess",
+ "pr": "bitcoin/bitcoin#36550",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-17T01:21:41+00:00",
+ "usage": {
+  "input_tokens": 2865,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1121
+ },
+ "cost_usd": 0.0063525,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds a destructor to CSHA512 that cleanses its internal state and buffer when it goes out of scope. This ensures cryptographic material handled by CSHA512 instances is zeroed from memory automatically, mirroring the behavior of ChaCha20.\",\n  \"problem\": \"CSHA512::Finalize() leaves digest bytes in internal state and the last block in its buffer without zeroing them on destruction. Because Bitcoin Core uses CSHA512 almost exclusively for sensitive operations\u2014including wallet passphrase key derivation, BIP32 seed derivation, and RNG state\u2014sensitive key and seed material can linger in process memory.\",\n  \"evidence\": [\n    \"PR description: 'Every CSHA512 outside tests and benchmarks hashes secret data: in CCrypter::BytesToKeySHA512AES the final state holds the key and IV derived from the passphrase, the two hashers in CHMAC_SHA512 hold BIP32 seed and key material, and the RNG hashers in random.cpp hold seed material.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The diff was not provided in the patch record; based on metadata, it is a minimal 8-line addition across header and implementation files adding the destructor.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Adds a destructor to CSHA512 that wipes its internal state and buffer from memory upon going out of scope. Currently, CSHA512 leaves cryptographic output in memory after Finalize(), leaving wallet passphrase keys, BIP32 seed material, and RNG entropy in process memory. Cleansing at destruction mirrors existing hygiene in ChaCha20 and protects secrets without requiring manual zeroing at every call site. It supersedes PR 36551.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"medium\",\n  \"uncertainties\": [\n    \"The patch diff was omitted from the prompt, though the +8/-0 size and description clearly specify adding a destructor with memory_cleanse.\"\n  ],\n  \"risk\": {\n    \"level\": \"low\",\n    \"touches\": [\n      \"wallet\",\n      \"other\"\n    ],\n    \"why\": \"A flaw in memory cleansing during destruction could crash nodes or leak memory if misconfigured, though simple zeroing of internal buffers carries minimal failure modes.\"\n  }\n}",
+ "result": {
+  "summary": "Adds a destructor to CSHA512 that cleanses its internal state and buffer when it goes out of scope. This ensures cryptographic material handled by CSHA512 instances is zeroed from memory automatically, mirroring the behavior of ChaCha20.",
+  "problem": "CSHA512::Finalize() leaves digest bytes in internal state and the last block in its buffer without zeroing them on destruction. Because Bitcoin Core uses CSHA512 almost exclusively for sensitive operations\u2014including wallet passphrase key derivation, BIP32 seed derivation, and RNG state\u2014sensitive key and seed material can linger in process memory.",
+  "evidence": [
+   "PR description: 'Every CSHA512 outside tests and benchmarks hashes secret data: in CCrypter::BytesToKeySHA512AES the final state holds the key and IV derived from the passphrase, the two hashers in CHMAC_SHA512 hold BIP32 seed and key material, and the RNG hashers in random.cpp hold seed material.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The diff was not provided in the patch record; based on metadata, it is a minimal 8-line addition across header and implementation files adding the destructor.",
+  "changed_since_previous": "",
+  "card": "Adds a destructor to CSHA512 that wipes its internal state and buffer from memory upon going out of scope. Currently, CSHA512 leaves cryptographic output in memory after Finalize(), leaving wallet passphrase keys, BIP32 seed material, and RNG entropy in process memory. Cleansing at destruction mirrors existing hygiene in ChaCha20 and protects secrets without requiring manual zeroing at every call site. It supersedes PR 36551.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "medium",
+  "uncertainties": [
+   "The patch diff was omitted from the prompt, though the +8/-0 size and description clearly specify adding a destructor with memory_cleanse."
+  ],
+  "risk": {
+   "level": "low",
+   "touches": [
+    "wallet",
+    "other"
+   ],
+   "why": "A flaw in memory cleansing during destruction could crash nodes or leak memory if misconfigured, though simple zeroing of internal buffers carries minimal failure modes."
+  }
+ }
+}

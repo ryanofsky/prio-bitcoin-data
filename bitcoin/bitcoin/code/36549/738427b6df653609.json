@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-10-18T01:17:05+00:00",
+ "card": "This PR replaces the heuristic in memusage::MallocUsage with platform-specific allocator models for glibc, musl, macOS libmalloc, and Windows heap allocators, while adjusting STL node overhead for libc++ and MSVC. The old formula, measured on glibc 2.19, distorted memory accounting across caches and the mempool by overestimating half of glibc allocations by 16 bytes and miscalculating on non-glibc platforms. Author verification shows exact matches across 16 architectures for glibc 2.43 and within 0.2% for musl 1.2.5. Functional tests are also updated to prevent failures from platform-dependent allocator overheads.",
+ "changed_since_previous": "Adapted functional tests in `mempool_limit.py` and `test_framework/mempool_util.py` to handle dynamic allocator overheads during mempool filling and eviction, and enabled exhaustive testing of all sizes (`ALL_SIZES = true`) in `memusage_tests.cpp`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 3d35a71b3d: glibc model 'matches glibc 2.43 exactly on x86_64, i386, aarch64, armhf, armel, riscv64, ppc64, ppc64le, ppc, s390x, loongarch64, alpha, hppa, m68k, sh4 and sparc64 (over 300000 request sizes each)'",
+  "Commit 3d35a71b3d: musl model 'matches RSS measurements of musl 1.2.5 within 0.2%'",
+  "Commit 3d35a71b3d: macOS and Windows models were validated against CI measurements on macOS 15 (arm64) and Windows Server 2022"
+ ],
+ "head_sha": "6140d4c45155987c461b928ad9e94abf714208d6",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36549,
+ "patch_id": "738427b6df653609",
+ "problem": "`memusage::MallocUsage()` relied on an outdated heuristic measured on glibc 2.19 that overestimates chunk sizes by 16 bytes for half of all requests, ignores minimum chunk sizes and mmapped thresholds, and fails to model non-glibc allocators on macOS, Windows, and musl. This leads to inaccurate dynamic memory accounting across the node (such as the mempool and UTXO cache) and broke tests when allocator overhead assumptions failed.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy",
+   "tests"
+  ],
+  "why": "Inaccuracies in memory usage calculations could lead to premature mempool eviction, incorrect cache flushing, or excessive memory consumption causing out-of-memory crashes."
+ },
+ "run": "run:20261018-0116-assess",
+ "scope_notes": "The unit test introduces custom address-gap analysis to reverse-engineer allocator slot sizes at runtime.",
+ "size": {
+  "additions": 390,
+  "deletions": 21,
+  "files": 6,
+  "test_lines": 308
+ },
+ "summary": "Replaces the generic heuristic in `memusage::MallocUsage` with allocator-specific models for glibc, musl, macOS libmalloc, and Windows heap allocators, and accounts for STL container overheads under libc++ and MSVC. Adds unit tests that measure allocator chunk spacing across allocation sizes to check `MallocUsage` accuracy. Updates functional tests (`mempool_limit.py` and `fill_mempool`) to dynamically adapt to varying malloc overhead instead of relying on hardcoded memory sizes.",
+ "uncertainties": []
+}

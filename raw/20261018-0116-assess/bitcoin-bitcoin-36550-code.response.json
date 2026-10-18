@@ -1,0 +1,42 @@
+{
+ "run": "run:20261018-0116-assess",
+ "pr": "bitcoin/bitcoin#36550",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-18T01:17:02+00:00",
+ "usage": {
+  "input_tokens": 3702,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1408
+ },
+ "cost_usd": 0.0080565,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds a destructor to CSHA512 that zeroes its internal state and input buffer using memory_cleanse. This ensures that sensitive hash state and buffered plaintext are wiped when the hasher goes out of scope.\",\n  \"problem\": \"CSHA512 leaves digest output in its state and final input blocks in its buffer after Finalize() without wiping them on destruction. Because Bitcoin Core uses CSHA512 to handle wallet encryption keys, BIP32 seed material, and RNG state, un-cleansed sensitive data lingers in process memory.\",\n  \"evidence\": [\n    \"PR description: 'CSHA512::Finalize() leaves the digest in the hasher's state and the last block in its buffer, and the class never wipes them.'\",\n    \"PR description: 'Every CSHA512 outside tests and benchmarks hashes secret data: in CCrypter::BytesToKeySHA512AES the final state holds the key and IV derived from the passphrase, the two hashers in CHMAC_SHA512 hold BIP32 seed and key material, and the RNG hashers in random.cpp hold seed material.'\"\n  ],\n  \"dependencies\": {\n   \"depends_on\": [],\n   \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"None; the implementation matches the previous description.\",\n  \"card\": \"Adds a destructor to CSHA512 that cleanses its internal state and buffer when it goes out of scope. Currently, CSHA512 does not zero memory on destruction, allowing derived wallet passphrase keys, BIP32 seed material, and RNG state to linger in process memory. Cleansing at destruction mirrors existing hygiene in ChaCha20 and protects secrets without requiring manual zeroing at individual call sites, superseding PR 36551.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"low\",\n    \"touches\": [\"wallet\", \"other\"],\n    \"why\": \"A bug in the destructor would only affect memory zeroing on destruction, but memory_cleanse is a standard, well-tested internal utility.\"\n  }\n}",
+ "result": {
+  "summary": "Adds a destructor to CSHA512 that zeroes its internal state and input buffer using memory_cleanse. This ensures that sensitive hash state and buffered plaintext are wiped when the hasher goes out of scope.",
+  "problem": "CSHA512 leaves digest output in its state and final input blocks in its buffer after Finalize() without wiping them on destruction. Because Bitcoin Core uses CSHA512 to handle wallet encryption keys, BIP32 seed material, and RNG state, un-cleansed sensitive data lingers in process memory.",
+  "evidence": [
+   "PR description: 'CSHA512::Finalize() leaves the digest in the hasher's state and the last block in its buffer, and the class never wipes them.'",
+   "PR description: 'Every CSHA512 outside tests and benchmarks hashes secret data: in CCrypter::BytesToKeySHA512AES the final state holds the key and IV derived from the passphrase, the two hashers in CHMAC_SHA512 hold BIP32 seed and key material, and the RNG hashers in random.cpp hold seed material.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "None; the implementation matches the previous description.",
+  "card": "Adds a destructor to CSHA512 that cleanses its internal state and buffer when it goes out of scope. Currently, CSHA512 does not zero memory on destruction, allowing derived wallet passphrase keys, BIP32 seed material, and RNG state to linger in process memory. Cleansing at destruction mirrors existing hygiene in ChaCha20 and protects secrets without requiring manual zeroing at individual call sites, superseding PR 36551.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "low",
+   "touches": [
+    "wallet",
+    "other"
+   ],
+   "why": "A bug in the destructor would only affect memory zeroing on destruction, but memory_cleanse is a standard, well-tested internal utility."
+  }
+ }
+}

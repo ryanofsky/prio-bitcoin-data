@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-10-18T01:17:02+00:00",
+ "card": "Adds a destructor to CSHA512 that cleanses its internal state and buffer when it goes out of scope. Currently, CSHA512 does not zero memory on destruction, allowing derived wallet passphrase keys, BIP32 seed material, and RNG state to linger in process memory. Cleansing at destruction mirrors existing hygiene in ChaCha20 and protects secrets without requiring manual zeroing at individual call sites, superseding PR 36551.",
+ "changed_since_previous": "None; the implementation matches the previous description.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'CSHA512::Finalize() leaves the digest in the hasher's state and the last block in its buffer, and the class never wipes them.'",
+  "PR description: 'Every CSHA512 outside tests and benchmarks hashes secret data: in CCrypter::BytesToKeySHA512AES the final state holds the key and IV derived from the passphrase, the two hashers in CHMAC_SHA512 hold BIP32 seed and key material, and the RNG hashers in random.cpp hold seed material.'"
+ ],
+ "head_sha": "2c27910f33a9102a8aaefa98d3672ccfa2e62343",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36550,
+ "patch_id": "cc195c0fd4da811a",
+ "problem": "CSHA512 leaves digest output in its state and final input blocks in its buffer after Finalize() without wiping them on destruction. Because Bitcoin Core uses CSHA512 to handle wallet encryption keys, BIP32 seed material, and RNG state, un-cleansed sensitive data lingers in process memory.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "wallet",
+   "other"
+  ],
+  "why": "A bug in the destructor would only affect memory zeroing on destruction, but memory_cleanse is a standard, well-tested internal utility."
+ },
+ "run": "run:20261018-0116-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 8,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": 0
+ },
+ "summary": "Adds a destructor to CSHA512 that zeroes its internal state and input buffer using memory_cleanse. This ensures that sensitive hash state and buffered plaintext are wiped when the hasher goes out of scope.",
+ "uncertainties": []
+}

@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-18T01:17:01+00:00",
+ "card": "Serves disk-backed MSG_BLOCK peer requests by reading raw block bytes and stripping witness data in place rather than fully deserializing and reserializing transactions. This removes heavy memory allocations and transaction hashing when serving legacy nodes or clients downloading blocks without witnesses. Author benchmarks show an ~8.9x to 9.3x speedup when reading and preparing non-witness blocks. It enables efficient serving for proposed witnessless assumevalid IBD schemes (#36476).",
+ "changed_since_previous": "Now includes the complete implementation diff: extracts `UnserializeTransactionBody` to share encoding validation between normal decoding and raw byte skipping, implements in-place compaction using `memmove`, adds unit and functional test coverage, and adds fuzz targets including a roundtrip witness-stripping target.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#36476"
+  ]
+ },
+ "evidence": [
+  "Author microbenchmarks show the time to read a block from disk and build its non-witness message drops from 1.31 ms to 0.147 ms (8.9x speedup) for legacy block 413,567, and from 3.47 ms to 0.374 ms (9.3x speedup) for the same block with synthetic witnesses (PR description).",
+  "Unblocks efficient peer block serving required for proposed witnessless assumevalid IBD (#36476)."
+ ],
+ "head_sha": "0b01ce05e162ee61fb0e3c0d8413e0e1af4c1976",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36548,
+ "patch_id": "c6f85a7e718ed412",
+ "problem": "Serving blocks without witnesses to legacy peers or future witnessless sync clients decodes the full block and all its transactions into memory before reserializing them with `TX_NO_WITNESS`. This causes unnecessary memory allocations and redundant transaction hashing, whereas `MSG_WITNESS_BLOCK` requests are served directly from disk bytes.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A flaw in the raw transaction byte skipping or in-place buffer manipulation could serve malformed block messages to P2P peers or cause node crashes when processing block requests."
+ },
+ "run": "run:20261018-0116-assess",
+ "scope_notes": "Refactors core transaction deserialization in `primitives/transaction.h` by introducing a templated `UnserializeTransactionBody` helper used both by regular deserialization and the raw byte-skipping routine.",
+ "size": {
+  "additions": 482,
+  "deletions": 48,
+  "files": 8,
+  "test_lines": 333
+ },
+ "summary": "Optimizes serving disk-backed `MSG_BLOCK` P2P requests by stripping witness data directly from raw serialized block bytes in place rather than fully deserializing into block and transaction objects and reserializing them. It extracts a shared `UnserializeTransactionBody` helper to ensure parsing and validation rules remain consistent between transaction deserialization and byte skipping. Signet is excluded from this fast path so its custom block solution check continues to run through `ReadBlock`.",
+ "uncertainties": []
+}

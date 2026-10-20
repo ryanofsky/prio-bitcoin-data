@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-20T01:19:02+00:00",
+ "card": "Predictively prefills BIP 152 compact blocks with transactions the node lacked in its mempool during reconstruction (requested via getblocktxn, pulled from the extrapool, or received as upstream prefills). Prefill transmissions are bounded by OS TCP window queries so that prefilling never pushes a message past a TCP window boundary. In author measurements, this improved single-hop compact block reconstructions from 56.9% to 89.7% at an overhead of approximately 1.4 MiB bandwidth per day. Because it conforms strictly to BIP 152, older peers benefit without software updates.",
+ "changed_since_previous": "Prerequisite PR #35724 has merged, removing external dependencies.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "In live network measurements from 2026-02-15 to 2026-03-16, TCP-window-bounded prefilling raised immediate compact block reconstruction from 56.9% to 89.7% without a getblocktxn round-trip (PR description).",
+  "Redundant bandwidth consumption averaged 865 bytes per block, representing roughly 1.2 to 1.4 MiB per node per day across three high-bandwidth peers (PR description)."
+ ],
+ "head_sha": "5871f8666d5f6c882db0d146229474647dbe43be",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35558,
+ "patch_id": "4ddc3599072a5c33",
+ "problem": "Nodes currently prefill only coinbase transactions in compact blocks, requiring peers to spend an application round-trip requesting missing transactions via getblocktxn. This extra hop delays network-wide block propagation, elevating orphan risks and stale block rates. Unbounded prefilling would risk overflowing TCP congestion windows and introducing network-layer transmission delays on redundant transactions.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Bugs in compact block serialization, candidate tracking, or OS socket window calculations could stall block propagation, cause protocol desync, or trigger peer disconnects."
+ },
+ "run": "run:20261020-0118-assess",
+ "scope_notes": "Adds OS-specific socket queries (ioctl, getsockopt, SIO_TCP_INFO) across Linux, macOS, FreeBSD, NetBSD, OpenBSD, and Windows to inspect TCP window sizes and in-flight bytes, which bumps the Windows build target to Windows 10 version 1703.",
+ "size": {
+  "additions": 631,
+  "deletions": 146,
+  "files": 16,
+  "test_lines": 137
+ },
+ "summary": "Implements predictive prefilling for BIP 152 compact blocks, bounded dynamically by the peer connection's TCP window. When relaying a compact block, the node pre-includes transactions that were missing from its own mempool during reconstruction (retrieved via getblocktxn, pulled from the extrapool, or prefilled by upstream peers). A prefilled block is only sent if it fits within the same number of TCP window boundaries as an un-prefilled block, querying the OS socket layer across Linux, macOS, the BSDs, and Windows to determine current window and queue sizes.",
+ "uncertainties": []
+}

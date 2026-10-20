@@ -1,0 +1,44 @@
+{
+ "run": "run:20261020-0118-assess",
+ "pr": "bitcoin/bitcoin#36566",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-20T01:18:56+00:00",
+ "usage": {
+  "input_tokens": 13577,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1853
+ },
+ "cost_usd": 0.0171315,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds synchronous mempool acceptance waiting to BroadcastTransaction for private broadcasts, exposed via an optional timeout argument (defaulting to 10 minutes) on sendrawtransaction. It introduces a synchronous TransactionAddedToMempoolSync callback to CValidationInterface that fires immediately upon mempool insertion instead of routing through the background validation queue. Setting timeout to 0 allows callers to bypass waiting and preserve the previous non-blocking behavior.\",\n  \"problem\": \"Private transaction broadcast skips local mempool insertion, returning immediately once queued for external broadcast. External software and third-party wallets calling sendrawtransaction expect a successful return to guarantee the transaction is already in the mempool. Furthermore, future wallet integration cannot wait on the asynchronous validation interface queue while holding cs_wallet without risking deadlocks or timeouts from blocked queue processing.\",\n  \"evidence\": [\n    \"PR description: \\\"Calling BroadcastTransaction with the NO_MEMPOOL_PRIVATE_BROADCAST method skips inserting the transaction into the mempool and returns immediately. This causes problems with software that expects the transaction to be in the mempool after the function returns. For example many third-party wallets or services call sendrawtransaction and expect the transaction to be in the mempool after it returns a successful response.\\\"\",\n    \"PR description: \\\"Synchronously waiting for mempool acceptance is also a prerequisite for adding private broadcast support to the wallet. The TransactionAddedToMempoolSync method is added specifically for future wallet broadcasting, so a broadcast caller holding cs_wallet will not timeout waiting on another background event that is also trying to acquire cs_wallet.\\\"\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"Private broadcast support in the wallet\"\n    ]\n  },\n  \"scope_notes\": \"Adds a synchronous callback to CValidationInterface alongside the asynchronous queue, and introduces a timeout loop with periodic shutdown checks in BroadcastTransaction.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Private transaction broadcasts bypass local mempool insertion and return immediately upon queueing, breaking downstream software and wallets that expect sendrawtransaction to guarantee mempool presence. This pull request adds a synchronous TransactionAddedToMempoolSync callback to CValidationInterface and makes BroadcastTransaction block until the transaction is accepted into the mempool or times out, defaulting to 10 minutes. By bypassing the asynchronous validation queue, the synchronous notification allows callers holding the wallet mutex to wait without risk of deadlocks from blocked background events. Setting the new timeout RPC parameter to zero preserves immediate return. This synchronous wait is a stated prerequisite for supporting private broadcast in the Bitcoin Core wallet.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"validation\",\n      \"rpc_api\"\n    ],\n    \"why\": \"A synchronization or lock-order bug in the synchronous validation interface notification could hang RPC worker threads or disrupt transaction submission.\"\n  }\n}",
+ "result": {
+  "summary": "Adds synchronous mempool acceptance waiting to BroadcastTransaction for private broadcasts, exposed via an optional timeout argument (defaulting to 10 minutes) on sendrawtransaction. It introduces a synchronous TransactionAddedToMempoolSync callback to CValidationInterface that fires immediately upon mempool insertion instead of routing through the background validation queue. Setting timeout to 0 allows callers to bypass waiting and preserve the previous non-blocking behavior.",
+  "problem": "Private transaction broadcast skips local mempool insertion, returning immediately once queued for external broadcast. External software and third-party wallets calling sendrawtransaction expect a successful return to guarantee the transaction is already in the mempool. Furthermore, future wallet integration cannot wait on the asynchronous validation interface queue while holding cs_wallet without risking deadlocks or timeouts from blocked queue processing.",
+  "evidence": [
+   "PR description: \"Calling BroadcastTransaction with the NO_MEMPOOL_PRIVATE_BROADCAST method skips inserting the transaction into the mempool and returns immediately. This causes problems with software that expects the transaction to be in the mempool after the function returns. For example many third-party wallets or services call sendrawtransaction and expect the transaction to be in the mempool after it returns a successful response.\"",
+   "PR description: \"Synchronously waiting for mempool acceptance is also a prerequisite for adding private broadcast support to the wallet. The TransactionAddedToMempoolSync method is added specifically for future wallet broadcasting, so a broadcast caller holding cs_wallet will not timeout waiting on another background event that is also trying to acquire cs_wallet.\""
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "Private broadcast support in the wallet"
+   ]
+  },
+  "scope_notes": "Adds a synchronous callback to CValidationInterface alongside the asynchronous queue, and introduces a timeout loop with periodic shutdown checks in BroadcastTransaction.",
+  "changed_since_previous": "",
+  "card": "Private transaction broadcasts bypass local mempool insertion and return immediately upon queueing, breaking downstream software and wallets that expect sendrawtransaction to guarantee mempool presence. This pull request adds a synchronous TransactionAddedToMempoolSync callback to CValidationInterface and makes BroadcastTransaction block until the transaction is accepted into the mempool or times out, defaulting to 10 minutes. By bypassing the asynchronous validation queue, the synchronous notification allows callers holding the wallet mutex to wait without risk of deadlocks from blocked background events. Setting the new timeout RPC parameter to zero preserves immediate return. This synchronous wait is a stated prerequisite for supporting private broadcast in the Bitcoin Core wallet.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation",
+    "rpc_api"
+   ],
+   "why": "A synchronization or lock-order bug in the synchronous validation interface notification could hang RPC worker threads or disrupt transaction submission."
+  }
+ }
+}

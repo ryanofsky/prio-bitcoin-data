@@ -1,0 +1,40 @@
+{
+ "run": "run:20261021-0122-assess",
+ "pr": "bitcoin/bitcoin#36572",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-21T01:23:22+00:00",
+ "usage": {
+  "input_tokens": 5293,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 789
+ },
+ "cost_usd": 0.0069285,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Guards the IPC event loop in `CapnpProtocol` with a mutex and acquires explicit `EventLoopRef` references across protocol operations. This ensures that methods running on non-IPC threads keep the event loop alive and prevent concurrent destruction while in use.\",\n  \"problem\": \"In multiprocess `serve()` mode, only the parent connection holds a reference keeping the event loop running. Other `CapnpProtocol` methods called from background threads lack their own loop references and access unprotected loop state, which can cause use-after-free crashes or unexpected termination if the parent connection closes.\",\n  \"evidence\": [\n    \"PR description: 'In serve() mode, the parent connection is the only reference keeping the loop running. Other CapnpProtocol methods called from threads not handling parent IPC requests do not hold their own references and therefore depend on the parent connection remaining alive.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Now provides the full patch implementing `m_loop_mutex` and `loopRef()` across `src/ipc/capnp/protocol.cpp`.\",\n  \"card\": \"Ensures CapnpProtocol methods hold active references to the IPC event loop and guards loop creation and destruction with a mutex. In multiprocess serve mode, only the parent connection previously held a loop reference, causing races or crashes if other threads invoked protocol methods while the parent disconnected or before setup completed. The change introduces a thread-safe loopRef helper that keeps the loop alive during these calls.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"low\",\n    \"touches\": [\"other\"],\n    \"why\": \"Mistakes could cause deadlocks or crashes in experimental multiprocess IPC builds without affecting standard monolithic bitcoind builds.\"\n  }\n}",
+ "result": {
+  "summary": "Guards the IPC event loop in `CapnpProtocol` with a mutex and acquires explicit `EventLoopRef` references across protocol operations. This ensures that methods running on non-IPC threads keep the event loop alive and prevent concurrent destruction while in use.",
+  "problem": "In multiprocess `serve()` mode, only the parent connection holds a reference keeping the event loop running. Other `CapnpProtocol` methods called from background threads lack their own loop references and access unprotected loop state, which can cause use-after-free crashes or unexpected termination if the parent connection closes.",
+  "evidence": [
+   "PR description: 'In serve() mode, the parent connection is the only reference keeping the loop running. Other CapnpProtocol methods called from threads not handling parent IPC requests do not hold their own references and therefore depend on the parent connection remaining alive.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Now provides the full patch implementing `m_loop_mutex` and `loopRef()` across `src/ipc/capnp/protocol.cpp`.",
+  "card": "Ensures CapnpProtocol methods hold active references to the IPC event loop and guards loop creation and destruction with a mutex. In multiprocess serve mode, only the parent connection previously held a loop reference, causing races or crashes if other threads invoked protocol methods while the parent disconnected or before setup completed. The change introduces a thread-safe loopRef helper that keeps the loop alive during these calls.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "low",
+   "touches": [
+    "other"
+   ],
+   "why": "Mistakes could cause deadlocks or crashes in experimental multiprocess IPC builds without affecting standard monolithic bitcoind builds."
+  }
+ }
+}

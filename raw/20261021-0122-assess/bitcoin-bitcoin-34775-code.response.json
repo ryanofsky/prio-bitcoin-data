@@ -1,0 +1,41 @@
+{
+ "run": "run:20261021-0122-assess",
+ "pr": "bitcoin/bitcoin#34775",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-21T01:23:07+00:00",
+ "usage": {
+  "input_tokens": 11323,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1430
+ },
+ "cost_usd": 0.01385475,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Restricts libbitcoinkernel to a single process-wide logging connection, moves log level configuration onto the connection handle, and invokes logging callbacks without holding the logger mutex. Creating a second concurrent connection now fails, and logging callbacks can be invoked concurrently across threads.\",\n  \"problem\": \"The underlying KernelLogger is a process-wide singleton, but the API permitted multiple connection handles, misleading consumers into expecting independent loggers. In addition, holding the logger mutex while invoking the consumer callback serialized all logging threads on user code and risked deadlocks if the callback thread triggered any logging (such as during garbage collector finalization).\",\n  \"evidence\": [\n   \"Description notes that multiple handles 'give the false impression of independent loggers.'\",\n   \"Commit 921329000f notes that holding the lock 'serializes all logging threads on user code, and deadlocks if anything on the callback's thread logs, e.g. a garbage collector running finalizers that destroy kernel objects.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Modifies the public libbitcoinkernel C API by renaming btck_logging_connection_create to btck_global_logging_connection_create, replacing btck_logging_set_min_level with btck_logging_connection_set_min_level, and requiring logging callbacks to be thread-safe.\",\n  \"changed_since_previous\": \"Now invokes logging callbacks without holding the logger mutex, using an atomic in-flight counter to wait for running callbacks on connection destruction, and updates consumers like bitcoin-chainstate to format log output without interleaving concurrent lines.\",\n  \"card\": \"Restricts libbitcoinkernel to allow only one active logging connection per process, and executes logging callbacks without holding the logger mutex. Previously, multiple connection handles gave consumers the false impression of independent loggers, while holding the mutex serialized all logging threads and risked deadlocks if consumer callbacks triggered kernel logging. Attempting to create a second connection now fails, log level configuration is moved to the connection handle, and callbacks must be thread-safe as they can run concurrently.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"other\"],\n    \"why\": \"Synchronization or concurrency bugs in the kernel logging interface could cause deadlocks, race conditions, or crashes in applications consuming libbitcoinkernel.\"\n  }\n}",
+ "result": {
+  "summary": "Restricts libbitcoinkernel to a single process-wide logging connection, moves log level configuration onto the connection handle, and invokes logging callbacks without holding the logger mutex. Creating a second concurrent connection now fails, and logging callbacks can be invoked concurrently across threads.",
+  "problem": "The underlying KernelLogger is a process-wide singleton, but the API permitted multiple connection handles, misleading consumers into expecting independent loggers. In addition, holding the logger mutex while invoking the consumer callback serialized all logging threads on user code and risked deadlocks if the callback thread triggered any logging (such as during garbage collector finalization).",
+  "evidence": [
+   "Description notes that multiple handles 'give the false impression of independent loggers.'",
+   "Commit 921329000f notes that holding the lock 'serializes all logging threads on user code, and deadlocks if anything on the callback's thread logs, e.g. a garbage collector running finalizers that destroy kernel objects.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Modifies the public libbitcoinkernel C API by renaming btck_logging_connection_create to btck_global_logging_connection_create, replacing btck_logging_set_min_level with btck_logging_connection_set_min_level, and requiring logging callbacks to be thread-safe.",
+  "changed_since_previous": "Now invokes logging callbacks without holding the logger mutex, using an atomic in-flight counter to wait for running callbacks on connection destruction, and updates consumers like bitcoin-chainstate to format log output without interleaving concurrent lines.",
+  "card": "Restricts libbitcoinkernel to allow only one active logging connection per process, and executes logging callbacks without holding the logger mutex. Previously, multiple connection handles gave consumers the false impression of independent loggers, while holding the mutex serialized all logging threads and risked deadlocks if consumer callbacks triggered kernel logging. Attempting to create a second connection now fails, log level configuration is moved to the connection handle, and callbacks must be thread-safe as they can run concurrently.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "other"
+   ],
+   "why": "Synchronization or concurrency bugs in the kernel logging interface could cause deadlocks, race conditions, or crashes in applications consuming libbitcoinkernel."
+  }
+ }
+}

@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-10-21T01:23:26+00:00",
+ "card": "CScriptWitness currently stores witness stack elements as a vector of byte vectors, incurring an individual heap allocation and 24-byte overhead per item. This allows adversaries to craft 4 MB blocks with millions of small elements that consume over 110 MB of RAM and stall deserialization for over 300 ms. This PR replaces CScriptWitness internals with a single serialized buffer decoded on the fly into spans, and rejects transactions with zero inputs or outputs during P2P message deserialization. Benchmarks show worst-case block memory drops from 112 MB to 4 MB and deserialization speeds up roughly tenfold, with modest memory savings for normal mainnet blocks. The change spans 70 files, largely driven by a scripted diff updating witness element accessors across the codebase.",
+ "changed_since_previous": "Rebased with no structural changes to the commits or implementation approach.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmarks report that deserializing a 4 MB block containing 2M 1-byte elements drops from 110.0 ms to 10.4 ms (GCC) and from 112 MB to 4.0 MB of memory.",
+  "Author benchmarks report that deserializing a 4 MB block containing 4M empty elements drops from 317.2 ms to 13.5 ms and from 96 MB to 4.0 MB of memory.",
+  "Author benchmarks show typical mainnet block 969729 memory usage drops from 3.6 MB to 3.0 MB.",
+  "The PR description notes the vulnerability was reported by furszy and 0xB10C."
+ ],
+ "head_sha": "d3fb8e83c65220cf33f32257cf108f1186319d1a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36521,
+ "patch_id": "c7d16ce77b74f456",
+ "problem": "Each witness element currently incurs a 24-byte std::vector header plus a separate heap allocation. An attacker can craft a 4 MB block packed with millions of tiny witness items that requires over 110 MB of memory to hold and takes hundreds of milliseconds to deserialize, exposing nodes to memory and CPU exhaustion.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation",
+   "p2p"
+  ],
+  "why": "Alters core transaction and block serialization and validation structures, where any deserialization inconsistency or parsing bug could lead to consensus splits or peer disconnections."
+ },
+ "run": "run:20261021-0122-assess",
+ "scope_notes": "Contains a scripted-diff commit updating witness stack access methods across 70 files in consensus, validation, net processing, RPC, wallet, and tests, followed by manual updates for complex call sites.",
+ "size": {
+  "additions": 988,
+  "deletions": 239,
+  "files": 70,
+  "test_lines": 704
+ },
+ "summary": "Replaces the internal representation of CScriptWitness from a vector of byte vectors with a single byte allocation containing its serialized form and a header storing its size and the offset to the last element. Stack elements are decoded on the fly as spans rather than being held as separate heap-allocated objects, making witness stacks immutable after construction. In addition, P2P deserialization is updated to immediately fail on transactions with zero inputs or outputs.",
+ "uncertainties": []
+}

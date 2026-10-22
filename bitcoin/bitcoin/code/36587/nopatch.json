@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-10-22T01:18:54+00:00",
+ "card": "This PR fixes `interface_ipc*.py` test failures on NetBSD and adds CI enforcement to prevent similar regressions. When IPC is enabled, node file descriptor reservations push bitcoind beyond NetBSD's 256 `FD_SETSIZE` budget under the test framework's default `-maxconnections`, causing startup warnings that fail the test. The PR reduces `-maxconnections` specifically on IPC nodes and adds an `RLIMIT_NOFILE` wrapper to the macOS CI job to enforce NetBSD's 256 FD limit on standard PR runs.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 62571e7e67 explains: 'Since `-ipcbind` reserves one listening socket plus `ipc::DEFAULT_MAX_CONNECTIONS` (16) client slots in `min_required_fds`, the framework's `-maxconnections=76` no longer fits the 256 file descriptor budget on NetBSD, and every `interface_ipc*.py` node starts with \"Warning: Reducing -maxconnections ...\", which the framework treats as a failure.'",
+  "Description links to failure evidence: 'This PR fixes the `interface_ipc*.py` tests, which have been failing on NetBSD since #35037.'",
+  "Commit 311bc7c3bb notes repeated regressions: 'Such regressions are currently caught only by nightly NetBSD CI (see #31537, #36078)'"
+ ],
+ "head_sha": "311bc7c3bb274c7065f871198fa0910c205b8a6a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36587,
+ "patch_id": "nopatch",
+ "problem": "On select()-based platforms like NetBSD with an `FD_SETSIZE` of 256, adding `-ipcbind` reserves 17 file descriptors in `min_required_fds`, which exceeds the budget when combined with the test framework's default `-maxconnections=76`. This triggers a startup warning about reducing `-maxconnections` that the test framework treats as a failure, and because NetBSD is only tested in nightly CI, these regressions are repeatedly merged before being noticed.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests"
+  ],
+  "why": "The changes only affect functional test framework configuration and CI test runner process limits."
+ },
+ "run": "run:20261022-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 59,
+  "deletions": 14,
+  "files": 5,
+  "test_lines": null
+ },
+ "summary": "Fix functional tests `interface_ipc*.py` on NetBSD by reducing the test framework's `-maxconnections` setting for nodes using IPC to fit within the 256 file descriptor limit. Additionally, add a `CI_LIMIT_FD_COUNT` knob to the functional test runner and enable it in the native macOS CI job to cap file descriptors at NetBSD's `FD_SETSIZE` (256), catching FD budget regressions in standard pull request CI.",
+ "uncertainties": []
+}

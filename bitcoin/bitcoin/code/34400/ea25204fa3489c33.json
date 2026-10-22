@@ -1,0 +1,37 @@
+{
+ "assessed_at": "2026-10-22T01:18:31+00:00",
+ "card": "Parallelizes BIP 157/158 compact block filter evaluation during wallet fast rescans using a worker thread pool. Introduces the -walletpar configuration option to control wallet concurrency, defaulting to auto-detecting core count up to 8 threads. Fast wallet rescans currently evaluate block filters sequentially on a single core, leaving other cores idle when scanning long chain intervals. On mainnet benchmarks scanning 200,000 blocks, rescan duration dropped from 272 seconds to 34.8 seconds with 8 threads (an ~7.8x speedup). Block reading, matching, and keypool top-ups remain serialized on the main thread, while in-flight negative filter verdicts are re-checked against newly derived descriptor scripts.",
+ "changed_since_previous": "Added periodic progress logging and disk persistence at interval boundaries during parallel block checks, and updated functional and unit tests to explicitly test both serial and parallel paths.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's mainnet benchmark using hyperfine across 200,000 blocks (heights 700,000 to 900,000): master completed in 272.2 seconds, 1 thread completed in 275.0 seconds, and 8 threads completed in 34.8 seconds (~7.8x speedup)."
+ ],
+ "head_sha": "3089c6fc3f9acfec326d0d85322756f3ac7f724c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34400,
+ "patch_id": "ea25204fa3489c33",
+ "problem": "Fast wallet rescans check compact block filters sequentially on a single thread. When rescanning large block ranges or restoring wallets on multi-core systems, available CPU cores sit idle and rescans take minutes.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "wallet"
+  ],
+  "why": "Flaws in filter evaluation, race conditions during keypool top-up script patching, or dropped blocks in the pipeline could cause wallets to miss incoming transactions and report incorrect balances."
+ },
+ "run": "run:20261022-0118-assess",
+ "scope_notes": "Touches wallet scanning pipelines extensively, introducing thread pool scheduling and handling incremental script set updates concurrently with filter evaluations.",
+ "size": {
+  "additions": 738,
+  "deletions": 139,
+  "files": 8,
+  "test_lines": 225
+ },
+ "summary": "Parallelizes BIP 157/158 compact block filter evaluation during wallet fast rescans using a bounded worker thread pool. Adds the -walletpar configuration option (defaulting to auto-detected CPU cores up to 8 threads) to control wallet concurrency. Block reading and wallet state modifications remain serialized on the main thread, while filter checks are batched across threads and keypool top-ups re-check in-flight negative verdicts against newly added descriptor scripts.",
+ "uncertainties": []
+}

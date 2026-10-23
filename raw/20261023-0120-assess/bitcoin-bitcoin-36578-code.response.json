@@ -1,0 +1,41 @@
+{
+ "run": "run:20261023-0120-assess",
+ "pr": "bitcoin/bitcoin#36578",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-23T01:20:33+00:00",
+ "usage": {
+  "input_tokens": 4352,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2716
+ },
+ "cost_usd": 0.013449,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Updates 1P1C package construction in TxDownloadManagerImpl to check if candidate orphan transactions are already in the mempool. If a candidate child exists in the mempool, it is erased from the orphanage and skipped. This preserves the invariant that package evaluation never receives an already-admitted child, retaining the Assume(false) assertion for MEMPOOL_ENTRY in net_processing.\",\n  \"problem\": \"Orphan transactions that enter the mempool through non-peer mechanisms such as RPC submission are not automatically evicted from the orphanage. When a reconsiderable parent subsequently arrives from a peer, Find1P1CPackage could select that orphan as a package child, resulting in a MEMPOOL_ENTRY acceptance result that triggers an Assume(false) assertion failure in debug builds.\",\n  \"evidence\": [\n    \"PR description: 'An orphan that enters the mempool other than through peer relay (e.g. by RPC) stays in the orphanage, so Find1P1CPackage can pick it as the child of a reconsiderable parent, and package evaluation then reports it as MEMPOOL_ENTRY, which hits Assume(false).'\",\n    \"The added functional test (test_orphan_in_mempool) reproduces the exact issue: an orphan submitted via submitpackage enters the mempool while remaining in the orphanage, triggering the code path upon receiving the reconsiderable parent.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Rather than removing the Assume(false) assertion in ProcessPackageResult and handling MEMPOOL_ENTRY as an acceptance notification, the PR now intercepts the case inside Find1P1CPackage, erasing the child from the orphanage and skipping it to keep the assertion intact.\",\n  \"card\": \"This PR fixes a debug assertion failure during 1P1C package relay when an orphan child is already present in the mempool. Transactions entering the mempool through RPC or other non-peer paths are not pruned from the orphanage, previously allowing Find1P1CPackage to pick them as children for reconsiderable parents and triggering an Assume(false) on MEMPOOL_ENTRY during package evaluation. The change inspects candidate orphans in Find1P1CPackage, erasing them from the orphanage and skipping them if they are already in the mempool. A functional test is added to reproduce and verify the fix.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"p2p\"],\n    \"why\": \"A flaw in mempool existence checks or orphan erasure could prematurely discard valid orphan transactions or cause 1P1C package construction to fail during peer transaction relay.\"\n  }\n}",
+ "result": {
+  "summary": "Updates 1P1C package construction in TxDownloadManagerImpl to check if candidate orphan transactions are already in the mempool. If a candidate child exists in the mempool, it is erased from the orphanage and skipped. This preserves the invariant that package evaluation never receives an already-admitted child, retaining the Assume(false) assertion for MEMPOOL_ENTRY in net_processing.",
+  "problem": "Orphan transactions that enter the mempool through non-peer mechanisms such as RPC submission are not automatically evicted from the orphanage. When a reconsiderable parent subsequently arrives from a peer, Find1P1CPackage could select that orphan as a package child, resulting in a MEMPOOL_ENTRY acceptance result that triggers an Assume(false) assertion failure in debug builds.",
+  "evidence": [
+   "PR description: 'An orphan that enters the mempool other than through peer relay (e.g. by RPC) stays in the orphanage, so Find1P1CPackage can pick it as the child of a reconsiderable parent, and package evaluation then reports it as MEMPOOL_ENTRY, which hits Assume(false).'",
+   "The added functional test (test_orphan_in_mempool) reproduces the exact issue: an orphan submitted via submitpackage enters the mempool while remaining in the orphanage, triggering the code path upon receiving the reconsiderable parent."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Rather than removing the Assume(false) assertion in ProcessPackageResult and handling MEMPOOL_ENTRY as an acceptance notification, the PR now intercepts the case inside Find1P1CPackage, erasing the child from the orphanage and skipping it to keep the assertion intact.",
+  "card": "This PR fixes a debug assertion failure during 1P1C package relay when an orphan child is already present in the mempool. Transactions entering the mempool through RPC or other non-peer paths are not pruned from the orphanage, previously allowing Find1P1CPackage to pick them as children for reconsiderable parents and triggering an Assume(false) on MEMPOOL_ENTRY during package evaluation. The change inspects candidate orphans in Find1P1CPackage, erasing them from the orphanage and skipping them if they are already in the mempool. A functional test is added to reproduce and verify the fix.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A flaw in mempool existence checks or orphan erasure could prematurely discard valid orphan transactions or cause 1P1C package construction to fail during peer transaction relay."
+  }
+ }
+}

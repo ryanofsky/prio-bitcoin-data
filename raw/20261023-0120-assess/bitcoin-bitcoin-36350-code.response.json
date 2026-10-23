@@ -1,0 +1,41 @@
+{
+ "run": "run:20261023-0120-assess",
+ "pr": "bitcoin/bitcoin#36350",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-23T01:20:30+00:00",
+ "usage": {
+  "input_tokens": 8937,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1994
+ },
+ "cost_usd": 0.01418025,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Tracks progress across both the presync and redownload phases of anti-DoS headers sync to grant bounded chain sync timeout renewals to slow outbound peers. In `PeerManagerImpl::ConsiderEviction`, if an outbound peer has not yet updated its best-known block index entry but has made headers sync progress since the timeout was set, `CHAIN_SYNC_TIMEOUT` is renewed for another 20-minute period up to a maximum of six times (`MAX_HEADERS_SYNC_TIMEOUT_RENEWALS`).\",\n  \"problem\": \"While syncing below `-minimumchainwork`, anti-DoS headers sync holds headers in memory during presync and inside a redownload buffer, leaving `pindexBestKnownBlock` null for that peer. Chain sync eviction treats the peer as having an old or missing chain, triggering a 20-minute timeout followed by a 2-minute disconnect deadline. On high-latency networks like Tor or I2P where the ~480 mainnet round trips take longer than 22 minutes, nodes repeatedly evict active sync peers and discard all headers sync progress.\",\n  \"evidence\": [\n    \"PR description: 'On mainnet presync is roughly 480 headers round trips. If that takes more than ~22 minutes (about 2.5 s per round trip, e.g. over slow Tor or I2P), the sync peer gets evicted before presync can finish, and the same thing can happen with the next peer. The chain sync logic is from #11490, presync came later in #25717, and the two were never connected.'\",\n    \"PR description test results: 'On master the peer is disconnected after 24 minutes. With the fix it stays connected and presynced_headers keeps going up.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The core logic change is only ~30 lines in headerssync.h and net_processing.cpp; the vast majority of the patch (+161 lines) consists of new functional tests in test/functional/p2p_headers_sync_with_minchainwork.py.\",\n  \"changed_since_previous\": \"Added commit d59713ea51 to test_headers_sync_renewals_bounded, verifying that an outbound peer stays connected after 7 periods and disconnects after 8 periods to strictly enforce MAX_HEADERS_SYNC_TIMEOUT_RENEWALS.\",\n  \"card\": \"Prevents premature eviction of outbound peers during anti-DoS headers presync and redownload. When syncing headers below minimum chain work, headers are held without updating the block index, causing chain sync eviction to disconnect active peers after 22 minutes. On slow links like Tor or I2P, the ~480 round trips can take longer than 22 minutes, discarding all sync progress and repeating with subsequent peers. The change inspects headers sync progress during eviction checks and grants bounded 20-minute timeout renewals (up to six) as long as progress is being made, verified by functional tests.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"p2p\"\n    ],\n    \"why\": \"Mistakes in outbound peer eviction logic could allow slow or malicious peers to monopolize outbound sync slots or inadvertently stall initial chain synchronization.\"\n  }\n}",
+ "result": {
+  "summary": "Tracks progress across both the presync and redownload phases of anti-DoS headers sync to grant bounded chain sync timeout renewals to slow outbound peers. In `PeerManagerImpl::ConsiderEviction`, if an outbound peer has not yet updated its best-known block index entry but has made headers sync progress since the timeout was set, `CHAIN_SYNC_TIMEOUT` is renewed for another 20-minute period up to a maximum of six times (`MAX_HEADERS_SYNC_TIMEOUT_RENEWALS`).",
+  "problem": "While syncing below `-minimumchainwork`, anti-DoS headers sync holds headers in memory during presync and inside a redownload buffer, leaving `pindexBestKnownBlock` null for that peer. Chain sync eviction treats the peer as having an old or missing chain, triggering a 20-minute timeout followed by a 2-minute disconnect deadline. On high-latency networks like Tor or I2P where the ~480 mainnet round trips take longer than 22 minutes, nodes repeatedly evict active sync peers and discard all headers sync progress.",
+  "evidence": [
+   "PR description: 'On mainnet presync is roughly 480 headers round trips. If that takes more than ~22 minutes (about 2.5 s per round trip, e.g. over slow Tor or I2P), the sync peer gets evicted before presync can finish, and the same thing can happen with the next peer. The chain sync logic is from #11490, presync came later in #25717, and the two were never connected.'",
+   "PR description test results: 'On master the peer is disconnected after 24 minutes. With the fix it stays connected and presynced_headers keeps going up.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The core logic change is only ~30 lines in headerssync.h and net_processing.cpp; the vast majority of the patch (+161 lines) consists of new functional tests in test/functional/p2p_headers_sync_with_minchainwork.py.",
+  "changed_since_previous": "Added commit d59713ea51 to test_headers_sync_renewals_bounded, verifying that an outbound peer stays connected after 7 periods and disconnects after 8 periods to strictly enforce MAX_HEADERS_SYNC_TIMEOUT_RENEWALS.",
+  "card": "Prevents premature eviction of outbound peers during anti-DoS headers presync and redownload. When syncing headers below minimum chain work, headers are held without updating the block index, causing chain sync eviction to disconnect active peers after 22 minutes. On slow links like Tor or I2P, the ~480 round trips can take longer than 22 minutes, discarding all sync progress and repeating with subsequent peers. The change inspects headers sync progress during eviction checks and grants bounded 20-minute timeout renewals (up to six) as long as progress is being made, verified by functional tests.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "p2p"
+   ],
+   "why": "Mistakes in outbound peer eviction logic could allow slow or malicious peers to monopolize outbound sync slots or inadvertently stall initial chain synchronization."
+  }
+ }
+}

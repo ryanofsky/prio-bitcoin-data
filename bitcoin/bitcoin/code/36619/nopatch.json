@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-10-24T01:22:21+00:00",
+ "card": "Prevents spurious `[error]` messages in `debug.log` when querying `/rest/spenttxouts/<hash>` for blocks lacking undo data. Currently, unauthenticated requests for pruned or side-branch blocks log an undo file opening failure that looks like disk corruption, despite correctly returning an HTTP 404. The PR checks `BLOCK_HAVE_UNDO` availability before attempting to read undo data, leaving the HTTP response unchanged and keeping the log clean.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit e8af2c7488 notes: `OpenUndoFile()` fails and `ReadBlockUndo()` writes 'OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0)' to debug.log with `LogError`. The endpoint then correctly answers 404, but every unauthenticated request for such a block adds an `[error]` line that looks like disk corruption.",
+  "PR description notes that the added functional test in `interface_rest.py` reproduces the issue and fails on master due to the unexpected error in `debug.log`."
+ ],
+ "head_sha": "e8af2c7488925e35ffeaf64e523cef48b70280eb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36619,
+ "patch_id": "nopatch",
+ "problem": "Unauthenticated REST queries to `/rest/spenttxouts/<hash>` for blocks without undo data cause `ReadBlockUndo()` to log an alarming `[error] OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0)` message to `debug.log`, which resembles disk corruption even though returning a 404 is the expected behavior.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api",
+   "tests"
+  ],
+  "why": "A flaw in the availability check could return 404 prematurely for a block that actually had undo data available, failing REST queries."
+ },
+ "run": "run:20261024-0121-assess",
+ "scope_notes": "Small patch (+14/-2) adding an availability check in the REST handler and a regression test in `interface_rest.py`.",
+ "size": {
+  "additions": 14,
+  "deletions": 2,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Check block undo data availability before attempting to read undo data in the `/rest/spenttxouts/<hash>` REST endpoint. If `BLOCK_HAVE_UNDO` is not set\u2014such as for stale blocks that were never connected or blocks whose undo files have been pruned\u2014the endpoint returns 404 without attempting to open the undo file.",
+ "uncertainties": []
+}

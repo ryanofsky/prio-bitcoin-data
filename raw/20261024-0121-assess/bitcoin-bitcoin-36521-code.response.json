@@ -1,0 +1,43 @@
+{
+ "run": "run:20261024-0121-assess",
+ "pr": "bitcoin/bitcoin#36521",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-24T01:21:40+00:00",
+ "usage": {
+  "input_tokens": 23185,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1542
+ },
+ "cost_usd": 0.02317125,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Replaces the internal storage of CScriptWitness from a vector of byte vectors with a single allocation storing its serialized wire format, decoding elements on the fly as spans and making witness stacks immutable after creation. Transaction deserialization is updated to immediately reject transactions claiming more inputs or outputs than could fit in a block before allocating vector storage. For P2P streams, deserialization also decrements a weight budget to reject blocks and transactions exceeding the maximum block weight limit and drops transactions with zero inputs or outputs.\",\n  \"problem\": \"Holding witness stacks as nested vectors adds 24 bytes of object overhead and a distinct heap allocation for each element, allowing attackers to craft 4 MB blocks with millions of small elements that consume over 100 MiB of RAM and hundreds of milliseconds to deserialize. Furthermore, deserializing malformed transactions or blocks without pre-allocation limits permits peers to induce large memory allocations before validation rejects them.\",\n  \"evidence\": [\n   \"Description benchmarks show worst-case valid block deserialization time drops from 279 ms to 19 ms, with persisted block memory usage dropping from 106.8 MiB to 3.8 MiB and peak memory dropping from 182 MiB to 7.8 MiB.\",\n   \"PR description notes the underlying vulnerability was reported by furszy and 0xB10C.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Touches 76 files, but a substantial fraction is a scripted-diff refactor migrating direct .stack accesses to CScriptWitness accessor methods across tests and validation code, accompanied by dedicated deserialization benchmarks and fuzz targets.\",\n  \"changed_since_previous\": \"Added deserialization pre-checks that reject transactions with more inputs or outputs than can physically fit in a block across all decoders, and introduced a 4M weight budget check during P2P message deserialization.\",\n  \"card\": \"CScriptWitness currently stores stack items as a vector of byte vectors, adding a 24-byte header and a separate heap allocation for each item. This allows peers to send 4 MB blocks that take over 100 MiB of memory and nearly 300 ms to deserialize. This PR changes CScriptWitness to store its serialized representation in a single allocation, decoding elements on the fly, and introduces early size and weight budget bounds during transaction and P2P block deserialization. Benchmarks show worst-case block memory dropping from 106.8 MiB to 3.8 MiB and deserialization times dropping by up to 93%.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\"consensus\", \"validation\", \"p2p\"],\n    \"why\": \"Altering witness serialization and adding early deserialization rejection could cause nodes to reject valid transactions or blocks, leading to chain splits or network partitions.\"\n  }\n}",
+ "result": {
+  "summary": "Replaces the internal storage of CScriptWitness from a vector of byte vectors with a single allocation storing its serialized wire format, decoding elements on the fly as spans and making witness stacks immutable after creation. Transaction deserialization is updated to immediately reject transactions claiming more inputs or outputs than could fit in a block before allocating vector storage. For P2P streams, deserialization also decrements a weight budget to reject blocks and transactions exceeding the maximum block weight limit and drops transactions with zero inputs or outputs.",
+  "problem": "Holding witness stacks as nested vectors adds 24 bytes of object overhead and a distinct heap allocation for each element, allowing attackers to craft 4 MB blocks with millions of small elements that consume over 100 MiB of RAM and hundreds of milliseconds to deserialize. Furthermore, deserializing malformed transactions or blocks without pre-allocation limits permits peers to induce large memory allocations before validation rejects them.",
+  "evidence": [
+   "Description benchmarks show worst-case valid block deserialization time drops from 279 ms to 19 ms, with persisted block memory usage dropping from 106.8 MiB to 3.8 MiB and peak memory dropping from 182 MiB to 7.8 MiB.",
+   "PR description notes the underlying vulnerability was reported by furszy and 0xB10C."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Touches 76 files, but a substantial fraction is a scripted-diff refactor migrating direct .stack accesses to CScriptWitness accessor methods across tests and validation code, accompanied by dedicated deserialization benchmarks and fuzz targets.",
+  "changed_since_previous": "Added deserialization pre-checks that reject transactions with more inputs or outputs than can physically fit in a block across all decoders, and introduced a 4M weight budget check during P2P message deserialization.",
+  "card": "CScriptWitness currently stores stack items as a vector of byte vectors, adding a 24-byte header and a separate heap allocation for each item. This allows peers to send 4 MB blocks that take over 100 MiB of memory and nearly 300 ms to deserialize. This PR changes CScriptWitness to store its serialized representation in a single allocation, decoding elements on the fly, and introduces early size and weight budget bounds during transaction and P2P block deserialization. Benchmarks show worst-case block memory dropping from 106.8 MiB to 3.8 MiB and deserialization times dropping by up to 93%.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "validation",
+    "p2p"
+   ],
+   "why": "Altering witness serialization and adding early deserialization rejection could cause nodes to reject valid transactions or blocks, leading to chain splits or network partitions."
+  }
+ }
+}

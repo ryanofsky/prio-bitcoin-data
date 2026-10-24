@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-24T01:22:41+00:00",
+ "card": "Replaces Bitcoin Core's private broadcast implementation with isolated, stateless jobs executed on dedicated threads. When -privatebroadcast is enabled, transactions are announced through SOCKS5/Tor over BIP324 according to a fixed pre-drawn plan, completely detached from the node's main peer state and mempool until echoed back from the network. The change removes extensive private broadcast special-casing across CConnman and PeerManager and introduces getprivatebroadcastinfo and abortprivatebroadcast RPCs.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Each job runs on its own thread, shares no state with the node, and reaches the network only through the Tor proxy: it resolves the chain's DNS seeds, then announces over BIP324 to recipients on a schedule drawn up front, each connection with fresh isolation credentials. Nothing a recipient does, and nothing the node sees of the transaction coming back, changes the plan, and the transaction enters the node's mempool only when it returns from the network. The old private broadcast connections and relay are removed.'"
+ ],
+ "head_sha": "a63525b3908f71041910e5ab985965d25a0117d4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36628,
+ "patch_id": "nopatch",
+ "problem": "The prior private broadcast implementation maintained state inside the node's main connection and peer management components (`CConnman` and `PeerManager`). This coupled transaction broadcast to the node's broader networking state, risking privacy leaks via timing, connection state, or peer interactions, while complicating core P2P connection management.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api",
+   "docs",
+   "tests"
+  ],
+  "why": "Bugs in the SOCKS5 client or job networking loop could deanonymize users through Tor leaks or prevent transactions from broadcasting when -privatebroadcast is enabled."
+ },
+ "run": "run:20261024-0121-assess",
+ "scope_notes": "Large change (+6078/-3044 across 78 files) that adds a standalone subsystem in `src/privbcast`\u2014including a custom byte-driven SOCKS5 client, an isolated BIP324 attempt state machine, and job scheduler\u2014while deleting legacy private broadcast logic across `CConnman`, `PeerManager`, and related tests.",
+ "size": {
+  "additions": 6078,
+  "deletions": 3044,
+  "files": 78,
+  "test_lines": null
+ },
+ "summary": "Replaces the existing `-privatebroadcast` subsystem with isolated, job-based broadcast tasks implemented under `src/privbcast`. Transactions broadcast via `sendrawtransaction` run as independent event loops on separate threads that resolve DNS seeds and announce transactions over BIP324 exclusively through Tor using isolated credentials, only entering the local mempool once observed returning from the network. Completely removes the legacy private broadcast connection types, queue, and special-casing from `CConnman` and `PeerManager`, and adds `getprivatebroadcastinfo` and `abortprivatebroadcast` RPCs.",
+ "uncertainties": []
+}

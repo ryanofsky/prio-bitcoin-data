@@ -1,0 +1,44 @@
+{
+ "run": "run:20261024-0121-assess",
+ "pr": "bitcoin/bitcoin#36607",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-24T01:22:14+00:00",
+ "usage": {
+  "input_tokens": 13648,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1345
+ },
+ "cost_usd": 0.01527975,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds a safeguard in PeerManager to prevent transactions that were previously broadcast privately from being subsequently announced over public peer connections. It introduces a TxAnnounceReason parameter to distinguish relay of peer-received transactions from requested broadcasts such as RPC submissions, wallet periodic resends, or mempool unbroadcast retries. If an announcement is requested rather than relayed and the transaction is present in private broadcast tracking, the announcement is suppressed and the transaction is removed from the mempool unbroadcast set.\",\n  \"problem\": \"Transactions broadcast via private broadcast can later be leaked to public peers if re-submitted or retried through other subsystems, such as submitpackage RPC, periodic wallet resends, GUI PSBT broadcasts, or ReattemptInitialBroadcast. This reveals the node as the origin of the private transaction and defeats the purpose of private broadcast.\",\n  \"evidence\": [\n    \"PR description: 'During the initial phase of private broadcast implementation there were unforeseen instances when a private transaction could get broadcast non-privately (e.g. see #36277 #36330 #36309). Currently known pathways: Re-submission through submitpackage, Wallet-rebroadcast (when a private transaction is \\\"picked up\\\" by the wallet, and rebroadcast after 1-2 days).'\",\n    \"Commit a100ddec89: 'With -privatebroadcast, sendrawtransaction sends the transaction only via short-lived private broadcast connections and does not add it to the mempool. However, other code paths can later add the same transaction to the mempool and announce it to all peers, which links the transaction to this node'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [\n      \"#36477\"\n    ],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The PR includes commits from open PR #36477 as a base dependency to retain finished private broadcast entries in memory, which is necessary for the lookup guard to function.\",\n  \"changed_since_previous\": \"Diff and functional test p2p_private_broadcast_then_public.py are now provided, showing the integration of the #36477 base commits and the specific suppression mechanism in InitiateTxBroadcastToAll.\",\n  \"card\": \"Adds a generic guard in PeerManager to block unintended public announcements of transactions that were previously broadcast via private broadcast connections. When transactions are re-submitted or retried through submitpackage RPC, periodic wallet rebroadcasts, or unbroadcast reattempts, the node previously announced them to all peers, compromising sender privacy. The change passes an announcement reason to PeerManager::InitiateTxBroadcastToAll, suppressing non-relay broadcasts for transactions tracked in private broadcast storage and clearing their unbroadcast retry entries. It depends on #36477 to keep finished private broadcast records in memory so they can be matched.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"p2p\",\n      \"rpc_api\"\n    ],\n    \"why\": \"A flaw in the suppression check or reason tagging could inadvertently drop public announcements for legitimate local or relayed transactions, delaying their propagation.\"\n  }\n}",
+ "result": {
+  "summary": "Adds a safeguard in PeerManager to prevent transactions that were previously broadcast privately from being subsequently announced over public peer connections. It introduces a TxAnnounceReason parameter to distinguish relay of peer-received transactions from requested broadcasts such as RPC submissions, wallet periodic resends, or mempool unbroadcast retries. If an announcement is requested rather than relayed and the transaction is present in private broadcast tracking, the announcement is suppressed and the transaction is removed from the mempool unbroadcast set.",
+  "problem": "Transactions broadcast via private broadcast can later be leaked to public peers if re-submitted or retried through other subsystems, such as submitpackage RPC, periodic wallet resends, GUI PSBT broadcasts, or ReattemptInitialBroadcast. This reveals the node as the origin of the private transaction and defeats the purpose of private broadcast.",
+  "evidence": [
+   "PR description: 'During the initial phase of private broadcast implementation there were unforeseen instances when a private transaction could get broadcast non-privately (e.g. see #36277 #36330 #36309). Currently known pathways: Re-submission through submitpackage, Wallet-rebroadcast (when a private transaction is \"picked up\" by the wallet, and rebroadcast after 1-2 days).'",
+   "Commit a100ddec89: 'With -privatebroadcast, sendrawtransaction sends the transaction only via short-lived private broadcast connections and does not add it to the mempool. However, other code paths can later add the same transaction to the mempool and announce it to all peers, which links the transaction to this node'"
+  ],
+  "dependencies": {
+   "depends_on": [
+    "#36477"
+   ],
+   "enables": []
+  },
+  "scope_notes": "The PR includes commits from open PR #36477 as a base dependency to retain finished private broadcast entries in memory, which is necessary for the lookup guard to function.",
+  "changed_since_previous": "Diff and functional test p2p_private_broadcast_then_public.py are now provided, showing the integration of the #36477 base commits and the specific suppression mechanism in InitiateTxBroadcastToAll.",
+  "card": "Adds a generic guard in PeerManager to block unintended public announcements of transactions that were previously broadcast via private broadcast connections. When transactions are re-submitted or retried through submitpackage RPC, periodic wallet rebroadcasts, or unbroadcast reattempts, the node previously announced them to all peers, compromising sender privacy. The change passes an announcement reason to PeerManager::InitiateTxBroadcastToAll, suppressing non-relay broadcasts for transactions tracked in private broadcast storage and clearing their unbroadcast retry entries. It depends on #36477 to keep finished private broadcast records in memory so they can be matched.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p",
+    "rpc_api"
+   ],
+   "why": "A flaw in the suppression check or reason tagging could inadvertently drop public announcements for legitimate local or relayed transactions, delaying their propagation."
+  }
+ }
+}

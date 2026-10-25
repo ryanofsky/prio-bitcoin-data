@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-10-25T01:16:41+00:00",
+ "card": "Enforces strict validation of HTTP Transfer-Encoding headers, responding with HTTP 400 Bad Request for anything other than a single chunked coding. Currently, LoadBody() only inspects the first header and falls back to Content-Length framing when encountering other codings such as gzip or multiple headers, violating RFC 9112 section 6.3. The change improves HTTP framing robustness against malformed or ambiguous requests and aligns the http_request fuzz target and tests with the standard.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "RFC 9112 section 6.3 requirement: 'RFC 9112 section 6.3 requires a 400 when chunked is not the final coding. The server supports no other coding.' (description)",
+  "Failing test cases on current master: 'The new rejection cases in httpserver_tests and interface_http.py fail on master and pass with this change.' (description)"
+ ],
+ "head_sha": "458f88f58ed495f2e308bd852cdb665334380d54",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36643,
+ "patch_id": "nopatch",
+ "problem": "Bitcoin Core's HTTP server inspects only the first Transfer-Encoding header, falling back to Content-Length framing or reading an empty body if given encodings like gzip, chunked followed by gzip, or multiple Transfer-Encoding headers. This violates RFC 9112 section 6.3, which mandates returning HTTP 400 when chunked is not the final transfer coding, and can cause body framing inconsistencies.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Flaws in HTTP request framing or header validation could inadvertently drop or reject valid RPC and REST requests or alter connection handling."
+ },
+ "run": "run:20261025-0115-assess",
+ "scope_notes": "Touches HTTP body framing logic along with corresponding unit tests, functional tests, and fuzzing harness.",
+ "size": {
+  "additions": 86,
+  "deletions": 3,
+  "files": 4,
+  "test_lines": null
+ },
+ "summary": "Rejects HTTP requests with invalid or unsupported Transfer-Encoding headers with a 400 Bad Request response. Modifies LoadBody() in the HTTP server to only accept a single chunked coding across all Transfer-Encoding headers and reject any other transfer coding. Updates the HTTP unit tests, functional test suite, and http_request fuzz harness to enforce the new validation rules.",
+ "uncertainties": [
+  "The diff was not provided, preventing direct inspection of the header parsing loop and error handling implementation."
+ ]
+}

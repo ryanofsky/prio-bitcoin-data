@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-10-25T01:16:53+00:00",
+ "card": "Bitcoin Core limits how Tor control port replies can affect node operation. Currently, a service answering on the control port can provide a FIFO path as the authentication cookie, permanently blocking the torcontrol thread on fopen and preventing node shutdown, or return an arbitrary host as a SOCKS listener to redirect onion traffic. This PR requires the cookie to be a regular file opened non-blockingly and restricts accepted SOCKS proxies to the control port host. This hardens Tor integration against local or rogue services when connecting to the default control port.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "\"A program that answers on the Tor control port can hang the node at shutdown and point its onion connections at another host.\" (PR description)",
+  "\"A FIFO with no writer made fopen() block the torcontrol thread for good, and shutdown waits for that thread.\" (commit 6d994c29f1)",
+  "\"Whoever answers on the control port can name any address, and all onion connections then go through it.\" (commit e445a64d7e)"
+ ],
+ "head_sha": "3e9e292a1d498110a6316e5c632ed70ff06c590f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36653,
+ "patch_id": "nopatch",
+ "problem": "By default, Bitcoin Core attempts to connect to a Tor control port at 127.0.0.1:9051. A rogue service answering on this port can specify a FIFO for the cookie file, causing the torcontrol thread to block indefinitely on `fopen()` and hanging node shutdown, or specify arbitrary external IP addresses in SOCKS listener replies, redirecting the node's onion connections to a third party.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A bug in listener host validation could reject legitimate Tor proxy setups (such as Unix domain sockets or multi-homed Tor daemons), breaking onion connectivity for affected nodes."
+ },
+ "run": "run:20261025-0115-assess",
+ "scope_notes": "The diff was not provided, but commits indicate changes across torcontrol logic, file reading utilities (POSIX O_NONBLOCK), unit tests, functional tests in feature_torcontrol.py, and documentation.",
+ "size": {
+  "additions": 315,
+  "deletions": 16,
+  "files": 8,
+  "test_lines": null
+ },
+ "summary": "Restricts Tor control port response handling to prevent rogue control servers from stalling shutdown or redirecting onion traffic. The node now verifies that authentication cookie files are regular files and opens them with non-blocking I/O to avoid hanging on FIFOs. Additionally, SOCKS proxy listeners returned by Tor control commands are rejected unless they match the host running the control port.",
+ "uncertainties": []
+}

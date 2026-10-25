@@ -1,0 +1,41 @@
+{
+ "run": "run:20261025-0115-assess",
+ "pr": "bitcoin/bitcoin#36619",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-25T01:16:04+00:00",
+ "usage": {
+  "input_tokens": 4025,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1412
+ },
+ "cost_usd": 0.00831375,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Check block undo data availability before reading undo data in the `/rest/spenttxouts/<hash>` REST endpoint. If `BLOCK_HAVE_UNDO` is not set\u2014such as for stale disconnected blocks or pruned blocks\u2014the endpoint returns 404 without attempting to open the undo file. The functional REST test is expanded to verify that querying a side-branch block returns 404 without logging an undo file error.\",\n  \"problem\": \"Unauthenticated HTTP requests to `/rest/spenttxouts/<hash>` for blocks lacking undo data (such as pruned blocks or disconnected side branches) trigger `ReadBlockUndo()`, which writes an alarming `[error] OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0)` entry to `debug.log`. While the endpoint correctly returns an HTTP 404, the spurious log entry resembles disk corruption and can be triggered remotely.\",\n  \"evidence\": [\n    \"PR description and commit message: 'For a block that was stored but never connected (a side branch) or whose undo data was pruned, there is no undo position, so OpenUndoFile() fails and ReadBlockUndo() writes OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0) to debug.log with LogError... each unauthenticated request for such a block adds an [error] line that looks like disk corruption.'\",\n    \"Functional test diff: requests a side-branch block and asserts unexpected messages for 'OpenUndoFile failed' while expecting a 404 status.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"None; re-described with complete patch data.\",\n  \"card\": \"Suppresses spurious disk-corruption-like error messages in debug.log when querying `/rest/spenttxouts/<hash>` for blocks without undo data. Unauthenticated REST requests for pruned or disconnected side-branch blocks cause OpenUndoFile to fail and log an error before returning an HTTP 404. This PR verifies BLOCK_HAVE_UNDO before attempting to read undo files, keeping the HTTP 404 response unchanged while keeping debug.log clean.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"rpc_api\"],\n    \"why\": \"A flaw in the block availability check could cause valid spent txout queries to return 404 or introduce locking issues on cs_main during REST requests.\"\n  }\n}",
+ "result": {
+  "summary": "Check block undo data availability before reading undo data in the `/rest/spenttxouts/<hash>` REST endpoint. If `BLOCK_HAVE_UNDO` is not set\u2014such as for stale disconnected blocks or pruned blocks\u2014the endpoint returns 404 without attempting to open the undo file. The functional REST test is expanded to verify that querying a side-branch block returns 404 without logging an undo file error.",
+  "problem": "Unauthenticated HTTP requests to `/rest/spenttxouts/<hash>` for blocks lacking undo data (such as pruned blocks or disconnected side branches) trigger `ReadBlockUndo()`, which writes an alarming `[error] OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0)` entry to `debug.log`. While the endpoint correctly returns an HTTP 404, the spurious log entry resembles disk corruption and can be triggered remotely.",
+  "evidence": [
+   "PR description and commit message: 'For a block that was stored but never connected (a side branch) or whose undo data was pruned, there is no undo position, so OpenUndoFile() fails and ReadBlockUndo() writes OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0) to debug.log with LogError... each unauthenticated request for such a block adds an [error] line that looks like disk corruption.'",
+   "Functional test diff: requests a side-branch block and asserts unexpected messages for 'OpenUndoFile failed' while expecting a 404 status."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "None; re-described with complete patch data.",
+  "card": "Suppresses spurious disk-corruption-like error messages in debug.log when querying `/rest/spenttxouts/<hash>` for blocks without undo data. Unauthenticated REST requests for pruned or disconnected side-branch blocks cause OpenUndoFile to fail and log an error before returning an HTTP 404. This PR verifies BLOCK_HAVE_UNDO before attempting to read undo files, keeping the HTTP 404 response unchanged while keeping debug.log clean.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "A flaw in the block availability check could cause valid spent txout queries to return 404 or introduce locking issues on cs_main during REST requests."
+  }
+ }
+}

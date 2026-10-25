@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-25T01:16:13+00:00",
+ "card": "Batches block file pruning into a single pass over the block index rather than traversing the full index once per pruned file. When starting a node with -prune on an existing full-chain datadir or pruning thousands of files at once, the previous O(M * N) approach executed billions of iterations while holding cs_main, freezing the node for tens of seconds on desktop hardware and up to 10 minutes on a Raspberry Pi 5. Benchmarks report reducing pruning time on 5,770 files from 606s to 26ms on ARM64 and 75s to 15ms on x86_64.",
+ "changed_since_previous": "Diff inspected (previously nopatch); implementation confirms the bitfield batching, the dataless/header-only skip, and new unit tests in blockmanager_tests.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit description: 'When pruning a full chain (~5,770 files and ~972k blocks), this triggered ~5.6 billion iterations and froze the node running on a Pi 5 for ~10 minutes on startup while holding cs_main.'",
+  "Author benchmarks: x86_64 (i7-8665U) dropped from 75.1s to 14.7ms (~5,100x speedup); ARM64 (Raspberry Pi 5) dropped from 606.0s to 26.3ms (>3,500x speedup)."
+ ],
+ "head_sha": "b96e669c607c18c97533f59e70aef44b7c1e613a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36621,
+ "patch_id": "a067aefe5235a0bd",
+ "problem": "Switching an existing node with full history to pruned mode (or manually pruning many block files) iterated over the entire `m_block_index` separately for every block file pruned. On a full chain (~5,770 files and ~972k blocks), this O(M * N) operation performed billions of iterations while holding `cs_main`, freezing the node for up to ten minutes on startup.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A bug in updating block index records or dirty flags during pruning could corrupt block index metadata or incorrectly report block availability."
+ },
+ "run": "run:20261025-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 115,
+  "deletions": 13,
+  "files": 4,
+  "test_lines": 91
+ },
+ "summary": "Replaces `PruneOneBlockFile` with `PruneBlockFiles(const std::set<int>&)` in `BlockManager`, batching block file pruning into a single pass over `m_block_index` using a dynamic bitfield. In `FindFilesToPrune` and `FindFilesToPruneManual`, calls are consolidated so the block index is traversed once across all candidate files rather than once per file. It also skips block index entries that have neither block data nor undo data, avoiding redundant checks and preventing header-only entries from being marked dirty when file 0 is pruned.",
+ "uncertainties": []
+}

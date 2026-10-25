@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-25T01:16:23+00:00",
+ "card": "Validation snapshot loading checks coins cache memory limits only every 120,000 coins, assuming typical small coins. Because coins can contain scripts up to 10,000 bytes, a snapshot file can exceed dbcache by roughly 1.2 GB before triggering a flush check, risking out-of-memory crashes on memory-constrained systems prior to hash rejection. This change triggers a cache limit check and potential disk flush whenever dynamic memory usage increases by 4 MiB since the last check. A functional test demonstrates that loading 2,000 large coins under -dbcache=4 fails without the change and passes with it.",
+ "changed_since_previous": "No functional change; the patch is now included and confirms the 4 MiB MAX_UNCHECKED_CACHE_GROWTH implementation in PopulateAndValidateSnapshot along with the functional test.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit message and description: A coin can carry a script up to 10,000 bytes, allowing cache growth of ~1.2 GB between 120,000-coin checks before hash validation rejects the file.",
+  "Diff: Adds test_snapshot_cache_growth to feature_assumeutxo.py loading 2,000 coins with 10,000-byte scripts under -dbcache=4; the test verifies that without the byte bound the cache is never checked or flushed, and with the bound the cache stays within 5 MiB of the limit."
+ ],
+ "head_sha": "9bfcb7c15d1600a095921169ee975fc8920623e0",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36633,
+ "patch_id": "18d313d98bb77086",
+ "problem": "Snapshot loading checks whether the coins cache exceeds dbcache only every 120,000 coins, assuming average coin sizes of around 41 bytes. Because coins can hold scripts up to 10,000 bytes, an adversarial or atypical snapshot can cause the cache to overshoot dbcache by up to roughly 1.2 GB before checking, potentially causing an out-of-memory crash on memory-constrained devices before the UTXO set hash is verified and rejected.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A logic bug in cache checking or snapshot flush handling could corrupt snapshot loading or trigger unexpected flushes, causing snapshot verification to fail."
+ },
+ "run": "run:20261025-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 50,
+  "deletions": 5,
+  "files": 2,
+  "test_lines": 40
+ },
+ "summary": "Bound coins cache memory growth during assumeutxo snapshot loading by memory bytes in addition to coin count. During PopulateAndValidateSnapshot, cache memory is now checked against dbcache whenever cache usage grows by 4 MiB since the last check, in addition to the existing check every 120,000 coins.",
+ "uncertainties": []
+}

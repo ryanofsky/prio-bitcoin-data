@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-10-25T01:16:05+00:00",
+ "card": "This PR optimizes the disabled-logging path by replacing category log level maps and global levels with atomic bitmasks, making ShouldDebugLog and ShouldTraceLog fully inlined and lock-free across all threads. It also pulls in changes from #34038 that replace -loglevel with a -trace command-line flag and update the logging RPC with trace toggling and deprecation fallback. The changes eliminate lock contention when evaluating inactive log statements in hot multi-threaded code. It is currently in draft and depends on #34038.",
+ "changed_since_previous": "Moved category bitmasks into static constinit atomics in util/log.h, enabling ShouldDebugLog and ShouldTraceLog to be fully inlined at call sites rather than relying on indirection through logger instances, and adapted the kernel logger accordingly.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#34038"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'simplify and optimize the logging-disabled path for LogTrace() ... reduces ShouldDebugLog and ShouldTraceLog to lock-free checks on a single atomic. Also makes Enabled() lock-free, to waste a little less time in the case where debugging is completely disabled.'",
+  "Commit 0572c28fe3: 'This allows WillLogCategoryLevel to avoid taking a mutex, potentially allowing for better performance in the event that multiple threads are running many LogDebug(..) statements over categories that do not have -debug enabled (or LogTrace/-trace).'",
+  "Commit 36586ec1b3: 'Simplifies the util/log.h API so that log enablement does not require indirection and ShouldDebugLog and ShouldTraceLog can be fully inlined at logging call sites.'"
+ ],
+ "head_sha": "36586ec1b397890a78cfaeda2bee7543131b569e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35355,
+ "patch_id": "4da2ac1c979221d8",
+ "problem": "Checking whether trace or debug logging is active for a category requires map lookups or mutex acquisition, imposing CPU and lock overhead on hot multi-threaded code paths even when logging is disabled. Additionally, configuring trace logging previously required an unintuitive combination of `-debug` and `-loglevel` options.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "other"
+  ],
+  "why": "Modifications to logging startup parameters and the logging RPC output structure could break external management tooling and node automation scripts."
+ },
+ "run": "run:20261025-0115-assess",
+ "scope_notes": "The PR is stacked on top of open PR #34038; the first three commits (replacing `-loglevel` with `-trace` and the RPC changes) belong to that base PR.",
+ "size": {
+  "additions": 413,
+  "deletions": 347,
+  "files": 24,
+  "test_lines": 215
+ },
+ "summary": "Replaces the logging system's category-level maps and global log level with atomic bitmasks for debug and trace categories, making category enablement checks (`ShouldDebugLog` and `ShouldTraceLog`) inlined and lock-free. Incorporates changes from #34038 that replace `-loglevel` with a `-trace` command-line option and update the `logging` RPC to support trace categories with backward-compatible deprecation output. Also makes various logger configuration fields atomic or mutex-guarded to ensure thread safety without initialization ordering assumptions.",
+ "uncertainties": []
+}

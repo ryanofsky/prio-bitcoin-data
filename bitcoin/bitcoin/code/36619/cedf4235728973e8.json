@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-25T01:16:04+00:00",
+ "card": "Suppresses spurious disk-corruption-like error messages in debug.log when querying `/rest/spenttxouts/<hash>` for blocks without undo data. Unauthenticated REST requests for pruned or disconnected side-branch blocks cause OpenUndoFile to fail and log an error before returning an HTTP 404. This PR verifies BLOCK_HAVE_UNDO before attempting to read undo files, keeping the HTTP 404 response unchanged while keeping debug.log clean.",
+ "changed_since_previous": "None; re-described with complete patch data.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description and commit message: 'For a block that was stored but never connected (a side branch) or whose undo data was pruned, there is no undo position, so OpenUndoFile() fails and ReadBlockUndo() writes OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0) to debug.log with LogError... each unauthenticated request for such a block adds an [error] line that looks like disk corruption.'",
+  "Functional test diff: requests a side-branch block and asserts unexpected messages for 'OpenUndoFile failed' while expecting a 404 status."
+ ],
+ "head_sha": "e8af2c7488925e35ffeaf64e523cef48b70280eb",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36619,
+ "patch_id": "cedf4235728973e8",
+ "problem": "Unauthenticated HTTP requests to `/rest/spenttxouts/<hash>` for blocks lacking undo data (such as pruned blocks or disconnected side branches) trigger `ReadBlockUndo()`, which writes an alarming `[error] OpenUndoFile failed for FlatFilePos(nFile=-1, nPos=0)` entry to `debug.log`. While the endpoint correctly returns an HTTP 404, the spurious log entry resembles disk corruption and can be triggered remotely.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "A flaw in the block availability check could cause valid spent txout queries to return 404 or introduce locking issues on cs_main during REST requests."
+ },
+ "run": "run:20261025-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 14,
+  "deletions": 2,
+  "files": 2,
+  "test_lines": 8
+ },
+ "summary": "Check block undo data availability before reading undo data in the `/rest/spenttxouts/<hash>` REST endpoint. If `BLOCK_HAVE_UNDO` is not set\u2014such as for stale disconnected blocks or pruned blocks\u2014the endpoint returns 404 without attempting to open the undo file. The functional REST test is expanded to verify that querying a side-branch block returns 404 without logging an undo file error.",
+ "uncertainties": []
+}

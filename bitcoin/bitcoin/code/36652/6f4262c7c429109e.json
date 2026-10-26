@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-26T01:25:20+00:00",
+ "card": "This pull request stops the HTTP server from processing pipelined requests queued after a connection-closing reply and forces connection closure on conflicting framing headers (Content-Length and Transfer-Encoding). Introduced as a regression from the libevent replacement in #35182, buffered requests currently execute even after a closing reply, violating RFC 9112 sections 6.1 and 9.6 and allowing trailing pipelined RPC commands like setnetworkactive false to run unexpectedly. The PR introduces an atomic closing state flag to stop further reads and adds unit and functional regression tests. It has no open dependencies.",
+ "changed_since_previous": "No functional changes; diff is now available confirming the implementation from closed PR #36355 and the added functional test.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"RFC 9112 section 9.6 says it must not. This is a regression from #35182, which replaced libevent: libevent's evhttp_send_done() frees the connection once a closing reply is sent, so buffered requests were never parsed.\"",
+  "Commit cdd831035d and functional test in interface_http.py: demonstrates that a `setnetworkactive false` request pipelined behind a request with both Content-Length and Transfer-Encoding headers executed instead of being dropped upon connection close."
+ ],
+ "head_sha": "cdd831035d0c2cdb62f10e9a4d8293d5320e2ef3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36652,
+ "patch_id": "6f4262c7c429109e",
+ "problem": "Following the replacement of libevent in #35182, the HTTP server continues to parse and execute requests sitting in its receive buffer after sending a response that terminates the connection. When combined with failing to close connections after receiving conflicting framing headers, an attacker or client sending pipelined HTTP commands can execute unauthorized or unintended RPC methods that should have been discarded.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Flaws in HTTP connection state handling could cause valid keep-alive requests to be prematurely terminated or stall RPC client connections."
+ },
+ "run": "run:20261026-0124-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 108,
+  "deletions": 3,
+  "files": 4,
+  "test_lines": 94
+ },
+ "summary": "Stops the internal HTTP server from reading and executing queued requests on a connection once a closing reply has been queued or the client is marked for disconnect. In addition, ensures that requests with conflicting framing headers (both Content-Length and Transfer-Encoding) elicit a \"Connection: close\" response and terminate the connection, conforming to RFC 9112 sections 6.1 and 9.6.",
+ "uncertainties": []
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-26T01:25:11+00:00",
+ "card": "Validates HTTP Transfer-Encoding headers strictly, returning HTTP 400 Bad Request for any request specifying transfer codings other than exactly one chunked coding across all headers. Previously, LoadBody() examined only the first header and fell back to Content-Length framing if it was not chunked, failing to reject unsupported codings such as gzip or multiple transfer codings as required by RFC 9112 section 6.3. The change eliminates request framing ambiguities when proxying or handling malformed HTTP requests.",
+ "changed_since_previous": "Now includes the complete implementation diff using FindAll(\"Transfer-Encoding\") and comma-delimited token parsing via RequireChunkedOnly, along with unit, functional, and fuzz test adjustments.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "RFC 9112 section 6.3 requirement cited in description and commit: 'RFC 9112 section 6.3 requires a 400 when chunked is not the final coding. The server supports no other coding.'",
+  "Author notes in description that 'The new rejection cases in httpserver_tests and interface_http.py fail on master and pass with this change.'"
+ ],
+ "head_sha": "458f88f58ed495f2e308bd852cdb665334380d54",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36643,
+ "patch_id": "ca3d009fe98adcfb",
+ "problem": "LoadBody() previously inspected only the first Transfer-Encoding header and checked only if it was equal to chunked. Requests specifying other codings (such as gzip, multiple codings, or chunked preceded by identity on another line) fell back to framing by Content-Length or reading an empty body, violating RFC 9112 section 6.3 and creating potential request framing ambiguities.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Faulty HTTP header parsing could incorrectly reject valid RPC client requests or cause framing discrepancies."
+ },
+ "run": "run:20261026-0124-assess",
+ "scope_notes": "Touches HTTP body framing logic in src/httpserver.cpp and updates the http_request fuzz harness assertion.",
+ "size": {
+  "additions": 86,
+  "deletions": 3,
+  "files": 4,
+  "test_lines": 66
+ },
+ "summary": "Validates HTTP Transfer-Encoding headers in the built-in HTTP server, rejecting any request that specifies transfer codings other than a single chunked coding. Inspects all Transfer-Encoding headers rather than only the first, returning an HTTP 400 Bad Request error if unsupported or multiple codings are present. Updates the http_request fuzz harness, unit tests, and functional tests to match the stricter framing rules.",
+ "uncertainties": []
+}

@@ -1,0 +1,41 @@
+{
+ "run": "run:20261026-0124-assess",
+ "pr": "bitcoin/bitcoin#36652",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-26T01:25:20+00:00",
+ "usage": {
+  "input_tokens": 6358,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1236
+ },
+ "cost_usd": 0.0094035,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Stops the internal HTTP server from reading and executing queued requests on a connection once a closing reply has been queued or the client is marked for disconnect. In addition, ensures that requests with conflicting framing headers (both Content-Length and Transfer-Encoding) elicit a \\\"Connection: close\\\" response and terminate the connection, conforming to RFC 9112 sections 6.1 and 9.6.\",\n  \"problem\": \"Following the replacement of libevent in #35182, the HTTP server continues to parse and execute requests sitting in its receive buffer after sending a response that terminates the connection. When combined with failing to close connections after receiving conflicting framing headers, an attacker or client sending pipelined HTTP commands can execute unauthorized or unintended RPC methods that should have been discarded.\",\n  \"evidence\": [\n    \"PR description: \\\"RFC 9112 section 9.6 says it must not. This is a regression from #35182, which replaced libevent: libevent's evhttp_send_done() frees the connection once a closing reply is sent, so buffered requests were never parsed.\\\"\",\n    \"Commit cdd831035d and functional test in interface_http.py: demonstrates that a `setnetworkactive false` request pipelined behind a request with both Content-Length and Transfer-Encoding headers executed instead of being dropped upon connection close.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"No functional changes; diff is now available confirming the implementation from closed PR #36355 and the added functional test.\",\n  \"card\": \"This pull request stops the HTTP server from processing pipelined requests queued after a connection-closing reply and forces connection closure on conflicting framing headers (Content-Length and Transfer-Encoding). Introduced as a regression from the libevent replacement in #35182, buffered requests currently execute even after a closing reply, violating RFC 9112 sections 6.1 and 9.6 and allowing trailing pipelined RPC commands like setnetworkactive false to run unexpectedly. The PR introduces an atomic closing state flag to stop further reads and adds unit and functional regression tests. It has no open dependencies.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"rpc_api\"\n    ],\n    \"why\": \"Flaws in HTTP connection state handling could cause valid keep-alive requests to be prematurely terminated or stall RPC client connections.\"\n  }\n}",
+ "result": {
+  "summary": "Stops the internal HTTP server from reading and executing queued requests on a connection once a closing reply has been queued or the client is marked for disconnect. In addition, ensures that requests with conflicting framing headers (both Content-Length and Transfer-Encoding) elicit a \"Connection: close\" response and terminate the connection, conforming to RFC 9112 sections 6.1 and 9.6.",
+  "problem": "Following the replacement of libevent in #35182, the HTTP server continues to parse and execute requests sitting in its receive buffer after sending a response that terminates the connection. When combined with failing to close connections after receiving conflicting framing headers, an attacker or client sending pipelined HTTP commands can execute unauthorized or unintended RPC methods that should have been discarded.",
+  "evidence": [
+   "PR description: \"RFC 9112 section 9.6 says it must not. This is a regression from #35182, which replaced libevent: libevent's evhttp_send_done() frees the connection once a closing reply is sent, so buffered requests were never parsed.\"",
+   "Commit cdd831035d and functional test in interface_http.py: demonstrates that a `setnetworkactive false` request pipelined behind a request with both Content-Length and Transfer-Encoding headers executed instead of being dropped upon connection close."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No functional changes; diff is now available confirming the implementation from closed PR #36355 and the added functional test.",
+  "card": "This pull request stops the HTTP server from processing pipelined requests queued after a connection-closing reply and forces connection closure on conflicting framing headers (Content-Length and Transfer-Encoding). Introduced as a regression from the libevent replacement in #35182, buffered requests currently execute even after a closing reply, violating RFC 9112 sections 6.1 and 9.6 and allowing trailing pipelined RPC commands like setnetworkactive false to run unexpectedly. The PR introduces an atomic closing state flag to stop further reads and adds unit and functional regression tests. It has no open dependencies.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "Flaws in HTTP connection state handling could cause valid keep-alive requests to be prematurely terminated or stall RPC client connections."
+  }
+ }
+}

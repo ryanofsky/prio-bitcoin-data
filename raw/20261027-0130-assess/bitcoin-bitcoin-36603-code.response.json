@@ -1,0 +1,45 @@
+{
+ "run": "run:20261027-0130-assess",
+ "pr": "bitcoin/bitcoin#36603",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-27T01:30:38+00:00",
+ "usage": {
+  "input_tokens": 16366,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1593
+ },
+ "cost_usd": 0.01824825,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Replaces the sequential assumeutxo snapshot loader with a multithreaded pipeline that reads, verifies order, hashes, serializes, and writes coins directly into LevelDB. Staging coins through CCoinsViewCache is eliminated along with intermediate LevelDB fsync operations, committing files across the directory only once loading finishes. The change also adds a txoutsetsummary subcommand to bitcoin-util to compute snapshot statistics and hashes without importing the data into a database.\",\n  \"problem\": \"Loading an assumeutxo snapshot via loadtxoutset is slow and memory-intensive because coins are staged in a CCoinsViewCache up to -dbcache limits, serialized and written sequentially with repeated fsync operations, and hashed only after loading completes.\",\n  \"evidence\": [\n    \"PR description: 'Significantly improves loadtxoutset performance via a number of changes: parallel threads for decoding, hashing, serializing and writing to leveldb; no fsync() gating writes; no redundant loading into CoinsView'\",\n    \"PR description: 'On my systems, performance ends up bottlenecked by leveldb CPU usage.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#35054\"\n    ]\n  },\n  \"scope_notes\": \"Introduces a generic BlockingQueue utility and adds a nosync Env option to CDBWrapper. Includes custom sorting logic to handle the difference between LevelDB varint key ordering and numeric UTXO commitment ordering, bounded by consensus block weight limits.\",\n  \"changed_since_previous\": \"Enforces that snapshot coins are in txid key order, accounts for LevelDB varint ordering versus numeric output index ordering during hashing, and bounds grouped transaction output serialization by block weight limits.\",\n  \"card\": \"Accelerates assumeutxo snapshot imports in loadtxoutset by replacing the sequential import process with a concurrent pipeline that reads, hashes, serializes, and commits coins directly into LevelDB. It removes CCoinsViewCache staging, suppresses intermediate fsync calls during bulk writing, and introduces a txoutsetsummary tool in bitcoin-util to inspect snapshot files offline. Currently, snapshot loading is serialized, bounded by cache flushes, and calculates hashes only after population, delaying node synchronization. The author reports that the pipeline shifts the import bottleneck entirely to LevelDB CPU usage. PR #35054 (UTXO set sharing over P2P) references this work.\",\n  \"needs\": [\n    \"benchmark_numbers\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"validation\"\n    ],\n    \"why\": \"Bypassing CoinsView to populate the chainstate database directly via parallel threads could corrupt the UTXO set or accept an invalid snapshot state if sorting, serialization, or hash checks fail.\"\n  }\n}",
+ "result": {
+  "summary": "Replaces the sequential assumeutxo snapshot loader with a multithreaded pipeline that reads, verifies order, hashes, serializes, and writes coins directly into LevelDB. Staging coins through CCoinsViewCache is eliminated along with intermediate LevelDB fsync operations, committing files across the directory only once loading finishes. The change also adds a txoutsetsummary subcommand to bitcoin-util to compute snapshot statistics and hashes without importing the data into a database.",
+  "problem": "Loading an assumeutxo snapshot via loadtxoutset is slow and memory-intensive because coins are staged in a CCoinsViewCache up to -dbcache limits, serialized and written sequentially with repeated fsync operations, and hashed only after loading completes.",
+  "evidence": [
+   "PR description: 'Significantly improves loadtxoutset performance via a number of changes: parallel threads for decoding, hashing, serializing and writing to leveldb; no fsync() gating writes; no redundant loading into CoinsView'",
+   "PR description: 'On my systems, performance ends up bottlenecked by leveldb CPU usage.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35054"
+   ]
+  },
+  "scope_notes": "Introduces a generic BlockingQueue utility and adds a nosync Env option to CDBWrapper. Includes custom sorting logic to handle the difference between LevelDB varint key ordering and numeric UTXO commitment ordering, bounded by consensus block weight limits.",
+  "changed_since_previous": "Enforces that snapshot coins are in txid key order, accounts for LevelDB varint ordering versus numeric output index ordering during hashing, and bounds grouped transaction output serialization by block weight limits.",
+  "card": "Accelerates assumeutxo snapshot imports in loadtxoutset by replacing the sequential import process with a concurrent pipeline that reads, hashes, serializes, and commits coins directly into LevelDB. It removes CCoinsViewCache staging, suppresses intermediate fsync calls during bulk writing, and introduces a txoutsetsummary tool in bitcoin-util to inspect snapshot files offline. Currently, snapshot loading is serialized, bounded by cache flushes, and calculates hashes only after population, delaying node synchronization. The author reports that the pipeline shifts the import bottleneck entirely to LevelDB CPU usage. PR #35054 (UTXO set sharing over P2P) references this work.",
+  "needs": [
+   "benchmark_numbers"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "validation"
+   ],
+   "why": "Bypassing CoinsView to populate the chainstate database directly via parallel threads could corrupt the UTXO set or accept an invalid snapshot state if sorting, serialization, or hash checks fail."
+  }
+ }
+}

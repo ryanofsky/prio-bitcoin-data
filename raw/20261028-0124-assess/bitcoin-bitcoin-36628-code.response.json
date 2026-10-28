@@ -1,0 +1,45 @@
+{
+ "run": "run:20261028-0124-assess",
+ "pr": "bitcoin/bitcoin#36628",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-28T01:25:28+00:00",
+ "usage": {
+  "input_tokens": 20558,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2037
+ },
+ "cost_usd": 0.02305725,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Replaces the node's `-privatebroadcast` mechanism with isolated, stateless jobs that run on dedicated threads. When enabled, transactions submitted for private broadcast bypass the local mempool and connection manager, running an event loop in `src/privbcast` that resolves DNS seeds and announces transactions via BIP324 exclusively through a Tor SOCKS5 proxy using fresh circuit credentials and a fixed schedule. Legacy private broadcast connection types, queues, and bypass logic are completely removed from `CConnman` and `PeerManager`.\",\n  \"problem\": \"The previous private broadcast implementation was intertwined with the node's main connection manager and peer logic, adding pervasive special-case exceptions to core networking code. This shared state created risks of privacy linkage through node mempool interaction, timing, or adversarial peer manipulation, while also complicating node networking maintenance.\",\n  \"evidence\": [\n    \"PR description: 'Each job runs on its own thread, shares no state with the node, and reaches the network only through the Tor proxy... Nothing a recipient does, and nothing the node sees of the transaction coming back, changes the plan, and the transaction enters the node's mempool only when it returns from the network.'\",\n    \"PR description: 'Slimmed down test profile focusing on protecting aginst IP address linkage and not crashing the node on adversarial inputs (which is a leak in itself)'\",\n    \"Commit messages document extensive deletion of bespoke bypasses across CConnman, PeerManager, addrman, and DoS discouragement logic.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#36608\"\n    ]\n  },\n  \"scope_notes\": \"Large architectural rewrite (+6314/-3046 lines across 78 files). Introduces an isolated `src/privbcast` subsystem containing a custom non-blocking SOCKS5 client, discovery logic, and attempt state machine, while deleting `src/private_broadcast.{h,cpp}` and legacy private broadcast paths in `net.cpp` and `net_processing.cpp`.\",\n  \"changed_since_previous\": \"The design and commit structure remain the same; updates reflect rebasing, test adjustments, and specification documentation refinements.\",\n  \"card\": \"Replaces the existing private broadcast subsystem with isolated, stateless background jobs managed under a new src/privbcast module. When -privatebroadcast is enabled, transactions bypass the local mempool and connection manager, executing on dedicated threads that discover peers via DNS seeds and announce over BIP324 strictly through Tor using isolated proxy credentials and a fixed schedule. This eliminates IP linkage and node-state correlation vectors while removing invasive private-broadcast special-case logic from CConnman and PeerManager. It unblocks follow-up package relay support for private broadcast in #36608.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"p2p\",\n      \"rpc_api\"\n    ],\n    \"why\": \"Flaws in the new custom SOCKS5 and BIP324 network state machines could leak the user's IP address or transaction origin, while unintended side effects from stripping legacy connection types from CConnman and PeerManager could disrupt standard peer networking.\"\n  }\n}",
+ "result": {
+  "summary": "Replaces the node's `-privatebroadcast` mechanism with isolated, stateless jobs that run on dedicated threads. When enabled, transactions submitted for private broadcast bypass the local mempool and connection manager, running an event loop in `src/privbcast` that resolves DNS seeds and announces transactions via BIP324 exclusively through a Tor SOCKS5 proxy using fresh circuit credentials and a fixed schedule. Legacy private broadcast connection types, queues, and bypass logic are completely removed from `CConnman` and `PeerManager`.",
+  "problem": "The previous private broadcast implementation was intertwined with the node's main connection manager and peer logic, adding pervasive special-case exceptions to core networking code. This shared state created risks of privacy linkage through node mempool interaction, timing, or adversarial peer manipulation, while also complicating node networking maintenance.",
+  "evidence": [
+   "PR description: 'Each job runs on its own thread, shares no state with the node, and reaches the network only through the Tor proxy... Nothing a recipient does, and nothing the node sees of the transaction coming back, changes the plan, and the transaction enters the node's mempool only when it returns from the network.'",
+   "PR description: 'Slimmed down test profile focusing on protecting aginst IP address linkage and not crashing the node on adversarial inputs (which is a leak in itself)'",
+   "Commit messages document extensive deletion of bespoke bypasses across CConnman, PeerManager, addrman, and DoS discouragement logic."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36608"
+   ]
+  },
+  "scope_notes": "Large architectural rewrite (+6314/-3046 lines across 78 files). Introduces an isolated `src/privbcast` subsystem containing a custom non-blocking SOCKS5 client, discovery logic, and attempt state machine, while deleting `src/private_broadcast.{h,cpp}` and legacy private broadcast paths in `net.cpp` and `net_processing.cpp`.",
+  "changed_since_previous": "The design and commit structure remain the same; updates reflect rebasing, test adjustments, and specification documentation refinements.",
+  "card": "Replaces the existing private broadcast subsystem with isolated, stateless background jobs managed under a new src/privbcast module. When -privatebroadcast is enabled, transactions bypass the local mempool and connection manager, executing on dedicated threads that discover peers via DNS seeds and announce over BIP324 strictly through Tor using isolated proxy credentials and a fixed schedule. This eliminates IP linkage and node-state correlation vectors while removing invasive private-broadcast special-case logic from CConnman and PeerManager. It unblocks follow-up package relay support for private broadcast in #36608.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "p2p",
+    "rpc_api"
+   ],
+   "why": "Flaws in the new custom SOCKS5 and BIP324 network state machines could leak the user's IP address or transaction origin, while unintended side effects from stripping legacy connection types from CConnman and PeerManager could disrupt standard peer networking."
+  }
+ }
+}

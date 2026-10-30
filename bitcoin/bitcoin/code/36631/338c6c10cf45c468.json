@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-10-30T01:17:03+00:00",
+ "card": "Adds custom mutator support to Bitcoin Core's fuzzing harness along with a structure-aware mutator for the PSBT deserialization target. Raw byte mutations rarely satisfy PSBT container framing or cryptographic encodings like compressed pubkeys and Taproot control blocks, preventing fuzzer exploration beyond shallow parsing rejections. The new mutator decomposes inputs into PSBT maps and synthesizes valid field structures and keys to exercise deep deserialization paths. Changes only affect the fuzzing framework and test binaries.",
+ "changed_since_previous": "Unchanged in approach; continues providing the custom mutator framework hook and the PSBT structure-aware mutator.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Byte-level mutations rarely produce well-formed key-value maps with valid keydata (pubkeys, xpubs, control blocks, DER signatures, etc), so most inputs are rejected early and the deeper per-field parsing is rarely reached.'",
+  "Commit 825c18f07d notes libFuzzer-specific quirks: 'libFuzzer disables -len_control by default whenever LLVMFuzzerCustomMutator is linked in, which would otherwise affect every target. Targets without a custom mutator get -len_control=100 restored, unless it was set explicitly.'"
+ ],
+ "head_sha": "3f6be480edd1f1c010267ae91984efab4959e746",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36631,
+ "patch_id": "338c6c10cf45c468",
+ "problem": "The PSBT deserialization fuzz target feeds raw bytes directly into the parser. Because byte-level mutations almost never produce valid key-value container maps or structurally valid cryptographic keydata, inputs are rejected at superficial validation checks and deeper deserialization logic is rarely reached.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests"
+  ],
+  "why": "The changes only affect fuzz testing targets and fuzz build configurations, with no impact on consensus, node operation, or release binaries."
+ },
+ "run": "run:20261030-0116-assess",
+ "scope_notes": "Adds a new utility module in `src/test/fuzz/util/psbt.cpp` that contains PSBTv0/v2 template generation and field mutation logic ported from bitcoinfuzz, with author-noted LLM assistance.",
+ "size": {
+  "additions": 570,
+  "deletions": 3,
+  "files": 7,
+  "test_lines": 562
+ },
+ "summary": "Adds framework support for target-specific libFuzzer custom mutators and introduces a structure-aware custom mutator for PSBT deserialization. The harness exposes an optional `mutator` hook in `FuzzTargetOptions` that dynamically dispatches to custom mutators or falls back to `LLVMFuzzerMutate`, preserving default length control behavior for standard targets. The new PSBT mutator parses inputs into key-value records across global, input, and output maps, generating valid cryptographic primitives such as secp256k1 pubkeys, xpubs, and taproot control blocks so the fuzzer can traverse deeper PSBT parser paths.",
+ "uncertainties": []
+}

@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-10-30T01:17:11+00:00",
+ "card": "Sets SO_OOBINLINE on TCP sockets so out-of-band urgent data is placed into the normal receive stream rather than skipped by recv. On platforms where socket polling relies on select, unread urgent data could continuously report pending socket events. Placing urgent data inline ensures the node reads the bytes, fails message deserialization, and disconnects misbehaving peers. PR #36665 (merged) removed the crash/hang risk from this condition, and this change cleans up the underlying socket discrepancy across platforms.",
+ "changed_since_previous": "No changes to the commits or code; the patch was missing in the previous inspection and is now provided.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36665"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "\"There is currently nothing preventing us to receive TCP urgent data, which would never be returned by recv(). Linux's poll() is indifferent to this, but the select() socket monitoring may keep reporting it as pending on some platforms.\" (PR description)",
+  "\"This would not prevent progress nor lead to a crash anymore after #36665, but it's still undesirable. Clean this up by setting SO_OOBINLINE on our sockets, so recv() returns any urgent data sent to us (and likely leads us to disconnect the peer).\" (PR description)"
+ ],
+ "head_sha": "de87cb84079105968d10c8208565e65d5e7670c5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36688,
+ "patch_id": "d8abac8da6afe8e4",
+ "problem": "TCP urgent data is omitted from standard recv calls when left out-of-band. On platforms using select for socket monitoring, pending unread urgent data can repeatedly trigger socket events, creating unwanted platform divergence and keeping connections in a strange state instead of draining or disconnecting.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A failure to set SO_OOBINLINE only logs a warning, but if setting the option interferes with socket creation or OS-specific socket behavior, network connections could be disrupted."
+ },
+ "run": "run:20261030-0116-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 45,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": 39
+ },
+ "summary": "Sets the SO_OOBINLINE socket option when creating TCP sockets so out-of-band urgent data is returned inline by normal recv calls. It also adds a unit test verifying that urgent data sent with MSG_OOB is delivered to recv as normal stream data.",
+ "uncertainties": []
+}

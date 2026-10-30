@@ -1,0 +1,47 @@
+{
+ "run": "run:20261030-0116-assess",
+ "pr": "bitcoin/bitcoin#36603",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-30T01:17:03+00:00",
+ "usage": {
+  "input_tokens": 16377,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2889
+ },
+ "cost_usd": 0.0231165,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Replaces the sequential assumeutxo snapshot loader with a multithreaded pipeline that reads, hashes, serializes, and writes UTXO entries directly into LevelDB. Staging snapshot data through CCoinsViewCache and per-batch fsync calls are eliminated in favor of committing the chainstate directory once loading completes. The PR also adds a txoutsetsummary subcommand to bitcoin-util for inspecting snapshot statistics, serialization hashes, and MuHash commitments offline.\",\n  \"problem\": \"Loading an assumeutxo snapshot with loadtxoutset is slow and memory-heavy because snapshot data is staged in CCoinsViewCache up to -dbcache limits, gated by repeated fsync writes, and hashed sequentially after LevelDB population finishes.\",\n  \"evidence\": [\n    \"Author description: 'Significantly improves loadtxoutset performance via a number of changes: parallel threads for decoding, hashing, serializing and writing to leveldb; no fsync() gating writes; no redundant loading into CoinsView.'\",\n    \"Author description: 'On my systems, performance ends up bottlenecked by leveldb CPU usage.'\",\n    \"Commit 49aa42ccaa: 'The dump is no longer staged in a CCoinsViewCache and then hashed and flushed out of it, so -dbcache worth of cached coins during a mainnet load are gone along with the flush cycles. In addition, the hashing of the dump takes place in parallel with the import, rather than after it completes.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#35054\"\n    ]\n  },\n  \"scope_notes\": \"Adds a reusable thread-safe BlockingQueue utility (src/util/blockingqueue.h) and a nosync mode to CDBWrapper that wraps LevelDB writable files to suppress synchronous disk flushes during bulk population. The largest files implementing the multithreaded import pipeline and bitcoin-util tool are truncated in the diff.\",\n  \"changed_since_previous\": \"No structural changes to the design or commit sequence; contains rebases and minor test refinements.\",\n  \"card\": \"Accelerates assumeutxo snapshot imports in loadtxoutset by replacing the sequential loader with a concurrent pipeline that reads, hashes, serializes, and writes coins directly into LevelDB. It removes CCoinsViewCache staging, avoids intermediate fsync calls during bulk writing, and introduces an offline txoutsetsummary tool in bitcoin-util to verify snapshot statistics and MuHash values. Currently, snapshot loading is serialized, bottlenecked by cache flush cycles, and calculates hashes only after population completes. The author notes that this pipeline shifts the performance bottleneck entirely to LevelDB CPU consumption. Work on P2P UTXO set sharing (#35054) builds on these changes.\",\n  \"needs\": [\n    \"rest_of_diff\",\n    \"benchmark_numbers\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"validation\"\n    ],\n    \"why\": \"Flaws in outpoint ordering or direct-to-disk LevelDB batch writing could silently corrupt the assumeutxo chainstate, causing consensus validation failures or forks.\"\n  }\n}",
+ "result": {
+  "summary": "Replaces the sequential assumeutxo snapshot loader with a multithreaded pipeline that reads, hashes, serializes, and writes UTXO entries directly into LevelDB. Staging snapshot data through CCoinsViewCache and per-batch fsync calls are eliminated in favor of committing the chainstate directory once loading completes. The PR also adds a txoutsetsummary subcommand to bitcoin-util for inspecting snapshot statistics, serialization hashes, and MuHash commitments offline.",
+  "problem": "Loading an assumeutxo snapshot with loadtxoutset is slow and memory-heavy because snapshot data is staged in CCoinsViewCache up to -dbcache limits, gated by repeated fsync writes, and hashed sequentially after LevelDB population finishes.",
+  "evidence": [
+   "Author description: 'Significantly improves loadtxoutset performance via a number of changes: parallel threads for decoding, hashing, serializing and writing to leveldb; no fsync() gating writes; no redundant loading into CoinsView.'",
+   "Author description: 'On my systems, performance ends up bottlenecked by leveldb CPU usage.'",
+   "Commit 49aa42ccaa: 'The dump is no longer staged in a CCoinsViewCache and then hashed and flushed out of it, so -dbcache worth of cached coins during a mainnet load are gone along with the flush cycles. In addition, the hashing of the dump takes place in parallel with the import, rather than after it completes.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35054"
+   ]
+  },
+  "scope_notes": "Adds a reusable thread-safe BlockingQueue utility (src/util/blockingqueue.h) and a nosync mode to CDBWrapper that wraps LevelDB writable files to suppress synchronous disk flushes during bulk population. The largest files implementing the multithreaded import pipeline and bitcoin-util tool are truncated in the diff.",
+  "changed_since_previous": "No structural changes to the design or commit sequence; contains rebases and minor test refinements.",
+  "card": "Accelerates assumeutxo snapshot imports in loadtxoutset by replacing the sequential loader with a concurrent pipeline that reads, hashes, serializes, and writes coins directly into LevelDB. It removes CCoinsViewCache staging, avoids intermediate fsync calls during bulk writing, and introduces an offline txoutsetsummary tool in bitcoin-util to verify snapshot statistics and MuHash values. Currently, snapshot loading is serialized, bottlenecked by cache flush cycles, and calculates hashes only after population completes. The author notes that this pipeline shifts the performance bottleneck entirely to LevelDB CPU consumption. Work on P2P UTXO set sharing (#35054) builds on these changes.",
+  "needs": [
+   "rest_of_diff",
+   "benchmark_numbers"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "validation"
+   ],
+   "why": "Flaws in outpoint ordering or direct-to-disk LevelDB batch writing could silently corrupt the assumeutxo chainstate, causing consensus validation failures or forks."
+  }
+ }
+}

@@ -1,0 +1,42 @@
+{
+ "run": "run:20261031-0119-assess",
+ "pr": "bitcoin/bitcoin#32575",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-10-31T01:20:00+00:00",
+ "usage": {
+  "input_tokens": 10416,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1767
+ },
+ "cost_usd": 0.01443825,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Routes all block script checking in ConnectBlock through CCheckQueue regardless of worker thread count, removing the separate inline execution path for single-threaded verification. CheckInputScripts is refactored into helpers (EnsureTxData and GetScriptCacheEntry) and stripped of its pvChecks output parameter, leaving it solely for inline script checks. In addition, script execution cache insertion during TestBlockValidity (fJustCheck=true) is now performed explicitly after all checks pass, enabling cache population in multithreaded runs as well.\",\n  \"problem\": \"CheckInputScripts previously operated in two modes: running scripts inline if pvChecks was null, or appending CScriptCheck items to a vector if pvChecks was provided. This dual behavior made the function confusing to audit and led to an inconsistency where script execution cache insertion in TestBlockValidity was bypassed whenever worker threads were active because pvChecks was populated.\",\n  \"evidence\": [\n    \"Commit 40552601f3 notes: 'Previously, script execution cache population during TestBlockValidity (fJustCheck=true) only worked in the single-threaded case, because CheckInputScripts guarded the cache insertion with !pvChecks. In the multithreaded case, pvChecks was always set, so the cache was never populated. This inconsistency has existed since the script execution cache was introduced.'\",\n    \"Author description states: 'This dual use makes the function hard to grasp and its naming confusing. This PR refactors this code to be more readable and improves documentation aside from unifying the single threaded and the multithreaded cases by letting checkqueue handle single threaded script checking as well.'\"\n  ],\n  \"dependencies\": {\n   \"depends_on\": [],\n   \"enables\": []\n  },\n  \"scope_notes\": \"ConnectBlock no longer invokes CheckInputScripts; it directly uses GetScriptCacheEntry and builds CScriptCheck objects for the check queue.\",\n  \"changed_since_previous\": \"No structural changes to the approach; commits were refined to encapsulate script execution cache access in ValidationCache and extract helper functions.\",\n  \"card\": \"ConnectBlock is updated to route all block script validation through CCheckQueue, eliminating a dedicated single-threaded verification branch since CCheckQueue executes checks synchronously on the calling thread when no worker threads exist. CheckInputScripts is stripped of its pvChecks output parameter and now only executes scripts inline, while ConnectBlock constructs script checks directly. The refactor also resolves a long-standing omission where block script validation results during TestBlockValidity were never added to the cache in multithreaded mode. The author notes this simplifies validation code in preparation for batch validation work.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"consensus\",\n      \"validation\"\n    ],\n    \"why\": \"Mistakes in script check queuing or validation cache storage during block connection could fail to enforce script checks or improperly cache failed validations, risking acceptance of invalid blocks.\"\n  }\n}",
+ "result": {
+  "summary": "Routes all block script checking in ConnectBlock through CCheckQueue regardless of worker thread count, removing the separate inline execution path for single-threaded verification. CheckInputScripts is refactored into helpers (EnsureTxData and GetScriptCacheEntry) and stripped of its pvChecks output parameter, leaving it solely for inline script checks. In addition, script execution cache insertion during TestBlockValidity (fJustCheck=true) is now performed explicitly after all checks pass, enabling cache population in multithreaded runs as well.",
+  "problem": "CheckInputScripts previously operated in two modes: running scripts inline if pvChecks was null, or appending CScriptCheck items to a vector if pvChecks was provided. This dual behavior made the function confusing to audit and led to an inconsistency where script execution cache insertion in TestBlockValidity was bypassed whenever worker threads were active because pvChecks was populated.",
+  "evidence": [
+   "Commit 40552601f3 notes: 'Previously, script execution cache population during TestBlockValidity (fJustCheck=true) only worked in the single-threaded case, because CheckInputScripts guarded the cache insertion with !pvChecks. In the multithreaded case, pvChecks was always set, so the cache was never populated. This inconsistency has existed since the script execution cache was introduced.'",
+   "Author description states: 'This dual use makes the function hard to grasp and its naming confusing. This PR refactors this code to be more readable and improves documentation aside from unifying the single threaded and the multithreaded cases by letting checkqueue handle single threaded script checking as well.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "ConnectBlock no longer invokes CheckInputScripts; it directly uses GetScriptCacheEntry and builds CScriptCheck objects for the check queue.",
+  "changed_since_previous": "No structural changes to the approach; commits were refined to encapsulate script execution cache access in ValidationCache and extract helper functions.",
+  "card": "ConnectBlock is updated to route all block script validation through CCheckQueue, eliminating a dedicated single-threaded verification branch since CCheckQueue executes checks synchronously on the calling thread when no worker threads exist. CheckInputScripts is stripped of its pvChecks output parameter and now only executes scripts inline, while ConnectBlock constructs script checks directly. The refactor also resolves a long-standing omission where block script validation results during TestBlockValidity were never added to the cache in multithreaded mode. The author notes this simplifies validation code in preparation for batch validation work.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "consensus",
+    "validation"
+   ],
+   "why": "Mistakes in script check queuing or validation cache storage during block connection could fail to enforce script checks or improperly cache failed validations, risking acceptance of invalid blocks."
+  }
+ }
+}

@@ -1,0 +1,244 @@
+{
+ "run": "run:20261031-0114",
+ "pr": "bitcoin/bitcoin#29491",
+ "stage": "reread",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 2,
+ "created": "2026-10-31T01:17:11+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 15136,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 10059
+ },
+ "cost_usd": 0.11190165,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"Sjors\",\n      \"stance\": \"support\",\n      \"note\": \"supportive of testing against recent Taproot-heavy blocks and offered to provide an assumeutxo snapshot\"\n    },\n    {\n      \"login\": \"0xB10C\",\n      \"stance\": \"objection\",\n      \"note\": \"benchmarked IBD showing batch validation was slower than master\"\n    },\n    {\n      \"login\": \"willcl-ark\",\n      \"stance\": \"neutral\",\n      \"note\": \"collaborated on benchmarks and noted lack of fallback mechanism in early WIP\"\n    },\n    {\n      \"login\": \"andrewtoth\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to shared batch mutex contention and suggested per-thread batches\"\n    },\n    {\n      \"login\": \"Eunovo\",\n      \"stance\": \"objection\",\n      \"note\": \"pointed out shared batch lock contention, verification inside critical sections, and ignored pubkey parse return values\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:1968590438\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"approach\",\n      \"text\": \"how batches are collected up to max_batch_size before calling batch.Verify()\",\n      \"quote\": \"Is the current PR already using batches? It's unclear to me by glancing over validation.cpp if and how it's collecting up to max_batch_size{106} signatures before calling batch.Verify().\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"fjahr explained the batching mechanism and Sjors confirmed it clarified things\",\n      \"author_replies\": [\"c:1968923056\", \"c:1968959800\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:1969001095\",\n      \"status_by_quote\": \"That clarifies a lot, and should be documented :-)\"\n    },\n    {\n      \"id\": \"c:1968590438\",\n      \"part\": 2,\n      \"type\": \"suggestion\",\n      \"kind\": \"interface\",\n      \"text\": \"add a -schnorrbatchverify startup argument so more people can try it\",\n      \"quote\": \"Maybe add a `-schnorrbatchverify` startup argument so more people can try it once it gets through review.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"fjahr agreed and considered adding a startup argument or compiler flag\",\n      \"author_replies\": [\"c:1968923056\"],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:1968923056\",\n      \"status_by_quote\": \"Yeah, I have been thinking that or maybe even a compiler argument\"\n    },\n    {\n      \"id\": \"c:1969001095\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"document how batch verification and signature collection works\",\n      \"quote\": \"That clarifies a lot, and should be documented :-)\",\n      \"clears_with\": \"answer\",\n      \"status\": \"open\",\n      \"status_note\": \"\",\n      \"author_replies\": [],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"\",\n      \"status_by_quote\": \"\"\n    },\n    {\n      \"id\": \"c:2106968575\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"batch validation caused significant performance regressions during IBD compared to master\",\n      \"quote\": \"master is currently faster... after taproot activation, batch validation is significantly slower than non-batch validation\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented optimizations including batch per thread and verification outside critical sections\",\n      \"author_replies\": [\"c:2889288127\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:2889288127\",\n      \"status_by_quote\": \"I have implemented this and see a performance boost from it for the case with 15 worker threads\"\n    },\n    {\n      \"id\": \"c:2525335080\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"holding a shared batch mutex during addition and verifying on the main thread negated multithreading benefits\",\n      \"quote\": \"m_batch_mutex is held for the entirety of adding, which will cause lock contention. Verify is then a blocking call on the main thread, which negates the multithreading.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented per-thread batches verified at the end of block checks\",\n      \"author_replies\": [\"rc:2004525996\", \"rc:2009282526\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:2009282526\",\n      \"status_by_quote\": \"I have now implemented it with a batch per thread using a flag set in complete as you suggested.\"\n    },\n    {\n      \"id\": \"rc:1997877541\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"sharing a single batch across threads caused worker threads to block waiting for batch access\",\n      \"quote\": \"All the threads still share this batch. That means we still have the same locking problem; threads will be stuck waiting for the batch to be free.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented per-thread batches\",\n      \"author_replies\": [\"rc:2004525996\", \"rc:2009282526\"],\n      \"other_replies\": [\"rc:2004559393\"],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:2009282526\",\n      \"status_by_quote\": \"I have now implemented it with a batch per thread using a flag set in complete as you suggested.\"\n    },\n    {\n      \"id\": \"c:2851542917\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"performing batch verification inside the critical section caused throughput to degrade as thread count increased\",\n      \"quote\": \"Doing batch-verification work within the critical section\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author moved batch verification outside the critical section and benchmarked speedup\",\n      \"author_replies\": [\"c:2889288127\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:2965616244\",\n      \"status_by_quote\": \"It seems like the major reason for performance drop was the batch-verification work being performed in the critical section.\"\n    },\n    {\n      \"id\": \"rc:2148806441\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"discarding the return value of pubkey parsing risks ignoring invalid public keys\",\n      \"quote\": \"why discard the return value of secp256k1_xonly_pubkey_parse()?\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author updated the code to check the return value in a later push\",\n      \"author_replies\": [\"rc:2727489972\"],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:2727489972\",\n      \"status_by_quote\": \"Not discarding it anymore in the latest push.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:1968590438\",\n      \"verdict\": \"\",\n      \"reason\": \"highlighted potential performance benefits on recent Taproot-heavy mainnet blocks and offered an assumeutxo snapshot to facilitate testing\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\"validation.cpp\"]\n    },\n    {\n      \"id\": \"rc:1997499892\",\n      \"verdict\": \"\",\n      \"reason\": \"noted the architecture sets up well for future batch taproot tweak verification\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\"src/script/sigcache.h\"]\n    }\n  ],\n  \"notes\": \"Reread the discussion under schema 2: captured Sjors's initial question and suggestions regarding batching and configuration, and re-evaluated clears_with on performance defects. The PR remains an experimental draft awaiting reviewer benchmarks on the latest rebase.\",\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"review and benchmarks of the rebased branch\",\n      \"id\": \"c:6519391545\"\n    }\n  ]\n}\n\n=== second read ===\n\n{\n  \"participants\": [\n    {\n      \"login\": \"Sjors\",\n      \"stance\": \"support\",\n      \"note\": \"supported testing Taproot blocks, asked about batch collection mechanism, suggested a startup argument and documentation\"\n    },\n    {\n      \"login\": \"0xB10C\",\n      \"stance\": \"objection\",\n      \"note\": \"benchmarked IBD showing batch validation was slower than master\"\n    },\n    {\n      \"login\": \"willcl-ark\",\n      \"stance\": \"neutral\",\n      \"note\": \"collaborated on benchmarks and noted lack of fallback mechanism in early WIP\"\n    },\n    {\n      \"login\": \"andrewtoth\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to shared batch mutex contention and suggested per-thread batches\"\n    },\n    {\n      \"login\": \"Eunovo\",\n      \"stance\": \"objection\",\n      \"note\": \"objected to shared batch lock contention and verification inside critical sections, and asked about discarded pubkey parse return value\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"c:1968590438\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"approach\",\n      \"text\": \"whether the PR is already using batches and how it collects signatures before calling Verify\",\n      \"quote\": \"Is the current PR already using batches? It's unclear to me by glancing over validation.cpp if and how it's collecting up to max_batch_size{106} signatures before calling batch.Verify().\",\n      \"clears_with\": \"answer\",\n      \"status\": \"accepted\",\n      \"status_note\": \"author explained the batching flow in c:1968923056 and removed unused code in c:1968959800; Sjors acknowledged in c:1969001095\",\n      \"author_replies\": [\n        \"c:1968923056\",\n        \"c:1968959800\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:1969001095\",\n      \"status_by_quote\": \"That clarifies a lot, and should be documented :-)\"\n    },\n    {\n      \"id\": \"c:1968590438\",\n      \"part\": 2,\n      \"type\": \"suggestion\",\n      \"kind\": \"interface\",\n      \"text\": \"add a -schnorrbatchverify startup argument so users can test it easily\",\n      \"quote\": \"Maybe add a -schnorrbatchverify startup argument so more people can try it once it gets through review.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author replied considering a startup or compiler argument\",\n      \"author_replies\": [\n        \"c:1968923056\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:1968923056\",\n      \"status_by_quote\": \"Yeah, I have been thinking that or maybe even a compiler argument\"\n    },\n    {\n      \"id\": \"c:1969001095\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"maintenance\",\n      \"text\": \"document how the batching architecture and signature verification collection work\",\n      \"quote\": \"That clarifies a lot, and should be documented :-)\",\n      \"clears_with\": \"answer\",\n      \"status\": \"open\",\n      \"status_note\": \"\",\n      \"author_replies\": [],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"\",\n      \"status_by_quote\": \"\"\n    },\n    {\n      \"id\": \"c:2106968575\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"batch validation caused significant performance regressions during IBD compared to master\",\n      \"quote\": \"master is currently faster... after taproot activation, batch validation is significantly slower than non-batch validation\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented per-thread batches and moved verification out of critical section, improving performance\",\n      \"author_replies\": [\n        \"c:2889288127\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:2889288127\",\n      \"status_by_quote\": \"I have implemented this and see a performance boost from it for the case with 15 worker threads\"\n    },\n    {\n      \"id\": \"c:2525335080\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"holding a shared batch mutex during addition and verifying on the main thread negated multithreading benefits\",\n      \"quote\": \"m_batch_mutex is held for the entirety of adding, which will cause lock contention. Verify is then a blocking call on the main thread, which negates the multithreading.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented per-thread batches with completion flag as suggested\",\n      \"author_replies\": [\n        \"rc:2004525996\",\n        \"rc:2009282526\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:2009282526\",\n      \"status_by_quote\": \"I have now implemented it with a batch per thread using a flag set in complete as you suggested.\"\n    },\n    {\n      \"id\": \"rc:1997877541\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"sharing a single batch across threads caused worker threads to block waiting for batch access\",\n      \"quote\": \"All the threads still share this batch. That means we still have the same locking problem; threads will be stuck waiting for the batch to be free.\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author implemented per-thread batches\",\n      \"author_replies\": [\n        \"rc:2004525996\",\n        \"rc:2009282526\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:2009282526\",\n      \"status_by_quote\": \"I have now implemented it with a batch per thread using a flag set in complete as you suggested.\"\n    },\n    {\n      \"id\": \"c:2851542917\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"performing batch verification inside the critical section caused throughput to degrade as thread count increased\",\n      \"quote\": \"Doing batch-verification work within the critical section\",\n      \"clears_with\": \"change\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author moved batch verification out of critical section, confirmed by Eunovo in c:2965616244\",\n      \"author_replies\": [\n        \"c:2889288127\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:2965616244\",\n      \"status_by_quote\": \"It seems like the major reason for performance drop was the batch-verification work being performed in the critical section\"\n    },\n    {\n      \"id\": \"rc:2148806441\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"correctness\",\n      \"text\": \"why the return value of secp256k1_xonly_pubkey_parse is discarded\",\n      \"quote\": \"why discard the return value of secp256k1_xonly_pubkey_parse()?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"fixed\",\n      \"status_note\": \"author stopped discarding the return value in latest push\",\n      \"author_replies\": [\n        \"rc:2727489972\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"rc:2727489972\",\n      \"status_by_quote\": \"Not discarding it anymore in the latest push.\"\n    }\n  ],\n  \"support\": [\n    {\n      \"id\": \"c:1968590438\",\n      \"verdict\": \"\",\n      \"reason\": \"highlighted potential performance benefits on recent Taproot-heavy mainnet blocks and offered an assumeutxo snapshot to facilitate testing\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\n        \"validation.cpp\"\n      ]\n    },\n    {\n      \"id\": \"rc:1997499892\",\n      \"verdict\": \"\",\n      \"reason\": \"noted the architecture sets up well for future batch taproot tweak verification\",\n      \"substantive\": true,\n      \"evidence\": \"read\",\n      \"areas\": [\n        \"src/script/sigcache.h\"\n      ]\n    }\n  ],\n  \"notes\": \"Re-read discussion under schema 2: added Sjors' question and suggestions from c:1968590438 and c:1969001095; reclassified Eunovo's rc:2148806441 as a question; recorded latest rebase announcements by the author.\",\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"review the latest rebase and secp256k1 batch module API updates\",\n      \"id\": \"c:6519391545\"\n    }\n  ]\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "Sjors",
+    "stance": "support",
+    "note": "supportive of testing against recent Taproot-heavy blocks and offered to provide an assumeutxo snapshot"
+   },
+   {
+    "login": "0xB10C",
+    "stance": "objection",
+    "note": "benchmarked IBD showing batch validation was slower than master"
+   },
+   {
+    "login": "willcl-ark",
+    "stance": "neutral",
+    "note": "collaborated on benchmarks and noted lack of fallback mechanism in early WIP"
+   },
+   {
+    "login": "andrewtoth",
+    "stance": "objection",
+    "note": "objected to shared batch mutex contention and suggested per-thread batches"
+   },
+   {
+    "login": "Eunovo",
+    "stance": "objection",
+    "note": "pointed out shared batch lock contention, verification inside critical sections, and ignored pubkey parse return values"
+   }
+  ],
+  "claims": [
+   {
+    "id": "c:1968590438",
+    "part": 1,
+    "type": "question",
+    "kind": "approach",
+    "text": "how batches are collected up to max_batch_size before calling batch.Verify()",
+    "quote": "Is the current PR already using batches? It's unclear to me by glancing over validation.cpp if and how it's collecting up to max_batch_size{106} signatures before calling batch.Verify().",
+    "clears_with": "answer",
+    "status": "accepted",
+    "status_note": "fjahr explained the batching mechanism and Sjors confirmed it clarified things",
+    "author_replies": [
+     "c:1968923056",
+     "c:1968959800"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:1969001095",
+    "status_by_quote": "That clarifies a lot, and should be documented :-)"
+   },
+   {
+    "id": "c:1968590438",
+    "part": 2,
+    "type": "suggestion",
+    "kind": "interface",
+    "text": "add a -schnorrbatchverify startup argument so more people can try it",
+    "quote": "Maybe add a `-schnorrbatchverify` startup argument so more people can try it once it gets through review.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "fjahr agreed and considered adding a startup argument or compiler flag",
+    "author_replies": [
+     "c:1968923056"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:1968923056",
+    "status_by_quote": "Yeah, I have been thinking that or maybe even a compiler argument"
+   },
+   {
+    "id": "c:1969001095",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "maintenance",
+    "text": "document how batch verification and signature collection works",
+    "quote": "That clarifies a lot, and should be documented :-)",
+    "clears_with": "answer",
+    "status": "open",
+    "status_note": "",
+    "author_replies": [],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "",
+    "status_by_quote": ""
+   },
+   {
+    "id": "c:2106968575",
+    "part": 1,
+    "type": "objection",
+    "kind": "approach",
+    "text": "batch validation caused significant performance regressions during IBD compared to master",
+    "quote": "master is currently faster... after taproot activation, batch validation is significantly slower than non-batch validation",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author implemented optimizations including batch per thread and verification outside critical sections",
+    "author_replies": [
+     "c:2889288127"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:2889288127",
+    "status_by_quote": "I have implemented this and see a performance boost from it for the case with 15 worker threads"
+   },
+   {
+    "id": "c:2525335080",
+    "part": 1,
+    "type": "objection",
+    "kind": "approach",
+    "text": "holding a shared batch mutex during addition and verifying on the main thread negated multithreading benefits",
+    "quote": "m_batch_mutex is held for the entirety of adding, which will cause lock contention. Verify is then a blocking call on the main thread, which negates the multithreading.",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author implemented per-thread batches verified at the end of block checks",
+    "author_replies": [
+     "rc:2004525996",
+     "rc:2009282526"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:2009282526",
+    "status_by_quote": "I have now implemented it with a batch per thread using a flag set in complete as you suggested."
+   },
+   {
+    "id": "rc:1997877541",
+    "part": 1,
+    "type": "objection",
+    "kind": "approach",
+    "text": "sharing a single batch across threads caused worker threads to block waiting for batch access",
+    "quote": "All the threads still share this batch. That means we still have the same locking problem; threads will be stuck waiting for the batch to be free.",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author implemented per-thread batches",
+    "author_replies": [
+     "rc:2004525996",
+     "rc:2009282526"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:2009282526",
+    "status_by_quote": "I have now implemented it with a batch per thread using a flag set in complete as you suggested."
+   },
+   {
+    "id": "c:2851542917",
+    "part": 1,
+    "type": "objection",
+    "kind": "approach",
+    "text": "performing batch verification inside the critical section caused throughput to degrade as thread count increased",
+    "quote": "Doing batch-verification work within the critical section",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author moved batch verification outside the critical section and benchmarked speedup",
+    "author_replies": [
+     "c:2889288127"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:2965616244",
+    "status_by_quote": "It seems like the major reason for performance drop was the batch-verification work being performed in the critical section."
+   },
+   {
+    "id": "rc:2148806441",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "discarding the return value of pubkey parsing risks ignoring invalid public keys",
+    "quote": "why discard the return value of secp256k1_xonly_pubkey_parse()?",
+    "clears_with": "change",
+    "status": "fixed",
+    "status_note": "author updated the code to check the return value in a later push",
+    "author_replies": [
+     "rc:2727489972"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "rc:2727489972",
+    "status_by_quote": "Not discarding it anymore in the latest push."
+   }
+  ],
+  "support": [
+   {
+    "id": "c:1968590438",
+    "verdict": "",
+    "reason": "highlighted potential performance benefits on recent Taproot-heavy mainnet blocks and offered an assumeutxo snapshot to facilitate testing",
+    "substantive": true,
+    "evidence": "read",
+    "areas": [
+     "validation.cpp"
+    ]
+   },
+   {
+    "id": "rc:1997499892",
+    "verdict": "",
+    "reason": "noted the architecture sets up well for future batch taproot tweak verification",
+    "substantive": true,
+    "evidence": "read",
+    "areas": [
+     "src/script/sigcache.h"
+    ]
+   }
+  ],
+  "waiting_on": [
+   {
+    "on": "reviewer",
+    "what": "review and benchmarks of the rebased branch",
+    "id": "c:6519391545"
+   },
+   {
+    "on": "reviewer",
+    "what": "review the latest rebase and secp256k1 batch module API updates",
+    "id": "c:6519391545"
+   }
+  ],
+  "notes": "Reread the discussion under schema 2: captured Sjors's initial question and suggestions regarding batching and configuration, and re-evaluated clears_with on performance defects. The PR remains an experimental draft awaiting reviewer benchmarks on the latest rebase. / Re-read discussion under schema 2: added Sjors' question and suggestions from c:1968590438 and c:1969001095; reclassified Eunovo's rc:2148806441 as a question; recorded latest rebase announcements by the author."
+ },
+ "applied": {
+  "changes": [
+   "claim c:1968590438 added (question, clears with answer, accepted) by Sjors",
+   "claim c:1968590438#2 added (suggestion, clears with answer, answered) by Sjors",
+   "claim c:1969001095 added (suggestion, clears with answer, open) by Sjors",
+   "claim c:2106968575: objection/answer/fixed -> objection/change/fixed",
+   "claim c:2525335080: objection/answer/fixed -> objection/change/fixed",
+   "claim rc:1997877541: objection/answer/fixed -> objection/change/fixed",
+   "claim c:2851542917: objection/answer/fixed -> objection/change/fixed",
+   "claim rc:2148806441: objection/answer/fixed -> objection/change/fixed",
+   "waiting on: reviewer (review and benchmarks of the rebased branch), reviewer (review the latest rebase and secp256k1 batch module API updates)"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

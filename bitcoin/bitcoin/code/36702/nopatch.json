@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-10-31T01:20:18+00:00",
+ "card": "This pull request fixes a startup crash loop in nodes undergoing AssumeUTXO background sync. If the node restarts after storing the snapshot block before its parent blocks arrive, startup logic erroneously treats the snapshot block as a valid chain tip candidate and triggers an assertion failure in FindMostWorkChain. The fix restores the snapshot block to m_blocks_unlinked on startup when ancestors are missing, preventing background candidate registration until linked. This crash was independently hit during testing of #36452 and forces a full reindex that destroys snapshot progress.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Assertion failure reproduced on startup: `Assertion failed: (pindexTest->HaveNumChainTxs() || pindexTest->nHeight == 0), function FindMostWorkChain, file validation.cpp, line 3217.` (PR description)",
+  "Another contributor encountered the same assertion failure while testing related assumeutxo changes in #36452 (PR description citing #36452)",
+  "Included functional test update to `feature_assumeutxo.py` reproduces the restart crash on master (PR description and commit message)"
+ ],
+ "head_sha": "80f6ddd6cbba7c8104dc0b9dabb451af13cc4a7d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36702,
+ "patch_id": "nopatch",
+ "problem": "If a node using AssumeUTXO shuts down or crashes after downloading the snapshot block out of order (before all ancestor blocks are downloaded), it enters an unrecoverable crash loop on startup. `LoadBlockIndex()` hardcodes `m_chain_tx_count` on the snapshot block and makes it a candidate tip, causing `FindMostWorkChain()` to walk back to an unlinked ancestor without transaction counts and trigger an assertion failure. Users can only recover via `-reindex`, which discards the AssumeUTXO snapshot chainstate.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "validation"
+  ],
+  "why": "Flaws in block index loading or candidate chain selection can stall block validation, prevent chain activation, or crash nodes on startup."
+ },
+ "run": "run:20261031-0119-assess",
+ "scope_notes": "Touches startup block index initialization and AssumeUTXO background candidate population; mentions potential conflict or interaction with unlinked-block handling in #36149.",
+ "size": {
+  "additions": 15,
+  "deletions": 0,
+  "files": 3,
+  "test_lines": null
+ },
+ "summary": "Fix an assertion failure during startup when an AssumeUTXO background sync node restarts while having stored the snapshot block before all its ancestor blocks. On restart, the node checks whether the snapshot block's ancestors are missing; if so, it inserts the snapshot block into `m_blocks_unlinked` and avoids registering it as a candidate chain tip until its ancestors arrive.",
+ "uncertainties": [
+  "The patch diff was not provided, though the commit message and description describe the 15-line validation change and test clearly."
+ ]
+}

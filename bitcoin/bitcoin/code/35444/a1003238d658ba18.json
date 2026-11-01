@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-01T01:20:02+00:00",
+ "card": "Replaces DescriptorScriptPubKeyMan's public RecursiveMutex with a private non-recursive Mutex as part of #19303. External callers across the wallet and RPC code no longer take the lock directly, internal paths are split into lock-held helpers, and address-availability notifications are deferred until after unlocking to avoid re-entrant deadlocks with synchronous callbacks. A regression test is added to exercise callback re-entry and lock release during keypool operations. No changes to RPC output, wallet storage, or keypool semantics are intended.",
+ "changed_since_previous": "No structural or architectural changes; the commit progression and overall approach remain the same.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Part of tracking issue #19303 to eliminate recursive mutexes in the codebase (PR description)",
+  "Includes a unit test in scriptpubkeyman_tests.cpp covering synchronous callback re-entry during keypool top-ups and address generation (commit 1f29c2b31c)"
+ ],
+ "head_sha": "2cde6f953476d335113b8bf93dc9920cda633081",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35444,
+ "patch_id": "a1003238d658ba18",
+ "problem": "DescriptorScriptPubKeyMan used a public recursive mutex, allowing external callers to lock internal state directly and obscuring lock order hierarchies across the wallet. Recursive mutexes also prevent full Clang thread-safety annotations and create deadlock hazards when synchronous callbacks query the wallet while the lock is held.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet"
+  ],
+  "why": "Mistakes in wallet mutex refactoring could introduce deadlocks or lock-order inversions that freeze wallet RPCs and UI callbacks."
+ },
+ "run": "run:20261101-0119-assess",
+ "scope_notes": "Commit 2cde6f9534 is a scripted-diff renaming cs_desc_man to m_desc_mutex across the repository.",
+ "size": {
+  "additions": 451,
+  "deletions": 224,
+  "files": 9,
+  "test_lines": 133
+ },
+ "summary": "Replaces DescriptorScriptPubKeyMan's public RecursiveMutex with a private non-recursive Mutex and renames it to m_desc_mutex. Public methods now encapsulate lock acquisition while shared internal logic is split into lock-held helper functions. Address-availability signals are deferred until after the mutex is released to prevent re-entrancy deadlocks during synchronous callbacks.",
+ "uncertainties": []
+}

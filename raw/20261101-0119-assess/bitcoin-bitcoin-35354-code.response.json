@@ -1,0 +1,43 @@
+{
+ "run": "run:20261101-0119-assess",
+ "pr": "bitcoin/bitcoin#35354",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-01T01:20:18+00:00",
+ "usage": {
+  "input_tokens": 14505,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 3201
+ },
+ "cost_usd": 0.0228825,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Defers serving BIP 157 compact filter requests (getcfilters, getcfheaders, getcfcheckpt) in net_processing when a requested block is known to the active chain but the block filter index has not yet caught up to it. When a race condition is detected via the filter index summary, the request is stored in a per-peer pending request variant, pausing subsequent message processing for that peer. Once the index catches up or covers the requested block hash, ProcessMessages retries and serves the parked request before resuming normal message handling.\",\n \"problem\": \"When Bitcoin Core connects a new block, it advertises it to peers before the background validation interface queue has constructed the compact filter. If a BIP 157 light client requests the filter or filter headers for the announced block during this window, Core silently ignores the request. Under BIP 157, clients interpret non-response for an advertised block as protocol misbehavior and disconnect or ban the node.\",\n \"evidence\": [\n  \"Fixes issue #29655: 'CFilters reject and disconnect peers with a valid block hash'\",\n  \"Linked to issue #27085 and discussion on lightninglabs/neutrino#338 where light clients encounter disconnects against Core nodes announcing new blocks\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"The PR description describes an alternative approach based on BaseIndex::WaitForRacingWrite and validation queue flushing, but the actual diff and commits implement per-peer deferred request parking in net_processing.cpp.\",\n \"changed_since_previous\": \"Added an Initial Block Download guard in CFilterIndexMayBeRacing to avoid parking filter requests during IBD.\",\n \"card\": \"This PR resolves a race condition where BIP 157 light clients request compact filters or filter headers for a newly connected block before the background validation queue builds the filter. Currently, Bitcoin Core drops these requests without responding, prompting peers like Neutrino to treat the node as misbehaving and disconnect or ban it (issues #29655 and #27085). The change updates net_processing to detect when the filter index is racing the active chain tip and parks the request in a per-peer slot, pausing that peer's message processing until the filter index catches up. Requests are bypassed and not parked during Initial Block Download.\",\n \"needs\": [],\n \"confidence\": \"medium\",\n \"uncertainties\": [\n  \"The PR description outlines a BaseIndex::WaitForRacingWrite mechanism that flushes the validation queue, which contradicts the patch and commits implementing per-peer message deferral in net_processing.\"\n ],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"p2p\"\n  ],\n  \"why\": \"A flaw in the peer message-pausing logic or resume condition could stall message processing for peers or create a denial-of-service vector.\"\n }\n}",
+ "result": {
+  "summary": "Defers serving BIP 157 compact filter requests (getcfilters, getcfheaders, getcfcheckpt) in net_processing when a requested block is known to the active chain but the block filter index has not yet caught up to it. When a race condition is detected via the filter index summary, the request is stored in a per-peer pending request variant, pausing subsequent message processing for that peer. Once the index catches up or covers the requested block hash, ProcessMessages retries and serves the parked request before resuming normal message handling.",
+  "problem": "When Bitcoin Core connects a new block, it advertises it to peers before the background validation interface queue has constructed the compact filter. If a BIP 157 light client requests the filter or filter headers for the announced block during this window, Core silently ignores the request. Under BIP 157, clients interpret non-response for an advertised block as protocol misbehavior and disconnect or ban the node.",
+  "evidence": [
+   "Fixes issue #29655: 'CFilters reject and disconnect peers with a valid block hash'",
+   "Linked to issue #27085 and discussion on lightninglabs/neutrino#338 where light clients encounter disconnects against Core nodes announcing new blocks"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The PR description describes an alternative approach based on BaseIndex::WaitForRacingWrite and validation queue flushing, but the actual diff and commits implement per-peer deferred request parking in net_processing.cpp.",
+  "changed_since_previous": "Added an Initial Block Download guard in CFilterIndexMayBeRacing to avoid parking filter requests during IBD.",
+  "card": "This PR resolves a race condition where BIP 157 light clients request compact filters or filter headers for a newly connected block before the background validation queue builds the filter. Currently, Bitcoin Core drops these requests without responding, prompting peers like Neutrino to treat the node as misbehaving and disconnect or ban it (issues #29655 and #27085). The change updates net_processing to detect when the filter index is racing the active chain tip and parks the request in a per-peer slot, pausing that peer's message processing until the filter index catches up. Requests are bypassed and not parked during Initial Block Download.",
+  "needs": [],
+  "confidence": "medium",
+  "uncertainties": [
+   "The PR description outlines a BaseIndex::WaitForRacingWrite mechanism that flushes the validation queue, which contradicts the patch and commits implementing per-peer message deferral in net_processing."
+  ],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A flaw in the peer message-pausing logic or resume condition could stall message processing for peers or create a denial-of-service vector."
+  }
+ }
+}

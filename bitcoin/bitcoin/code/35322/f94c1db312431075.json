@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-01T01:19:58+00:00",
+ "card": "Streamlines Logger state by replacing a category bitfield, global log level, and mutex-protected override map with a two-element array of atomic category bitmasks for Debug and Trace levels. This eliminates mutex locking and hash lookups from log checks and drops several redundant methods from the logging interface. The only functional change is that dynamically enabling categories via the logging RPC or kernel API now always enables them at debug level rather than restoring startup -loglevel settings.",
+ "changed_since_previous": "Added a release note documenting that runtime category enablement via the logging RPC always defaults to debug level, and added unit tests testing combinations of -loglevel and -debug.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Bitcoin Core has only ~30 log categories and 2 conditional log levels, so a mutex-protected hash map, a bitset, and a separate global level are unnecessary. The added complexity is also harmful: it makes the code harder to follow, and basic operations like setting a category's level require coordinating multiple fields and method calls.'",
+  "Commit fa1702dff4: 'This reduces the number of possible states, removes mutex locking and hash lookups from log-level checks, and simplifies the Logger interface by dropping multiple enable, disable, and query methods that are no longer necessary.'"
+ ],
+ "head_sha": "d5df90e17fd1dac8e9be7f90f59802ada6b5ce0b",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35322,
+ "patch_id": "f94c1db312431075",
+ "problem": "Logger redundantly tracked logging state across three separate fields (an atomic bitmask, an atomic level threshold, and a mutex-guarded hash map). Checking if a message should be logged required acquiring a mutex and performing hash lookups, and modifying log settings required coordinating multiple interrelated fields and methods.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api",
+   "other"
+  ],
+  "why": "A flaw in category bitmask calculations could cause log messages to be erroneously suppressed or emitted at incorrect verbosity, affecting debugging."
+ },
+ "run": "run:20261101-0119-assess",
+ "scope_notes": "Touches logging internals, node initialization argument handling, node interfaces, and test harnesses. Commit messages note the changes were written with Claude Sonnet 4.6.",
+ "size": {
+  "additions": 180,
+  "deletions": 185,
+  "files": 11,
+  "test_lines": 160
+ },
+ "summary": "Replaces the Logger's internal category mask, global log level threshold, and mutex-protected per-category override map with a two-element array of atomic bitmasks corresponding to Trace and Debug levels. It removes obsolete methods like EnableCategory, DisableCategory, LogLevel, and GetCategoryMask in favor of SetCategoryLogLevel and lock-free WillLogCategoryLevel checks.",
+ "uncertainties": []
+}

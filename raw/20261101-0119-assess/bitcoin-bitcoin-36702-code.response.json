@@ -1,0 +1,41 @@
+{
+ "run": "run:20261101-0119-assess",
+ "pr": "bitcoin/bitcoin#36702",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-01T01:20:07+00:00",
+ "usage": {
+  "input_tokens": 4602,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 655
+ },
+ "cost_usd": 0.00590775,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Prevent an assertion crash on startup during AssumeUTXO background validation if the node restarts while holding the snapshot block without its immediate ancestors. On startup, `LoadBlockIndex()` now adds the snapshot block to `m_blocks_unlinked` if its parent lacks transaction count data, and `PopulateBlockIndexCandidates()` skips registering it as a tip candidate until its ancestors are connected.\",\n  \"problem\": \"During AssumeUTXO background sync, blocks up to the snapshot block can arrive out of order, placing the snapshot block into memory before its ancestors. If the node restarts in this window, `LoadBlockIndex()` sets the hardcoded chain transaction count for the snapshot block without restoring it to `m_blocks_unlinked`, leading `FindMostWorkChain()` to walk back to an unlinked parent lacking transaction counts and crash on an assertion on every boot. The only manual recovery is `-reindex` or `-reindex-chainstate`, which completely wipes the snapshot chainstate.\",\n  \"evidence\": [\n    \"Author description: 'Assertion failed: (pindexTest->HaveNumChainTxs() || pindexTest->nHeight == 0), function FindMostWorkChain, file validation.cpp, line 3217.'\",\n    \"Author notes reproducing it over P2P using a test peer withholding the snapshot block's parent, and reports that cyb3ralbert encountered the same assertion during testing of #36452 (referencing PR #36452 comment).\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Small, targeted change touching `LoadBlockIndex` in `blockstorage.cpp` and `PopulateBlockIndexCandidates` in `validation.cpp`, with an added regression test in `feature_assumeutxo.py`.\",\n  \"changed_since_previous\": \"Now includes the complete diff and patch ID; the logic and scope remain consistent with the prior description.\",\n  \"card\": \"Fixes an assertion failure loop on startup for nodes using AssumeUTXO that restart while the snapshot block has been downloaded ahead of its ancestor blocks. In that state, startup assigns the snapshot block a hardcoded transaction count and treats it as a background chain tip candidate, causing FindMostWorkChain to walk back into an unlinked parent and assert fail on every boot. This PR adds the unlinked snapshot block back into m_blocks_unlinked on startup and excludes it from candidate tips until its ancestors arrive. The crash was also independently reported during review testing of #36452 and otherwise requires a full reindex that destroys the snapshot chainstate.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"validation\"\n    ],\n    \"why\": \"A logic error in block index loading or candidate tip selection could stall background AssumeUTXO sync or cause improper chainstate initialization.\"\n  }\n}",
+ "result": {
+  "summary": "Prevent an assertion crash on startup during AssumeUTXO background validation if the node restarts while holding the snapshot block without its immediate ancestors. On startup, `LoadBlockIndex()` now adds the snapshot block to `m_blocks_unlinked` if its parent lacks transaction count data, and `PopulateBlockIndexCandidates()` skips registering it as a tip candidate until its ancestors are connected.",
+  "problem": "During AssumeUTXO background sync, blocks up to the snapshot block can arrive out of order, placing the snapshot block into memory before its ancestors. If the node restarts in this window, `LoadBlockIndex()` sets the hardcoded chain transaction count for the snapshot block without restoring it to `m_blocks_unlinked`, leading `FindMostWorkChain()` to walk back to an unlinked parent lacking transaction counts and crash on an assertion on every boot. The only manual recovery is `-reindex` or `-reindex-chainstate`, which completely wipes the snapshot chainstate.",
+  "evidence": [
+   "Author description: 'Assertion failed: (pindexTest->HaveNumChainTxs() || pindexTest->nHeight == 0), function FindMostWorkChain, file validation.cpp, line 3217.'",
+   "Author notes reproducing it over P2P using a test peer withholding the snapshot block's parent, and reports that cyb3ralbert encountered the same assertion during testing of #36452 (referencing PR #36452 comment)."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Small, targeted change touching `LoadBlockIndex` in `blockstorage.cpp` and `PopulateBlockIndexCandidates` in `validation.cpp`, with an added regression test in `feature_assumeutxo.py`.",
+  "changed_since_previous": "Now includes the complete diff and patch ID; the logic and scope remain consistent with the prior description.",
+  "card": "Fixes an assertion failure loop on startup for nodes using AssumeUTXO that restart while the snapshot block has been downloaded ahead of its ancestor blocks. In that state, startup assigns the snapshot block a hardcoded transaction count and treats it as a background chain tip candidate, causing FindMostWorkChain to walk back into an unlinked parent and assert fail on every boot. This PR adds the unlinked snapshot block back into m_blocks_unlinked on startup and excludes it from candidate tips until its ancestors arrive. The crash was also independently reported during review testing of #36452 and otherwise requires a full reindex that destroys the snapshot chainstate.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "A logic error in block index loading or candidate tip selection could stall background AssumeUTXO sync or cause improper chainstate initialization."
+  }
+ }
+}

@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-01T01:20:13+00:00",
+ "card": "Updates the libbitcoinkernel C API and wrapper to associate logging connections with contexts and set log levels per connection rather than globally. Currently, all kernel logging connections receive an interleaved, process-wide log stream at a single level, making multi-context applications unable to isolate log output. This PR establishes the API hooks and connection lifetime tracking so subsequent work can isolate each context's log stream without further API breaks. Depends on #34374 and enables #30342.",
+ "changed_since_previous": "Rebased following upstream changes; the approach and API surface remain unchanged.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#34374"
+  ],
+  "enables": [
+   "#30342"
+  ]
+ },
+ "evidence": [
+  "PR description: 'An application that opens two chainstates (say mainnet and signet, or a test creating several contexts) gets one interleaved log stream and can't tell which context a line came from. #30342 can separate them, but only if the application says which logging connection belongs to which context, and the current API has no way to do that'",
+  "PR description: 'Per-context output would then mean restructuring every application and binding to get a connection to each place that creates a context. With a connection in the API from the start it costs one extra call'"
+ ],
+ "head_sha": "20ab1756566abaebebf146d50f0127748cedbdc2",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 33847,
+ "patch_id": "54c41602f1d44967",
+ "problem": "Every kernel logging connection receives an interleaved global log stream at a single process-wide level, preventing applications running multiple chainstate contexts (such as mainnet and signet or multi-context tests) from separating output. The C API also provided no way to pass connections to context creation, meaning future per-context routing would force breaking API changes and caller restructuring.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "other"
+  ],
+  "why": "Mistakes in refcounting context usage or synchronization within KernelLogger could cause race conditions or crash kernel library consumers."
+ },
+ "run": "run:20261101-0119-assess",
+ "scope_notes": "Modifies the libbitcoinkernel public C API and introduces strict lifetime requirements where a logging connection must outlive any context options and contexts referencing it.",
+ "size": {
+  "additions": 187,
+  "deletions": 48,
+  "files": 5,
+  "test_lines": 58
+ },
+ "summary": "Updates the libbitcoinkernel C API and C++ wrapper so logging connections attach to contexts via btck_context_options_set_logger and minimum log levels are set per connection. Logging connections receive no output until attached to an active context, and destroying a connection while an attached context still exists aborts the process.",
+ "uncertainties": []
+}

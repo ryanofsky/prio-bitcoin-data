@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-01T01:20:03+00:00",
+ "card": "This pull request adds an instance-scoped clock override API (`btck_chainstate_manager_set_clock_time`) and routes validation time checks through `ChainstateManager::Now()`. This eliminates the kernel's reliance on host system clocks and process-global mock time, enabling independent, deterministic multi-instance validation while fixing an intermittent unit test race across second boundaries. It also converts mempool time representations to type-safe time points and enforces clock determinism by preventing `libbitcoinkernel` from linking against `NodeClock::now()`. No dependencies are required.",
+ "changed_since_previous": "Adapted the `utxo_total_supply` fuzz harness and `chainstatemanager_ibd_exit_after_loading_blocks` unit test to directly exercise the per-chainman clock instead of relying on global mock clocks.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 79c304eacd explains an intermittent test failure: \"The test set up the tip time using Now<NodeSeconds>() and then called UpdateIBDStatus(), which calls IsTipRecent(), which also calls Now<NodeSeconds>(). If a second boundary was crossed between the two calls, the tip_recent=true case would fail spuriously.\"",
+  "The PR description notes this provides an instance-scoped alternative to #35496 (which added global `btck_set_mock_time`), eliminating global state sharing between concurrent kernel instances."
+ ],
+ "head_sha": "0e777d8b302d66360000ad55b6ac1232ac9b62ac",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35557,
+ "patch_id": "f9b6c0c8fcfc179b",
+ "problem": "Validation logic in `libbitcoinkernel` directly queried system time via process-global clock functions, preventing kernel library callers and tests from driving validation deterministically across multiple instances. Furthermore, uncoordinated queries to `NodeClock::now()` caused race conditions across second boundaries in tests like `chainstatemanager_ibd_exit_after_loading_blocks`.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "consensus"
+  ],
+  "why": "A flaw in clock routing or time casting could alter block header future-time consensus checks or disrupt IBD latch transitions, potentially causing valid blocks to be rejected or nodes to stay in IBD indefinitely."
+ },
+ "run": "run:20261101-0119-assess",
+ "scope_notes": "The diff includes refactoring mempool time types from integers to `NodeClock::time_point` and adjusting link targets to disallow `NodeClock::now()` in `libbitcoinkernel`, which spans beyond `ChainstateManager` itself.",
+ "size": {
+  "additions": 257,
+  "deletions": 99,
+  "files": 31,
+  "test_lines": 126
+ },
+ "summary": "Introduces `ChainstateManager::Now()` and a C/C++ API `btck_chainstate_manager_set_clock_time` / `SetClockTime` to allow kernel consumers and tests to set and query clock time on a per-chainstate-manager instance. Time-sensitive validation operations\u2014including header future-time validation, IBD status evaluation (`IsTipRecent`), header pre-sync logging, and verification progress\u2014are updated to read time through `ChainstateManager`. The PR also standardizes mempool time on `NodeClock::time_point` (`MempoolTime`) and segregates `NodeClock::now()` into a separate translation unit omitted from `libbitcoinkernel` to catch accidental nondeterministic clock usage at link time.",
+ "uncertainties": []
+}

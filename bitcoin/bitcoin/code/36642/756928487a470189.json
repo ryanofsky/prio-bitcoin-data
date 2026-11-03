@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-03T01:18:19+00:00",
+ "card": "Reset request ID and JSON-RPC version fields at the beginning of JSONRPCRequest::parse rather than after validating that the request is an object. When handling JSON-RPC batch requests, Bitcoin Core reuses a single request object across elements; non-object elements throw an error before resetting those fields, causing error replies to inherit the preceding request's ID or be dropped if the previous element was a notification. The author supplies a functional test in interface_rpc.py demonstrating both failure modes on master and verifying the fix.",
+ "changed_since_previous": "No functional changes to the patch or tests since the previous revision; the commit was rebased or re-pushed.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "The PR description demonstrates that for '[{\"jsonrpc\":\"2.0\",\"method\":\"getblockcount\",\"id\":\"X\"}, 2]', the reply erroneously contains two objects with 'id':'X' (one result and one error).",
+  "A new test case added in interface_rpc.py verifies that invalid batch elements do not reuse the previous element's ID and that error replies following a notification are not dropped."
+ ],
+ "head_sha": "2ab7c47f6036cec706e6a0df58905aa3eeb1d843",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36642,
+ "patch_id": "756928487a470189",
+ "problem": "When processing a JSON-RPC batch, the server reuses a single JSONRPCRequest object across each element. If an element is not an object, parse() throws an invalid request exception before resetting id and m_json_version, causing the error reply to reuse the previous element's ID and version, or suppressing the error reply entirely if the preceding call was a JSON-RPC 2.0 notification.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "tests"
+  ],
+  "why": "A bug in JSON-RPC request parsing could corrupt response payloads or error formatting for clients issuing batch RPC requests."
+ },
+ "run": "run:20261103-0117-assess",
+ "scope_notes": "Small, isolated bug fix in RPC request parsing accompanied by functional test coverage.",
+ "size": {
+  "additions": 23,
+  "deletions": 2,
+  "files": 2,
+  "test_lines": 19
+ },
+ "summary": "Resets the request ID and JSON-RPC version fields at the very beginning of JSONRPCRequest::parse before validating whether the request input is a JSON object. This ensures that non-object elements in a batch request do not inherit the ID and version of the preceding element when generating error replies.",
+ "uncertainties": []
+}

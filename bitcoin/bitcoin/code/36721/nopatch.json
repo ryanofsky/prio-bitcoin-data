@@ -1,0 +1,45 @@
+{
+ "assessed_at": "2026-11-03T01:18:16+00:00",
+ "card": "Changes the script interpreter to store stack elements as reference-counted objects rather than copying byte vectors during duplication opcodes like OP_DUP. This prepares the interpreter for future soft fork proposals that might increase the 520-byte stack limit for post-quantum signatures, while laying groundwork for a pointer-keyed opcode hash cache. The author reports a 10 kB element validation benchmark taking 52 ms versus 3 ms for 520 bytes under repeated hashing, though these claims are solely from the author and address hypothetical post-quantum script limit increases.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "A planned future PR adding a hash cache keyed by interpreter stack element pointers"
+  ]
+ },
+ "evidence": [
+  "Author description: \"duplicating and hashing cost only a single weight unit in tapscript, with no upper limit on how many times they can be executed... forces all validators to evaluate OP_RIPEMD160 about 4284 times, each on the same 10kb input.\"",
+  "Author local benchmark in description: repeated 520-byte element duplication/hashing script takes ~3 ms to validate, whereas a 10 kB element takes ~52 ms."
+ ],
+ "head_sha": "4b60e312ab43aa9f32857d23dffa630c1cc958cc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36721,
+ "patch_id": "nopatch",
+ "problem": "The script interpreter deep-copies byte buffers whenever opcodes like `OP_DUP` manipulate elements. While stack elements are presently limited to 520 bytes, future proposed soft forks (such as post-quantum signature schemes) may raise element limits to 10 kB, allowing scripts to cause asymmetric memory inflation and CPU consumption via repeated duplication and hashing.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "Any flaw in how stack elements are mutated, shared, or passed within the script interpreter could cause consensus divergence between nodes or memory corruption during block validation."
+ },
+ "run": "run:20261103-0117-assess",
+ "scope_notes": "Modifies internal interpreter data types and signatures across `EvalScript` and its callers.",
+ "size": {
+  "additions": 420,
+  "deletions": 129,
+  "files": 10,
+  "test_lines": null
+ },
+ "summary": "Replaces raw byte vectors on the script interpreter stack with reference-counted objects so opcodes that duplicate or reorder items copy pointers instead of deep-copying memory. It also simplifies the `EvalScript` interface by replacing an overload wrapper with a defaulted parameter and adds unit tests verifying that stack items share underlying memory.",
+ "uncertainties": [
+  "The exact pointer mechanism and memory management model cannot be verified because the diff is missing."
+ ]
+}

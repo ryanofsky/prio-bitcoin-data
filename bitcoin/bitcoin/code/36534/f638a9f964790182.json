@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-03T01:18:16+00:00",
+ "card": "This pull request passes Bitcoin Core's compiler and linker hardening flags to the embedded libsecp256k1 subtree by isolating them in a `hardening_interface` CMake target and testing them with the C compiler. Previously, secp256k1 objects were built without hardening options such as stack clash protection and branch protection. Because linkers drop binary-wide control-flow protection markers if even a single linked object lacks them, secp256k1 objects stripped these protections from release executables on modern toolchains. Testing on AArch64 with GCC 15 confirms that passing these flags restores BTI, PAC, and GCS binary feature properties on bitcoind.",
+ "changed_since_previous": "Added `filter_c_flags` to `cmake/secp256k1.cmake` to compile-test hardening flags against the C compiler (accumulating previously accepted flags so `-U_FORTIFY_SOURCE` and `-D_FORTIFY_SOURCE=3` are tested together) before passing them to secp256k1.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'On aarch64 Ubuntu 26.04 with GCC 15, the three secp256k1 objects are the only ones in the build tree without the control flow property, so master's bitcoind has no AArch64 feature note... The same build then shows AArch64 feature: BTI, PAC, GCS on bitcoind.'",
+  "Linked issues/PRs #30677 and #30685 track control-flow capabilities for release binaries."
+ ],
+ "head_sha": "08bd06ccd488d5a40b1b29b0a3052663668c8f52",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36534,
+ "patch_id": "f638a9f964790182",
+ "problem": "The secp256k1 subtree does not use `core_interface`, leaving its objects built without hardening flags (such as `_FORTIFY_SOURCE`, `-fstack-protector-all`, `-fstack-clash-protection`, and branch/control-flow protection) unless enabled by compiler defaults. Because modern linkers require every linked object file to contain control-flow properties before tagging the final binary, unhardened secp256k1 objects cause final executables like `bitcoind` to completely lose hardware control-flow markers (e.g. AArch64 BTI/PAC/GCS or x86_64 CET).",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "build"
+  ],
+  "why": "Incorrectly configured compiler or linker hardening flags could cause compilation failures across unusual C toolchains or alter binary generation for release builds."
+ },
+ "run": "run:20261103-0117-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 61,
+  "deletions": 20,
+  "files": 2,
+  "test_lines": 0
+ },
+ "summary": "Move compiler and linker hardening flags into a dedicated `hardening_interface` CMake library linked by `core_interface`, and propagate supported hardening flags to the secp256k1 subtree. A new CMake helper validates the hardening flags against the C compiler before passing them to secp256k1.",
+ "uncertainties": []
+}

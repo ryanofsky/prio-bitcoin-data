@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-04T01:28:03+00:00",
+ "card": "Adds a request completion deadline to the HTTP server to disconnect clients that fail to finish sending a request within the -rpcservertimeout window. Currently, the timeout only measures read inactivity and resets on every incoming byte, allowing a slowloris-style trickle of data to hold a connection slot indefinitely without passing authentication. With connection slots capped at 16 by default, this can lock out all legitimate RPC traffic. The author characterizes this as a robustness fix rather than a remote vulnerability because the RPC interface binds to localhost by default.",
+ "changed_since_previous": "Rebased following related HTTP changes; the core deadline logic and test coverage remain the same as the previous version.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author reproduction: 'start a node with -rpcmaxconnections=2, open two sockets, and write \"GET / HTTP/1.1\\r\\n\" one byte at a time with ten seconds between bytes. bitcoin-cli getblockcount then hangs until one of the (trickling) sockets is closed.'",
+  "Author states: 'Because no request ever completes the authentication functions are never hit. The impact is low because RPC port binds to localhost by default, so this is a robustness fix rather than a remotely exploitable security issue.'"
+ ],
+ "head_sha": "bfbe9a647407071af2d9a169db3c275748cd8bcc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36204,
+ "patch_id": "c2b519148ab7b9e0",
+ "problem": "The existing -rpcservertimeout only tracks inactivity between socket reads. A client trickling bytes slowly without finishing a request resets the idle timer continuously, holding a connection slot indefinitely without triggering authentication checks. With default limits (16 slots or -rpcmaxconnections), an attacker or malfunctioning local client can exhaust all slots and block legitimate RPC callers.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Flaws in the HTTP deadline or disconnect logic could prematurely abort legitimate requests or disrupt the HTTP server loop, causing RPC denial of service."
+ },
+ "run": "run:20261104-0127-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 382,
+  "deletions": 11,
+  "files": 4,
+  "test_lines": 328
+ },
+ "summary": "Adds a completion deadline to the internal HTTP server to disconnect clients that take too long to send a complete request. The deadline is initialized when the first byte of a request arrives, expires after -rpcservertimeout seconds, and is not extended by subsequent incoming bytes. It is cleared once request parsing completes, deferred while worker threads process a request, restarted while response bytes are being sent, and disabled when -rpcservertimeout=0.",
+ "uncertainties": []
+}

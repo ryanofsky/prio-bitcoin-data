@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-04T01:27:46+00:00",
+ "card": "This PR encapsulates file flushing and error notification inside a private BlockManager::FlushFile() helper so that any failed block or undo file flush automatically emits the flush-error notification. It guarantees the invariant relied upon by FlushStateToDisk() that block flush failures always trigger node shutdown via AbortNode, preventing future code paths from returning flush errors without notifying. It also adds unit tests verifying notifications on simulated block and undo flush failures. The prerequisite PR #35714 has already been merged.",
+ "changed_since_previous": "Rebased onto master after prerequisite PR #35714 merged, dropping the base PR's commits from the branch.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"#35714 makes `FlushStateToDisk()` return `state.Error(...)` when `FlushChainstateBlockFile()` fails, relying on the comment `// FlushChainstateBlockFile() already emitted the flush-error notification.` That invariant holds today, but it is not guaranteed by construction: it depends on every `success = false` branch inside `FlushBlockFile`/`FlushUndoFile` emitting the notification on its own.\""
+ ],
+ "head_sha": "2d7830b0928cf7e57c8e795f03b0b7d33e7cecfd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35731,
+ "patch_id": "9ed33b2252fb2766",
+ "problem": "Callers like `FlushStateToDisk()` rely on the invariant that a failed block or undo flush has already emitted a flush-error notification to initiate node shutdown (`AbortNode()`). Previously, this invariant was maintained by manual notification calls in each failure branch inside `FlushBlockFile()` and `FlushUndoFile()`, leaving the risk that future branches or new file flush operations return an error without notifying.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "validation",
+   "tests"
+  ],
+  "why": "A mistake in the flush helper could omit disk flushes or error notifications, potentially masking I/O errors from callers during block storage flushes."
+ },
+ "run": "run:20261104-0127-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 97,
+  "deletions": 7,
+  "files": 3,
+  "test_lines": 79
+ },
+ "summary": "Encapsulates block and undo file disk flushing and error notification into a private `BlockManager::FlushFile()` helper in `blockstorage.cpp`. Ensures that any flush reporting failure consistently emits a flush-error notification before returning. Adds unit tests in `blockmanager_tests.cpp` to verify that both block and undo flush failures trigger the notification.",
+ "uncertainties": []
+}

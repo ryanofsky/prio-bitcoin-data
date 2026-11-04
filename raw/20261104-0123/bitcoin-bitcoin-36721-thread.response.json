@@ -1,0 +1,198 @@
+{
+ "run": "run:20261104-0123",
+ "pr": "bitcoin/bitcoin#36721",
+ "stage": "thread",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "reads": 1,
+ "created": "2026-11-04T01:26:47+00:00",
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 8331,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 8810
+ },
+ "cost_usd": 0.03928575,
+ "error": null,
+ "raw_text": "{\n  \"participants\": [\n    {\n      \"login\": \"Yudis-bit\",\n      \"stance\": \"objection\",\n      \"note\": \"Concept NACK: objects to performance degradation on interpreter hot path and argues 10KB attack is consensus-invalid\"\n    },\n    {\n      \"login\": \"ismaelsadeeq\",\n      \"stance\": \"question\",\n      \"note\": \"asked for benchmarks on regular scripts and suggested hybrid representation or streaming signatures across 520-byte chunks\"\n    },\n    {\n      \"login\": \"l0rinc\",\n      \"stance\": \"neutral\",\n      \"note\": \"requested folding fixups or converting the PR to a draft\"\n    }\n  ],\n  \"claims\": [\n    {\n      \"id\": \"r:5735860679\",\n      \"part\": 1,\n      \"type\": \"question\",\n      \"kind\": \"approach\",\n      \"text\": \"whether the performance cost of making the inner vector a shared pointer was benchmarked for current regular scripts\",\n      \"quote\": \"Did you benchmark the cost of making the inner vector a shared pointer for current regular scripts?\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author provided benchmark results showing differences within noise except for a regression on VerifyNestedIfScript\",\n      \"author_replies\": [\n        \"c:6588770303\",\n        \"c:6615333954\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": true,\n      \"status_by_id\": \"c:6588770303\",\n      \"status_by_quote\": \"I used the existing benchmarks and the delta is negligible or better for regular scripts.\"\n    },\n    {\n      \"id\": \"r:5735860679\",\n      \"part\": 2,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"turn the stack element into a standalone class that is either a prevector or a shared_ptr depending on element size\",\n      \"quote\": \"I think we can do better by turning the stack element into a standalone class that is either a prevector or a `std::shared_ptr<std::vector>` depending on the element's size.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explored how the struct could be laid out and committed to investigate whether a union type improves push performance\",\n      \"author_replies\": [\n        \"c:6588770303\",\n        \"c:6615333954\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:6588770303\",\n      \"status_by_quote\": \"Is that worth the complexity in consensus-critical code though?\"\n    },\n    {\n      \"id\": \"rc:4441488488\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"static elemTrue introduces cross-core atomic contention on the shared_ptr control block in CCheckQueue during parallel script verification\",\n      \"quote\": \"Wait, doesn't `elemTrue` introduce cross-core atomic contention in `CCheckQueue`?\",\n      \"clears_with\": \"change\",\n      \"status\": \"contested\",\n      \"status_note\": \"author moved them to execution locals, but Yudis-bit countered that this causes two unconditional heap allocations on every EvalScript call; author replied arguing benchmark allocates locals once per loop\",\n      \"author_replies\": [\n        \"rc:4447265267\",\n        \"rc:4460061898\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:4449159063\",\n      \"status_by_quote\": \"Moving them to locals eliminates the bus lock bouncing, but replaces it with two unconditional heap allocations on every\"\n    },\n    {\n      \"id\": \"rc:4441488488\",\n      \"part\": 2,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"wrapping stack elements in std::shared_ptr doubles heap allocations and adds unnecessary atomic refcounting on the thread-local interpreter hot path\",\n      \"quote\": \"wrapping elements in `std::shared_ptr` doubles heap allocations on the hot path\",\n      \"clears_with\": \"change\",\n      \"status\": \"contested\",\n      \"status_note\": \"author argued benchmark regressions were limited to VerifyNestedIfScript, but reviewer reiterated allocator churn and gave a Concept NACK\",\n      \"author_replies\": [\n        \"rc:4447265267\",\n        \"rc:4460061898\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:4449159063\",\n      \"status_by_quote\": \"The interpreter hot path shouldn't pay heap or refcounting overhead for a non-existent attack. Concept NACK.\"\n    },\n    {\n      \"id\": \"rc:4449159063\",\n      \"part\": 1,\n      \"type\": \"objection\",\n      \"kind\": \"approach\",\n      \"text\": \"penalizing existing script evaluation with heap and refcounting overhead mitigates an attack that is consensus-invalid today and should be budgeted by future soft forks\",\n      \"quote\": \"The 10KB duplication attack is consensus-invalid today under `MAX_SCRIPT_ELEMENT_SIZE = 520`. Any future soft fork that raises element limits must budget its own hashing costs anyway\",\n      \"clears_with\": \"change\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained they preferred implementation complexity over arbitrary consensus limits or budget discontinuities\",\n      \"author_replies\": [\n        \"rc:4460061898\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:4460061898\",\n      \"status_by_quote\": \"We did consider enforcing new consensus rules as a solution... However, we reasoned that additional implementation complexity (pointers and caching) was worth it for a simpler and more permissive consensus rule set\"\n    },\n    {\n      \"id\": \"rc:4449159063\",\n      \"part\": 2,\n      \"type\": \"objection\",\n      \"kind\": \"correctness\",\n      \"text\": \"pointer identity does not imply data equality, so pushing identical elements separately bypasses a pointer-keyed cache while pinning dropped elements in memory\",\n      \"quote\": \"pointer identity does not imply data equality. Pushing identical elements separately creates distinct allocations, bypassing a pointer-keyed cache entirely while pinning dropped elements in memory.\",\n      \"clears_with\": \"change\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained identical pushes are bounded by bandwidth/fees and cache only needs to prevent cheap duplicate-and-hash asymmetry\",\n      \"author_replies\": [\n        \"rc:4460061898\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"rc:4460061898\",\n      \"status_by_quote\": \"I don't think we need be concerned with attacks that push identical elements, because such pushes must be paid for by the attacker in bandwidth and fees.\"\n    },\n    {\n      \"id\": \"c:6602021123\",\n      \"part\": 1,\n      \"type\": \"suggestion\",\n      \"kind\": \"approach\",\n      \"text\": \"stream signatures across multiple <=520-byte stack elements instead of raising the element size limit, avoiding the large-element attack surface altogether\",\n      \"quote\": \"Another potential direction is to have the (proposed sigop) opcode read from multiple stack elements instead of one.\",\n      \"clears_with\": \"answer\",\n      \"status\": \"answered\",\n      \"status_note\": \"author explained chunking pushes complexity onto wallet developers and users, especially for variable-size signatures\",\n      \"author_replies\": [\n        \"c:6615333954\"\n      ],\n      \"other_replies\": [],\n      \"fix_pushed\": false,\n      \"status_by_id\": \"c:6615333954\",\n      \"status_by_quote\": \"We did consider this type of chunking as an option. Ultimately this would be a trade-off that passes complexity down to wallet developers and users.\"\n    }\n  ],\n  \"support\": [],\n  \"notes\": \"Author answered Yudis-bit's objections on consensus budgeting and cache bypassing via pointer identity, and addressed ismaelsadeeq's suggestion to chunk signatures across 520-byte elements. Author also pushed dedicated microbenchmarks showing regressions on push/drop and improvements on dup/drop.\",\n  \"waiting_on\": [\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"Yudis-bit to review author's replies regarding benchmark replication, consensus budgeting, and pointer-keyed caching\",\n      \"id\": \"rc:4460061898\"\n    },\n    {\n      \"on\": \"reviewer\",\n      \"what\": \"ismaelsadeeq to review newly pushed benchmark results and reply on chunking trade-offs\",\n      \"id\": \"c:6615333954\"\n    },\n    {\n      \"on\": \"author\",\n      \"what\": \"conduition to test whether a union type representation improves push/drop performance\",\n      \"id\": \"c:6615333954\"\n    }\n  ]\n}",
+ "result": {
+  "participants": [
+   {
+    "login": "Yudis-bit",
+    "stance": "objection",
+    "note": "Concept NACK: objects to performance degradation on interpreter hot path and argues 10KB attack is consensus-invalid"
+   },
+   {
+    "login": "ismaelsadeeq",
+    "stance": "question",
+    "note": "asked for benchmarks on regular scripts and suggested hybrid representation or streaming signatures across 520-byte chunks"
+   },
+   {
+    "login": "l0rinc",
+    "stance": "neutral",
+    "note": "requested folding fixups or converting the PR to a draft"
+   }
+  ],
+  "claims": [
+   {
+    "id": "r:5735860679",
+    "part": 1,
+    "type": "question",
+    "kind": "approach",
+    "text": "whether the performance cost of making the inner vector a shared pointer was benchmarked for current regular scripts",
+    "quote": "Did you benchmark the cost of making the inner vector a shared pointer for current regular scripts?",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author provided benchmark results showing differences within noise except for a regression on VerifyNestedIfScript",
+    "author_replies": [
+     "c:6588770303",
+     "c:6615333954"
+    ],
+    "other_replies": [],
+    "fix_pushed": true,
+    "status_by_id": "c:6588770303",
+    "status_by_quote": "I used the existing benchmarks and the delta is negligible or better for regular scripts."
+   },
+   {
+    "id": "r:5735860679",
+    "part": 2,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "turn the stack element into a standalone class that is either a prevector or a shared_ptr depending on element size",
+    "quote": "I think we can do better by turning the stack element into a standalone class that is either a prevector or a `std::shared_ptr<std::vector>` depending on the element's size.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author explored how the struct could be laid out and committed to investigate whether a union type improves push performance",
+    "author_replies": [
+     "c:6588770303",
+     "c:6615333954"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:6588770303",
+    "status_by_quote": "Is that worth the complexity in consensus-critical code though?"
+   },
+   {
+    "id": "rc:4441488488",
+    "part": 1,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "static elemTrue introduces cross-core atomic contention on the shared_ptr control block in CCheckQueue during parallel script verification",
+    "quote": "Wait, doesn't `elemTrue` introduce cross-core atomic contention in `CCheckQueue`?",
+    "clears_with": "change",
+    "status": "contested",
+    "status_note": "author moved them to execution locals, but Yudis-bit countered that this causes two unconditional heap allocations on every EvalScript call; author replied arguing benchmark allocates locals once per loop",
+    "author_replies": [
+     "rc:4447265267",
+     "rc:4460061898"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:4449159063",
+    "status_by_quote": "Moving them to locals eliminates the bus lock bouncing, but replaces it with two unconditional heap allocations on every"
+   },
+   {
+    "id": "rc:4441488488",
+    "part": 2,
+    "type": "objection",
+    "kind": "approach",
+    "text": "wrapping stack elements in std::shared_ptr doubles heap allocations and adds unnecessary atomic refcounting on the thread-local interpreter hot path",
+    "quote": "wrapping elements in `std::shared_ptr` doubles heap allocations on the hot path",
+    "clears_with": "change",
+    "status": "contested",
+    "status_note": "author argued benchmark regressions were limited to VerifyNestedIfScript, but reviewer reiterated allocator churn and gave a Concept NACK",
+    "author_replies": [
+     "rc:4447265267",
+     "rc:4460061898"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:4449159063",
+    "status_by_quote": "The interpreter hot path shouldn't pay heap or refcounting overhead for a non-existent attack. Concept NACK."
+   },
+   {
+    "id": "rc:4449159063",
+    "part": 1,
+    "type": "objection",
+    "kind": "approach",
+    "text": "penalizing existing script evaluation with heap and refcounting overhead mitigates an attack that is consensus-invalid today and should be budgeted by future soft forks",
+    "quote": "The 10KB duplication attack is consensus-invalid today under `MAX_SCRIPT_ELEMENT_SIZE = 520`. Any future soft fork that raises element limits must budget its own hashing costs anyway",
+    "clears_with": "change",
+    "status": "answered",
+    "status_note": "author explained they preferred implementation complexity over arbitrary consensus limits or budget discontinuities",
+    "author_replies": [
+     "rc:4460061898"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:4460061898",
+    "status_by_quote": "We did consider enforcing new consensus rules as a solution... However, we reasoned that additional implementation complexity (pointers and caching) was worth it for a simpler and more permissive consensus rule set"
+   },
+   {
+    "id": "rc:4449159063",
+    "part": 2,
+    "type": "objection",
+    "kind": "correctness",
+    "text": "pointer identity does not imply data equality, so pushing identical elements separately bypasses a pointer-keyed cache while pinning dropped elements in memory",
+    "quote": "pointer identity does not imply data equality. Pushing identical elements separately creates distinct allocations, bypassing a pointer-keyed cache entirely while pinning dropped elements in memory.",
+    "clears_with": "change",
+    "status": "answered",
+    "status_note": "author explained identical pushes are bounded by bandwidth/fees and cache only needs to prevent cheap duplicate-and-hash asymmetry",
+    "author_replies": [
+     "rc:4460061898"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "rc:4460061898",
+    "status_by_quote": "I don't think we need be concerned with attacks that push identical elements, because such pushes must be paid for by the attacker in bandwidth and fees."
+   },
+   {
+    "id": "c:6602021123",
+    "part": 1,
+    "type": "suggestion",
+    "kind": "approach",
+    "text": "stream signatures across multiple <=520-byte stack elements instead of raising the element size limit, avoiding the large-element attack surface altogether",
+    "quote": "Another potential direction is to have the (proposed sigop) opcode read from multiple stack elements instead of one.",
+    "clears_with": "answer",
+    "status": "answered",
+    "status_note": "author explained chunking pushes complexity onto wallet developers and users, especially for variable-size signatures",
+    "author_replies": [
+     "c:6615333954"
+    ],
+    "other_replies": [],
+    "fix_pushed": false,
+    "status_by_id": "c:6615333954",
+    "status_by_quote": "We did consider this type of chunking as an option. Ultimately this would be a trade-off that passes complexity down to wallet developers and users."
+   }
+  ],
+  "support": [],
+  "notes": "Author answered Yudis-bit's objections on consensus budgeting and cache bypassing via pointer identity, and addressed ismaelsadeeq's suggestion to chunk signatures across 520-byte elements. Author also pushed dedicated microbenchmarks showing regressions on push/drop and improvements on dup/drop.",
+  "waiting_on": [
+   {
+    "on": "reviewer",
+    "what": "Yudis-bit to review author's replies regarding benchmark replication, consensus budgeting, and pointer-keyed caching",
+    "id": "rc:4460061898"
+   },
+   {
+    "on": "reviewer",
+    "what": "ismaelsadeeq to review newly pushed benchmark results and reply on chunking trade-offs",
+    "id": "c:6615333954"
+   },
+   {
+    "on": "author",
+    "what": "conduition to test whether a union type representation improves push/drop performance",
+    "id": "c:6615333954"
+   }
+  ]
+ },
+ "applied": {
+  "changes": [
+   "claim rc:4449159063: objection/change/open -> objection/change/answered",
+   "claim rc:4449159063#2: objection/change/open -> objection/change/answered",
+   "claim c:6602021123 added (suggestion, clears with answer, answered) by ismaelsadeeq",
+   "waiting on: reviewer (Yudis-bit to review author's replies regarding benchmark replication, consensus budgeting, and pointer-keyed caching), reviewer (ismaelsadeeq to review newly pushed benchmark results and reply on chunking trade-offs), author (conduition to test whether a union type representation improves push/drop performance)"
+  ],
+  "rejected": [],
+  "checks": []
+ }
+}

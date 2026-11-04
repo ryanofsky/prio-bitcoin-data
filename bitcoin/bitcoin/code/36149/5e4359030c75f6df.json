@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-04T01:27:53+00:00",
+ "card": "This PR preserves pruned blocks lacking transaction counts in `m_blocks_unlinked` across restarts and deletes candidate blocks from `setBlockIndexCandidates` before updating `nSequenceId`. Receiving out-of-order blocks after a child was pruned prevented `m_chain_tx_count` from ever being computed, corrupting node state and triggering debug assertions in `CheckBlockIndex`. In-place modification of `nSequenceId` also risked corrupting candidate chain ordering. These fixes resolve crashes reported in #31512 and #36021 and allow the `block_index_tree` fuzzer to prune unlinked blocks.",
+ "changed_since_previous": "Added commit clarifying `getchaintips` RPC help documentation and comments regarding whether block branches have been received versus currently available on disk.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes #31512: 'validation: CheckBlockIndex can fail in combination with pruning'",
+  "Fixes #36021: 'validation: Assertion failed: ((pindexFirstNeverProcessed == nullptr || pindex == snap_base) == pindex->HaveNumChainTxs())'",
+  "Enables out-of-chain block pruning in the `block_index_tree` fuzz target, which previously had to be disabled to avoid crashing on these issues"
+ ],
+ "head_sha": "532ffaa26d0557c149d7efee544f163fdcf84006",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36149,
+ "patch_id": "5e4359030c75f6df",
+ "problem": "When a node prunes a block whose ancestor's transactions have not yet arrived, removing it from `m_blocks_unlinked` prevents `m_chain_tx_count` from being calculated if that ancestor is subsequently received. This creates an inconsistent block index state, causes invalid `getchaintips` RPC output, and crashes nodes under `CheckBlockIndex`. Furthermore, re-receiving transactions for an existing candidate block modifies `nSequenceId` while it remains in `setBlockIndexCandidates`, corrupting multiset ordering.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "rpc_api",
+   "tests"
+  ],
+  "why": "Mistakes in block index candidate tracking or sequence IDs could prevent nodes from recognizing or connecting the most-work chain."
+ },
+ "run": "run:20261104-0127-assess",
+ "scope_notes": "Touches block index candidate selection and unlinked block tracking in validation and block storage.",
+ "size": {
+  "additions": 106,
+  "deletions": 40,
+  "files": 6,
+  "test_lines": 59
+ },
+ "summary": "Retain pruned blocks that lack `m_chain_tx_count` in `m_blocks_unlinked` and re-add them during block index loading even when their block data is missing. Erase blocks from `setBlockIndexCandidates` before updating their `nSequenceId` upon re-receiving transactions to avoid mutating indexed keys. Update `CheckBlockIndex` assertions, extend the `block_index_tree` fuzzer to prune out-of-chain blocks, and clarify `getchaintips` documentation.",
+ "uncertainties": []
+}

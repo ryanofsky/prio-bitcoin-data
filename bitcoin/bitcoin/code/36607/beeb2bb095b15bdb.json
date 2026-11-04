@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-04T01:28:02+00:00",
+ "card": "Adds a safeguard in PeerManager to prevent public announcements of transactions that were previously broadcast using private broadcast. Pathways such as submitpackage, wallet periodic rebroadcast, and unbroadcast retry timers can otherwise announce these transactions to public peers, leaking the node as the origin. PeerManager::InitiateTxBroadcastToAll distinguishes normal relay from requested announcements, dropping public announcements and clearing unbroadcast retries for transactions tracked in private broadcast storage. It depends on #36477 to keep finished private broadcast records in memory so they can be matched.",
+ "changed_since_previous": "Tests covering the submitpackage and wallet resend pathways were split into distinct commits, but the underlying mechanism is unchanged.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36477"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "Description references several past privacy leaks in private broadcast: 'During the initial phase of private broadcast implementation there were unforeseen instances when a private transaction could get broadcast non-privately (see #35032 #35319 #35410 #36309 #36312 #36277 #36330).'",
+  "Commit message d1e83a230e details the specific pathways: 'the submitpackage RPC, the wallet, on commit and on its periodic resend... the GUI PSBT broadcast, ReattemptInitialBroadcast(), for transactions in the unbroadcast set.'"
+ ],
+ "head_sha": "d1e83a230e65774e5b5637fe05e51ef2ad6b64bf",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36607,
+ "patch_id": "beeb2bb095b15bdb",
+ "problem": "Transactions broadcast via private broadcast can later be announced publicly to all connected peers if triggered locally by paths like submitpackage, wallet periodic rebroadcast after reception, GUI PSBT broadcasts, or ReattemptInitialBroadcast. Publicly announcing a privately broadcast transaction reveals the local node as its originator.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A flaw in announcement gating could improperly drop transaction announcements or fail to clear unbroadcast retries."
+ },
+ "run": "run:20261104-0127-assess",
+ "scope_notes": "The branch includes the commit from prerequisite PR #36477, which modifies private broadcast tracking to retain finished transactions.",
+ "size": {
+  "additions": 514,
+  "deletions": 78,
+  "files": 13,
+  "test_lines": 395
+ },
+ "summary": "Adds a safeguard in PeerManager to suppress non-relay announcements of transactions that were previously broadcast using private broadcast. It adds a TxAnnounceReason argument to PeerManager::InitiateTxBroadcastToAll to distinguish network relays from local requests such as RPC submissions, wallet resends, and unbroadcast set retries. When a requested announcement matches a transaction in private broadcast storage, PeerManager skips announcing it to peers and removes it from the mempool unbroadcast set.",
+ "uncertainties": []
+}

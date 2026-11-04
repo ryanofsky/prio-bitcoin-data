@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-04T01:28:07+00:00",
+ "card": "Changes the script interpreter to store stack elements as reference-counted objects rather than deep-copying byte vectors on opcodes like OP_DUP. This prepares the interpreter for future soft fork proposals that might increase the 520-byte stack limit for post-quantum signatures, while laying groundwork for a pointer-keyed opcode hash cache. The author reports a 10 kB element validation benchmark taking 52 ms versus 3 ms for 520 bytes under repeated hashing, though these claims address hypothetical post-quantum script limit increases and are not yet part of consensus.",
+ "changed_since_previous": "Added commit benchmarks (`tests: add benchmark for P2SH-wrapped P2WPKH script validation` and `tests: add benchmarks for stack pushing`) measuring nested segwit verification and small/large element push and drop performance.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "A planned future PR implementing an opcode hash cache keyed by interpreter stack element pointers"
+  ]
+ },
+ "evidence": [
+  "Author's benchmarks in PR description: evaluating a worst-case repeated duplication and RMD160 hashing script took ~3 ms with 520-byte elements and ~52 ms with 10 kB elements.",
+  "Author cites ongoing research into relaxing max stack element sizes for post-quantum signatures (SHRINCS BIP / leaf version 0xC2)."
+ ],
+ "head_sha": "35d0834c48c5b3dc87fd0f36225ff215cb2923a8",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36721,
+ "patch_id": "fd99daac02934a05",
+ "problem": "The script interpreter performs deep byte copies whenever stack items are duplicated or manipulated by opcodes like `OP_DUP`. If future output types or soft forks increase the maximum stack element size (e.g. up to 10 kB for post-quantum signatures), an attacker could cheaply trigger significant memory inflation and CPU overhead via repeated duplication in scripts.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "Any behavioral discrepancy or memory leak in the script interpreter could cause nodes to reject valid blocks or accept invalid transactions, leading to a chain split."
+ },
+ "run": "run:20261104-0127-assess",
+ "scope_notes": "Touches core consensus evaluation and policy callers across multiple files to propagate the new `ScriptStackElem` typedef instead of raw vectors.",
+ "size": {
+  "additions": 491,
+  "deletions": 131,
+  "files": 10,
+  "test_lines": 396
+ },
+ "summary": "Replaces raw byte vectors on the script interpreter stack with reference-counted `std::shared_ptr<const std::vector<unsigned char>>` objects (`ScriptStackElem`), avoiding deep copies of byte buffers during opcodes that duplicate or reorder stack elements. It also consolidates the two `EvalScript` declarations by defaulting the `execdata` pointer argument, adds benchmarks for stack operations, and adds unit tests verifying memory sharing across interpreter stack operations.",
+ "uncertainties": []
+}

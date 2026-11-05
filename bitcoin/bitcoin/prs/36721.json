@@ -6,13 +6,11 @@
    "author": "ismaelsadeeq",
    "author_replies": [
     "c:6588770303",
-    "c:6615333954"
+    "c:6615333954",
+    "c:6624074329"
    ],
    "clears_with": "answer",
-   "fix": {
-    "at": null,
-    "sha": "35d0834c48c5b3dc87fd0f36225ff215cb2923a8"
-   },
+   "fix": null,
    "from_schema": 2,
    "harm": "",
    "hash": "2a6be621a5be7ca7",
@@ -41,7 +39,7 @@
     "id": "c:6588770303",
     "quote": "I used the existing benchmarks and the delta is negligible or better for regular scripts."
    },
-   "status_note": "author provided benchmark results showing differences within noise except for a regression on VerifyNestedIfScript",
+   "status_note": "author provided benchmark results showing differences within noise except for a regression on VerifyNestedIfScript, and later benchmarked an intrusive ref-counter",
    "type": "question",
    "url": "https://github.com/bitcoin/bitcoin/pull/36721#pullrequestreview-5735860679"
   },
@@ -51,7 +49,8 @@
    "author": "ismaelsadeeq",
    "author_replies": [
     "c:6588770303",
-    "c:6615333954"
+    "c:6615333954",
+    "c:6624074329"
    ],
    "clears_with": "answer",
    "fix": null,
@@ -78,12 +77,12 @@
    "request": "turn the stack element into a standalone class that is either a prevector or a shared_ptr depending on element size",
    "status": "answered",
    "status_by": {
-    "at": "2026-11-02",
+    "at": "2026-11-04",
     "by": "conduition",
-    "id": "c:6588770303",
-    "quote": "Is that worth the complexity in consensus-critical code though?"
+    "id": "c:6624074329",
+    "quote": "after some experimenting with the union-based approach, i could not make it perform meaningfully better than a simple intrusive ref-counter which seemed much less error-prone."
    },
-   "status_note": "author explored how the struct could be laid out and committed to investigate whether a union type improves push performance",
+   "status_note": "author tested a union-based approach and reported it did not perform meaningfully better than an intrusive ref-counter",
    "type": "suggestion",
    "url": "https://github.com/bitcoin/bitcoin/pull/36721#pullrequestreview-5735860679"
   },
@@ -214,7 +213,7 @@
     "at": "2026-11-03",
     "by": "conduition",
     "id": "rc:4460061898",
-    "quote": "We did consider enforcing new consensus rules as a solution... However, we reasoned that additional implementation complexity (pointers and caching) was worth it for a simpler and more permissive consensus rule set"
+    "quote": "We did consider enforcing new consensus rules as a solution... However, we reasoned that additional implementation compl"
    },
    "status_note": "author explained they preferred implementation complexity over arbitrary consensus limits or budget discontinuities",
    "type": "objection",
@@ -263,7 +262,7 @@
     "at": "2026-11-03",
     "by": "conduition",
     "id": "rc:4460061898",
-    "quote": "I don't think we need be concerned with attacks that push identical elements, because such pushes must be paid for by the attacker in bandwidth and fees."
+    "quote": "I don't think we need be concerned with attacks that push identical elements, because such pushes must be paid for by th"
    },
    "status_note": "author explained identical pushes are bounded by bandwidth/fees and cache only needs to prevent cheap duplicate-and-hash asymmetry",
    "type": "objection",
@@ -274,7 +273,8 @@
    "at": "2026-11-03",
    "author": "ismaelsadeeq",
    "author_replies": [
-    "c:6615333954"
+    "c:6615333954",
+    "c:6637076248"
    ],
    "clears_with": "answer",
    "fix": null,
@@ -289,6 +289,14 @@
      "clears_with": "answer",
      "status": "answered",
      "type": "suggestion"
+    },
+    {
+     "at": "2026-11-05T01:17:57+00:00",
+     "by": "run:20261105-0112",
+     "cause": "c:6635429504",
+     "clears_with": "answer",
+     "status": "contested",
+     "type": "suggestion"
     }
    ],
    "id": "c:6602021123",
@@ -299,14 +307,14 @@
    "question": "",
    "quote": "Another potential direction is to have the (proposed sigop) opcode read from multiple stack elements instead of one.",
    "request": "stream signatures across multiple <=520-byte stack elements instead of raising the element size limit, avoiding the large-element attack surface altogether",
-   "status": "answered",
+   "status": "contested",
    "status_by": {
-    "at": "2026-11-03",
-    "by": "conduition",
-    "id": "c:6615333954",
-    "quote": "We did consider this type of chunking as an option. Ultimately this would be a trade-off that passes complexity down to wallet developers and users."
+    "at": "2026-11-04",
+    "by": "ismaelsadeeq",
+    "id": "c:6635429504",
+    "quote": "splitting actually makes it okayish... I think this is a far smaller thing to reason about than multi-KB elements across the whole interpreter (it has a wider scope)."
    },
-   "status_note": "author explained chunking pushes complexity onto wallet developers and users, especially for variable-size signatures",
+   "status_note": "author argued chunking pushes complexity to wallets, but reviewer countered that splitting schemes into separate taproot leaves makes chunking manageable; author replied explaining it breaks multisig ",
    "type": "suggestion",
    "url": "https://github.com/bitcoin/bitcoin/pull/36721#issuecomment-6602021123"
   }
@@ -350,9 +358,23 @@
     "c:6615333954"
    ],
    "run": "run:20261104-0123"
+  },
+  {
+   "at": "2026-11-05T01:17:57+00:00",
+   "changes": [
+    "claim c:6602021123: suggestion/answer/answered -> suggestion/answer/contested",
+    "waiting on: reviewer (feedback on whether to update PR branch with experimental intrusive ref-counter), reviewer (response to author's explanation of why signature chunking across separate taproot leaves complicates multisig scripting)"
+   ],
+   "cost_usd": 0.05549,
+   "events": [
+    "c:6624074329",
+    "c:6635429504",
+    "c:6637076248"
+   ],
+   "run": "run:20261105-0112"
   }
  ],
- "notes": "Author answered Yudis-bit's objections on consensus budgeting and cache bypassing via pointer identity, and addressed ismaelsadeeq's suggestion to chunk signatures across 520-byte elements. Author also pushed dedicated microbenchmarks showing regressions on push/drop and improvements on dup/drop.",
+ "notes": "Updated claims with author's benchmark results on an intrusive ref-counter branch and the follow-up discussion with ismaelsadeeq regarding signature chunking and taproot leaf separation.",
  "number": 36721,
  "participants": [
   {
@@ -366,11 +388,11 @@
   },
   {
    "association": "MEMBER",
-   "comments": 2,
+   "comments": 3,
    "first": "2026-11-02",
-   "last": "2026-11-03",
+   "last": "2026-11-04",
    "login": "ismaelsadeeq",
-   "note": "asked for benchmarks on regular scripts and suggested hybrid representation or streaming signatures across 520-byte chunks",
+   "note": "asked for benchmarks on regular scripts, suggested hybrid representation or streaming signatures across 520-byte chunks via separate leaves",
    "stance": "question"
   },
   {
@@ -391,42 +413,38 @@
    "c:6588770303": "524d87ef19fcc06b",
    "c:6602021123": "986248f18962c009",
    "c:6615333954": "f3374ed3943ab74d",
+   "c:6624074329": "add6e724e699f4be",
+   "c:6635429504": "dcd36b02b9c38646",
+   "c:6637076248": "762c0f29c0bb1577",
    "r:5735860679": "2a6be621a5be7ca7",
    "rc:4441488488": "709610e0dcb09b6d",
    "rc:4447265267": "df18d7925b3c2cdd",
    "rc:4449159063": "e503ad8e7df691a5",
    "rc:4460061898": "13c85e2de4fd651c"
   },
-  "head_sha": "35d0834c48c5b3dc87fd0f36225ff215cb2923a8",
-  "last_event_at": "2026-11-03T21:01:39Z",
+  "head_sha": "8b9ef52a810d8e98ea7b0dd88e88ce472bc61d2c",
+  "last_event_at": "2026-11-04T17:14:06Z",
   "patch_id": "fd99daac02934a05",
   "schema_floor": 2
  },
  "repo": "bitcoin/bitcoin",
  "schema": 2,
  "support": [],
- "updated": "2026-11-04T01:26:47+00:00",
+ "updated": "2026-11-05T01:17:57+00:00",
  "waiting_on": [
   {
-   "at": "2026-11-03",
-   "id": "rc:4460061898",
+   "at": "2026-11-04",
+   "id": "c:6624074329",
    "on": "reviewer",
-   "url": "https://github.com/bitcoin/bitcoin/pull/36721#discussion_r4460061898",
-   "what": "Yudis-bit to review author's replies regarding benchmark replication, consensus budgeting, and pointer-keyed caching"
+   "url": "https://github.com/bitcoin/bitcoin/pull/36721#issuecomment-6624074329",
+   "what": "feedback on whether to update PR branch with experimental intrusive ref-counter"
   },
   {
-   "at": "2026-11-03",
-   "id": "c:6615333954",
+   "at": "2026-11-04",
+   "id": "c:6637076248",
    "on": "reviewer",
-   "url": "https://github.com/bitcoin/bitcoin/pull/36721#issuecomment-6615333954",
-   "what": "ismaelsadeeq to review newly pushed benchmark results and reply on chunking trade-offs"
-  },
-  {
-   "at": "2026-11-03",
-   "id": "c:6615333954",
-   "on": "author",
-   "url": "https://github.com/bitcoin/bitcoin/pull/36721#issuecomment-6615333954",
-   "what": "conduition to test whether a union type representation improves push/drop performance"
+   "url": "https://github.com/bitcoin/bitcoin/pull/36721#issuecomment-6637076248",
+   "what": "response to author's explanation of why signature chunking across separate taproot leaves complicates multisig scripting"
   }
  ]
 }

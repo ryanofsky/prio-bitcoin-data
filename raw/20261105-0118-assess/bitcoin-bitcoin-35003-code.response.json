@@ -1,0 +1,42 @@
+{
+ "run": "run:20261105-0118-assess",
+ "pr": "bitcoin/bitcoin#35003",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-05T01:18:20+00:00",
+ "usage": {
+  "input_tokens": 14310,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 636
+ },
+ "cost_usd": 0.0131175,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Ensure block data I/O errors are handled cleanly instead of being silently swallowed or triggering hard assertions. It updates FlatFileSeq::Open so that parent directory creation failures return nullptr rather than throwing an unhandled filesystem exception, and replaces an assert in GETBLOCKTXN message handling with a fatal graceful shutdown. Extensive unit and functional tests are added to verify filesystem failure behavior across block connection, reorgs, RPCs, and P2P requests.\",\n \"problem\": \"When the blocks directory becomes inaccessible (such as during a detached storage volume or permissions change), FlatFileSeq::Open throws a filesystem_error. When this occurs during ActivateBestChain, the exception bypasses FatalError and is swallowed by the generic P2P catch-all with only net-debug logging, leaving the node appearing alive but permanently stuck and unable to advance the chain. Additionally, GETBLOCKTXN crashes via assertion on read errors instead of initiating a graceful shutdown.\",\n \"evidence\": [\n  \"PR description: 'If it happens during block connection (due to the unguarded FlatFileSeq::Open -> fs::create_directories call), after AcceptBlock(), inside ActivateBestChain(), the error gets thrown and swallowed by the P2P general try-catch, leaving the node in a living but stuck state.'\",\n  \"Commit 8a3ec93d54: 'swallowing the error msg for any regular user, and every subsequent block arrival retries the same failing read, leaving the node looking healthy while the block processing mechanism is stuck.'\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"The production code change is only around 15 lines across src/flatfile.cpp and src/net_processing.cpp; the vast majority of the patch is test infrastructure and test cases simulating filesystem I/O failures.\",\n \"changed_since_previous\": \"The code and functional scope remain the same; only minor test adjustments or rebase updates distinguish this patch from the previous version.\",\n \"card\": \"PR 35003 ensures that block data I/O failures do not silently stall block processing or trigger abrupt assertions. If the block directory becomes inaccessible, FlatFileSeq::Open previously threw an exception that was swallowed by the P2P thread catch-all, leaving nodes running but stuck unable to connect new blocks. It changes FlatFileSeq::Open to return null on directory creation failure, changes GETBLOCKTXN read failures from an assertion abort to a graceful fatal error shutdown, and adds extensive functional and unit test coverage for disk access failures.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"validation\",\n   \"p2p\"\n  ],\n  \"why\": \"Modifies core file access logic in FlatFileSeq used by block storage and changes shutdown signaling during P2P message handling.\"\n }\n}",
+ "result": {
+  "summary": "Ensure block data I/O errors are handled cleanly instead of being silently swallowed or triggering hard assertions. It updates FlatFileSeq::Open so that parent directory creation failures return nullptr rather than throwing an unhandled filesystem exception, and replaces an assert in GETBLOCKTXN message handling with a fatal graceful shutdown. Extensive unit and functional tests are added to verify filesystem failure behavior across block connection, reorgs, RPCs, and P2P requests.",
+  "problem": "When the blocks directory becomes inaccessible (such as during a detached storage volume or permissions change), FlatFileSeq::Open throws a filesystem_error. When this occurs during ActivateBestChain, the exception bypasses FatalError and is swallowed by the generic P2P catch-all with only net-debug logging, leaving the node appearing alive but permanently stuck and unable to advance the chain. Additionally, GETBLOCKTXN crashes via assertion on read errors instead of initiating a graceful shutdown.",
+  "evidence": [
+   "PR description: 'If it happens during block connection (due to the unguarded FlatFileSeq::Open -> fs::create_directories call), after AcceptBlock(), inside ActivateBestChain(), the error gets thrown and swallowed by the P2P general try-catch, leaving the node in a living but stuck state.'",
+   "Commit 8a3ec93d54: 'swallowing the error msg for any regular user, and every subsequent block arrival retries the same failing read, leaving the node looking healthy while the block processing mechanism is stuck.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The production code change is only around 15 lines across src/flatfile.cpp and src/net_processing.cpp; the vast majority of the patch is test infrastructure and test cases simulating filesystem I/O failures.",
+  "changed_since_previous": "The code and functional scope remain the same; only minor test adjustments or rebase updates distinguish this patch from the previous version.",
+  "card": "PR 35003 ensures that block data I/O failures do not silently stall block processing or trigger abrupt assertions. If the block directory becomes inaccessible, FlatFileSeq::Open previously threw an exception that was swallowed by the P2P thread catch-all, leaving nodes running but stuck unable to connect new blocks. It changes FlatFileSeq::Open to return null on directory creation failure, changes GETBLOCKTXN read failures from an assertion abort to a graceful fatal error shutdown, and adds extensive functional and unit test coverage for disk access failures.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation",
+    "p2p"
+   ],
+   "why": "Modifies core file access logic in FlatFileSeq used by block storage and changes shutdown signaling during P2P message handling."
+  }
+ }
+}

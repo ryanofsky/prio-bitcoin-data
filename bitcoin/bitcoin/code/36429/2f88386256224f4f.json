@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-05T01:18:47+00:00",
+ "card": "This PR adds a delay_after_lock_time parameter to sendrawtransaction to schedule private broadcasts for height nLockTime + delay_after_lock_time. Submissions that fail initial mempool validation only due to premature spend (future locktime) are held in memory and re-validated when the release height is reached. This addresses feature request #34118 for scheduling locktimed transactions and decorrelating transaction creation time from broadcast time without external scripts. Pending transactions are not persisted across node restarts.",
+ "changed_since_previous": "Replaced the previous duration-based parameter (`delay_for`) with randomized time jitter with `delay_after_lock_time`, which schedules releases based on block height (`nLockTime + delay_after_lock_time`). Submission validation was updated to accept transactions that fail ATMP only because of `TX_PREMATURE_SPEND`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Addresses open feature request #34118 ('[feature] Scheduled Transaction Broadcast')",
+  "Author states primary goals are convenience and allowing users to 'hide the exact time of the transaction creation (for increased privacy)' by scheduling broadcasts a few blocks into the future"
+ ],
+ "head_sha": "8960630481d32ba5f3926c742ff661bbfdeba690",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36429,
+ "patch_id": "2f88386256224f4f",
+ "problem": "Users who want to broadcast transactions at a specific future block height (such as locktimed transactions) or conceal transaction creation timing must run custom scripts or external schedulers. Submitting future locktime transactions to `sendrawtransaction` today fails validation immediately, and the node offers no mechanism to queue them until they mature.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api",
+   "validation"
+  ],
+  "why": "Bugs in validation bypass or scheduled release handling could result in nodes holding or broadcasting invalid transactions or silently dropping transactions without notifying the user."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "Queue state is purely in-memory and lost on node shutdown or crash. Scheduled broadcasts require `-privatebroadcast` and only support height-based locktimes.",
+ "size": {
+  "additions": 506,
+  "deletions": 29,
+  "files": 12,
+  "test_lines": 275
+ },
+ "summary": "Extends the private broadcast subsystem to support scheduled transaction broadcasts based on block height. Adds a `delay_after_lock_time` parameter to `sendrawtransaction` to hold private broadcasts until the active chain reaches `nLockTime + delay_after_lock_time`. At submission, transactions rejected only with `TX_PREMATURE_SPEND` are accepted into the queue, and are fully re-validated before outbound private connections are initiated at release height.",
+ "uncertainties": []
+}

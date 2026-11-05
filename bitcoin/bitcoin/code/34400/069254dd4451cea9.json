@@ -1,0 +1,37 @@
+{
+ "assessed_at": "2026-11-05T01:18:49+00:00",
+ "card": "Parallelizes BIP 157/158 compact block filter evaluation during wallet fast rescans across worker threads. Introduces the -walletpar configuration option to control wallet concurrency, auto-detecting core count up to 15 worker threads by default while falling back to serial rescan during Initial Block Download. Fast wallet rescans previously checked block filters sequentially on a single thread, causing wallet restores and rescans to take minutes over long block ranges. On author benchmarks scanning 200,000 mainnet blocks, runtime dropped from 272 seconds serially to 38 seconds at 8 threads and 25 seconds at 16 threads.",
+ "changed_since_previous": "Added a check to fall back to serial fast rescan during Initial Block Download to avoid core contention with block validation. Increased MAX_WALLETPAR from 8 to 15 dedicated worker threads. Ensured a block's active chain status is validated under cs_wallet before syncing transactions to avoid race conditions with block disconnection. Added functional and unit tests covering IBD behavior and mid-chain startup rescans.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's mainnet benchmark scanning 200,000 blocks (heights 700,000 to 900,000) on an empty wallet demonstrates a runtime drop from 272 seconds on master (and 274s at 1 thread) to ~38 seconds with 8 threads and ~25 seconds with 16 threads."
+ ],
+ "head_sha": "db2d769ff2ffa51d9a2800a036fb7477b58e8eb3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34400,
+ "patch_id": "069254dd4451cea9",
+ "problem": "Compact block filter evaluation during fast wallet rescans executes sequentially on a single core. On multi-core machines, rescanning large block spans\u2014such as during descriptor imports or wallet restores\u2014leaves available CPU resources idle and takes several minutes.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet"
+  ],
+  "why": "A flaw in parallel filter checking or script re-evaluation after keypool top-ups could cause rescan to miss wallet transactions, leading to understated wallet balances."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 751,
+  "deletions": 160,
+  "files": 8,
+  "test_lines": 333
+ },
+ "summary": "Parallelizes BIP 157/158 compact block filter checks during wallet fast rescans across worker threads. Introduces the -walletpar configuration option (defaulting to auto-detected CPU cores up to 15 dedicated worker threads) to control wallet concurrency. Filter checks are queued and evaluated in parallel while block reading, block syncing, and keypool top-ups remain serialized on the calling thread, with parallel rescanning disabled during Initial Block Download.",
+ "uncertainties": []
+}

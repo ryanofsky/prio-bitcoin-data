@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-05T01:19:19+00:00",
+ "card": "Kernel log callbacks are invoked without holding the logger mutex, resolving self-deadlocks when a callback attempts to log or tears down a kernel object that logs. This primarily affects consumers using garbage-collected bindings like Python where finalizers run inside callbacks and hang the process. Evidence includes reproducible deadlocks noted in discussions on PR #34775 and PR #34374, accompanied by new kernel test cases that hang without the fix. It serves as a standalone alternative to a fix proposed in PR #34775 that would have restricted the kernel to a single global logging connection.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit message and description cite hangs in language bindings: 'Python's garbage collector can run finalizers inside the callback, and a finalizer that destroys a chainstate manager flushes and logs (pull #34775 comment 6278257737, pull #34374 review comment r4030551866)'.",
+  "Commit message notes that new test_kernel cases (a callback destroying a chainstate manager, a callback destroying another connection, and concurrent disconnection during log calls) hang without this change."
+ ],
+ "head_sha": "08207f71a65829afbe99743510805dbd8bb3fc4d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36766,
+ "patch_id": "nopatch",
+ "problem": "Applications consuming libbitcoinkernel deadlock if a log callback triggers further logging or destroys a kernel object (such as a chainstate manager) that logs during destruction. This regularly happens in garbage-collected language bindings like Python, where GC finalizers executing inside a callback attempt to re-acquire the logger mutex held by the same thread.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "other"
+  ],
+  "why": "Flaws in the callback reference counting or lock release could cause use-after-free or race conditions during logging and callback deregistration in kernel library consumers."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "The patch modifies kernel synchronization logic in `src/kernel/bitcoinkernel.cpp` and changes concurrency guarantees: log callbacks can now be invoked concurrently from multiple threads and must be thread-safe.",
+ "size": {
+  "additions": 189,
+  "deletions": 29,
+  "files": 5,
+  "test_lines": null
+ },
+ "summary": "Invokes libbitcoinkernel log callbacks without holding `KernelLogger::m_mutex`. To safely destroy callbacks while other threads may be logging, the kernel tracks in-flight callback invocation counts under the lock, prevents new invocations once disconnected, and waits for active calls to complete before deallocating user data.",
+ "uncertainties": []
+}

@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-11-05T01:18:30+00:00",
+ "card": "This pull request removes the M_ERROR runtime error mode from ValidationState, channeling fatal I/O and runtime errors through util::Expected<T, kernel::FatalError> instead. BlockValidationState previously conflated block validation failures with runtime system failures, requiring non-validating routines like FlushStateToDisk and InvalidateBlock to take validation state parameters to report errors. The change cleans up error handling in validation and libbitcoinkernel and unblocks PR 35570 from returning BlockValidationState directly from validation methods.",
+ "changed_since_previous": "Rebased to integrate fatal error propagation into the recently added block template manager, returning inconclusive reasons for fatal errors during mining block submission.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "#35570"
+  ]
+ },
+ "evidence": [
+  "PR description: 'Wrong abstraction for non-validating functions. FlushStateToDisk, DisconnectTip, ActivateBestChain, PreciousBlock, and InvalidateBlock do no block validation, but each takes a BlockValidationState out-param to report any runtime error.'",
+  "PR description: 'This would also pave a long term fix for #35570, which returns BlockValidationState from validation methods instead of boolean value.'"
+ ],
+ "head_sha": "ebe01e1c00fb9ceee873c8b4e182273392d1f405",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "rest_of_diff"
+ ],
+ "number": 35646,
+ "patch_id": "e9f2cf4442162222",
+ "problem": "`BlockValidationState` conflates network validation invalidity with runtime system failures like disk write errors. Non-validating functions such as `FlushStateToDisk`, `DisconnectTip`, and `InvalidateBlock` are forced to accept a `BlockValidationState` out-parameter solely to signal runtime errors, while validating methods combine three distinct outcomes (valid, invalid, fatal) into one object.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "validation",
+   "consensus"
+  ],
+  "why": "A mistake in propagating fatal errors during block connection, disk flushes, or chain activation could cause node crashes, silent chainstate corruption, or improper handling of invalid blocks."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "Refactoring touches block storage, validation, mining interfaces, and tests across 43 files, and removes an enum variant from the libbitcoinkernel public C API.",
+ "size": {
+  "additions": 664,
+  "deletions": 402,
+  "files": 43,
+  "test_lines": 340
+ },
+ "summary": "Removes the `M_ERROR` runtime error state from `ValidationState` and separates fatal system or I/O errors from consensus and policy validation. Core validation and block storage functions (including `ConnectBlock`, `AcceptBlock`, `FlushStateToDisk`, `ActivateBestChain`, and `ProcessNewBlock`) are updated to return `util::Expected<T, kernel::FatalError>`. The `INTERNAL_ERROR` validation mode enum is also removed from the libbitcoinkernel C API and C++ wrapper.",
+ "uncertainties": []
+}

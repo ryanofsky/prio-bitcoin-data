@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-05T01:19:08+00:00",
+ "card": "Standardizes the network classification of linked-IPv4 addresses (such as 6to4 and Teredo) across AddrMan filtering and RPC endpoints. Previously, AddrMan size tracking and getaddrmaninfo counted these addresses as IPv6, while AddrMan address retrieval filtering and labels in getnodeaddresses and getrawaddrman treated them as IPv4, causing filter mismatches and assertion failures in fuzz tests. The change updates GetAddr_() and the RPCs to use GetNetwork() instead of GetNetClass(), keeping GetNetClass() strictly for bucketing decisions.",
+ "changed_since_previous": "Now provides the full patch, including the AddrMan fuzz check, unit tests in addrman_tests.cpp, functional tests in rpc_net.py, and a release note.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'If you pick the change in the fuzz target and run it without the other changes, it's expected to crash to reproduce the issue.'",
+  "PR description: 'on master, for example, for a node whose addrman holds a 6to4 or Teredo address: getaddrmaninfo counts it under ipv6; getnodeaddresses 0 \"ipv6\" doesn't return it; getnodeaddresses 0 \"ipv4\" does return it, labelled ipv4.'"
+ ],
+ "head_sha": "b7eeb2dbe3a2fdfe70075c06133ebc382075d0db",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36746,
+ "patch_id": "215c4368586cb64e",
+ "problem": "Linked-IPv4 addresses were classified inconsistently across AddrMan queries and RPC endpoints: `AddrMan::Size()` and `getaddrmaninfo` counted them as IPv6, but `AddrMan::GetAddr_()` filtering and the labels in `getnodeaddresses` and `getrawaddrman` used `GetNetClass()` and treated them as IPv4. Consequently, `getnodeaddresses 0 \"ipv6\"` would not return them despite `getaddrmaninfo` showing non-zero IPv6 counts, while `getnodeaddresses 0 \"ipv4\"` returned them labeled as IPv4.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api"
+  ],
+  "why": "A mistake in address filtering or network classification could cause AddrMan to return inappropriate peer addresses or break downstream RPC consumers that expect the old network field values for linked addresses."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "Small diff across AddrMan and RPC code accompanied by functional, unit, and fuzz test coverage.",
+ "size": {
+  "additions": 70,
+  "deletions": 4,
+  "files": 6,
+  "test_lines": 56
+ },
+ "summary": "Switches network filtering in `AddrMan::GetAddr_()` and network reporting in `getnodeaddresses` and `getrawaddrman` from `GetNetClass()` to `GetNetwork()`. This ensures that IPv6 addresses with an embedded IPv4 address (such as 6to4 and Teredo) are consistently categorized as IPv6 across address-manager sizing, filtering, and RPC output. Bucketing and netgroup calculations continue to use `GetNetClass()` to treat linked-IPv4 addresses as IPv4.",
+ "uncertainties": []
+}

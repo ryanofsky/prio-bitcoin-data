@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-05T01:18:39+00:00",
+ "card": "This PR hardens the read-only BDB wallet parser against crafted files that cause infinite loops, exponential traversal time, or huge memory inflation. It tracks visited B-tree and overflow pages to prevent cyclic or multi-parent graph traversal, and validates that internal records, data records, and overflow page data do not exceed page bounds. The author demonstrates that on master an ~8 KB crafted file hangs indefinitely and a 256 KB file balloons memory consumption to ~800 MB. Hand-crafted raw BDB unit tests and fuzz target updates are included.",
+ "changed_since_previous": "Added a check in OverflowPage::Unserialize and the fuzz target to reject overflow pages where data length exceeds the page size minus the header, along with unit tests for oversized and full overflow pages.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'On master an ~8 KB file built this way [multi-parent btree child] doesn't finish.'",
+  "PR description: 'A single 64 KB page can turn into ~500 MB this way. On master a 256 KB file took migratewallet from 54 MB to ~800 MB.'"
+ ],
+ "head_sha": "e0c98a22a679d524c59b2124126a9c71beee7eea",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35990,
+ "patch_id": "4e4a60e5c415390c",
+ "problem": "Malformed BDB files passed to `migratewallet` (RPC/GUI) or `bitcoin-wallet` can trigger infinite loops, exponential DFS execution time, or extreme memory inflation. B-tree pages reachable via multiple paths multiply parsing work exponentially, cyclic chains of zero-length overflow pages bypass length-based loop detection, and overlapping index entries or oversized overflow data offsets can inflate memory usage far beyond the file's size.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "A false positive in the parser validation could cause valid legacy BDB wallets to fail migration, leaving users unable to access their wallets on modern versions."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 347,
+  "deletions": 7,
+  "files": 3,
+  "test_lines": 305
+ },
+ "summary": "Hardens the read-only Berkeley DB parser used during wallet migration against crafted database files. It tracks visited B-tree and overflow pages to reject multi-parent DAG traversal and empty overflow page loops, bounds the sum of record lengths on a page to the page size, and rejects overflow pages whose claimed data length exceeds page bounds. It also adds tests building raw BDB files byte-by-byte and updates the BDB fuzz target with the new and previously missing error strings.",
+ "uncertainties": []
+}

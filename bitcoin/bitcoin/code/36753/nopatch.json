@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-05T01:19:12+00:00",
+ "card": "This PR updates -rpcwhitelist refusals to return structured JSON-RPC error objects instead of empty HTTP 403 replies. Currently, -rpcwhitelist rejections cause generic HTTP 403 errors and crash bitcoin-cli -ipcconnect with JSON decoding errors because IPC does not receive HTTP status codes. It introduces RPC_METHOD_NOT_PERMITTED (-38) and RPC_REQUEST_NOT_EXECUTED (-39), returning HTTP 200 with an error object for JSON-RPC 2.0 requests and batch requests in alignment with the JSON-RPC 2.0 specification. The issue was discovered during a security review of the IPC interface.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author description notes an empty body breaks IPC clients: 'bitcoin-cli -ipcconnect receives only the response body, so a refused call prints a JSON type error instead of a permission error, as described in a private security review (https://ipcbugs.ofsky.org/audits/ar-56/)'.",
+  "Commit e36e35b87c notes that returning HTTP 403 for JSON-RPC 2.0 errors directly contradicts JSONErrorReply() and doc/JSON-RPC-interface.md introduced in #27101."
+ ],
+ "head_sha": "21526b182fa04f557ca3a55650ff643742b8e94d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36753,
+ "patch_id": "nopatch",
+ "problem": "Requests refused by -rpcwhitelist currently return an empty HTTP 403 response, showing up as a generic transport error rather than a JSON-RPC error. This violates the JSON-RPC 2.0 specification implemented in #27101, breaks bitcoin-cli over HTTP (showing only \"server returned HTTP error 403\"), and causes bitcoin-cli -ipcconnect to fail with cryptic JSON parsing errors because IPC carries only the body without HTTP status codes.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Changing the HTTP status code from 403 to 200 for JSON-RPC 2.0 and batch whitelist denials could break automated RPC clients that rely strictly on HTTP status codes rather than parsing error response bodies."
+ },
+ "run": "run:20261105-0118-assess",
+ "scope_notes": "Modifies RPC whitelist handling in httprpc.cpp and adds error codes to protocol.h; diff was omitted from the prompt.",
+ "size": {
+  "additions": 220,
+  "deletions": 36,
+  "files": 4,
+  "test_lines": null
+ },
+ "summary": "Return structured JSON-RPC error objects for requests rejected by -rpcwhitelist instead of an empty HTTP 403 response. Introduce RPC_METHOD_NOT_PERMITTED (-38) for denied methods (HTTP 200 for JSON-RPC 2.0, HTTP 403 for 1.x) and RPC_REQUEST_NOT_EXECUTED (-39) for remaining unexecuted calls in a rejected batch. Reformat rejected batch responses to return HTTP 200 with an array of individual errors per request.",
+ "uncertainties": []
+}

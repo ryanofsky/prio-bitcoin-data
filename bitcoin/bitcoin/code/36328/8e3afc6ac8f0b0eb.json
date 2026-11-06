@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-06T01:29:35+00:00",
+ "card": "Updates package mempool acceptance so that transactions evicted by mempool trimming immediately after submission return TX_RECONSIDERABLE rather than TX_MEMPOOL_POLICY. Currently, if a low-feerate package pushes the mempool over capacity and is trimmed, the evicted parent is placed in reject filters and cannot be bumped by a higher-fee child until the next block. The PR fixes this unneeded censorship for 1p1c package relay by returning reconsiderable fee failure results with the package feerate. The author notes the issue stems from an observation made by Loupe and verified by the Red Team.",
+ "changed_since_previous": "The change was narrowed to only update multi-transaction package submissions evicted in the final trim of AcceptPackage; handling of trimmed transactions that were already present in the mempool was deferred.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'In-master, if a package is entered into mempool at the lowerst chunk feerate, pushing the mempool oversize, this causes that transaction (package) to be trimmed immediately... but the returned validation result TX_MEMPOOL_POLICY precludes the now-evicted parent from being considered again (i.e. fetched / processed as package) until after another block is found.'",
+  "PR description: 'This is not a major issue, but would result in unneeded censorship of someone low-balling package feerates.'",
+  "PR description: 'Related to finding made by Loupe, and subsequently Red Team.'",
+  "Commit 47c9070b9d: 'Transactions submitted together as a package and evicted by the final trim in AcceptPackage() were TX_MEMPOOL_POLICY instead, as that code predates TX_RECONSIDERABLE.'"
+ ],
+ "head_sha": "f19e4bfc9be59d32502215e9624a5a18600e26f6",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36328,
+ "patch_id": "8e3afc6ac8f0b0eb",
+ "problem": "When a low-feerate package enters the mempool and triggers immediate trimming, the evicted transactions return TX_MEMPOOL_POLICY instead of TX_RECONSIDERABLE. This places the evicted parent transaction into peer reject filters, preventing it from being fetched or reconsidered with a higher-fee replacement child until a new block arrives.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy",
+   "p2p"
+  ],
+  "why": "Incorrect validation state reporting on trimmed packages could lead to mempool relay loops or improper transaction censorship in P2P package relay."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 106,
+  "deletions": 3,
+  "files": 3,
+  "test_lines": 102
+ },
+ "summary": "Changes the validation result for package transactions that are immediately evicted by mempool size limits after acceptance from TX_MEMPOOL_POLICY to TX_RECONSIDERABLE with FeeFailure. This provides the package effective feerate and calculation dependencies to callers so the evicted transactions can be reconsidered. Functional and unit tests are added to verify that an evicted 1p1c parent can be bumped by a subsequent higher-fee child before the next block.",
+ "uncertainties": []
+}

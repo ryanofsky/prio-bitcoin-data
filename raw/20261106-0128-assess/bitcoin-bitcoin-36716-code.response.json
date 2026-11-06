@@ -1,0 +1,43 @@
+{
+ "run": "run:20261106-0128-assess",
+ "pr": "bitcoin/bitcoin#36716",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-06T01:29:52+00:00",
+ "usage": {
+  "input_tokens": 10244,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1490
+ },
+ "cost_usd": 0.0132705,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Restricts socket exception monitoring in select() to Windows, and disconnects established P2P and HTTP connections on Windows if an exception condition occurs. Under poll(), directly disconnects sockets with errors or hangups when read readiness was not requested, skipping failed send attempts and avoiding unrequested reads. Adds functional tests for P2P and HTTP socket errors, TCP urgent data handling, and connection resets under backpressure.\",\n  \"problem\": \"TCP urgent data triggers an exceptional condition in select(). If exception sets are monitored on systems that do not consume urgent data, sockets can remain ready on exceptions and trigger a busy loop in the network event loop. In addition, when backpressure pauses socket reads, poll errors or hangups previously led to failed send attempts or unrequested reads that could bypass receive backpressure.\",\n  \"evidence\": [\n    \"PR description: 'Fix this by ignoring the exceptionSet. Except on Windows, where we instead disconnect if its used.'\",\n    \"Commit 1c27aa5bef: 'select() can keep reporting a TCP urgent indication even when recv() has no data to read. P2P has no use for exceptional conditions on established connections, so disconnect to avoid a busy loop.'\",\n    \"Commit a2d3de8d82: 'Disconnect directly on POLLERR/POLLHUP without read readiness, skipping the send attempt that would otherwise fail and disconnect the peer.'\"\n  ],\n  \"dependencies\": {\n   \"depends_on\": [],\n   \"enables\": []\n  },\n  \"scope_notes\": \"Modifies socket event polling logic across both net.cpp and httpserver.cpp, accompanied by new functional tests simulating raw TCP out-of-band data and socket resets.\",\n  \"changed_since_previous\": \"Expanded socket error handling to the HTTP server, added immediate disconnection on POLLERR/POLLHUP when reading is paused to preserve backpressure, and introduced dedicated functional test suites for P2P and HTTP socket errors.\",\n  \"card\": \"Stops monitoring select() socket exception sets outside Windows, disconnects established P2P and HTTP connections on Windows if an exception is reported, and disconnects on poll() errors without read readiness instead of attempting sends or unrequested reads. On non-Windows platforms, incoming TCP urgent data otherwise leaves select() exception sets asserted and can cause event loops to busy-spin. The change also preserves receive backpressure when socket errors occur while reads are paused. It includes functional test coverage for TCP urgent data and resets under backpressure.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"p2p\", \"rpc_api\"],\n    \"why\": \"Mistakes in socket event dispatch or error handling could prematurely drop valid P2P or RPC connections, or reintroduce busy loops in network event loops.\"\n  }\n}",
+ "result": {
+  "summary": "Restricts socket exception monitoring in select() to Windows, and disconnects established P2P and HTTP connections on Windows if an exception condition occurs. Under poll(), directly disconnects sockets with errors or hangups when read readiness was not requested, skipping failed send attempts and avoiding unrequested reads. Adds functional tests for P2P and HTTP socket errors, TCP urgent data handling, and connection resets under backpressure.",
+  "problem": "TCP urgent data triggers an exceptional condition in select(). If exception sets are monitored on systems that do not consume urgent data, sockets can remain ready on exceptions and trigger a busy loop in the network event loop. In addition, when backpressure pauses socket reads, poll errors or hangups previously led to failed send attempts or unrequested reads that could bypass receive backpressure.",
+  "evidence": [
+   "PR description: 'Fix this by ignoring the exceptionSet. Except on Windows, where we instead disconnect if its used.'",
+   "Commit 1c27aa5bef: 'select() can keep reporting a TCP urgent indication even when recv() has no data to read. P2P has no use for exceptional conditions on established connections, so disconnect to avoid a busy loop.'",
+   "Commit a2d3de8d82: 'Disconnect directly on POLLERR/POLLHUP without read readiness, skipping the send attempt that would otherwise fail and disconnect the peer.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Modifies socket event polling logic across both net.cpp and httpserver.cpp, accompanied by new functional tests simulating raw TCP out-of-band data and socket resets.",
+  "changed_since_previous": "Expanded socket error handling to the HTTP server, added immediate disconnection on POLLERR/POLLHUP when reading is paused to preserve backpressure, and introduced dedicated functional test suites for P2P and HTTP socket errors.",
+  "card": "Stops monitoring select() socket exception sets outside Windows, disconnects established P2P and HTTP connections on Windows if an exception is reported, and disconnects on poll() errors without read readiness instead of attempting sends or unrequested reads. On non-Windows platforms, incoming TCP urgent data otherwise leaves select() exception sets asserted and can cause event loops to busy-spin. The change also preserves receive backpressure when socket errors occur while reads are paused. It includes functional test coverage for TCP urgent data and resets under backpressure.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p",
+    "rpc_api"
+   ],
+   "why": "Mistakes in socket event dispatch or error handling could prematurely drop valid P2P or RPC connections, or reintroduce busy loops in network event loops."
+  }
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "run": "run:20261106-0128-assess",
+ "pr": "bitcoin/bitcoin#36768",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-06T01:30:02+00:00",
+ "usage": {
+  "input_tokens": 3483,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 897
+ },
+ "cost_usd": 0.005976,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Dispatches libbitcoinkernel log callbacks via `btcsignals::signal` instead of custom internal dispatching so callbacks run without holding the logger's mutex. Additionally switches `btcsignals` internal mutex from `Mutex` to `StdMutex` to prevent re-entrant deadlocks when lock-debugging features attempt to log.\",\n  \"problem\": \"Applications using libbitcoinkernel hang if their log callback emits a log message or destroys an object that logs (such as a chainstate manager during language-binding garbage collection). The kernel executes callbacks while holding the logger's mutex, causing re-entrant deadlocks on the same thread.\",\n  \"evidence\": [\n    \"Description notes that a kernel application whose log callback logs or destroys a kernel object hangs, citing real-world reproduction in Python bindings where GC finalizers trigger during callbacks (PR #34775, PR #34374)\",\n    \"PR description notes new test_kernel test cases hang without this fix\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Changes concurrency semantics for external consumers: log callbacks will no longer be serialized and may execute concurrently across threads.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Kernel applications deadlock if their log callback logs or destroys kernel objects, a scenario regularly triggered when garbage-collected language bindings invoke object finalizers inside a callback. This PR switches kernel log delivery to btcsignals so callbacks run without holding the logger mutex, and converts btcsignals to StdMutex to prevent lock-debugging recursion. It fixes hangs experienced in downstream bindings without needing to restrict applications to a single logging connection as attempted in #34775.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"low\",\n    \"touches\": [\n      \"other\"\n    ],\n    \"why\": \"A mistake in callback signal dispatching or thread synchronization could cause race conditions or crashes in external applications consuming libbitcoinkernel log callbacks.\"\n  }\n}",
+ "result": {
+  "summary": "Dispatches libbitcoinkernel log callbacks via `btcsignals::signal` instead of custom internal dispatching so callbacks run without holding the logger's mutex. Additionally switches `btcsignals` internal mutex from `Mutex` to `StdMutex` to prevent re-entrant deadlocks when lock-debugging features attempt to log.",
+  "problem": "Applications using libbitcoinkernel hang if their log callback emits a log message or destroys an object that logs (such as a chainstate manager during language-binding garbage collection). The kernel executes callbacks while holding the logger's mutex, causing re-entrant deadlocks on the same thread.",
+  "evidence": [
+   "Description notes that a kernel application whose log callback logs or destroys a kernel object hangs, citing real-world reproduction in Python bindings where GC finalizers trigger during callbacks (PR #34775, PR #34374)",
+   "PR description notes new test_kernel test cases hang without this fix"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Changes concurrency semantics for external consumers: log callbacks will no longer be serialized and may execute concurrently across threads.",
+  "changed_since_previous": "",
+  "card": "Kernel applications deadlock if their log callback logs or destroys kernel objects, a scenario regularly triggered when garbage-collected language bindings invoke object finalizers inside a callback. This PR switches kernel log delivery to btcsignals so callbacks run without holding the logger mutex, and converts btcsignals to StdMutex to prevent lock-debugging recursion. It fixes hangs experienced in downstream bindings without needing to restrict applications to a single logging connection as attempted in #34775.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "low",
+   "touches": [
+    "other"
+   ],
+   "why": "A mistake in callback signal dispatching or thread synchronization could cause race conditions or crashes in external applications consuming libbitcoinkernel log callbacks."
+  }
+ }
+}

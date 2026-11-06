@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-06T01:29:57+00:00",
+ "card": "Refactors the script interpreter stack from raw byte vectors to reference-counted pointers so opcodes like OP_DUP copy pointers instead of deep-copying byte arrays. This addresses memory inflation and provides stable pointer identities for a planned follow-up opcode hash cache, preparing the interpreter for hypothetical future soft forks that increase stack element limits for post-quantum signatures. The author reports a 10 kB element verification taking 52 ms versus 3 ms for 520 bytes under repeated hashing, though these claims address prospective post-quantum script proposals rather than current mainnet consensus rules. A planned follow-up PR implementing the pointer-keyed hash cache depends on this change.",
+ "changed_since_previous": "Rebased with no changes in approach or commit structure.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": [
+   "A planned follow-up PR implementing an opcode hash cache keyed by interpreter stack element pointers"
+  ]
+ },
+ "evidence": [
+  "Author benchmark in PR description: evaluating repeated RIPEMD160 operations on a 10 kB element took ~52 ms vs ~3 ms for 520 bytes over ~20,000 weight units (PR description).",
+  "Author links ongoing post-quantum BIP proposals (SHRINCS) proposing relaxation of the max stack element size to multi-kilobyte ranges (PR description)."
+ ],
+ "head_sha": "40a419af6325589a6ea4c7b6bcbd977c1015dc77",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36721,
+ "patch_id": "30f797d5f87728e8",
+ "problem": "The script interpreter holds stack elements by value, deep-copying byte buffers on every duplication or reordering opcode. If future soft forks expand stack element limits beyond 520 bytes to accommodate post-quantum signatures (potentially up to 10 kB), repeated duplication could allow an attacker to cheaply induce significant memory inflation and CPU overhead without having stable keys to cache opcode hash evaluations.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "A flaw in script interpreter stack memory management or element lifetime handling could alter script validation behavior, causing consensus divergence or node crashes."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "Touches consensus-critical execution in `src/script/interpreter.cpp` and changes the public `EvalScript` API used by standardness checks, signing code, and fuzzers.",
+ "size": {
+  "additions": 528,
+  "deletions": 131,
+  "files": 10,
+  "test_lines": 433
+ },
+ "summary": "Replaces raw byte vectors on the Bitcoin script interpreter stack with reference-counted shared pointers (`ScriptStackElem`), so opcodes that duplicate or reorder stack items copy pointers rather than underlying byte buffers. It consolidates the two `EvalScript` overloads into a single function with a defaulted execution data pointer, and updates all interpreter callers across policy, signing, tests, and BIP 352 helpers. It also adds unit tests verifying pointer sharing semantics and benchmarks for stack push and duplication operations.",
+ "uncertainties": []
+}

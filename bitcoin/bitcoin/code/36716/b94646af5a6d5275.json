@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-06T01:29:52+00:00",
+ "card": "Stops monitoring select() socket exception sets outside Windows, disconnects established P2P and HTTP connections on Windows if an exception is reported, and disconnects on poll() errors without read readiness instead of attempting sends or unrequested reads. On non-Windows platforms, incoming TCP urgent data otherwise leaves select() exception sets asserted and can cause event loops to busy-spin. The change also preserves receive backpressure when socket errors occur while reads are paused. It includes functional test coverage for TCP urgent data and resets under backpressure.",
+ "changed_since_previous": "Expanded socket error handling to the HTTP server, added immediate disconnection on POLLERR/POLLHUP when reading is paused to preserve backpressure, and introduced dedicated functional test suites for P2P and HTTP socket errors.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Fix this by ignoring the exceptionSet. Except on Windows, where we instead disconnect if its used.'",
+  "Commit 1c27aa5bef: 'select() can keep reporting a TCP urgent indication even when recv() has no data to read. P2P has no use for exceptional conditions on established connections, so disconnect to avoid a busy loop.'",
+  "Commit a2d3de8d82: 'Disconnect directly on POLLERR/POLLHUP without read readiness, skipping the send attempt that would otherwise fail and disconnect the peer.'"
+ ],
+ "head_sha": "090e0b71c0c05d20d74fd73f7acf440f2569216e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36716,
+ "patch_id": "b94646af5a6d5275",
+ "problem": "TCP urgent data triggers an exceptional condition in select(). If exception sets are monitored on systems that do not consume urgent data, sockets can remain ready on exceptions and trigger a busy loop in the network event loop. In addition, when backpressure pauses socket reads, poll errors or hangups previously led to failed send attempts or unrequested reads that could bypass receive backpressure.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api"
+  ],
+  "why": "Mistakes in socket event dispatch or error handling could prematurely drop valid P2P or RPC connections, or reintroduce busy loops in network event loops."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "Modifies socket event polling logic across both net.cpp and httpserver.cpp, accompanied by new functional tests simulating raw TCP out-of-band data and socket resets.",
+ "size": {
+  "additions": 283,
+  "deletions": 16,
+  "files": 11,
+  "test_lines": 242
+ },
+ "summary": "Restricts socket exception monitoring in select() to Windows, and disconnects established P2P and HTTP connections on Windows if an exception condition occurs. Under poll(), directly disconnects sockets with errors or hangups when read readiness was not requested, skipping failed send attempts and avoiding unrequested reads. Adds functional tests for P2P and HTTP socket errors, TCP urgent data handling, and connection resets under backpressure.",
+ "uncertainties": []
+}

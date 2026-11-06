@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-06T01:29:25+00:00",
+ "card": "Bitcoin Core now populates the BIP 174 PSBT_GLOBAL_XPUB field when creating or updating PSBTs in descriptor wallets. Previously, Core never wrote this field, preventing stateless hardware signers from reconstructing multisig scripts or verifying change outputs without external coordinator workarounds. Testing shows BitBox02 refuses multisig signing without global xpubs and succeeds with them, while Trezor receives accurate derivation paths instead of zeroed chain codes. Extended keys are filtered to only those that unhardenedly derive transaction inputs or outputs, and are omitted when bip32derivs is set to false.",
+ "changed_since_previous": "No structural or semantic changes; commits and approach remain identical to the previous version.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Closes issue #27583 ('psbt: set global_xpubs (at least for multisig descriptors)').",
+  "Author testing demonstrates that a BitBox02 simulator refuses signing a 2-of-3 multisig PSBT without the field ('This BitBox02 is not one of the cosigners') and signs successfully when it is present.",
+  "Author testing demonstrates that Trezor receives real chain codes and derivation paths instead of zeroed chain codes and empty paths when global xpubs are populated.",
+  "Specter Desktop maintains dedicated workaround code to inject PSBT_GLOBAL_XPUB records into PSBTs produced by Bitcoin Core."
+ ],
+ "head_sha": "118c6d1f735ae134856205315508edaefa2a757a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36154,
+ "patch_id": "986cfc0e47560255",
+ "problem": "Bitcoin Core's wallet never populates PSBT_GLOBAL_XPUB despite supporting its serialization, deserialization, and merging. Stateless hardware signers cannot reconstruct multisig script context or verify change outputs from the PSBT alone, causing devices like the BitBox02 to reject signing and forcing wallet coordinators like Specter to manually inject xpub records.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api"
+  ],
+  "why": "Mistakes in xpub origin derivations or version stamping could break interoperability with external hardware signers or expose descriptor derivation structures unexpectedly."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "Touches descriptor interfaces, PSBT merging, wallet filling logic, and RPC documentation. Includes extensive functional tests in test/functional/wallet_multisig_descriptor_psbt.py and descriptor unit tests.",
+ "size": {
+  "additions": 584,
+  "deletions": 11,
+  "files": 17,
+  "test_lines": 376
+ },
+ "summary": "Populates the BIP 174 PSBT_GLOBAL_XPUB field during CWallet::FillPSBT for descriptor wallets when bip32derivs is enabled. Adds a Descriptor::GetExtPubKeysWithOrigins interface to extract extended public keys and their key origins stamped with the network version bytes. Restricts the written xpubs to those that derive keys present in the transaction inputs or outputs via unhardened derivation paths.",
+ "uncertainties": []
+}

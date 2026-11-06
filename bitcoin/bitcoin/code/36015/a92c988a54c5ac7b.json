@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-06T01:29:25+00:00",
+ "card": "TxOrphanage is updated to store orphan transactions serialized rather than as deserialized CTransaction objects, deserializing them only when handed out for validation or RPC. The orphanage uses transaction weight to bound memory usage, but heap overhead for many small witness elements allows a standard-weight orphan to consume 11.1MB of memory while accounted at only ~400k weight units, opening nodes to memory exhaustion. Storing serialized bytes guarantees that a transaction's memory footprint is strictly bounded by its weight, without rejecting standard transactions. Interface methods for announcement processing and 1P1C child selection are also converted to operate on txid and wtxid metadata to prevent transient CPU and memory spikes during resolution.",
+ "changed_since_previous": "The core approach remains the same. The PR now includes refactors renaming the peer usage reservation constant, introducing and caching GetOrphanUsage per announcement, and adding dedicated unit tests for 1P1C package selection ordering and reject filtering.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'A transaction of 199,000 1-byte witness elements weighs 398,247WU (i.e. it is of standard weight, and witness standardness cannot be checked while the inputs are missing), but uses 11.1MB of memory: 28 times what is accounted for it, and one such orphan can be retained per peer.'",
+  "Commit 9f013728e2: 'Otherwise a peer holding ~40MB of witness-heavy orphans (many tiny witness elements, each a separate heap allocation once deserialized) could make a single call cost ~0.9s of CPU and ~700MB of memory.'"
+ ],
+ "head_sha": "771bc5311c7b6a3656687cd2a91625e18fb4686e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36015,
+ "patch_id": "a92c988a54c5ac7b",
+ "problem": "TxOrphanage bounds orphan memory per peer and globally using transaction weight as a proxy on the assumption that weight exceeds memory usage. For deserialized transactions with many small witness stack elements, vector heap allocation overhead causes memory usage to drastically exceed weight: a standard-weight transaction can consume 11.1MB of RAM while being accounted for only ~400k weight units (a 28x discrepancy). This allows peers to bypass orphan memory limits, potentially consuming excessive node memory and causing package-finding calls to spike CPU and transient RAM usage.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A defect in orphan serialization, deserialization, or candidate ID lookup could drop unconfirmed transactions, degrade package relay, or disrupt transaction download from peers."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "Refactors 1P1C candidate selection in txdownloadman to query orphan IDs instead of CTransactionRefs, and adds a GetPackageHashFromWtxids helper in policy/packages.",
+ "size": {
+  "additions": 436,
+  "deletions": 148,
+  "files": 10,
+  "test_lines": 316
+ },
+ "summary": "TxOrphanage is modified to store orphan transactions in serialized wire format instead of deserialized CTransaction objects, deserializing them only when retrieved for validation or RPC inspection. Methods for processing announcements and selecting 1P1C package candidates are updated to inspect parent txids and candidate wtxids directly rather than loading full transactions. The PR also introduces GetOrphanUsage to unify orphan memory accounting and caches this value per announcement.",
+ "uncertainties": []
+}

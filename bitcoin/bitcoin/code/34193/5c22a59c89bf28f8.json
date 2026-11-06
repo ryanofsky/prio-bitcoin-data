@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-06T01:29:07+00:00",
+ "card": "This pull request hardens legacy-to-descriptor wallet migration against mid-process failures, unexpected exceptions, and filesystem permission errors. MigrateToSQLite now stages the SQLite database in a temporary location and writes records before deleting the original BerkeleyDB files, falling back gracefully without manual user intervention if creation fails. Broad exception handling is also added across migration steps to guarantee cleanup routines restore the original wallet from backup upon any failure. It directly touches wallet database conversion logic.",
+ "changed_since_previous": "Rebased and updated to handle cross-filesystem migrations using copy_file followed by cleanup instead of rename, adding dedicated functional test coverage for unwritable directories and separate filesystems.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit b9486540d7: 'Currently, MigrateToSQLite loads all BDB records into memory, then deletes the original database just to create the sqlite db in the same place... If creation fails, the wallet ends up partly in sqlite format with legacy records, and the user has to restore from a backup manually.'",
+  "Description: 'Trying to migrate a wallet in a read-only directory throws a filesystem exception and skips cleanup. Now the process will fail gracefully with a clear error msg, and automatically restore the original wallet.'"
+ ],
+ "head_sha": "3ca388f099c6a161faa40bf8b91c5aa89cb5b11d",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34193,
+ "patch_id": "5c22a59c89bf28f8",
+ "problem": "Legacy wallet migration previously deleted the original BerkeleyDB database file before confirming the SQLite database could be created and written to, leaving wallets half-migrated and requiring manual backup restoration if writing failed. Furthermore, filesystem permission issues or internal exceptions thrown during descriptor and sub-wallet creation aborted the process abruptly, skipping automatic failure recovery.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "Flaws in the database migration and replacement sequence could corrupt the wallet database or delete original wallet data before the replacement is validly in place."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 187,
+  "deletions": 106,
+  "files": 5,
+  "test_lines": 48
+ },
+ "summary": "Hardens legacy wallet migration to SQLite and descriptor formats against mid-process failures and unexpected filesystem exceptions. MigrateToSQLite now stages the new SQLite database in a temporary directory and deletes the original BerkeleyDB file only after all records are written and verified. In addition, DoMigration and MigrateLegacyToDescriptor wrap wallet creation and migration steps in exception handlers so migration cleanup can run and restore the original wallet from backup on error.",
+ "uncertainties": []
+}

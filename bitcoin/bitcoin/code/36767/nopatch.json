@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-06T01:30:01+00:00",
+ "card": "Catches std::runtime_error during wallet creation and cleans up newly generated files when setup fails. Previously, an external signer failure during creation aborted bitcoin-qt via an unhandled exception on the worker thread, returned a generic -1 error over RPC, and left dangling database files on disk that blocked reusing the wallet name. The fix returns wallet creation errors gracefully and removes created files on failure.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author provides reproduction steps using a mock signer on regtest: 'terminate called after throwing an instance of std::runtime_error, the process aborts, and trezor_t/wallet.dat is left behind' (description).",
+  "Author notes the unhandled exception was previously documented in bitcoin-core/gui#395 and mitigated in bitcoin-core/gui#396 without being fully handled in the wallet creation path (description)."
+ ],
+ "head_sha": "884aae16946f1007f5430a8418e2f2db35fc1b17",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36767,
+ "patch_id": "nopatch",
+ "problem": "When external signer setup fails during wallet creation, an uncaught `std::runtime_error` crashes `bitcoin-qt` because the GUI worker thread lacks an exception handler, while RPC catches it only generically as error code -1. In both cases, partially created database files and directories remain on disk, causing subsequent creation attempts with the same wallet name to fail with 'Database already exists'.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "wallet_storage",
+   "gui"
+  ],
+  "why": "Flaws in wallet directory and file cleanup on creation failure could risk deleting unrelated or pre-existing wallet files."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 85,
+  "deletions": 4,
+  "files": 3,
+  "test_lines": null
+ },
+ "summary": "Catches `std::runtime_error` during wallet creation so that external signer setup failures are reported gracefully instead of aborting the GUI process. Cleans up newly created database files and directories when wallet creation fails so retrying with the same wallet name does not collide with leftover files.",
+ "uncertainties": []
+}

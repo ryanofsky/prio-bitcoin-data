@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-06T01:29:43+00:00",
+ "card": "Reduces per-block allocation overhead and excess thread tasks in CoinsViewOverlay during parallel prevout prefetching. It reuses the intra-block transaction ID filter and worker task vector across blocks, omits inserting the block's final transaction ID into the filter, and caps dispatched worker tasks to the queued input count. No benchmark numbers or profiling measurements are provided to demonstrate the performance gain.",
+ "changed_since_previous": "Added an Assume check verifying task vector capacity retention and refined hash-set reservation logic to preserve existing bucket count across block processing.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Insert each transaction ID before scanning the following transaction's inputs. Reuse the set's buckets and hash salt and the worker-task vector across blocks. Limit submitted tasks to the smaller of the worker and queued-input counts.'",
+  "Commit 5f77f34f9f: 'reduces txid insertions from N to N-1 and replaces the separate coinbase seed and trailing insertion with one insertion at the start of the loop.'"
+ ],
+ "head_sha": "ec339188ded742fd1435cbc2da2d455de435f2ec",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "benchmark_numbers"
+ ],
+ "number": 36496,
+ "patch_id": "08bb0ce918d3610d",
+ "problem": "CoinsViewOverlay re-allocates and re-seeds a transaction ID hash set and re-allocates a task vector on every block processed during parallel prevout fetching. It also unnecessarily inserts the block's final transaction ID into the intra-block spend filter and spawns more worker tasks than there are inputs when input queues are small.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A bug in intra-block prevout filtering or task dispatch lifecycle could misclassify inputs, hang workers, or crash nodes during block connection."
+ },
+ "run": "run:20261106-0128-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 33,
+  "deletions": 27,
+  "files": 3,
+  "test_lines": 0
+ },
+ "summary": "Optimizes parallel prevout prefetching in CoinsViewOverlay by eliminating redundant memory allocations and unnecessary thread tasks between blocks. It retains the intra-block transaction ID filter and the threadpool task vector across blocks to reuse capacity and avoid hash reseeding. It also avoids inserting the final transaction ID of each block into the filter and caps submitted worker tasks to the number of queued inputs.",
+ "uncertainties": []
+}

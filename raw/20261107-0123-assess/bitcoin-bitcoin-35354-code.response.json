@@ -1,0 +1,42 @@
+{
+ "run": "run:20261107-0123-assess",
+ "pr": "bitcoin/bitcoin#35354",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-07T01:23:51+00:00",
+ "usage": {
+  "input_tokens": 9864,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1274
+ },
+ "cost_usd": 0.0121755,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Defers BIP 157 compact filter requests (getcfilters, getcfheaders, getcfcheckpt) when the requested block is known to the chain but the filter index has not yet indexed it. Racing requests are parked in a per-peer pending slot and retried every 100ms, temporarily pausing that peer's incoming message processing to preserve response ordering. If the request remains unresolved after 5 seconds, it times out and is served immediately with whatever data is currently indexed.\",\n  \"problem\": \"Bitcoin Core announces newly connected blocks before background validation callbacks build the corresponding compact filters. If a BIP 157 light client promptly requests filters for an announced block, Core fails to locate them in the index and silently ignores the request. BIP 157 clients like Neutrino interpret this missing response as protocol misbehavior and disconnect or ban the node.\",\n  \"evidence\": [\n    \"PR description quotes BIP 157: 'StopHash MUST be known to belong to a block accepted by the receiving peer... A node that receives getcfilters with an unknown StopHash SHOULD NOT respond', noting that dropping requests for known blocks contradicts the specification.\",\n    \"Linked issue #29655 describes BIP 157 peers disconnecting Core nodes due to unanswered compact filter requests for valid announced block hashes.\",\n    \"PR description links lightninglabs/neutrino#338 and issue #27085 documenting light clients banning Core nodes.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Added time tracking to parked requests: retries are now throttled to at most once every 100ms (PARKED_CF_RETRY_INTERVAL) to avoid repeatedly acquiring cs_main, and parked requests expire after 5 seconds (MAX_CF_PARK_INTERVAL) to prevent stalling peer message processing indefinitely.\",\n  \"card\": \"This PR addresses a race condition where BIP 157 light clients request compact filters or filter headers for newly announced blocks before background indexing finishes. Bitcoin Core previously dropped these requests without responding, prompting clients such as Neutrino to treat the node as misbehaving and disconnect or ban it (issues #29655 and #27085). The change pauses subsequent message processing for the requesting peer and parks the filter request for up to 5 seconds, retrying every 100ms until the filter index catches up.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"p2p\"\n    ],\n    \"why\": \"Alters P2P message processing by parking requests and deferring peer message loops, which could stall peer communication or cause desynchronization if requests fail to clear or timeout.\"\n  }\n}",
+ "result": {
+  "summary": "Defers BIP 157 compact filter requests (getcfilters, getcfheaders, getcfcheckpt) when the requested block is known to the chain but the filter index has not yet indexed it. Racing requests are parked in a per-peer pending slot and retried every 100ms, temporarily pausing that peer's incoming message processing to preserve response ordering. If the request remains unresolved after 5 seconds, it times out and is served immediately with whatever data is currently indexed.",
+  "problem": "Bitcoin Core announces newly connected blocks before background validation callbacks build the corresponding compact filters. If a BIP 157 light client promptly requests filters for an announced block, Core fails to locate them in the index and silently ignores the request. BIP 157 clients like Neutrino interpret this missing response as protocol misbehavior and disconnect or ban the node.",
+  "evidence": [
+   "PR description quotes BIP 157: 'StopHash MUST be known to belong to a block accepted by the receiving peer... A node that receives getcfilters with an unknown StopHash SHOULD NOT respond', noting that dropping requests for known blocks contradicts the specification.",
+   "Linked issue #29655 describes BIP 157 peers disconnecting Core nodes due to unanswered compact filter requests for valid announced block hashes.",
+   "PR description links lightninglabs/neutrino#338 and issue #27085 documenting light clients banning Core nodes."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Added time tracking to parked requests: retries are now throttled to at most once every 100ms (PARKED_CF_RETRY_INTERVAL) to avoid repeatedly acquiring cs_main, and parked requests expire after 5 seconds (MAX_CF_PARK_INTERVAL) to prevent stalling peer message processing indefinitely.",
+  "card": "This PR addresses a race condition where BIP 157 light clients request compact filters or filter headers for newly announced blocks before background indexing finishes. Bitcoin Core previously dropped these requests without responding, prompting clients such as Neutrino to treat the node as misbehaving and disconnect or ban it (issues #29655 and #27085). The change pauses subsequent message processing for the requesting peer and parks the filter request for up to 5 seconds, retrying every 100ms until the filter index catches up.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "Alters P2P message processing by parking requests and deferring peer message loops, which could stall peer communication or cause desynchronization if requests fail to clear or timeout."
+  }
+ }
+}

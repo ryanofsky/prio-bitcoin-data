@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-07T01:23:56+00:00",
+ "card": "This PR refactors block validation functions including CheckBlock, AcceptBlock, FlushStateToDisk, and ProcessNewBlockHeaders to return BlockValidationState by value instead of using an out-parameter and a boolean return. It resolves potential inconsistencies between the boolean status and the validation state object, while preventing state pollution across chained calls. The change was motivated by kernel interface cleanups discussed in PR 33856 and has no open dependencies.",
+ "changed_since_previous": "Rebased with minor commit refinements and added co-authorship on the `FatalError`, `ProcessNewBlockHeaders`, and `AcceptBlock` commits.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description notes the change grew out of review feedback on kernel PR #33856 to eliminate ambiguity in process_block_header return semantics.",
+  "Eliminates redundant error returns in the kernel C API (`btck_chainstate_manager_process_block_header`) where returning both an integer code and an out-parameter created ambiguity."
+ ],
+ "head_sha": "7b7392e61f35fdab5e22d7348ae05154a81e2b58",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35570,
+ "patch_id": "59d4c8d2b36bf779",
+ "problem": "Validation functions used a dual-reporting pattern with a boolean return code alongside an out-parameter `BlockValidationState`. This allows return values and state objects to diverge, obscures whether an input state is read or overwritten, and risks state pollution across sequential calls where a pre-existing invalid state prevents subsequent failure details from being recorded.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "consensus",
+   "p2p"
+  ],
+  "why": "A flaw in propagating or checking the returned BlockValidationState could misclassify invalid blocks or headers as valid or cause nodes to disconnect or punish valid peers."
+ },
+ "run": "run:20261107-0123-assess",
+ "scope_notes": "Mechanical refactor of calling conventions across 12 commits ordered bottom-to-top through the validation call hierarchy, touching block validation entry points and test harnesses.",
+ "size": {
+  "additions": 280,
+  "deletions": 239,
+  "files": 16,
+  "test_lines": 82
+ },
+ "summary": "Refactors block and header processing functions in `validation.cpp` to return `BlockValidationState` by value instead of returning a boolean and populating a `BlockValidationState&` out-parameter. Adds static factory helpers `MakeInvalid` and `MakeError` to `BlockValidationState` for concise inline state construction. Callers across `net_processing`, the kernel C API, node storage, RPC, benchmarks, and unit tests are adjusted to match the new signatures.",
+ "uncertainties": []
+}

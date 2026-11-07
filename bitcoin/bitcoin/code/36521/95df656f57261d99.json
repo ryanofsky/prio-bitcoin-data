@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-07T01:24:33+00:00",
+ "card": "CScriptWitness currently stores witness items as a std::vector of byte vectors, incurring an individual heap allocation and a 24-byte object overhead per element. This allows adversarial blocks containing millions of tiny witness elements to consume over 100 MiB of RAM and take around 300 ms to deserialize. This PR changes CScriptWitness to store its serialized representation in a single allocation, decoding elements on the fly as spans, and introduces early weight and input/output bounds during transaction deserialization. In author benchmarks, worst-case valid block deserialization memory drops from 106.8 MiB to 3.8 MiB and deserialization runtimes fall by up to 93%. It also changes P2P handling so that blocks or transactions exceeding block weight limits fail during deserialization and are dropped rather than processed by validation.",
+ "changed_since_previous": "No substantial changes to the approach; the PR remains functionally equivalent to the previous version with minor refinements across commits.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's benchmarks show deserialization time for a valid block filled with empty witness elements drops from 279.2 ms to 18.7 ms (GCC), with deserialized block memory dropping from 91.5 MiB to 3.8 MiB and peak memory dropping from 182.2 MiB to 7.8 MiB (PR description).",
+  "Author's benchmarks show a valid block with maximum 1-byte witness elements drops deserialization memory from 106.8 MiB to 3.8 MiB (PR description).",
+  "Author notes the DoS/memory issue was reported by furszy and 0xB10C (PR description)."
+ ],
+ "head_sha": "c655a696d8d1013bf61b815ba7b477840d31765c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36521,
+ "patch_id": "95df656f57261d99",
+ "problem": "CScriptWitness incurs a 24-byte vector header and a heap allocation for every witness element, enabling peers to construct valid or malformed 4 MB blocks with millions of tiny witness items that consume over 100 MiB of memory and take nearly 300 ms to deserialize. Furthermore, deserializing unbounded or empty transactions allocates substantial vector memory before validation logic can reject them.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation",
+   "p2p",
+   "rpc_api"
+  ],
+  "why": "A logic error in witness or transaction deserialization or weight bounding could reject valid blocks, causing nodes to fork or desynchronize from the network."
+ },
+ "run": "run:20261107-0123-assess",
+ "scope_notes": "Contains a large scripted diff (commit e78a86fa58) converting direct .stack accesses across 76 files to CScriptWitness method calls. P2P behavior changes subtly: messages with empty in/out or exceeding block weight limits fail at the deserialization stage and are dropped/ignored rather than triggering validation rejections, peer disconnections, or reject-filter insertion.",
+ "size": {
+  "additions": 1255,
+  "deletions": 280,
+  "files": 76,
+  "test_lines": 919
+ },
+ "summary": "Replaces CScriptWitness's internal vector-of-vectors storage with a single allocation storing its serialized wire format, decoding witness elements on the fly as spans and keeping witnesses immutable after creation. Transaction and block deserialization are updated to enforce upfront bounds: transactions with more inputs or outputs than can fit in a block are rejected immediately, and P2P deserialization drops transactions with zero inputs/outputs or messages exceeding the 4M weight budget. Callers across the codebase, including script execution, policy, and RPC, are converted to use the new span-based accessor interface.",
+ "uncertainties": []
+}

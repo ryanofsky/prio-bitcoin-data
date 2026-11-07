@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-07T01:23:43+00:00",
+ "card": "This PR fixes a bug in `removeForReorg` where valid BIP68 transactions spending unconfirmed inputs are erroneously evicted from the mempool alongside their descendants after a reorg lowers the chain tip. Transactions cached lockpoints assuming confirmation at the old tip plus one; when the tip lowers, stale cached lockpoints cause sequence-lock checks to fail even though the transaction is still valid. The change recalculates lockpoints via `CalculateLockPointsAtTip` before evicting, only dropping transactions that genuinely fail at the new tip. It fixes issue #35007 and includes functional tests covering height-based, mixed-input, and time-based relative lock scenarios.",
+ "changed_since_previous": "Refactored the validation logic into a clean fast-path check and added a counterpart functional test (`test_reorg_unsatisfied_lock_evicted`) to ensure genuinely unsatisfied locks are still evicted along with their descendants.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Closes issue #35007: 'removeForReorg incorrectly evicts valid BIP68 transactions with mempool parents after invalidateblock'",
+  "The PR description provides a standalone reproducer script demonstrating false evictions on unpatched nodes",
+  "Adds functional test coverage in `test/functional/feature_bip68_sequence.py` verifying that valid BIP68 transactions (including mixed inputs and lowered median-time-past cases) stay in the mempool while genuinely unsatisfied locks are still evicted"
+ ],
+ "head_sha": "3274253e3ae53b7684dbbe356a334512a296796c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35026,
+ "patch_id": "29a1cd362731bf61",
+ "problem": "When a reorganization lowers the chain tip or median time past, transactions spending unconfirmed parents have lockpoints cached against the old tip plus one. Because `TestLockPointValidity` can still return true (for instance, when unconfirmed inputs default to genesis height or when confirmed inputs survive the reorg), `removeForReorg` evaluates sequence locks against stale lockpoint values and incorrectly evicts valid BIP68 transactions and all their descendants from the mempool.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy"
+  ],
+  "why": "A flaw in reorg lockpoint recalculation could retain invalid transactions in the mempool after a reorg or cause block template generation failures."
+ },
+ "run": "run:20261107-0123-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 130,
+  "deletions": 13,
+  "files": 2,
+  "test_lines": 118
+ },
+ "summary": "Recalculates BIP68 lockpoints during mempool reorg processing whenever cached lockpoints fail either the validity test or the sequence-lock check at the new chain tip. Previously, transactions with cached lockpoints that passed validity were evicted immediately if sequence locks failed against the lower tip. With this change, `MaybeUpdateMempoolForReorg` recalculates lockpoints at the new tip and only evicts the transaction and its descendants if the freshly recalculated sequence locks fail.",
+ "uncertainties": []
+}

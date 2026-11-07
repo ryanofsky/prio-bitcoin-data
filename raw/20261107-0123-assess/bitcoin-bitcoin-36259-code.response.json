@@ -1,0 +1,41 @@
+{
+ "run": "run:20261107-0123-assess",
+ "pr": "bitcoin/bitcoin#36259",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-07T01:24:12+00:00",
+ "usage": {
+  "input_tokens": 6937,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1278
+ },
+ "cost_usd": 0.00999525,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Updates `HTTPRemoteClient::m_keep_alive` under `m_send_mutex` when appending replies rather than before acquiring the lock, and switches the field from `std::atomic_bool` to `bool GUARDED_BY(m_send_mutex)`. A unit test using a mock socket is added to deterministically exercise pipelined request handling.\",\n  \"problem\": \"Because `m_keep_alive` was set before acquiring the send buffer lock, an I/O thread draining a pipelined keep-alive response could observe an empty buffer alongside a freshly cleared keep-alive flag from a subsequent `Connection: close` request before that second response was actually queued. The I/O thread would then flag the connection for closure, dropping the queued second response.\",\n  \"evidence\": [\n    \"The author notes the bug is low-severity because the race window is narrow and `bitcoin-cli` does not pipeline requests (PR description).\",\n    \"A new unit test reproduces the bug deterministically, failing without the fix with `server.GetConnectionsCount() == 1 has failed [0 != 1]` when the client is prematurely disconnected with data remaining in its buffer (PR description).\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"No substantial changes to the approach; the patch ID changed slightly, likely due to a rebase or test adjustment.\",\n  \"card\": \"This PR moves the assignment of HTTPRemoteClient::m_keep_alive inside m_send_mutex and changes it from an atomic boolean to a mutex-guarded boolean. Previously, when a client pipelined a keep-alive request followed by a Connection: close request, a worker thread handling the second request cleared the keep-alive flag before acquiring the buffer lock. If the I/O thread finished sending the first reply in between, it saw an empty buffer and a cleared keep-alive flag, disconnecting the client and dropping the pending second response. The PR adds a unit test using a mock socket that deterministically triggers this race condition and fails without the fix.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"rpc_api\"],\n    \"why\": \"A synchronization or lifecycle bug in the HTTP server could stall or drop RPC connections and responses.\"\n  }\n}",
+ "result": {
+  "summary": "Updates `HTTPRemoteClient::m_keep_alive` under `m_send_mutex` when appending replies rather than before acquiring the lock, and switches the field from `std::atomic_bool` to `bool GUARDED_BY(m_send_mutex)`. A unit test using a mock socket is added to deterministically exercise pipelined request handling.",
+  "problem": "Because `m_keep_alive` was set before acquiring the send buffer lock, an I/O thread draining a pipelined keep-alive response could observe an empty buffer alongside a freshly cleared keep-alive flag from a subsequent `Connection: close` request before that second response was actually queued. The I/O thread would then flag the connection for closure, dropping the queued second response.",
+  "evidence": [
+   "The author notes the bug is low-severity because the race window is narrow and `bitcoin-cli` does not pipeline requests (PR description).",
+   "A new unit test reproduces the bug deterministically, failing without the fix with `server.GetConnectionsCount() == 1 has failed [0 != 1]` when the client is prematurely disconnected with data remaining in its buffer (PR description)."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No substantial changes to the approach; the patch ID changed slightly, likely due to a rebase or test adjustment.",
+  "card": "This PR moves the assignment of HTTPRemoteClient::m_keep_alive inside m_send_mutex and changes it from an atomic boolean to a mutex-guarded boolean. Previously, when a client pipelined a keep-alive request followed by a Connection: close request, a worker thread handling the second request cleared the keep-alive flag before acquiring the buffer lock. If the I/O thread finished sending the first reply in between, it saw an empty buffer and a cleared keep-alive flag, disconnecting the client and dropping the pending second response. The PR adds a unit test using a mock socket that deterministically triggers this race condition and fails without the fix.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "A synchronization or lifecycle bug in the HTTP server could stall or drop RPC connections and responses."
+  }
+ }
+}

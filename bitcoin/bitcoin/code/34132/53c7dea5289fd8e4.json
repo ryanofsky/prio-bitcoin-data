@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-07T01:23:44+00:00",
+ "card": "Makes LevelDB point-read and deserialization failures fatal inside CDBWrapper by logging the path and error, firing kernel fatal error notifications, and aborting. It also makes txindex consistency and block-file read failures fatal, eliminates the CCoinsViewErrorCatcher view layer, restricts HaveCoin to CCoinsViewCache, and marks coin view lookups noexcept. Previously, corrupt index reads or block-file read errors could fail single RPC queries while leaving a damaged node running, or mask corrupt UTXO entries as absent keys.",
+ "changed_since_previous": "Expanded scope to make txindex transaction lookup failures (including block-file read errors and consistency mismatches) fatal through BaseIndex fatal error reporting before aborting.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'A corrupt txindex point read can consequently fail one RPC while the node continues running. #35728 reports other txindex lookup failures as errors that callers can also catch while the node continues running.'",
+  "Commit 45ab8a7012: 'When a txindex point read encounters a corrupt LevelDB table, the RPC reports the error and the node continues running. CDBWrapper::Read() throws on a LevelDB failure without notifying the database owner and reports a corrupt value as a missing key.'"
+ ],
+ "head_sha": "adbe84eda622b51a3d331d2b7c8d6b24adaa97c5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34132,
+ "patch_id": "53c7dea5289fd8e4",
+ "problem": "Previously, CDBWrapper::Read() returned false on deserialization failures (masking corruption as missing keys) and threw LevelDB point-read exceptions that callers could catch, allowing corrupted index lookups to fail individual RPC requests while the node continued running with damaged storage. Additionally, chainstate required a dedicated CCoinsViewErrorCatcher view layer solely to intercept read errors.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "rpc_api",
+   "gui"
+  ],
+  "why": "A false-positive fatal error or unexpected exception escaping a noexcept coin-view lookup will immediately crash the node."
+ },
+ "run": "run:20261107-0123-assess",
+ "scope_notes": "Touches database wrappers across chainstate, block storage, and all secondary index subsystems (txindex, coinstatsindex, blockfilterindex, txospenderindex). Startup point-read failures will now abort rather than reaching the GUI's database rebuild prompt.",
+ "size": {
+  "additions": 361,
+  "deletions": 455,
+  "files": 36,
+  "test_lines": 306
+ },
+ "summary": "Makes LevelDB point-read and deserialization failures fatal directly inside CDBWrapper, notifying the owner's kernel notifications interface and aborting. Extends fatal failure handling to txindex consistency and block-file read errors during transaction lookups. Eliminates CCoinsViewErrorCatcher by connecting the coins cache directly to CCoinsViewDB, removes HaveCoin from the backing coin view, and marks coin view lookups noexcept.",
+ "uncertainties": []
+}

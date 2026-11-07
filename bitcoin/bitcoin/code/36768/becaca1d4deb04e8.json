@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-07T01:24:38+00:00",
+ "card": "Kernel applications deadlock if their log callback logs or destroys kernel objects, an issue frequently hit when language binding garbage collectors run finalizers inside callbacks. This PR switches kernel log callback dispatching to btcsignals so callbacks run lock-free, and switches btcsignals to StdMutex to prevent deadlocks from lock-debugging logs. This serves as an alternative to the single-connection approach attempted in #34775, though callbacks are now invoked concurrently across threads.",
+ "changed_since_previous": "Added a commit adding -Wno-error=maybe-uninitialized to i686 and Alpine musl CI jobs to work around a false positive GCC 15 compiler warning in test_kernel.cpp.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description notes that Python's garbage collector triggers this when finalizers destroy a chainstate manager, which flushes and logs (citing PR #34775 and PR #34374)",
+  "PR description states that the newly added test_kernel test cases hang without the fix"
+ ],
+ "head_sha": "a9f467e8dfeafc137cb2a565fd37d555e24e3136",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36768,
+ "patch_id": "becaca1d4deb04e8",
+ "problem": "Applications using libbitcoinkernel hang if their log callback logs or destroys an object that logs, such as when a garbage collector invokes finalizers during a callback. This occurs because the kernel called callbacks while holding the logger mutex, blocking any re-entrant logging from the same thread.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "other"
+  ],
+  "why": "A flaw in btcsignals locking or connection lifecycle management could cause deadlocks, race conditions, or memory leaks for users of libbitcoinkernel or btcsignals."
+ },
+ "run": "run:20261107-0123-assess",
+ "scope_notes": "Behavioral change for the C API: log callbacks are no longer serialized across threads and must be thread-safe; destroying a connection no longer blocks waiting for callbacks executing on other threads to finish.",
+ "size": {
+  "additions": 277,
+  "deletions": 97,
+  "files": 8,
+  "test_lines": 209
+ },
+ "summary": "Dispatches libbitcoinkernel log callbacks via btcsignals::signal so they execute without holding the logger mutex. Also switches btcsignals to use StdMutex to prevent recursive deadlocks when lock-debugging checks attempt to log, and updates kernel logging documentation and tests.",
+ "uncertainties": []
+}

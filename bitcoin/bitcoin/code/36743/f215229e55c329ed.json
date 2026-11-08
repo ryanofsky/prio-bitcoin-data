@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-11-08T01:33:59+00:00",
+ "card": "Adds -Wmissing-prototypes and -Wmissing-declarations compiler flags in CMake and resolves the resulting warnings across 159 files. The PR primarily marks translation-unit-local functions as static, fixes divergent declarations, and prunes dead prototypes. Evidence shows these flags catch silent signature divergence (such as AddInputs taking an unexpected parameter type in its definition versus its declaration). The PR is an RFC draft requiring upstream fixes in LevelDB and crc32c subtrees.",
+ "changed_since_previous": "Rebased following the merge of base PR #36744, with minor adjustments across the affected translation units.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36744"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 2021d6f97f reveals an undetected prototype mismatch: 'The header declared AddInputs(..., bool rbf), which was never defined, while the definition takes std::optional<bool> and has no declaration.'",
+  "Commit e9fac46b70 notes a cross-unit prototype drift: 'ForceActivation... was declared locally in guiutil.cpp, so the definition was never checked against the declaration.'",
+  "Commits 35ec0bcdd7 and cd28d2847d identify dead declarations (e.g., BanTableModel auto-refresh and RPCResult helpers) left behind after definitions were removed."
+ ],
+ "head_sha": "db799ef2feb5dbf79c1a97fae20b8e35b223adf5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36743,
+ "patch_id": "f215229e55c329ed",
+ "problem": "Functions defined with external linkage without a prior declaration in a header pollute symbol tables and allow definitions to silently diverge from their intended header prototypes without compiler detection. Developers also have no automated check to catch obsolete, dangling function declarations when definitions are deleted or renamed.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "build",
+   "tests",
+   "other"
+  ],
+  "why": "Incorrectly marking a function static or modifying declarations would cause compile-time or link-time failures rather than silent runtime consensus or data corruption."
+ },
+ "run": "run:20261108-0133-assess",
+ "scope_notes": "Very wide mechanical diff spanning 159 files across the entire codebase, including fuzz targets, unit tests, Qt, RPC, and wallet modules. It includes `[nomerge]` placeholder commits for vendored third-party subtrees (`src/leveldb` and `src/crc32c`) that require upstream fixes before this can be merged.",
+ "size": {
+  "additions": 369,
+  "deletions": 394,
+  "files": 159,
+  "test_lines": 255
+ },
+ "summary": "Enables `-Wmissing-prototypes` (Clang) and `-Wmissing-declarations` (GCC) compiler warning flags in the CMake build system. To satisfy the warnings, it assigns internal linkage (`static`) to translation-unit-local functions and test helpers across the codebase, corrects mismatched or missing header declarations, removes orphaned declarations, and includes placeholder patches for external subtrees (LevelDB and crc32c).",
+ "uncertainties": []
+}

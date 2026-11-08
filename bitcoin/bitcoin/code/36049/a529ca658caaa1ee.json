@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-08T01:33:43+00:00",
+ "card": "Prevents bitcoind from abruptly crashing via std::terminate when block or undo writes fail due to storage errors such as a full disk. BlockManager now explicitly flushes buffered writers inside try-catch blocks to route write errors through standard node fatal-error shutdown, while BufferedWriter clears its pending byte offset before writing so the destructor does not trigger a second write failure during stack unwinding. The author observed repeated crash terminations on full 1 TB benchmark disks and provided a reproducer demonstrating that write failures now exit cleanly instead of aborting.",
+ "changed_since_previous": "No functional changes to the implementation; includes test structure adjustments and co-authorship attribution.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "The author notes: \"my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often\" (PR description)",
+  "PR description provides a reproduction script demonstrating bitcoind aborting on short write without the fix, and cleanly logging 'Failed to write genesis block' and exiting with status 1 with the fix"
+ ],
+ "head_sha": "6e17d090d18dbf1686b713bc285761a3aa042663",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36049,
+ "patch_id": "a529ca658caaa1ee",
+ "problem": "When block or undo writes fail due to disk issues (such as a full filesystem), `AutoFile::write_buffer()` throws an exception. Because `BufferedWriter` relies on its destructor to flush pending bytes and C++ destructors are implicitly `noexcept`, write failures cause `std::terminate` to abort the process without clean error reporting. Simply calling `flush()` before destruction was previously unsafe because a failed flush left pending bytes in the buffer, causing the destructor to throw a second exception during stack unwinding.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "Modifies block and undo serialization error handling in node storage; improper error handling could silently fail to persist blocks or bypass fatal shutdown on disk errors."
+ },
+ "run": "run:20261108-0133-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 55,
+  "deletions": 5,
+  "files": 3,
+  "test_lines": 36
+ },
+ "summary": "Resets the pending byte count before calling the underlying write in `BufferedWriter::flush()` to avoid re-attempting writes during exception unwinding. Explicitly flushes the buffered writers in `BlockManager::WriteBlock` and `BlockManager::WriteBlockUndo` inside try-catch blocks so disk write failures trigger normal storage error handling and clean node shutdown rather than terminating the process.",
+ "uncertainties": []
+}

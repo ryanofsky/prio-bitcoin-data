@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-08T01:33:40+00:00",
+ "card": "Validates outbound message types and payload sizes in CConnman::PushMessage() before queuing, asserting in debug builds and dropping oversized messages in release builds. Exceeding the 12-byte type limit previously caused V1 transport encoding to abort and V2 encoding to truncate message types or write past its buffer, while exceeding the 4 MB payload limit caused peer disconnections. The sendmsgtopeer RPC now returns an RPC error when payloads exceed 4 MB. It has no PR dependencies.",
+ "changed_since_previous": "The core approach and behavior are unchanged from the previous version.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'An oversized type aborts V1 encoding. V2 sends it under a truncated type with its payload intact, or writes past its encoding buffer when the payload is shorter than the excess type bytes.'",
+  "Commit 83a59975cf: 'V1 aborts on a longer type, while V2 sends a truncated type with the payload intact or writes past its encoding buffer when the payload is shorter than the excess type bytes.'",
+  "Commit f1d99d94db: 'Nonstandard test-chain configurations can still admit transactions above this limit. Relaying them fails the assumption in debug builds.'"
+ ],
+ "head_sha": "f1d99d94db5a9809e7841c6068d5721c155c7c34",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35888,
+ "patch_id": "fffc2fcc861a90b6",
+ "problem": "P2P transports enforce a 12-byte wire field for message types and a 4 MB payload limit, but CConnman did not enforce these before queuing outbound messages. An oversized type caused V1 transport encoding to abort and V2 transport to either truncate the type or write past its encoding buffer, while oversized payloads via sendmsgtopeer caused peers to disconnect.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api"
+  ],
+  "why": "Incorrectly dropping outbound messages in CConnman could silently disrupt peer communication or network relay."
+ },
+ "run": "run:20261108-0133-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 79,
+  "deletions": 13,
+  "files": 7,
+  "test_lines": 72
+ },
+ "summary": "Validates outbound message types and payload sizes in CConnman::PushMessage() before queuing them for transport, logging and dropping violations in release builds and failing an Assume in debug and fuzz builds. Updates the sendmsgtopeer RPC to reject payloads exceeding the 4 MB limit with an RPC error. Constrains fuzz harnesses to respect outbound message limits and adds unit tests covering maximum valid and oversized messages.",
+ "uncertainties": []
+}

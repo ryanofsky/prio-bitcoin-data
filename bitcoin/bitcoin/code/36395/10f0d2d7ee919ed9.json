@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-09T01:19:43+00:00",
+ "card": "Switches signature-cache key derivation to native HashWriter serialization, prepending CompactSize lengths to ECDSA public keys and signatures to ensure unambiguous key boundaries. The change addresses implicit input assumptions where cache keys hashed raw concatenated byte spans without length framing, a pattern inspired by a vulnerability in Elements' rangeproof cache during the Liquid security incident. Cache digests are now returned by value, ECDSA retains single-block salt padding while Schnorr padding is dropped, and deterministic cache testing is enabled via a nonce-taking constructor. The cache is process-local and consensus rules are unchanged, but any flaw in signature cache hashing directly impacts script verification.",
+ "changed_since_previous": "Retains the 31 zero bytes of salt padding for ECDSA to precompress the first SHA256 block once during construction, while dropping salt padding only for Schnorr.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description cites the Elements rangeproof-cache vulnerability: 'Inspired by the Elements rangeproof-cache vulnerability behind the recent Liquid incident and the subsequent cache-key fix, this change clarifies an easy-to-misread hashing pattern: Write(data, size) hashes the data bytes without encoding the size.'",
+  "PR description acknowledges Bitcoin Core is not currently vulnerable under existing script validation rules: 'Bitcoin Core's signature-cache encoding is unambiguous for inputs accepted by its current script checker: a valid ECDSA public key's prefix determines its length, while a Schnorr public key is always 32 bytes, leaving the signature as the remaining suffix.'"
+ ],
+ "head_sha": "a7c23f42784275c75a9654b0d3529b9e98bc3b9c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36395,
+ "patch_id": "10f0d2d7ee919ed9",
+ "problem": "Signature-cache key generation previously concatenated raw byte buffers without length prefixes, relying on implicit assumptions: valid ECDSA public key headers determine key length and Schnorr inputs are fixed sizes. While unambiguous under current script validation rules, raw byte stream concatenation without length framing is fragile and mirrors the pattern behind an exploit in the Elements rangeproof cache during the Liquid security incident.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "validation"
+  ],
+  "why": "A hashing bug or collision flaw in the signature cache could cause invalid signatures to falsely verify as valid, risking node desynchronization or accepting invalid transactions."
+ },
+ "run": "run:20261109-0119-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 172,
+  "deletions": 56,
+  "files": 6,
+  "test_lines": 169
+ },
+ "summary": "Switches signature-cache key hashing to native HashWriter serialization so ECDSA public keys and signatures include CompactSize length prefixes. Precomputes immutable salted hasher prefixes, retaining 31 zero bytes of salt padding for ECDSA to compress the initial SHA256 block once while dropping padding for Schnorr. Changes ComputeEntry methods to return digests by value, adds an explicit nonce constructor for deterministic testing, and expands unit and fuzz tests comparing cached against uncached verification.",
+ "uncertainties": []
+}

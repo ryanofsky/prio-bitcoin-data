@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-09T01:19:47+00:00",
+ "card": "This pull request adds `btck_chainstate_manager_set_clock_time` and `btck_chainstate_manager_options_set_clock_time`, allowing kernel library consumers and tests to set validation time per `ChainstateManager` instance rather than globally. Validation time checks (header future-time checks, IBD status, and progress reporting) now call `ChainstateManager::Now()` instead of reading `NodeClock::now()` directly. This isolates concurrent chainstate managers from global clock modifications and fixes an intermittent test race across second boundaries. It has no open PR dependencies.",
+ "changed_since_previous": "Dropped two commits from the previous revision (a mempool time representation refactor and link-time exclusion of `NodeClock::now()` from `libbitcoinkernel`, moved to a follow-up branch). Added `btck_chainstate_manager_options_set_clock_time` and adapted the `utxo_total_supply` fuzz target to use the per-chainman clock.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"Kernel applications can only override the time validation uses for the whole process, with btck_set_mock_time (#35496). Every chainstate manager in the process sees the same time, so a time set for one test, run, or thread leaks into the others unless the application remembers to reset it.\"",
+  "Commit 79c304eacd: \"The test set up the tip time using Now<NodeSeconds>() and then called UpdateIBDStatus(), which calls IsTipRecent(), which also calls Now<NodeSeconds>(). If a second boundary was crossed between the two calls, the tip_recent=true case would fail spuriously.\""
+ ],
+ "head_sha": "2f6b902f980af4f9dcf885c6fc4a5eb6a2abb1ad",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35557,
+ "patch_id": "7df16f8ed281ca5e",
+ "problem": "Kernel callers could only manipulate validation time through process-global mock time, leaking time overrides across concurrent instances or test cases unless manually reset. Reading system time separately during test setup and validation checks also caused intermittent test failures across second boundaries in `chainstatemanager_ibd_exit_after_loading_blocks`.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation",
+   "tests"
+  ],
+  "why": "A mistake in `ChainstateManager::Now()` or its callers could alter block header timestamp checks (`MAX_FUTURE_BLOCK_TIME`), rejecting valid blocks or accepting invalid future blocks and causing chain splits."
+ },
+ "run": "run:20261109-0119-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 209,
+  "deletions": 19,
+  "files": 11,
+  "test_lines": 86
+ },
+ "summary": "Scopes validation time checks to `ChainstateManager` by adding `ChainstateManager::Now()` and an atomic per-instance time override. Exposes this capability in the kernel C API and C++ wrapper via `btck_chainstate_manager_options_set_clock_time` and `btck_chainstate_manager_set_clock_time`. Updates block header future-time validation, IBD latching, header synchronization logging, verification progress, and startup sanity checks to use this instance clock instead of global `NodeClock::now()`.",
+ "uncertainties": []
+}

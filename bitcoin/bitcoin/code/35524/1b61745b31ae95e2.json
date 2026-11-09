@@ -1,0 +1,37 @@
+{
+ "assessed_at": "2026-11-09T01:19:42+00:00",
+ "card": "Avoids silent destruction of block data on platforms without native `posix_fallocate` (*BSD, OmniOS) when the block index is missing or corrupted. `LoadGenesisBlock()` now checks for an existing genesis block in `blk00000.dat` and updates block file metadata rather than unconditionally rewriting it from position zero. This prevents the zero-filling file allocation fallback from overwriting subsequent blocks in the file, fixing issue #33128.",
+ "changed_since_previous": "Dropped changes to `AllocateFileRange` for Windows and the zero-fill fallback, narrowing the PR strictly to checking for an existing genesis block in `LoadGenesisBlock()` in `src/validation.cpp`.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Addresses issue #33128 ('*BSD, OmniOS: `-reindex` is broken'), where startup after index loss silently overwrote existing blocks and resulted in `getblockcount` returning 0."
+ ],
+ "head_sha": "40216397d7684a7cd2aed5c60cd320dbd229aa48",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35524,
+ "patch_id": "1b61745b31ae95e2",
+ "problem": "When the block index database is missing but block files exist, startup unconditionally rewrites the genesis block. On platforms without `posix_fallocate()` (such as OpenBSD, NetBSD, and OmniOS), the zero-fill fallback in `AllocateFileRange()` overwrites blocks following genesis with zeroes, destroying block data and causing a subsequent reindex to stall at block height 0.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "A flaw in calculating or updating block file positions during genesis initialization could cause new blocks to overwrite existing chain data or fail node startup."
+ },
+ "run": "run:20261109-0119-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 17,
+  "deletions": 4,
+  "files": 1,
+  "test_lines": 0
+ },
+ "summary": "Prevents `ChainstateManager::LoadGenesisBlock()` from rewriting the genesis block to `blk00000.dat` on startup if it is already present on disk. When the block index is missing or deleted, the node now checks for and reads the existing genesis block and updates block file info instead of allocating and writing over existing data.",
+ "uncertainties": []
+}

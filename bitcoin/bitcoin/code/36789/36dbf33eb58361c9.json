@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-10T01:23:37+00:00",
+ "card": "TxIndex::FindTx now checks the LevelDB iterator status after scanning candidates, throwing a dbwrapper_error if an underlying database failure or corruption occurred. Previously, iterator read failures caused the loop to terminate as if it had reached the end of the index, masking database errors as missing transactions. The author verified the issue by corrupting a test txindex database, showing that FindTx returned nullopt instead of raising an error. This follows up merged PR 35728, which addressed I/O error handling in GetTransaction.",
+ "changed_since_previous": "No functional changes to the implementation; the commit was rebased or updated with an explanatory comment above the `CheckStatus()` call.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'I first confirmed that a transaction could be retrieved, then deliberately damaged part of the test\u2019s temporary txindex database. LevelDB detected the corruption, but the same lookup returned nullopt instead of throwing. Restoring the original data made the lookup work again.'",
+  "Follows up merged PR #35728 ('rpc: Properly throw on internal I/O errors in GetTransaction')."
+ ],
+ "head_sha": "d267ec7786aac5b516046e3aebb8007a228b33cc",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36789,
+ "patch_id": "36dbf33eb58361c9",
+ "problem": "In LevelDB, an iterator becomes invalid both when it reaches the end of an index scan and when it encounters an internal database read or corruption error. Because `TxIndex::FindTx()` only checked whether the iterator was valid, database errors during index lookups were silently masked and treated as though the transaction simply did not exist.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "other"
+  ],
+  "why": "A mistake in error handling here could throw unexpected dbwrapper_error exceptions on benign lookups or fail to report real database corruption to callers of TxIndex."
+ },
+ "run": "run:20261110-0123-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 6,
+  "deletions": 0,
+  "files": 3,
+  "test_lines": 0
+ },
+ "summary": "Adds a `CheckStatus()` method to `CDBIterator` and calls it after scanning transaction candidates in `TxIndex::FindTx()`. If the underlying database iterator stopped due to a read failure or database corruption rather than reaching the end of the key range, `HandleError()` throws a `dbwrapper_error`. Normal missing transactions continue to return `std::nullopt`.",
+ "uncertainties": []
+}

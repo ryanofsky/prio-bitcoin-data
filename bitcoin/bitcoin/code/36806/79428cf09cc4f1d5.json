@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-10T01:23:40+00:00",
+ "card": "Optimizes four per-transaction validation checks during block connection and transaction verification: replaces the std::set duplicate-input check with a pairwise scan for small transactions and std::sort for large ones, avoids median-time-past calculation when no time-based sequence lock applies, skips sequence-lock coin lookups when BIP68 is not enforced or active, and merges P2SH and witness sigop counting loops. The author reports a 1.2x to 3.1x microbenchmark speedup on duplicate-input checks and a 2.5-minute (~1%) reduction during chainstate reindex up to block 974,000. All four optimizations touch consensus-critical validation paths.",
+ "changed_since_previous": "Now includes complete diff with comprehensive unit test coverage in sigopcount_tests.cpp and transaction_tests.cpp.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author microbenchmarks duplicate input checks on an 8-core machine showing a 1.26x to 3.13x speedup for 1 to 96 inputs (e.g., 248.71 ns reduced to 79.39 ns at 16 inputs).",
+  "Author reindex benchmark (`bitcoind --reindex-chainstate` to block 974,000 on a 6-core machine) reports a completion time reduction from 4h 14m 25s down to 4h 11m 58s (a speedup of 2 minutes 27 seconds, or roughly 1%)."
+ ],
+ "head_sha": "4864648b5f26868e507b5f4b66c76ec01b3292e5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36806,
+ "patch_id": "79428cf09cc4f1d5",
+ "problem": "Block connection and transaction validation perform redundant work on every transaction, including heap allocations for duplicate-input sets, median-time-past chain walks for transactions without relative locktimes, coin lookups for relative lock heights when locks are disabled or unenforced, and duplicate coin cache lookups when calculating sigop costs.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "A flaw in duplicate-input detection, sequence lock evaluation, or sigop cost calculation could cause nodes to accept invalid transactions/blocks or reject valid ones, creating a consensus fork."
+ },
+ "run": "run:20261110-0123-assess",
+ "scope_notes": "Touches consensus and validation code across CheckTransaction, SequenceLocks, and GetTransactionSigOpCost, alongside 392 lines of new unit tests covering edge cases.",
+ "size": {
+  "additions": 452,
+  "deletions": 14,
+  "files": 5,
+  "test_lines": 392
+ },
+ "summary": "Optimizes four per-transaction validation steps across transaction check and block connection. It replaces `std::set` in `CheckTransaction` with a pairwise scan for transactions with up to 96 inputs (and `std::sort` for larger ones), bypasses previous block median time past calculation in `EvaluateSequenceLocks` when no time-based relative lock applies, skips coin lookups for sequence locks in `ConnectBlock` when BIP68 is not enforced or not active on a transaction, and combines P2SH and witness sigop counting passes in `GetTransactionSigOpCost` to avoid duplicate coin cache lookups.",
+ "uncertainties": []
+}

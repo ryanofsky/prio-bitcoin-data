@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-11T01:24:07+00:00",
+ "card": "Prevents bitcoind from crashing via unhandled std::terminate when block or undo writes fail due to disk storage errors like a full filesystem. BufferedWriter::flush() is made noexcept, resets its pending byte count before writing to avoid retrying on destruction, logs write errors, and returns a boolean status. Block and undo writers in BlockManager now explicitly flush before destruction rather than relying on destructor flushes. The author encountered repeated std::terminate crashes on full 1 TB benchmark disks, tracing the regression to #31551.",
+ "changed_since_previous": "Switched from propagating write exceptions to making `BufferedWriter::flush()` non-throwing (`noexcept`), logging write exceptions, and returning a boolean status. Rather than catching exceptions in block storage to trigger a clean fatal shutdown, `BlockManager` now calls `Assert(fileout.flush())`, and `BufferedWriter` uses `Assume` in its destructor to require prior explicit flushes.",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author description: \"`fwrite()` can report fewer bytes written than requested after a local storage error, e.g., if the filesystem fills up while a block is being written (my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often).\"",
+  "Author description: \"I introduced this bug in #31551 when adding `BufferedWriter`.\"",
+  "Author description provides a manual sed-based reproducer showing `std::terminate` on write error before the patch."
+ ],
+ "head_sha": "74c1322aee3844e043bce4474e956631a20df7ff",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36049,
+ "patch_id": "95a8fdde55a4dede",
+ "problem": "When disk writes fail (such as on a full filesystem), `AutoFile::write_buffer()` throws an exception. Because `BufferedWriter` historically relied on its implicitly non-throwing destructor to flush remaining bytes, any write failure during destruction triggered `std::terminate` and crashed the node without clean diagnostic logging. Attempting to flush before destruction was also unsafe because failed flushes left pending bytes in the buffer, causing the destructor to retry writing and throw again during stack unwinding.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "other"
+  ],
+  "why": "Flaws in buffer accounting or premature assertion failures in stream flushing could corrupt or truncate block and undo files on disk."
+ },
+ "run": "run:20261111-0123-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 43,
+  "deletions": 6,
+  "files": 3,
+  "test_lines": 21
+ },
+ "summary": "Makes `BufferedWriter::flush()` non-throwing by catching stream write exceptions, logging them with `LogError`, and returning a boolean. Clears pending buffer bytes before invoking the underlying stream write to prevent retries after a failure, and uses `Assume` in the destructor to ensure writers were flushed explicitly. Adds explicit `Assert(fileout.flush())` calls to block and undo writer scopes in `BlockManager` before the writer object is destroyed.",
+ "uncertainties": [
+  "The PR description states that block and undo writers catch write errors and request normal fatal shutdown, but the diff in blockstorage.cpp uses Assert(fileout.flush()), which aborts rather than initiating normal shutdown."
+ ]
+}

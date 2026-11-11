@@ -1,0 +1,44 @@
+{
+ "run": "run:20261111-0123-assess",
+ "pr": "bitcoin/bitcoin#36548",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-11T01:23:51+00:00",
+ "usage": {
+  "input_tokens": 14772,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1404
+ },
+ "cost_usd": 0.016344,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Optimizes serving disk-backed `MSG_BLOCK` P2P requests by stripping witness data in place from the raw block byte buffer instead of deserializing full `CBlock` structures and reserializing them. It extracts a shared `UnserializeTransactionBody` helper in `primitives/transaction.h` to ensure identical parsing rules when skipping fields without allocating transactions or recalculating transaction hashes. Proof-of-work and block hash checks are verified on the raw header prior to stripping, while Signet keeps its existing deserialization path for solution checks.\",\n  \"problem\": \"Serving `MSG_BLOCK` requests (legacy clients and proposed witness-skipping IBD) currently decodes the full block and its transactions into memory and reserializes them to remove witness fields. This incurs heavy heap allocation and recomputation of transaction hashes that `MSG_WITNESS_BLOCK` avoids by streaming raw bytes directly from disk.\",\n  \"evidence\": [\n    \"Author's benchmark in PR description: block reading and payload construction falls from 1.31 ms to 0.147 ms (8.9x speedup) for witness-free blocks and from 3.47 ms to 0.374 ms (9.3x speedup) for blocks with synthetic witnesses.\",\n    \"Issue #36476 notes that pruneassumevalid requires efficient witness-free block serving from peers to avoid download bottlenecks during pruned assumevalid IBD.\",\n    \"PR description notes this addresses transaction rehashing overhead identified in issue #13011 and closed PR #13098, following the raw block serving precedent from #13151.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#36476\"\n    ]\n  },\n  \"scope_notes\": \"Refactors core transaction deserialization in primitives/transaction.h into a template body parser to share parsing logic with SpanReader-based byte skipping. The block manipulation uses memmove over an owned buffer to strip witness fields without intermediate copies.\",\n  \"changed_since_previous\": \"No structural changes to the approach or commit architecture; the PR maintains the in-place stripping design and transaction decoder extraction.\",\n  \"card\": \"Optimizes disk-backed MSG_BLOCK P2P responses by reading raw block bytes from disk and stripping witness data in place rather than fully deserializing into CBlock objects and reserializing. This eliminates heap allocations and transaction rehashing when serving blocks to legacy peers or clients doing witnessless synchronization. Benchmarks show an 8.9x to 9.3x speedup in block read and message construction time. Efficient non-witness block serving is also a prerequisite for the witnessless assumevalid IBD proposal in issue #36476.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"p2p\"],\n    \"why\": \"A parsing error or serialization discrepancy when stripping witness data in place could serve malformed block payloads to peers, causing them to reject blocks or disconnect.\"\n  }\n}",
+ "result": {
+  "summary": "Optimizes serving disk-backed `MSG_BLOCK` P2P requests by stripping witness data in place from the raw block byte buffer instead of deserializing full `CBlock` structures and reserializing them. It extracts a shared `UnserializeTransactionBody` helper in `primitives/transaction.h` to ensure identical parsing rules when skipping fields without allocating transactions or recalculating transaction hashes. Proof-of-work and block hash checks are verified on the raw header prior to stripping, while Signet keeps its existing deserialization path for solution checks.",
+  "problem": "Serving `MSG_BLOCK` requests (legacy clients and proposed witness-skipping IBD) currently decodes the full block and its transactions into memory and reserializes them to remove witness fields. This incurs heavy heap allocation and recomputation of transaction hashes that `MSG_WITNESS_BLOCK` avoids by streaming raw bytes directly from disk.",
+  "evidence": [
+   "Author's benchmark in PR description: block reading and payload construction falls from 1.31 ms to 0.147 ms (8.9x speedup) for witness-free blocks and from 3.47 ms to 0.374 ms (9.3x speedup) for blocks with synthetic witnesses.",
+   "Issue #36476 notes that pruneassumevalid requires efficient witness-free block serving from peers to avoid download bottlenecks during pruned assumevalid IBD.",
+   "PR description notes this addresses transaction rehashing overhead identified in issue #13011 and closed PR #13098, following the raw block serving precedent from #13151."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36476"
+   ]
+  },
+  "scope_notes": "Refactors core transaction deserialization in primitives/transaction.h into a template body parser to share parsing logic with SpanReader-based byte skipping. The block manipulation uses memmove over an owned buffer to strip witness fields without intermediate copies.",
+  "changed_since_previous": "No structural changes to the approach or commit architecture; the PR maintains the in-place stripping design and transaction decoder extraction.",
+  "card": "Optimizes disk-backed MSG_BLOCK P2P responses by reading raw block bytes from disk and stripping witness data in place rather than fully deserializing into CBlock objects and reserializing. This eliminates heap allocations and transaction rehashing when serving blocks to legacy peers or clients doing witnessless synchronization. Benchmarks show an 8.9x to 9.3x speedup in block read and message construction time. Efficient non-witness block serving is also a prerequisite for the witnessless assumevalid IBD proposal in issue #36476.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A parsing error or serialization discrepancy when stripping witness data in place could serve malformed block payloads to peers, causing them to reject blocks or disconnect."
+  }
+ }
+}

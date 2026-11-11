@@ -1,0 +1,42 @@
+{
+ "run": "run:20261111-0123-assess",
+ "pr": "bitcoin/bitcoin#36821",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-11T01:24:25+00:00",
+ "usage": {
+  "input_tokens": 11533,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2247
+ },
+ "cost_usd": 0.017076,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Makes legacy BDB to SQLite wallet migration handle failures gracefully instead of aborting on assertions. MakeSQLiteDatabase is updated to track and clean up files and directories created during an unsuccessful open or verify attempt. MigrateToSQLite now stages records into a temporary database inside a migration directory, swapping the new database into place and deleting the legacy database only after all records are committed.\",\n  \"problem\": \"When migrating a BDB wallet to SQLite, MigrateToSQLite deletes the existing wallet file before creating the new SQLite database and calls assert on database creation and record commits. If database creation fails\u2014such as on CIFS/SMB or NFS mounts that do not support SQLite file locking, or due to insufficient disk space or permission errors\u2014the node crashes with an assertion failure and leaves behind an empty wallet file.\",\n  \"evidence\": [\n    \"PR description reports a node abort (Assertion 'new_db' failed) when attempting to migrate a wallet on a CIFS mount where fcntl F_SETLK fails with EACCES\",\n    \"Diff in src/wallet/wallet.cpp removes assert(new_db), assert(began), and assert(committed) in MigrateToSQLite and replaces them with transactional rollback, cleanup, and user-facing error messages\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Prevents Bitcoin Core from crashing when SQLite database creation fails during legacy BDB wallet migration. Currently, MigrateToSQLite deletes the original BDB wallet file upfront and asserts that SQLite creation and record writing succeed, which aborts the daemon on network mounts (such as CIFS/NFS lacking file locking), full disks, or permission errors. The change stages the new SQLite database in a temporary directory, cleans up failed attempts, and swaps it in only after records are successfully committed, keeping the original wallet file intact on error.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"wallet\",\n      \"wallet_storage\"\n    ],\n    \"why\": \"A flaw in the file move, rename, or cleanup logic during wallet migration could result in wallet data loss or leave the wallet database corrupted.\"\n  }\n}",
+ "result": {
+  "summary": "Makes legacy BDB to SQLite wallet migration handle failures gracefully instead of aborting on assertions. MakeSQLiteDatabase is updated to track and clean up files and directories created during an unsuccessful open or verify attempt. MigrateToSQLite now stages records into a temporary database inside a migration directory, swapping the new database into place and deleting the legacy database only after all records are committed.",
+  "problem": "When migrating a BDB wallet to SQLite, MigrateToSQLite deletes the existing wallet file before creating the new SQLite database and calls assert on database creation and record commits. If database creation fails\u2014such as on CIFS/SMB or NFS mounts that do not support SQLite file locking, or due to insufficient disk space or permission errors\u2014the node crashes with an assertion failure and leaves behind an empty wallet file.",
+  "evidence": [
+   "PR description reports a node abort (Assertion 'new_db' failed) when attempting to migrate a wallet on a CIFS mount where fcntl F_SETLK fails with EACCES",
+   "Diff in src/wallet/wallet.cpp removes assert(new_db), assert(began), and assert(committed) in MigrateToSQLite and replaces them with transactional rollback, cleanup, and user-facing error messages"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "",
+  "card": "Prevents Bitcoin Core from crashing when SQLite database creation fails during legacy BDB wallet migration. Currently, MigrateToSQLite deletes the original BDB wallet file upfront and asserts that SQLite creation and record writing succeed, which aborts the daemon on network mounts (such as CIFS/NFS lacking file locking), full disks, or permission errors. The change stages the new SQLite database in a temporary directory, cleans up failed attempts, and swaps it in only after records are successfully committed, keeping the original wallet file intact on error.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "wallet",
+    "wallet_storage"
+   ],
+   "why": "A flaw in the file move, rename, or cleanup logic during wallet migration could result in wallet data loss or leave the wallet database corrupted."
+  }
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-11T01:23:51+00:00",
+ "card": "This PR requires that bitcoind's default IPv4 loopback bind succeeds during HTTP server initialization, while keeping the default IPv6 bind optional, and requires all explicitly configured -rpcbind addresses to succeed. If another local process squats on the default IPv4 port, bitcoind previously started on IPv6 and generated an auth cookie, which bitcoin-cli would then transmit in plaintext to the squatting process. Node operators with IPv6-only environments will now need to specify their endpoints explicitly via -rpcbind. A functional test demonstrates credential capture before the fix and confirms nodes fail closed afterwards.",
+ "changed_since_previous": "Address resolution was moved into GetBindAddresses, duplicate bind endpoints are now explicitly ignored, and tests were adjusted to remove a failing bind address on macOS.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"When bitcoind starts and the HTTP IPv4 listen address is occupied by another process, but the IPv6 address is available, the server fails open and generates a cookie file. When bitcoin-cli runs it picks up the cookie file and sends the credentials in plain text to the non-bitcoind process running on the default IPv4 port. An attacker can then use the credentials to commandeer bitcoind over IPv6.\"",
+  "Commit 1e5767518a: \"When any RPC bind succeeds, initialization ignores every other endpoint failure. A process that already owns the default IPv4 port can therefore receive bitcoin-cli credentials while the node continues on IPv6.\""
+ ],
+ "head_sha": "1e5767518ac5e1b760401deeb353cf02743c85ce",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36187,
+ "patch_id": "156f56f6aa5076b0",
+ "problem": "Previously, if another process occupied the default IPv4 port, bitcoind would still start successfully as long as IPv6 bound. It would write the RPC auth cookie to disk, but default invocations of bitcoin-cli connect to IPv4, transmitting the auth cookie credentials in plaintext to the foreign process and allowing a local attacker on another user account to hijack the node over IPv6.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "Nodes running in environments lacking an active IPv4 loopback interface will now fail to start unless operators explicitly specify -rpcbind."
+ },
+ "run": "run:20261111-0123-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 134,
+  "deletions": 30,
+  "files": 3,
+  "test_lines": 74
+ },
+ "summary": "HTTP server initialization now requires the default IPv4 loopback endpoint (127.0.0.1) to bind successfully, while leaving the default IPv6 loopback bind optional. In addition, when endpoints are explicitly provided via `-rpcbind`, all must succeed or initialization fails closed. Duplicate bind addresses are deduplicated, and address lookup is performed upfront during bind-address collection.",
+ "uncertainties": []
+}

@@ -1,0 +1,41 @@
+{
+ "run": "run:20261111-0123-assess",
+ "pr": "bitcoin/bitcoin#36812",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-11T01:24:11+00:00",
+ "usage": {
+  "input_tokens": 8497,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1581
+ },
+ "cost_usd": 0.0123015,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Optimizes CHKDF_HMAC_SHA256_L32 by precomputing and storing the CHMAC_SHA256 state upon initialization rather than reinitializing HMAC on every expansion. Expansions copy the prepared HMAC state, avoiding repeated SHA-256 compressions over HMAC key pads. It also updates the HKDF API to use byte spans and enforce a compile-time fixed-size 32-byte output buffer.\",\n  \"problem\": \"BIP324 v2 transport setup derives six values from a single HKDF context using the same secret. Each expansion was reinitializing HMAC from scratch with the pseudorandom key, executing two redundant SHA-256 block compressions each time. In addition, the previous array parameter decayed to a pointer, leaving room for buffer size mismatches.\",\n  \"evidence\": [\n    \"Author benchmark BIP324_HKDF shows throughput increasing from 1,430,064 to 1,724,373 ops/s (+20.6%)\",\n    \"Commit 80130b90e2 notes saving ten SHA-256 compressions across BIP324's six expansions while keeping derived output bytes identical\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Modifies internal cryptographic primitives and updates call sites to use std::span.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"This PR optimizes HKDF expansion in CHKDF_HMAC_SHA256_L32 by caching the initialized CHMAC_SHA256 state and copying it on each expansion rather than rehashing the key pads. For BIP324 encrypted connection handshakes, which perform six expansions per session, this eliminates ten SHA-256 compressions, yielding a reported 20.6% throughput improvement in the HKDF microbenchmark. It also updates the API to enforce a fixed-size 32-byte output span at compile time.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"p2p\"],\n    \"why\": \"A flaw in HKDF key derivation would produce incorrect session keys and break BIP324 P2P connection handshakes.\"\n  }\n}",
+ "result": {
+  "summary": "Optimizes CHKDF_HMAC_SHA256_L32 by precomputing and storing the CHMAC_SHA256 state upon initialization rather than reinitializing HMAC on every expansion. Expansions copy the prepared HMAC state, avoiding repeated SHA-256 compressions over HMAC key pads. It also updates the HKDF API to use byte spans and enforce a compile-time fixed-size 32-byte output buffer.",
+  "problem": "BIP324 v2 transport setup derives six values from a single HKDF context using the same secret. Each expansion was reinitializing HMAC from scratch with the pseudorandom key, executing two redundant SHA-256 block compressions each time. In addition, the previous array parameter decayed to a pointer, leaving room for buffer size mismatches.",
+  "evidence": [
+   "Author benchmark BIP324_HKDF shows throughput increasing from 1,430,064 to 1,724,373 ops/s (+20.6%)",
+   "Commit 80130b90e2 notes saving ten SHA-256 compressions across BIP324's six expansions while keeping derived output bytes identical"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Modifies internal cryptographic primitives and updates call sites to use std::span.",
+  "changed_since_previous": "",
+  "card": "This PR optimizes HKDF expansion in CHKDF_HMAC_SHA256_L32 by caching the initialized CHMAC_SHA256 state and copying it on each expansion rather than rehashing the key pads. For BIP324 encrypted connection handshakes, which perform six expansions per session, this eliminates ten SHA-256 compressions, yielding a reported 20.6% throughput improvement in the HKDF microbenchmark. It also updates the API to enforce a fixed-size 32-byte output span at compile time.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A flaw in HKDF key derivation would produce incorrect session keys and break BIP324 P2P connection handshakes."
+  }
+ }
+}

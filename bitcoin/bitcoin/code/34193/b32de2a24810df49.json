@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-12T01:24:26+00:00",
+ "card": "This pull request hardens legacy-to-descriptor wallet migration against mid-process failures, unhandled exceptions, and stale journal files. MigrateToSQLite now stages the SQLite database in a temporary location and writes all records before replacing the original BerkeleyDB files, falling back gracefully without requiring manual user backup restoration if creation fails. Broad exception handling ensures that cleanup logic restores the backup wallet automatically when an error occurs, and leftover database files at the target destination are cleaned up to prevent SQLite corruption. It directly alters wallet storage migration routines.",
+ "changed_since_previous": "Added handling and functional test coverage for leftover database journal files at the target directory to prevent SQLite from rolling back stale journals into the moved database.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Da055ca4bc commit: 'Currently, MigrateToSQLite loads all BDB records into memory, then deletes the original database just to create the sqlite db in the same place... This fixes all that by creating the sqlite db in a temporary directory first.'",
+  "8a9c3af0eb commit: 'Without it, SQLite rolls the stale journal back into the migrated db once it is moved into place, writing pages of an unrelated database into it.'",
+  "PR description: 'The goal of the PR is to handle failures in a controlled way. Just so the process can automatically restore the original wallet without requiring user manual intervention.'"
+ ],
+ "head_sha": "8a9c3af0eb7df50f38ca511491d3d0d1e47f7fb7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34193,
+ "patch_id": "b32de2a24810df49",
+ "problem": "MigrateToSQLite previously removed the original BerkeleyDB database before confirming the SQLite database could be created and fully populated, and exceptions during sub-wallet creation bypassed cleanup routines. On failure, users were left with partially migrated databases or broken states requiring manual backup restoration. Additionally, leftover journal files at the target path could be rolled back into the newly moved SQLite database, corrupting it.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "A flaw in moving, erasing, or staging wallet database files during migration could corrupt wallet files or lead to loss of user funds."
+ },
+ "run": "run:20261112-0124-assess",
+ "scope_notes": "Touches wallet database migration and introduces MoveDatabase / Erase helpers in WalletDatabase.",
+ "size": {
+  "additions": 300,
+  "deletions": 111,
+  "files": 6,
+  "test_lines": 104
+ },
+ "summary": "Hardens legacy wallet migration to SQLite and descriptor formats against mid-process failures, leftover journal files, and unexpected exceptions. MigrateToSQLite stages the new SQLite database in a temporary location and moves it into place only after records are written, leaving the original database untouched until success. In addition, DoMigration and MigrateLegacyToDescriptor catch exceptions during wallet creation and migration to trigger automated rollback and restore the wallet from backup.",
+ "uncertainties": []
+}

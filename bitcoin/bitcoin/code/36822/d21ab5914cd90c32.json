@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-12T01:24:46+00:00",
+ "card": "This PR rewrites the torcontrol fuzz target to route traffic through a mocked DynSock socket connected to a fake Tor peer rather than directly invoking controller callbacks with short strings. It generates valid wire replies for PROTOCOLINFO, SAFECOOKIE authentication, GETINFO, and ADD_ONION, allowing the fuzzer to explore complete handshake success paths and wire-parsing logic. It also fixes a bug in DynSock::Wait() that caused the socket to delete itself upon return. The author reports line coverage on src/torcontrol.cpp rising from 52% to 81%.",
+ "changed_since_previous": "None; the diff matches the previous description which was prepared without a patch.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author reports line coverage of `src/torcontrol.cpp` increasing from 52% on master to 81% after a 10-minute local run (PR description).",
+  "Author notes that `DynSock::Wait()` deleted its socket since #30205, and this target is its first caller (PR description, commit 345ffe0dae)."
+ ],
+ "head_sha": "14b276e7c9e32570b7bc3af8c77db899a9833230",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36822,
+ "patch_id": "d21ab5914cd90c32",
+ "problem": "The existing `torcontrol` fuzz target bypassed wire parsing (`ProcessBuffer()` and `ReceiveAndProcess()`) by feeding dummy reply lines directly into `TorController` callbacks with line length capped at 16 bytes. Handshake success paths could not be explored because the fuzzer could not synthesize required cryptographic values. In addition, `DynSock::Wait()` accidentally deleted its own socket on invocation.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "tests"
+  ],
+  "why": "The change is strictly confined to test utilities and fuzzing harnesses, so any defect would only affect test execution or fuzz coverage."
+ },
+ "run": "run:20261112-0124-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 293,
+  "deletions": 24,
+  "files": 2,
+  "test_lines": 317
+ },
+ "summary": "Rebuilds the `torcontrol` fuzz target to drive a real `TorControlConnection` over a mocked socket (`DynSock`) connected to a fake Tor daemon. The harness responds to controller commands with correctly shaped replies, including valid v3 onion IDs and SAFECOOKIE HMACs, allowing fuzzed inputs to reach full handshake success paths and exercise wire parsing. The PR also fixes a bug in `DynSock::Wait()` where wrapping `this` in an owning `std::shared_ptr` destructed the socket when the temporary exited scope.",
+ "uncertainties": []
+}

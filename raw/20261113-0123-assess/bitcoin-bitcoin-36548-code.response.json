@@ -1,0 +1,43 @@
+{
+ "run": "run:20261113-0123-assess",
+ "pr": "bitcoin/bitcoin#36548",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-13T01:24:16+00:00",
+ "usage": {
+  "input_tokens": 14785,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1341
+ },
+ "cost_usd": 0.0161175,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Optimizes serving disk-backed `MSG_BLOCK` P2P requests by stripping witness data in place from an owned buffer of raw block bytes instead of deserializing full `CBlock` structures and reserializing without witness data. A shared `UnserializeTransactionBody` helper ensures witness-stripping logic uses the same validation rules as the standard transaction deserializer without allocating memory or rehashing transactions. Header proof of work and block hash checks are verified before stripping, while Signet retains the deserializing `ReadBlock` path to validate block solutions.\",\n  \"problem\": \"Serving `MSG_BLOCK` requests (to legacy nodes or clients downloading historical blocks without witnesses) currently decodes each block from disk into full `CBlock` and `CTransaction` objects and reserializes them. This causes high CPU and memory overhead from heap allocations and transaction hash recalculations that `MSG_WITNESS_BLOCK` avoids by streaming raw bytes directly.\",\n  \"evidence\": [\n    \"PR description benchmarks show reading a block from disk and building non-witness network messages drops from 1.31 ms to 0.147 ms (8.9x speedup) on a legacy block, and from 3.47 ms to 0.374 ms (9.3x speedup) on synthetic witness-bearing blocks.\",\n    \"PR description notes that faster witnessless IBD proposed in #36476 relies on peers being able to serve non-witness blocks efficiently.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#36476\"\n    ]\n  },\n  \"scope_notes\": \"Extracts deserialization logic into a templated helper in `primitives/transaction.h` and adds comprehensive fuzz and unit tests verifying that stripped byte output matches `TX_NO_WITNESS` reserialization across valid and malformed encodings.\",\n  \"changed_since_previous\": \"No substantial architectural changes; commits and structure remain consistent with the previous description.\",\n  \"card\": \"Optimizes disk-backed MSG_BLOCK P2P responses by reading raw block bytes from disk and stripping witness data in place rather than fully deserializing into CBlock objects and reserializing. This eliminates heap allocations and transaction rehashing when serving blocks to legacy peers or clients performing witnessless synchronization. Microbenchmarks show an 8.9x to 9.3x speedup in block read and message construction time. Efficient non-witness block serving is also a prerequisite for the witnessless assumevalid IBD proposal in issue #36476.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"p2p\"\n    ],\n    \"why\": \"A flaw in the in-place buffer manipulation or witness skipping logic could corrupt blocks served to peers over P2P, causing peer disconnections or consensus rejections by legacy clients.\"\n  }\n}",
+ "result": {
+  "summary": "Optimizes serving disk-backed `MSG_BLOCK` P2P requests by stripping witness data in place from an owned buffer of raw block bytes instead of deserializing full `CBlock` structures and reserializing without witness data. A shared `UnserializeTransactionBody` helper ensures witness-stripping logic uses the same validation rules as the standard transaction deserializer without allocating memory or rehashing transactions. Header proof of work and block hash checks are verified before stripping, while Signet retains the deserializing `ReadBlock` path to validate block solutions.",
+  "problem": "Serving `MSG_BLOCK` requests (to legacy nodes or clients downloading historical blocks without witnesses) currently decodes each block from disk into full `CBlock` and `CTransaction` objects and reserializes them. This causes high CPU and memory overhead from heap allocations and transaction hash recalculations that `MSG_WITNESS_BLOCK` avoids by streaming raw bytes directly.",
+  "evidence": [
+   "PR description benchmarks show reading a block from disk and building non-witness network messages drops from 1.31 ms to 0.147 ms (8.9x speedup) on a legacy block, and from 3.47 ms to 0.374 ms (9.3x speedup) on synthetic witness-bearing blocks.",
+   "PR description notes that faster witnessless IBD proposed in #36476 relies on peers being able to serve non-witness blocks efficiently."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36476"
+   ]
+  },
+  "scope_notes": "Extracts deserialization logic into a templated helper in `primitives/transaction.h` and adds comprehensive fuzz and unit tests verifying that stripped byte output matches `TX_NO_WITNESS` reserialization across valid and malformed encodings.",
+  "changed_since_previous": "No substantial architectural changes; commits and structure remain consistent with the previous description.",
+  "card": "Optimizes disk-backed MSG_BLOCK P2P responses by reading raw block bytes from disk and stripping witness data in place rather than fully deserializing into CBlock objects and reserializing. This eliminates heap allocations and transaction rehashing when serving blocks to legacy peers or clients performing witnessless synchronization. Microbenchmarks show an 8.9x to 9.3x speedup in block read and message construction time. Efficient non-witness block serving is also a prerequisite for the witnessless assumevalid IBD proposal in issue #36476.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A flaw in the in-place buffer manipulation or witness skipping logic could corrupt blocks served to peers over P2P, causing peer disconnections or consensus rejections by legacy clients."
+  }
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "run": "run:20261113-0123-assess",
+ "pr": "bitcoin/bitcoin#36049",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-13T01:24:14+00:00",
+ "usage": {
+  "input_tokens": 5358,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1646
+ },
+ "cost_usd": 0.010191,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Flushes buffered block and undo data explicitly before the writer goes out of scope, catching write exceptions, logging them, and triggering a fatal node shutdown. In `BufferedWriter::flush()`, clears pending bytes before writing to prevent the destructor from re-attempting a failed write during exception unwinding. Adds an `Assume` in the destructor to ensure callers flush explicitly.\",\n  \"problem\": \"When disk writes fail (such as on a full filesystem), `AutoFile::write_buffer()` throws an exception. Because `BufferedWriter`'s destructor is implicitly non-throwing, an unhandled flush exception in the destructor invokes `std::terminate` instead of shutting down gracefully. Furthermore, failed flushes left pending bytes in the buffer, causing the destructor to throw a second time while unwinding.\",\n  \"evidence\": [\n    \"Author description: \\\"fwrite() can report fewer bytes written than requested after a local storage error, e.g., if the filesystem fills up while a block is being written (my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often).\\\"\",\n    \"PR description identifies the bug as a regression introduced in #31551.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Rather than making `BufferedWriter::flush()` catch exceptions and return a boolean, `flush()` continues to throw; `BlockManager` catches `std::runtime_error` during block and undo writes and triggers fatal node shutdown rather than relying on `Assert()`.\",\n  \"card\": \"Handles block and undo write errors explicitly so that filesystem failures (such as running out of disk space) trigger a clean fatal shutdown with diagnostic logs instead of crashing via std::terminate. In BufferedWriter, pending bytes are cleared before writing to prevent destructor retries during exception unwinding, and an Assume check detects unflushed buffers on destruction. This fixes a regression from #31551 observed when running out of disk space during benchmarks.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"validation\"],\n    \"why\": \"Flaws in block serialization error handling or buffer flushing could cause corrupted block files or unexpected node terminations during block storage operations.\"\n  }\n}",
+ "result": {
+  "summary": "Flushes buffered block and undo data explicitly before the writer goes out of scope, catching write exceptions, logging them, and triggering a fatal node shutdown. In `BufferedWriter::flush()`, clears pending bytes before writing to prevent the destructor from re-attempting a failed write during exception unwinding. Adds an `Assume` in the destructor to ensure callers flush explicitly.",
+  "problem": "When disk writes fail (such as on a full filesystem), `AutoFile::write_buffer()` throws an exception. Because `BufferedWriter`'s destructor is implicitly non-throwing, an unhandled flush exception in the destructor invokes `std::terminate` instead of shutting down gracefully. Furthermore, failed flushes left pending bytes in the buffer, causing the destructor to throw a second time while unwinding.",
+  "evidence": [
+   "Author description: \"fwrite() can report fewer bytes written than requested after a local storage error, e.g., if the filesystem fills up while a block is being written (my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often).\"",
+   "PR description identifies the bug as a regression introduced in #31551."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Rather than making `BufferedWriter::flush()` catch exceptions and return a boolean, `flush()` continues to throw; `BlockManager` catches `std::runtime_error` during block and undo writes and triggers fatal node shutdown rather than relying on `Assert()`.",
+  "card": "Handles block and undo write errors explicitly so that filesystem failures (such as running out of disk space) trigger a clean fatal shutdown with diagnostic logs instead of crashing via std::terminate. In BufferedWriter, pending bytes are cleared before writing to prevent destructor retries during exception unwinding, and an Assume check detects unflushed buffers on destruction. This fixes a regression from #31551 observed when running out of disk space during benchmarks.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "Flaws in block serialization error handling or buffer flushing could cause corrupted block files or unexpected node terminations during block storage operations."
+  }
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "assessed_at": "2026-11-13T01:24:24+00:00",
+ "card": "Ensures CapnpProtocol methods hold active references to the IPC event loop and guards loop creation and destruction with a mutex. In multiprocess serve mode, only the parent connection previously kept the loop alive, risking data races or crashes if other threads accessed the event loop during shutdown or before parent setup completed. The change introduces a thread-safe loopRef helper to maintain event loop references during protocol calls.",
+ "changed_since_previous": "Retains the same mutex and `loopRef()` approach from the previous version.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"EventLoop::loop() exits when its reference count reaches zero. In serve() mode, the parent connection is the only reference keeping the loop running. Other CapnpProtocol methods called from threads not handling parent IPC requests do not hold their own references and therefore depend on the parent connection remaining alive.\""
+ ],
+ "head_sha": "2d001df8a60a82c286ca46b04de2917be4a5c74f",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36572,
+ "patch_id": "807476d50faf7952",
+ "problem": "In multiprocess `serve()` mode, the IPC event loop relies entirely on the parent connection's reference to remain running. Methods invoked from other threads lack loop references and access `m_loop` without synchronization, leaving them vulnerable to data races or crashes if called concurrently with loop shutdown or parent disconnection.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "other"
+  ],
+  "why": "Touches only optional multiprocess IPC protocol code; a bug could deadlock or crash separate IPC processes but cannot affect standard node operation or consensus."
+ },
+ "run": "run:20261113-0123-assess",
+ "scope_notes": "Small change restricted entirely to `src/ipc/capnp/protocol.cpp` within experimental multiprocess IPC handling.",
+ "size": {
+  "additions": 68,
+  "deletions": 23,
+  "files": 1,
+  "test_lines": 0
+ },
+ "summary": "Protects the IPC event loop in `CapnpProtocol` with a dedicated mutex and acquires explicit `EventLoopRef` instances across protocol operations (`connect`, `listen`, `makeStream`, and `disconnectIncoming`). It also holds a temporary reference during `serve()` initialization to ensure callbacks do not see the loop as shutting down before the parent connection is established.",
+ "uncertainties": []
+}

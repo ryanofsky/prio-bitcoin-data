@@ -1,0 +1,41 @@
+{
+ "run": "run:20261114-0131-assess",
+ "pr": "bitcoin/bitcoin#36702",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-14T01:31:49+00:00",
+ "usage": {
+  "input_tokens": 4662,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1567
+ },
+ "cost_usd": 0.00937275,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Fix an assertion crash on startup during AssumeUTXO background sync when a node restarts with the snapshot block downloaded ahead of its ancestors. On startup, `LoadBlockIndex()` now adds the snapshot block to `m_blocks_unlinked` if its parent has no transaction count, and `PopulateBlockIndexCandidates()` skips registering it as a candidate tip until its ancestors are present.\",\n  \"problem\": \"During AssumeUTXO background sync, blocks up to the snapshot block can be downloaded out of order from multiple peers, placing the snapshot block into storage before its parent. If the node restarts in this window, `LoadBlockIndex()` sets the hardcoded chain transaction count on the snapshot block without restoring it to `m_blocks_unlinked`, causing `PopulateBlockIndexCandidates()` to select it as a tip candidate and `FindMostWorkChain()` to crash on `HaveNumChainTxs()` when walking back to its unlinked parent. Once hit, the node crashes on every startup unless restarted with `-reindex` or `-reindex-chainstate`, which wipes the snapshot chainstate.\",\n  \"evidence\": [\n    \"PR description: \\\"The new step in feature_assumeutxo.py restarts the node after the snapshot block is submitted out of order, and fails on master. I also reproduced it over p2p with a test peer that withholds the snapshot block's parent.\\\"\",\n    \"PR description: \\\"cyb3ralbert hit the same assertion while testing #36452 (https://github.com/bitcoin/bitcoin/pull/36452#issuecomment-6464524112)\\\"\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"No substantive code changes; the patch and approach are unchanged from the previous version.\",\n  \"card\": \"Fixes an assertion crash loop on startup for nodes using AssumeUTXO that restart while holding the snapshot block before its parent block arrives. On restart, the snapshot block receives a hardcoded chain transaction count and is treated as a candidate tip, causing FindMostWorkChain to walk back into the incomplete parent and fail an assertion on every startup. This PR ensures the snapshot block is registered in m_blocks_unlinked on startup and excluded from tip candidates until its ancestors connect. Without this fix, recovery requires a full reindex that destroys the snapshot chainstate.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"validation\"\n    ],\n    \"why\": \"A logic error in block index loading or candidate block selection could stall background validation or misidentify valid chain tips on startup.\"\n  }\n}",
+ "result": {
+  "summary": "Fix an assertion crash on startup during AssumeUTXO background sync when a node restarts with the snapshot block downloaded ahead of its ancestors. On startup, `LoadBlockIndex()` now adds the snapshot block to `m_blocks_unlinked` if its parent has no transaction count, and `PopulateBlockIndexCandidates()` skips registering it as a candidate tip until its ancestors are present.",
+  "problem": "During AssumeUTXO background sync, blocks up to the snapshot block can be downloaded out of order from multiple peers, placing the snapshot block into storage before its parent. If the node restarts in this window, `LoadBlockIndex()` sets the hardcoded chain transaction count on the snapshot block without restoring it to `m_blocks_unlinked`, causing `PopulateBlockIndexCandidates()` to select it as a tip candidate and `FindMostWorkChain()` to crash on `HaveNumChainTxs()` when walking back to its unlinked parent. Once hit, the node crashes on every startup unless restarted with `-reindex` or `-reindex-chainstate`, which wipes the snapshot chainstate.",
+  "evidence": [
+   "PR description: \"The new step in feature_assumeutxo.py restarts the node after the snapshot block is submitted out of order, and fails on master. I also reproduced it over p2p with a test peer that withholds the snapshot block's parent.\"",
+   "PR description: \"cyb3ralbert hit the same assertion while testing #36452 (https://github.com/bitcoin/bitcoin/pull/36452#issuecomment-6464524112)\""
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No substantive code changes; the patch and approach are unchanged from the previous version.",
+  "card": "Fixes an assertion crash loop on startup for nodes using AssumeUTXO that restart while holding the snapshot block before its parent block arrives. On restart, the snapshot block receives a hardcoded chain transaction count and is treated as a candidate tip, causing FindMostWorkChain to walk back into the incomplete parent and fail an assertion on every startup. This PR ensures the snapshot block is registered in m_blocks_unlinked on startup and excluded from tip candidates until its ancestors connect. Without this fix, recovery requires a full reindex that destroys the snapshot chainstate.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "A logic error in block index loading or candidate block selection could stall background validation or misidentify valid chain tips on startup."
+  }
+ }
+}

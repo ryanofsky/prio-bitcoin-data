@@ -1,0 +1,41 @@
+{
+ "run": "run:20261114-0131-assess",
+ "pr": "bitcoin/bitcoin#36753",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-14T01:31:52+00:00",
+ "usage": {
+  "input_tokens": 18178,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1040
+ },
+ "cost_usd": 0.0175335,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Report `-rpcwhitelist` denials as structured JSON-RPC error responses instead of empty HTTP 403 replies. Introduce error codes `RPC_METHOD_NOT_PERMITTED` (-38) for refused calls and `RPC_REQUEST_NOT_EXECUTED` (-39) for other commands held back in a rejected batch. Refactor request parsing to split client connection state into `JSONRPCClient` and unify batch processing, and fix `bitcoin-cli -generate` to check for RPC errors before parsing results.\",\n \"problem\": \"When `-rpcwhitelist` rejects a call, Bitcoin Core returns an HTTP 403 with an empty body. For JSON-RPC 2.0 clients, this violates documented specifications requiring errors in the response body. For `bitcoin-cli -ipcconnect`, which transmits only the body over IPC without HTTP headers, this triggers confusing JSON type errors. Additionally, `bitcoin-cli -generate` does not check for errors returned by `generatetoaddress`, printing null results and exiting with success on failure.\",\n \"evidence\": [\n  \"\\\"The empty reply causes a concrete problem when JSON-RPC requests are sent over IPC instead of HTTP: bitcoin-cli -ipcconnect receives only the response body, so a refused call prints a JSON type error instead of a permission error, as described in a private security review\\\" (PR description)\",\n  \"doc/JSON-RPC-interface.md documents that JSON-RPC 2.0 requests report failed method calls as JSON-RPC errors rather than HTTP error codes (PR description, commit 2badf99744)\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"Changes RPC error handling behavior for `-rpcwhitelist` denials: clients checking for HTTP 403 on JSON-RPC 2.0 or batch requests will now receive HTTP 200 with JSON-RPC error bodies. Moves connection fields from `JSONRPCRequest` to a new `JSONRPCClient` struct.\",\n \"changed_since_previous\": \"Added a fix in `bitcoin-cli -generate` to inspect the RPC error field in replies from `generatetoaddress` so permission denials exit with an error code instead of printing null block outputs, with accompanying functional test coverage.\",\n \"card\": \"Bitcoin Core returns an empty HTTP 403 response when requests are refused by -rpcwhitelist, causing HTTP clients to show uninformative errors and causing bitcoin-cli over IPC to fail with JSON type errors. This PR updates whitelist denials to return JSON-RPC error bodies with new codes RPC_METHOD_NOT_PERMITTED (-38) and RPC_REQUEST_NOT_EXECUTED (-39). JSON-RPC 2.0 and batch requests receive HTTP 200 with structured errors, while legacy 1.x requests receive HTTP 403 with an error payload. The issue was identified in a private security audit of the IPC interface.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"rpc_api\"\n  ],\n  \"why\": \"Alters HTTP status codes and response bodies for whitelist-rejected RPC requests and batches, which could break third-party clients expecting HTTP 403 responses.\"\n }\n}",
+ "result": {
+  "summary": "Report `-rpcwhitelist` denials as structured JSON-RPC error responses instead of empty HTTP 403 replies. Introduce error codes `RPC_METHOD_NOT_PERMITTED` (-38) for refused calls and `RPC_REQUEST_NOT_EXECUTED` (-39) for other commands held back in a rejected batch. Refactor request parsing to split client connection state into `JSONRPCClient` and unify batch processing, and fix `bitcoin-cli -generate` to check for RPC errors before parsing results.",
+  "problem": "When `-rpcwhitelist` rejects a call, Bitcoin Core returns an HTTP 403 with an empty body. For JSON-RPC 2.0 clients, this violates documented specifications requiring errors in the response body. For `bitcoin-cli -ipcconnect`, which transmits only the body over IPC without HTTP headers, this triggers confusing JSON type errors. Additionally, `bitcoin-cli -generate` does not check for errors returned by `generatetoaddress`, printing null results and exiting with success on failure.",
+  "evidence": [
+   "\"The empty reply causes a concrete problem when JSON-RPC requests are sent over IPC instead of HTTP: bitcoin-cli -ipcconnect receives only the response body, so a refused call prints a JSON type error instead of a permission error, as described in a private security review\" (PR description)",
+   "doc/JSON-RPC-interface.md documents that JSON-RPC 2.0 requests report failed method calls as JSON-RPC errors rather than HTTP error codes (PR description, commit 2badf99744)"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Changes RPC error handling behavior for `-rpcwhitelist` denials: clients checking for HTTP 403 on JSON-RPC 2.0 or batch requests will now receive HTTP 200 with JSON-RPC error bodies. Moves connection fields from `JSONRPCRequest` to a new `JSONRPCClient` struct.",
+  "changed_since_previous": "Added a fix in `bitcoin-cli -generate` to inspect the RPC error field in replies from `generatetoaddress` so permission denials exit with an error code instead of printing null block outputs, with accompanying functional test coverage.",
+  "card": "Bitcoin Core returns an empty HTTP 403 response when requests are refused by -rpcwhitelist, causing HTTP clients to show uninformative errors and causing bitcoin-cli over IPC to fail with JSON type errors. This PR updates whitelist denials to return JSON-RPC error bodies with new codes RPC_METHOD_NOT_PERMITTED (-38) and RPC_REQUEST_NOT_EXECUTED (-39). JSON-RPC 2.0 and batch requests receive HTTP 200 with structured errors, while legacy 1.x requests receive HTTP 403 with an error payload. The issue was identified in a private security audit of the IPC interface.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "rpc_api"
+   ],
+   "why": "Alters HTTP status codes and response bodies for whitelist-rejected RPC requests and batches, which could break third-party clients expecting HTTP 403 responses."
+  }
+ }
+}

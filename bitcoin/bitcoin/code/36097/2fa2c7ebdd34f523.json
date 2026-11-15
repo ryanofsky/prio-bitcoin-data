@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-15T01:25:59+00:00",
+ "card": "This PR replaces dedicated out-of-band interrupt methods on the mining IPC interface with cancellation arguments on blocking calls (waitTipChanged, createNewBlock, and waitNext). It allows IPC clients such as Stratum v2 services to cancel in-flight blocking requests natively by dropping Cap'n Proto response promises. This implements the design agreed upon in RFC 33575 and cleans up temporary interrupt mechanisms introduced in PRs 33676 and 34184. The PR depends on upstream libmultiprocess PR 342, which is included as a temporary subtree commit.",
+ "changed_since_previous": "No substantial changes to the approach or scope are evident compared to the previous version.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "bitcoin-core/libmultiprocess#342"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "PR description references the design agreement in RFC #33575 ('RFC: Cancelling waitNext calls in the IPC mining interface'), noting this PR implements approach 4 from that discussion.",
+  "PR description points to #33676 and #34184, which previously introduced the workaround interrupt methods because libmultiprocess lacked native request cancellation at the time."
+ ],
+ "head_sha": "201738bd98897f2213f342414ef2214e6ba86728",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36097,
+ "patch_id": "2fa2c7ebdd34f523",
+ "problem": "Canceling in-flight blocking mining calls over IPC currently requires out-of-band interrupt RPC calls (`interrupt()` / `interruptWait()`). This creates awkward API patterns, extra round-trips, and prevents targeted cancellation of individual requests.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "other",
+   "tests"
+  ],
+  "why": "Flaws in the cancellation synchronization or mutex handling could cause deadlocks, race conditions, or hanging threads during block template generation and chain tip monitoring over IPC."
+ },
+ "run": "run:20261115-0125-assess",
+ "scope_notes": "Includes a temporary subtree update commit for libmultiprocess (bitcoin-core/libmultiprocess#342) which constitutes the bulk of the diff.",
+ "size": {
+  "additions": 932,
+  "deletions": 198,
+  "files": 27,
+  "test_lines": 65
+ },
+ "summary": "Adds optional `CancelArg` cancellation callback parameters to blocking mining interface methods (`waitTipChanged`, `createNewBlock`, and `BlockTemplate::waitNext`), deprecating `interrupt()` and `interruptWait()`. When called over IPC, Cap'n Proto request cancellation annotations allow clients to cancel in-flight blocking calls simply by abandoning their response promise. The server unregisters the cancellation callback when the call scope exits via a RAII `CancelGuard`.",
+ "uncertainties": []
+}

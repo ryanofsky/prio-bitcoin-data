@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-15T01:26:34+00:00",
+ "card": "Clears key and value streams inside BerkeleyROCursor::Next() before populating them with the next record from Berkeley DB. Currently, LoadRecords reuses stream objects across records, and because BerkeleyROCursor appends to them rather than resetting them, any unread suffix bytes from a record pollute the deserialization of the next record. This causes migratewallet to fail with deserialization errors and falsely report valid legacy wallets as corrupt. The fix aligns BerkeleyROCursor with SQLiteCursor and adds regression coverage in db_tests.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'This fixes a case where migratewallet can reject an old wallet as corrupt. The v2 key metadata may include an extra flag byte that Core\u2019s metadata loader leaves unread.'",
+  "Commit message: 'Record loaders may leave optional suffix fields unread, which BerkeleyROCursor currently appends to the next record. This can cause valid legacy wallets to fail migration with a deserialization error.'"
+ ],
+ "head_sha": "00bb61e694cfd8ca77dda806b0509094597ba3d4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36871,
+ "patch_id": "nopatch",
+ "problem": "When loading legacy Berkeley DB wallets during migratewallet, record parsers may legitimately leave optional trailing bytes unread (such as an extra flag byte in v2 key metadata). Because LoadRecords reuses stream instances across records and BerkeleyROCursor::Next() appends to them without clearing, residual unread bytes contaminate the next record, causing deserialization failures and falsely rejecting valid wallets as corrupt.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "A flaw in database cursor stream handling could cause wallet record loading or migration to fail or misread data on disk."
+ },
+ "run": "run:20261115-0125-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 23,
+  "deletions": 1,
+  "files": 3,
+  "test_lines": null
+ },
+ "summary": "Clear key and value stream buffers in BerkeleyROCursor::Next() before populating them with the next record. This aligns BerkeleyROCursor with SQLiteCursor and prevents unread trailing bytes from a previous record from leaking into subsequent records when LoadRecords reuses stream objects.",
+ "uncertainties": []
+}

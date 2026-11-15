@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-15T01:26:33+00:00",
+ "card": "Adds GUARDED_BY(cs_main) annotations to CBlockIndex fields nTx and m_chain_tx_count to resolve data races. Currently, getblockheader reads nTx without holding cs_main while block data is being received, and getchaintxstats can race on m_chain_tx_count during assumeutxo validation or block redownloads on pruned nodes. The author identifies explicit RPC and background thread concurrency bugs that the locking annotation prevents.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'reading nTx from the getblockheader RPC may race as it does not acquire cs_main. Also, m_chain_tx_count may race in getchaintxstats if a pruned node redownloads a block via getblockfrompeer or if the node is running assumeutxo and tries to read m_chain_tx_count while it is being written to.'"
+ ],
+ "head_sha": "8775bebbde2eac226a44a7ce88f9c0e7db9cd279",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36876,
+ "patch_id": "nopatch",
+ "problem": "Reads of CBlockIndex::nTx in getblockheader and m_chain_tx_count in getchaintxstats can race against writes during block receipt, pruned block redownloading, or assumeutxo background validation because the cs_main locking requirement was never documented or enforced by thread safety annotations.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "rpc_api"
+  ],
+  "why": "Locking mistakes or missing locks around cs_main could induce deadlocks or performance regressions across validation and RPC threads."
+ },
+ "run": "run:20261115-0125-assess",
+ "scope_notes": "Small thread safety annotation update spanning block index definitions and calling RPCs.",
+ "size": {
+  "additions": 16,
+  "deletions": 7,
+  "files": 5,
+  "test_lines": null
+ },
+ "summary": "Annotates CBlockIndex's nTx and m_chain_tx_count fields with GUARDED_BY(cs_main) and adds required lock enforcement. This prevents data races when RPCs access block index metadata concurrently with block data processing.",
+ "uncertainties": [
+  "Diff is not available in the prompt, so specific lock acquisition sites in RPC callers cannot be directly inspected."
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-15T01:25:48+00:00",
+ "card": "This PR marks SaltedCoinsCacheHasher's outpoint operator as noexcept(false) so that libstdc++'s std::unordered_map caches hash codes inside CCoinsMap nodes. This trades memory per node for speed, reversing the tradeoff made in PR #16957 to eliminate repeated SipHash calculations during UTXO cache operations. The author reports a 2% to 3% speedup during IBD and reindex-chainstate, and up to 11% faster AssumeUTXO snapshot loading, with memory increases limited primarily to very large dbcache configurations.",
+ "changed_since_previous": "Retargeted the `noexcept(false)` change from `SaltedOutpointHasher` to `SaltedCoinsCacheHasher` following the merge of PR #35215.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's reindex-chainstate benchmarks show a consistent ~2% runtime speedup at both dbcache=1000 and dbcache=30000 on GCC.",
+  "Author's AssumeUTXO loading tests showed up to an 11% speedup (e.g., 347s down to 310s at dbcache=450).",
+  "Author's Massif profiling showed memory was neutral at moderate dbcache sizes (e.g., 744.5 MB vs 737.7 MB at dbcache=450), but increased by ~5.7% (24.11 GB to 25.49 GB) at very large dbcache settings."
+ ],
+ "head_sha": "61046c54b910f3fcb413f1550a70198585ec9749",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35195,
+ "patch_id": "a35b6a7d162f7b62",
+ "problem": "When a fast hash functor is marked `noexcept`, `libstdc++`'s `std::unordered_map` omits the cached hash code from bucket nodes to reduce memory per node. While PR #16957 introduced this to save memory, it forces repetitive SipHash calculations across UTXO cache lookups and rehashing, causing an avoidable performance penalty during IBD, reindexing, and snapshot loading.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "validation"
+  ],
+  "why": "A failure in hash classification or node sizing in the UTXO cache pool allocator could lead to higher memory usage or out-of-memory crashes on memory-constrained systems."
+ },
+ "run": "run:20261115-0125-assess",
+ "scope_notes": "Touches libstdc++-specific behavior; platforms using libc++ (such as macOS) already cache hash codes regardless of noexcept.",
+ "size": {
+  "additions": 18,
+  "deletions": 3,
+  "files": 2,
+  "test_lines": 15
+ },
+ "summary": "Marks the outpoint hasher in `CCoinsMap` (`SaltedCoinsCacheHasher`) as `noexcept(false)` to instruct `libstdc++` to cache computed hash codes inside node structures. This avoids recomputing SipHash hashes during table rehashing and operations at the cost of additional node memory. A unit test verifies the hasher's exception specification and `libstdc++` fast-hash classification.",
+ "uncertainties": []
+}

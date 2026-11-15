@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-15T01:25:59+00:00",
+ "card": "Enforces 12-byte type and 4 MB payload bounds on outbound messages in CConnman::PushMessage(), dropping oversized messages in release builds and asserting in debug builds. Oversized types previously aborted V1 transport or caused buffer overreads/truncation in V2, while callers could bypass payload limits via private rebroadcast of transactions already in the mempool. The sendmsgtopeer RPC now explicitly rejects payloads over 4 MB with an RPC error, and rebroadcasts now use validated mempool transaction instances. It has no dependencies.",
+ "changed_since_previous": "Added a fix in BroadcastTransaction to use the mempool's transaction pointer rather than the caller's transaction when rebroadcasting, preventing an unvalidated oversized witness variant from entering the private broadcast queue, along with an updated functional test.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 013cebad8c and PR description: 'V1 aborts on a longer type, while V2 sends a truncated type with the payload intact or writes past its encoding buffer when the payload is shorter than the excess type bytes.'",
+  "Commit 9a7cac2256: 'When a transaction is already in the mempool, BroadcastTransaction skips validation... Private broadcast still queues the caller's transaction, so a different witness can bypass validation and exceed the outbound payload limit.'"
+ ],
+ "head_sha": "da042ca607fbf9df6f2d1acde8d6d29fd49583c5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35888,
+ "patch_id": "a41fad52d788b7f6",
+ "problem": "P2P transports enforce a 12-byte type limit and 4 MB payload limit, but CConnman accepted oversized messages from internal callers without check. An oversized message type caused V1 transport to abort and V2 transport to send truncated types or write out-of-bounds in its encoding buffer; an oversized transaction payload could be queued via private broadcast if an unvalidated witness variant of an existing mempool transaction was submitted.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "rpc_api"
+  ],
+  "why": "A mistake in size validation or transaction pointer replacement could drop legitimate outbound P2P messages or disrupt transaction rebroadcasting."
+ },
+ "run": "run:20261115-0125-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 86,
+  "deletions": 25,
+  "files": 10,
+  "test_lines": 84
+ },
+ "summary": "Enforces protocol bounds on outbound P2P messages in CConnman::PushMessage() before they enter send queues, logging and dropping messages with types over 12 bytes or payloads over 4 MB in release builds while tripping an Assume in debug and fuzz builds. Rejects oversized payloads directly in the sendmsgtopeer RPC with an error. Also switches BroadcastTransaction to use the existing validated mempool transaction reference instead of the caller's transaction during rebroadcast, preventing unvalidated oversized witness variants from reaching private broadcast queues.",
+ "uncertainties": []
+}

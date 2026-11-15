@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-15T01:25:49+00:00",
+ "card": "This pull request moves ownership of txindex, txospenderindex, coinstatsindex, and block filter indexes from process-global variables into NodeContext. Secondary indexes previously relied on static globals and a global filter index registry, violating node encapsulation and complicating multi-node testing and multiprocess work. Callers in RPC, REST, and net processing now access index instances through NodeContext or a PeerManager callback. The change is an internal refactoring with no behavior change other than the key ordering in getindexinfo output.",
+ "changed_since_previous": "Rebased without changes to the core design or commit structure.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'This removes the remaining process-global index ownership and stores node-owned indexes in NodeContext instead.'",
+  "Commit 4b97f3c534: 'getindexinfo now iterates NodeContext::indexes instead of querying each index type separately. The set of reported indexes is unchanged, but when several indexes are enabled the keys in the result follow the order in which the indexes are registered at startup.'"
+ ],
+ "head_sha": "8dae2310043e8cd172214af8c289e4a35b9b59b5",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 35474,
+ "patch_id": "d80235aa046895e3",
+ "problem": "Secondary indexes were managed as process-wide global singletons and global registry maps. This broke node encapsulation, prevented running isolated node instances in tests or multiprocess configurations, and forced networking and RPC routines to reach directly into global state.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "p2p",
+   "other"
+  ],
+  "why": "Incorrect index lifecycle management or null pointer handling during shutdown or RPC/P2P requests could cause node crashes or use-after-free bugs."
+ },
+ "run": "run:20261115-0125-assess",
+ "scope_notes": "Adds `src/node/indexes.{h,cpp}` to host index registry helpers and custom unique_ptr deleters, keeping index headers out of `node/context.h`.",
+ "size": {
+  "additions": 270,
+  "deletions": 178,
+  "files": 30,
+  "test_lines": 59
+ },
+ "summary": "Transfers ownership of all remaining process-global secondary index instances (`g_txindex`, `g_txospenderindex`, `g_coin_stats_index`, and block filter indexes) into `NodeContext`. Custom deleters defined in a new `node/indexes.{h,cpp}` module prevent circular dependencies between `node/context.h` and index definitions. RPC, REST, transaction lookup helpers, and `PeerManager` are updated to retrieve index instances from `NodeContext` or an injected callback.",
+ "uncertainties": []
+}

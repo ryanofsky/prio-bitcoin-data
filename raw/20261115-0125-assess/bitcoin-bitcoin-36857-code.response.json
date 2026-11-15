@@ -1,0 +1,44 @@
+{
+ "run": "run:20261115-0125-assess",
+ "pr": "bitcoin/bitcoin#36857",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-15T01:26:23+00:00",
+ "usage": {
+  "input_tokens": 15369,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1822
+ },
+ "cost_usd": 0.01835925,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Exposes prune lock management and target-based disk pruning in the libbitcoinkernel C API and C++ wrapper. It allows kernel callers to set and delete in-memory prune locks protecting blocks at or above a specified height, and to prune block files down to a target byte size. Underneath, it refactors pruning selection, limits, and block storage flushing out of validation's flush loop and into `BlockManager`, ensuring files queued for deletion on failed flushes are retried on subsequent flushes.\",\n  \"problem\": \"Applications using libbitcoinkernel cannot protect blocks from being pruned while reading them asynchronously after connection, and they have no method to keep block storage under a target disk size without calculating pruning heights manually. In addition, block storage flushing and prune file deletion were tightly coupled to `FlushStateToDisk` in validation, leaving unlinked prune files orphaned on disk if a flush failed.\",\n  \"evidence\": [\n    \"PR description: 'btck_block_manager_update_prune_lock and btck_block_manager_delete_prune_lock keep blocks at and above a height until the application deletes the lock... btck_block_manager_prune_to_target deletes the oldest block files until usage, with room for the next allocation, is below a target.'\",\n    \"Commit 37e40a00e9: 'An application that reads blocks after they are connected needs them kept until it has read them. Add block manager functions to set and delete prune locks.'\",\n    \"Commit d224fb8721: 'Files selected for pruning were kept in a local, so a failed flush left them on disk until the next startup. Keep them in BlockManager and delete them after the next block index write.'\"\n  ],\n  \"dependencies\": {\n   \"depends_on\": [\n    \"#36856\"\n   ],\n   \"enables\": []\n  },\n  \"scope_notes\": \"This PR is part of a larger kernel pruning stack and carries commits from preceding PRs (#36735, #36738, and #36856), including separating `BlockManager` construction from `ChainstateManager` and adding manual height-based pruning.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Adds prune locks and disk target pruning to libbitcoinkernel via btck_block_manager_update_prune_lock, btck_block_manager_delete_prune_lock, and btck_block_manager_prune_to_target. This enables kernel applications to hold blocks above a certain height while processing them and to enforce disk usage targets without manually calculating prune heights. It also moves prune bookkeeping into BlockManager so failed block flushes do not leave pruned files on disk until the next restart. Depends on #36856.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"validation\"\n    ],\n    \"why\": \"A flaw in prune lock calculations or file deletion logic could prematurely delete block and undo files from disk, resulting in unrecoverable block storage corruption.\"\n  }\n}",
+ "result": {
+  "summary": "Exposes prune lock management and target-based disk pruning in the libbitcoinkernel C API and C++ wrapper. It allows kernel callers to set and delete in-memory prune locks protecting blocks at or above a specified height, and to prune block files down to a target byte size. Underneath, it refactors pruning selection, limits, and block storage flushing out of validation's flush loop and into `BlockManager`, ensuring files queued for deletion on failed flushes are retried on subsequent flushes.",
+  "problem": "Applications using libbitcoinkernel cannot protect blocks from being pruned while reading them asynchronously after connection, and they have no method to keep block storage under a target disk size without calculating pruning heights manually. In addition, block storage flushing and prune file deletion were tightly coupled to `FlushStateToDisk` in validation, leaving unlinked prune files orphaned on disk if a flush failed.",
+  "evidence": [
+   "PR description: 'btck_block_manager_update_prune_lock and btck_block_manager_delete_prune_lock keep blocks at and above a height until the application deletes the lock... btck_block_manager_prune_to_target deletes the oldest block files until usage, with room for the next allocation, is below a target.'",
+   "Commit 37e40a00e9: 'An application that reads blocks after they are connected needs them kept until it has read them. Add block manager functions to set and delete prune locks.'",
+   "Commit d224fb8721: 'Files selected for pruning were kept in a local, so a failed flush left them on disk until the next startup. Keep them in BlockManager and delete them after the next block index write.'"
+  ],
+  "dependencies": {
+   "depends_on": [
+    "#36856"
+   ],
+   "enables": []
+  },
+  "scope_notes": "This PR is part of a larger kernel pruning stack and carries commits from preceding PRs (#36735, #36738, and #36856), including separating `BlockManager` construction from `ChainstateManager` and adding manual height-based pruning.",
+  "changed_since_previous": "",
+  "card": "Adds prune locks and disk target pruning to libbitcoinkernel via btck_block_manager_update_prune_lock, btck_block_manager_delete_prune_lock, and btck_block_manager_prune_to_target. This enables kernel applications to hold blocks above a certain height while processing them and to enforce disk usage targets without manually calculating prune heights. It also moves prune bookkeeping into BlockManager so failed block flushes do not leave pruned files on disk until the next restart. Depends on #36856.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "A flaw in prune lock calculations or file deletion logic could prematurely delete block and undo files from disk, resulting in unrecoverable block storage corruption."
+  }
+ }
+}

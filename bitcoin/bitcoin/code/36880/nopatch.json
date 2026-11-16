@@ -1,0 +1,46 @@
+{
+ "assessed_at": "2026-11-16T01:25:15+00:00",
+ "card": "Negating startup arguments using -nofoo or -foo=0 frequently produces surprising or broken behavior because the argument parser sets negated values to the string \"0\". This leads to crashes such as -nolimitclustercount hitting an assertion in TxGraph, security and behavioral bugs like -norpcpassword setting the RPC password to \"0\" instead of using cookie auth, -notorcontrol attempting to connect to a local Tor control port at 0.0.0.0:9051, and -noblocksdir writing block files relative to the current working directory. This pull request adds opt-in mechanisms to return default values or disallow negation at startup, switches boolean checks to GetBoolArg, and rejects invalid zero limits. It fixes multiple user-facing configuration traps across mempool, wallet, networking, and RPC startup settings.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 512773d111 notes: '-limitclustercount=0 or -nolimitclustercount passed the upper bound check and triggered an assertion in TxGraph when mempool sanity checks are enabled, while -limitclustersize=0 or -nolimitclustersize made every transaction fail with a misleading error.'",
+  "Commit 5d2ddcae41 notes: '-noblocknotify, -nowalletnotify, -nostartupnotify and -noalertnotify ran the command \"0\", -nosigner used \"0\" as the signer command, -noi2psam failed at startup and -norpcpassword set the RPC password to \"0\" instead of using cookie authentication.'",
+  "Commit 08b4f85510 notes: '-cjdnsreachable=0 and -nocjdnsreachable made CJDNS reachable, contradicting the -rpcallowip error that tells users to set -cjdnsreachable=0, and -nohelp printed the help text.'",
+  "Commit faf0a22033 notes: '-notorcontrol made the node connect to the Tor control port at \"0\", i.e. 0.0.0.0:9051, which reaches a local Tor on most systems.'"
+ ],
+ "head_sha": "4b181fd471f2826659e000439f10345a483309f4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36880,
+ "patch_id": "nopatch",
+ "problem": "Bitcoin Core's argument parsing translates negated options into \"0\" by default. When options take string commands, directories, or numeric limits, setting -nofoo causes unintended side effects such as -nolimitclustercount triggering a TxGraph assertion on the first transaction, -norpcpassword setting the password to \"0\", -notorcontrol connecting to 0.0.0.0:9051, -noblocksdir writing blocks relative to the working directory, and -nobantime causing bans to expire instantly.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "mempool_policy",
+   "wallet",
+   "rpc_api",
+   "p2p",
+   "other"
+  ],
+  "why": "Incorrectly altering argument handling or rejecting previously accepted options could prevent node startup or alter network and wallet connectivity for existing configurations."
+ },
+ "run": "run:20261116-0124-assess",
+ "scope_notes": "Touches argument handling across multiple subsystems (init, mempool, wallet, args, torcontrol) in six distinct commits grouped by fix strategy.",
+ "size": {
+  "additions": 91,
+  "deletions": 30,
+  "files": 16,
+  "test_lines": null
+ },
+ "summary": "Fixes counterintuitive and buggy behavior when passing negated options (such as -nofoo or -foo=0) across several startup arguments. Depending on the option, negation previously caused assertions in the mempool graph, execution of a command named '0', setting RPC passwords to '0', writing block files to the working directory, or connecting to local Tor ports. The PR introduces opt-in flags to either return default values or disallow negation entirely at startup, and switches several boolean flags from checking argument existence to evaluating boolean values.",
+ "uncertainties": []
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-16T01:25:13+00:00",
+ "card": "Annotates CBlockIndex fields nTx and m_chain_tx_count with GUARDED_BY(cs_main) and acquires cs_main in reader RPCs to eliminate data races. Currently, getblockheader reads nTx without holding cs_main, and getchaintxstats and dumptxoutset read m_chain_tx_count without locking while those fields can be concurrently updated during block receipt, pruned-node redownload, or AssumeUTXO validation.",
+ "changed_since_previous": "No substantive changes; diff provided now corroborates the previous description.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description and commit message: \"reading nTx from the getblockheader RPC may race as it does not acquire cs_main. Also, m_chain_tx_count may race in getchaintxstats if a pruned node redownloads a block via getblockfrompeer or if the node is running assumeutxo and tries to read m_chain_tx_count while it is being written to.\""
+ ],
+ "head_sha": "8775bebbde2eac226a44a7ce88f9c0e7db9cd279",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36876,
+ "patch_id": "ffd575dfb8bcf443",
+ "problem": "CBlockIndex::nTx and m_chain_tx_count are written under cs_main during block transaction processing, but were read without cs_main in RPCs like getblockheader, getchaintxstats, and dumptxoutset. This creates data races against incoming blocks, pruned-node redownloads via getblockfrompeer, and AssumeUTXO background validation.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "validation"
+  ],
+  "why": "Acquiring cs_main in RPC entrypoints could introduce lock-order inversions or lock contention during concurrent block processing."
+ },
+ "run": "run:20261116-0124-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 16,
+  "deletions": 7,
+  "files": 5,
+  "test_lines": 6
+ },
+ "summary": "Annotates CBlockIndex's nTx and m_chain_tx_count fields with GUARDED_BY(cs_main) and adds cs_main lock enforcement to reader functions. This updates blockheaderToJSON, getchaintxstats, WriteUTXOSnapshot, and unit tests to acquire the lock before reading these fields.",
+ "uncertainties": []
+}

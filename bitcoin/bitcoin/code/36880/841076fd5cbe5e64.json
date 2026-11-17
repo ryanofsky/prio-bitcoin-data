@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-11-17T01:20:50+00:00",
+ "card": "Negating startup arguments via -nofoo or -foo=0 frequently produces surprising or broken behavior because Bitcoin Core's argument parser records negated options as the string \"0\". This PR introduces opt-in argument flags to return defaults or disallow negation on meaningless options, switches boolean options like -cjdnsreachable and -help from presence checks to boolean evaluation, and handles empty directory paths gracefully. It resolves an assertion crash in TxGraph when starting with -nolimitclustercount, prevents -norpcpassword from setting an RPC password of \"0\" instead of using cookie auth, prevents notify options from trying to execute a program named \"0\", and stops -notorcontrol from attempting a connection to 0.0.0.0:9051. The change removes configuration traps across node initialization, mempool, wallet, networking, and RPC.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "\"-nolimitclustercount passed the upper bound check and triggered an assertion in TxGraph when mempool sanity checks are enabled, while -limitclustersize=0 or -nolimitclustersize made every transaction fail with a misleading error\" (commit 512773d111)",
+  "\"-noblocknotify, -nowalletnotify, -nostartupnotify and -noalertnotify ran the command '0', -nosigner used '0' as the signer command, -noi2psam failed at startup and -norpcpassword set the RPC password to '0' instead of using cookie authentication\" (commit 5d2ddcae41)",
+  "\"-notorcontrol made the node connect to the Tor control port at '0', i.e. 0.0.0.0:9051, which reaches a local Tor on most systems\" (commit faf0a22033)",
+  "\"-noblocksdir and -blocksdir= wrote block files relative to the working directory while the block index stayed in the datadir, and -nowalletdir and -walletdir= failed at startup\" (commit cd5bfc8230)"
+ ],
+ "head_sha": "4b181fd471f2826659e000439f10345a483309f4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36880,
+ "patch_id": "841076fd5cbe5e64",
+ "problem": "Bitcoin Core's argument parser sets negated options to \"0\". For options that expect strings, paths, network endpoints, or positive limits, negation causes unexpected and hazardous side effects: -nolimitclustercount triggers an assertion crash in TxGraph on the first mempool transaction, -norpcpassword sets the password to \"0\" instead of falling back to cookie authentication, -notorcontrol connects to 0.0.0.0:9051, -noblocksdir writes raw block files to the current working directory, and notify options attempt to execute a binary named \"0\".",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "mempool_policy",
+   "rpc_api",
+   "other"
+  ],
+  "why": "A flaw in startup argument handling or directory fallback logic could prevent nodes from starting up or cause wallet, block, or authentication files to be loaded from unintended paths."
+ },
+ "run": "run:20261117-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 91,
+  "deletions": 30,
+  "files": 16,
+  "test_lines": 53
+ },
+ "summary": "Fixes counterintuitive and buggy behaviors when startup options are negated via -nofoo or -foo=0. The PR introduces an opt-in NEGATE_TO_DEFAULT flag for options that are off by default so GetArg() returns their default instead of \"0\", disallows negation for numeric limits where negation is nonsensical, and validates minimum cluster limits at startup. It also switches boolean flags such as -cjdnsreachable and -help from checking argument presence to evaluating boolean truth, treats empty paths for -blocksdir and -walletdir as unset, and makes -notorcontrol disable the automatic onion service by forcing -listenonion=0.",
+ "uncertainties": []
+}

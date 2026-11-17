@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-11-17T01:20:49+00:00",
+ "card": "Enforces explicit range checking on numeric configuration arguments instead of allowing negative or out-of-range values to silently wrap, overflow, or invert time offsets. Options validated include -dbbatchsize, -maxtipage, mempool cluster limits, buffer sizes, timeouts, and wallet confirmation targets. The author notes that a negative -dbbatchsize wrapped to an immense unsigned integer and disabled database flushing during reindex, while an out-of-range -txconfirmtarget silently forced all wallet transactions onto fallback fees.",
+ "changed_since_previous": "The scope and validated configuration arguments remain the same as in the previous description, with minor refinements to range bounds and test coverage.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description and commit 0ad0c71387: 'A negative -dbbatchsize wrapped to a huge value and disabled batch flushing, so a reindex could hold an unbounded batch in memory.'",
+  "Source comments in src/node/chainstatemanager_args.cpp: 'A negative max tip age would put the IBD cutoff in the future, so the node would never consider its tip recent and would stay in IBD.'",
+  "Source comments and functional tests in test/functional/wallet_fallbackfee.py: 'A confirmation target above what the fee estimator tracks would make every transaction fall back to -fallbackfee, so it is rejected instead of being silently accepted.'",
+  "Source comments in src/node/mempool_args.cpp: 'A negative expiry would move the expiration cutoff into the future, and a huge one would overflow the hours-to-seconds conversion.'"
+ ],
+ "head_sha": "0ad0c71387783753356840d17d2b950367257e78",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36861,
+ "patch_id": "fdbebfb1799169d4",
+ "problem": "Numeric arguments were read as signed integers without bounds validation before being cast to narrower or unsigned internal types. Passing negative or out-of-range values caused silent integer wrap-around, overflows, or logic inversion: negative -dbbatchsize disabled database batch flushes during reindex, negative -maxtipage kept nodes permanently stuck in initial block download, negative -datacarriersize permitted unlimited OP_RETURN sizes, and out-of-range -txconfirmtarget caused all wallet transactions to silently fall back to -fallbackfee.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy",
+   "p2p",
+   "wallet"
+  ],
+  "why": "Incorrect range validation or off-by-one errors could cause existing user configuration files to fail to start bitcoind or misconfigure mempool and wallet policies."
+ },
+ "run": "run:20261117-0120-assess",
+ "scope_notes": "Touches option parsing across several subsystems (init, chainstate, mempool, wallet, net). Most of the diff consists of unit and functional tests covering boundary and error cases.",
+ "size": {
+  "additions": 329,
+  "deletions": 41,
+  "files": 11,
+  "test_lines": 143
+ },
+ "summary": "Enforces bounds checking on numeric configuration options across node startup, chainstate, mempool, networking, and wallet initialization. Options that previously accepted negative or out-of-range values\u2014including -dbbatchsize, -dbcrashratio, -maxtipage, -limitclustersize, -limitclustercount, -mempoolexpiry, -datacarriersize, buffer limits, -timeout, and -txconfirmtarget\u2014now raise fatal initialization errors instead of wrapping into unsigned types, inverting time calculations, or silently falling back to defaults. The change also marks numeric options as non-negatable and adds =<n> placeholders to their -help text.",
+ "uncertainties": []
+}

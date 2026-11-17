@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-17T01:20:46+00:00",
+ "card": "Reject empty overflow pages as database corruption in the read-only Berkeley DB parser. When an overflow page contains zero data and references itself as the next page, parsing loops infinitely, pinning a CPU core at 100% and blocking wallet dumping or migratewallet RPC calls from completing. Author benchmarks confirm the hang on master and immediate failure under this PR, accompanied by a test in tool_wallet.py.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author's benchmarks show a synthetic 5-page BDB file with a self-referencing empty overflow page spins at 100% CPU until killed (60s/90s) on master, whereas with this PR bitcoin-wallet dump fails immediately with exit code 1.",
+  "Author observed that migratewallet on master hangs an HTTP RPC worker thread indefinitely and prevents node stop from finishing within 30 seconds."
+ ],
+ "head_sha": "e2f3e91d957bfe05bbad2d6b5c73d83c9bd44cc3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36886,
+ "patch_id": "nopatch",
+ "problem": "When parsing an overflow record, the loop stops only when next_page is zero or the accumulated data exceeds the expected record length. An empty overflow page (hf_offset of 0) adds no bytes; if it points to itself, the loop never terminates, causing commands like bitcoin-wallet dump or migratewallet to spin at 100% CPU on a worker thread and preventing clean node shutdown.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet_storage",
+   "wallet",
+   "tests"
+  ],
+  "why": "A false positive check in the BDB reader could reject valid legacy wallet files during wallet dumping or migration."
+ },
+ "run": "run:20261117-0120-assess",
+ "scope_notes": "The diff was not provided in the input, but the PR consists of a validation check in BerkeleyRODatabase and a test in tool_wallet.py.",
+ "size": {
+  "additions": 66,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Reject empty overflow pages as corruption when parsing read-only Berkeley DB files in BerkeleyRODatabase::Open. This prevents an infinite loop when a corrupted or maliciously crafted BDB overflow page with zero data links back to itself.",
+ "uncertainties": []
+}

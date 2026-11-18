@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-18T01:18:51+00:00",
+ "card": "This PR encapsulates CScriptWitness and replaces its vector-of-vectors layout with a single contiguous allocation of serialized witness data. This fixes a memory amplification vulnerability where transactions with numerous small witness items consume up to 28 bytes per weight unit in memory, reducing the worst-case footprint to 1.6 bytes per weight unit. Because witness elements are deserialized on demand, the author observes a 50-70 ms per block regression in worst-case validation time. Across 62 files, callers are converted to the new immutable witness interface via scripted diffs.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'CScriptWitness shrinks from 24 to 8 bytes, and CTxIn from 112 to 96 bytes. Worst-case allocated size for transactions kept in memory drops from roughly 28 bytes/WU to 1.6 bytes/WU.'",
+  "PR description: 'Issue reported by furszy and 0xB10C.'"
+ ],
+ "head_sha": "a6a4df2770eb5f79f4e2dc58dee12889ca0be700",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36895,
+ "patch_id": "7c91d01d6851a255",
+ "problem": "Storing witness stacks as `std::vector<std::vector<unsigned char>>` incurs a 24-byte vector overhead and a separate heap allocation for every element. Crafted transactions with millions of tiny witness elements can exploit this to consume excessive node memory (up to roughly 28 bytes per weight unit) after deserialization.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "A parsing or serialization error in witness stack data could corrupt transaction validation or consensus deserialization, leading to consensus divergence between nodes."
+ },
+ "run": "run:20261118-0118-assess",
+ "scope_notes": "A substantial portion of the 62-file diff consists of 4 mechanical scripted diff commits converting call sites from direct `stack` manipulation to `CScriptWitness` methods.",
+ "size": {
+  "additions": 635,
+  "deletions": 239,
+  "files": 62,
+  "test_lines": 458
+ },
+ "summary": "Encapsulates `CScriptWitness` and changes its internal representation from a vector of byte vectors to a single heap allocation containing length-prefixed serialized witness data. Stack elements are parsed on the fly as spans rather than stored in individual vector allocations, making witness objects immutable once constructed. All call sites across the codebase are converted to use the encapsulated interface.",
+ "uncertainties": []
+}

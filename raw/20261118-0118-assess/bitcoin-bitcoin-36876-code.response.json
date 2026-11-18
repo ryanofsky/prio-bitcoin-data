@@ -1,0 +1,41 @@
+{
+ "run": "run:20261118-0118-assess",
+ "pr": "bitcoin/bitcoin#36876",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-18T01:18:47+00:00",
+ "usage": {
+  "input_tokens": 5664,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1787
+ },
+ "cost_usd": 0.01094925,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Annotates CBlockIndex's nTx and m_chain_tx_count member variables with GUARDED_BY(cs_main) and enforces locking across readers. It adds cs_main locking around accesses in getchaintxstats, dumptxoutset, and blockheaderToJSON, and removes the LOCKS_EXCLUDED(cs_main) annotations from blockheader serialization helpers.\",\n  \"problem\": \"CBlockIndex::nTx and m_chain_tx_count are updated under cs_main when block data is connected, but RPCs like getblockheader, getchaintxstats, and dumptxoutset read them without holding cs_main. This leads to data races against concurrent block receipt, pruned-node redownloads via getblockfrompeer, and AssumeUTXO background chain syncing.\",\n  \"evidence\": [\n    \"PR description: 'The nTx field is modified when the block data is received and m_chain_tx_count is modified when all ancestors' block data has been received. Because of this, reading nTx from the getblockheader RPC may race as it does not acquire cs_main. Also, m_chain_tx_count may race in getchaintxstats if a pruned node redownloads a block via getblockfrompeer or if the node is running assumeutxo and tries to read m_chain_tx_count while it is being written to.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"No substantial changes to the approach or diff scope.\",\n  \"card\": \"Annotates CBlockIndex fields nTx and m_chain_tx_count with GUARDED_BY(cs_main) and acquires cs_main in reader RPCs to resolve thread safety violations. Currently, getblockheader reads nTx without holding cs_main, and getchaintxstats and dumptxoutset read m_chain_tx_count without locking while those fields can be concurrently written during block receipt, pruned-node redownload, or AssumeUTXO validation. The PR removes the AssertLockNotHeld check in blockheaderToJSON and acquires cs_main during these reads.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"validation\", \"rpc_api\"],\n    \"why\": \"Introducing cs_main locking into previously lock-free RPC paths like blockheaderToJSON could introduce lock contention or deadlocks if called in unexpected lock order.\"\n  }\n}",
+ "result": {
+  "summary": "Annotates CBlockIndex's nTx and m_chain_tx_count member variables with GUARDED_BY(cs_main) and enforces locking across readers. It adds cs_main locking around accesses in getchaintxstats, dumptxoutset, and blockheaderToJSON, and removes the LOCKS_EXCLUDED(cs_main) annotations from blockheader serialization helpers.",
+  "problem": "CBlockIndex::nTx and m_chain_tx_count are updated under cs_main when block data is connected, but RPCs like getblockheader, getchaintxstats, and dumptxoutset read them without holding cs_main. This leads to data races against concurrent block receipt, pruned-node redownloads via getblockfrompeer, and AssumeUTXO background chain syncing.",
+  "evidence": [
+   "PR description: 'The nTx field is modified when the block data is received and m_chain_tx_count is modified when all ancestors' block data has been received. Because of this, reading nTx from the getblockheader RPC may race as it does not acquire cs_main. Also, m_chain_tx_count may race in getchaintxstats if a pruned node redownloads a block via getblockfrompeer or if the node is running assumeutxo and tries to read m_chain_tx_count while it is being written to.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No substantial changes to the approach or diff scope.",
+  "card": "Annotates CBlockIndex fields nTx and m_chain_tx_count with GUARDED_BY(cs_main) and acquires cs_main in reader RPCs to resolve thread safety violations. Currently, getblockheader reads nTx without holding cs_main, and getchaintxstats and dumptxoutset read m_chain_tx_count without locking while those fields can be concurrently written during block receipt, pruned-node redownload, or AssumeUTXO validation. The PR removes the AssertLockNotHeld check in blockheaderToJSON and acquires cs_main during these reads.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation",
+    "rpc_api"
+   ],
+   "why": "Introducing cs_main locking into previously lock-free RPC paths like blockheaderToJSON could introduce lock contention or deadlocks if called in unexpected lock order."
+  }
+ }
+}

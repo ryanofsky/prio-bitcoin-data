@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-18T01:18:47+00:00",
+ "card": "Annotates CBlockIndex fields nTx and m_chain_tx_count with GUARDED_BY(cs_main) and acquires cs_main in reader RPCs to resolve thread safety violations. Currently, getblockheader reads nTx without holding cs_main, and getchaintxstats and dumptxoutset read m_chain_tx_count without locking while those fields can be concurrently written during block receipt, pruned-node redownload, or AssumeUTXO validation. The PR removes the AssertLockNotHeld check in blockheaderToJSON and acquires cs_main during these reads.",
+ "changed_since_previous": "No substantial changes to the approach or diff scope.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'The nTx field is modified when the block data is received and m_chain_tx_count is modified when all ancestors' block data has been received. Because of this, reading nTx from the getblockheader RPC may race as it does not acquire cs_main. Also, m_chain_tx_count may race in getchaintxstats if a pruned node redownloads a block via getblockfrompeer or if the node is running assumeutxo and tries to read m_chain_tx_count while it is being written to.'"
+ ],
+ "head_sha": "ad6d75b196d301f1bfe430b8d05a23c70b5ea64a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36876,
+ "patch_id": "b98aa8aa861c54bb",
+ "problem": "CBlockIndex::nTx and m_chain_tx_count are updated under cs_main when block data is connected, but RPCs like getblockheader, getchaintxstats, and dumptxoutset read them without holding cs_main. This leads to data races against concurrent block receipt, pruned-node redownloads via getblockfrompeer, and AssumeUTXO background chain syncing.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "rpc_api"
+  ],
+  "why": "Introducing cs_main locking into previously lock-free RPC paths like blockheaderToJSON could introduce lock contention or deadlocks if called in unexpected lock order."
+ },
+ "run": "run:20261118-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 18,
+  "deletions": 12,
+  "files": 6,
+  "test_lines": 6
+ },
+ "summary": "Annotates CBlockIndex's nTx and m_chain_tx_count member variables with GUARDED_BY(cs_main) and enforces locking across readers. It adds cs_main locking around accesses in getchaintxstats, dumptxoutset, and blockheaderToJSON, and removes the LOCKS_EXCLUDED(cs_main) annotations from blockheader serialization helpers.",
+ "uncertainties": []
+}

@@ -1,0 +1,44 @@
+{
+ "run": "run:20261119-0118-assess",
+ "pr": "bitcoin/bitcoin#36906",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-19T01:18:33+00:00",
+ "usage": {
+  "input_tokens": 17165,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1815
+ },
+ "cost_usd": 0.01968,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Adds early validation checks during transaction and block deserialization to fail immediately on malformed network or RPC data. It enforces global caps on the number of transaction inputs and outputs based on block limits, rejects transactions with zero inputs or outputs in P2P streams, and tracks cumulative transaction weight during deserialization to abort if the 4M block weight limit is exceeded. To support cumulative weight accounting without breaking streaming abstractions, it extends the serialization framework to allow mutable state in stream parameter objects.\",\n  \"problem\": \"Nodes fully deserialize P2P network messages before passing them to validation, exposing nodes to worst-case memory and CPU consumption. An attacker can construct a 4 MB block containing 16M weight in non-witness transactions, send roughly 400,000 zero-input/zero-output transactions requiring individual CTransaction allocations, or specify giant input/output counts that trigger large vector allocations.\",\n  \"evidence\": [\n    \"Author notes in commit 79ac5541b0 that this mitigates memory exhaustion: 'At 10 bytes each, about 400000 of them fit in a block message, each of which gets its own CTransaction. With this change, the smallest transaction that gets deserialized has one input and one output, which takes 60 bytes.'\",\n    \"Author notes in commit 57a26d1a63 that 'The P2P message size limit allows blocks of up to 4 MB, which is up to 16M weight, all of which is currently deserialized before validation rejects it... With this change, the weight deserialized from a message is at most MAX_BLOCK_WEIGHT minus the header.'\",\n    \"PR description highlights the intentional P2P behavioral change: 'detecting these problems early causes them to be treated as deserialization errors, which in P2P logic cause messages to be ignored instead of peer disconnection.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Modifies core serialization infrastructure in serialize.h by introducing stateful stream parameters (HasSerState, ParamsStream::GetState()), and modifies P2P behavior so that blocks or transactions failing these checks are dropped as deserialization errors rather than processed by validation and resulting in peer disconnections.\",\n  \"changed_since_previous\": \"Initial diff inspection confirms the earlier nopatch description; no commits or design changes observed.\",\n  \"card\": \"This PR performs sanity checks during transaction and block deserialization rather than waiting for post-deserialization validation. It globally rejects transactions with more inputs or outputs than can fit in a block, and in P2P streams it rejects zero-input/zero-output transactions and aborts if cumulative weight exceeds the 4M block limit. This protects nodes from peers sending 4 MB messages containing up to 16M weight or ~400,000 empty transactions that exhaust memory. As a behavioral side effect, messages failing these checks are ignored as deserialization errors rather than causing peer disconnection.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"consensus\",\n      \"p2p\",\n      \"validation\"\n    ],\n    \"why\": \"A flaw in early transaction deserialization or weight accounting could cause valid blocks or transactions from P2P peers to fail deserialization and be dropped.\"\n  }\n}",
+ "result": {
+  "summary": "Adds early validation checks during transaction and block deserialization to fail immediately on malformed network or RPC data. It enforces global caps on the number of transaction inputs and outputs based on block limits, rejects transactions with zero inputs or outputs in P2P streams, and tracks cumulative transaction weight during deserialization to abort if the 4M block weight limit is exceeded. To support cumulative weight accounting without breaking streaming abstractions, it extends the serialization framework to allow mutable state in stream parameter objects.",
+  "problem": "Nodes fully deserialize P2P network messages before passing them to validation, exposing nodes to worst-case memory and CPU consumption. An attacker can construct a 4 MB block containing 16M weight in non-witness transactions, send roughly 400,000 zero-input/zero-output transactions requiring individual CTransaction allocations, or specify giant input/output counts that trigger large vector allocations.",
+  "evidence": [
+   "Author notes in commit 79ac5541b0 that this mitigates memory exhaustion: 'At 10 bytes each, about 400000 of them fit in a block message, each of which gets its own CTransaction. With this change, the smallest transaction that gets deserialized has one input and one output, which takes 60 bytes.'",
+   "Author notes in commit 57a26d1a63 that 'The P2P message size limit allows blocks of up to 4 MB, which is up to 16M weight, all of which is currently deserialized before validation rejects it... With this change, the weight deserialized from a message is at most MAX_BLOCK_WEIGHT minus the header.'",
+   "PR description highlights the intentional P2P behavioral change: 'detecting these problems early causes them to be treated as deserialization errors, which in P2P logic cause messages to be ignored instead of peer disconnection.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Modifies core serialization infrastructure in serialize.h by introducing stateful stream parameters (HasSerState, ParamsStream::GetState()), and modifies P2P behavior so that blocks or transactions failing these checks are dropped as deserialization errors rather than processed by validation and resulting in peer disconnections.",
+  "changed_since_previous": "Initial diff inspection confirms the earlier nopatch description; no commits or design changes observed.",
+  "card": "This PR performs sanity checks during transaction and block deserialization rather than waiting for post-deserialization validation. It globally rejects transactions with more inputs or outputs than can fit in a block, and in P2P streams it rejects zero-input/zero-output transactions and aborts if cumulative weight exceeds the 4M block limit. This protects nodes from peers sending 4 MB messages containing up to 16M weight or ~400,000 empty transactions that exhaust memory. As a behavioral side effect, messages failing these checks are ignored as deserialization errors rather than causing peer disconnection.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "p2p",
+    "validation"
+   ],
+   "why": "A flaw in early transaction deserialization or weight accounting could cause valid blocks or transactions from P2P peers to fail deserialization and be dropped."
+  }
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-19T01:18:17+00:00",
+ "card": "This PR simplifies AddrMan timestamp updates and fixes a multiplicity calculation flaw for gossip announcements. It removes the legacy 1-hour/24-hour update throttling rule, updating address timestamps whenever newer information arrives since AddrMan operations now occur in memory. It also subtracts the gossip time penalty when comparing an incoming announcement against an existing entry, preventing identical announcements relayed across multiple peers from appearing newer than the stored penalized record. The author notes this fixes an unintended multiplicity increase in benign multi-hop gossip relay rather than serving as an adversarial defense.",
+ "changed_since_previous": "Added a preliminary commit that removes the legacy 1-hour and 24-hour timestamp update throttling rules, simplifying the update flow and ensuring any announcement with newer information can update nTime and be evaluated for multiplicity increases.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Description notes that 'The rule not to update nTime for 1h come from a time when an update meant a database update. Now that AddrMan lives in memory it is no longer necessary, and removing it simplifies the logic.'",
+  "Description identifies ineffective multiplicity prevention: 'when the entry was first added, its nTime was stored with a 2h time penalty applied, so addr.nTime > pinfo->nTime holds even for an identical announcement. As a result, a single announcement relayed to us by several peers could increase an address's multiplicity in the new table, up to 8.'"
+ ],
+ "head_sha": "047b325c6959ceb7ca4bdc107aa08e3a619aaaa3",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36208,
+ "patch_id": "c7ceb6c90a4608ef",
+ "problem": "AddrMan previously throttled timestamp updates to at most once per hour (or 24 hours if offline), a legacy artifact from when address records were stored directly in an on-disk database. Furthermore, because stored timestamps already have a 2-hour penalty applied upon insertion, checking an unpenalized incoming announcement against the stored penalized timestamp caused identical gossip announcements arriving from different peers to appear newer, unintentionally inflating an address's multiplicity in the new table up to 8.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Flaws in AddrMan timestamp handling could distort address table eviction or multiplicity, altering peer selection and address gossiping."
+ },
+ "run": "run:20261119-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 55,
+  "deletions": 9,
+  "files": 2,
+  "test_lines": 51
+ },
+ "summary": "Removes the legacy 1-hour and 24-hour update throttling intervals for address timestamps in AddrManImpl::AddSingle and applies the gossip time penalty when checking for new information. Address timestamps are now updated immediately whenever a newer announcement arrives. In addition, identical address announcements arriving via multiple gossip relay paths are no longer falsely treated as newer than the stored record.",
+ "uncertainties": []
+}

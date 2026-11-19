@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-19T01:18:14+00:00",
+ "card": "Handles block and undo file write errors explicitly so disk write failures (such as running out of disk space) trigger a clean fatal shutdown with diagnostic logs instead of crashing via std::terminate. In BufferedWriter, pending bytes are cleared before writing to avoid destructor re-throws during exception unwinding, a discard() method abandons pending bytes on write failure, and an Assume assertion ensures buffers are emptied before destruction. This fixes a crash regression introduced in #31551 when buffered writing was added.",
+ "changed_since_previous": "Added an explicit `discard()` method to `BufferedWriter` to drop pending bytes on failure, and extended writer scope in block and undo file writing to discard buffers before closing files.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author notes encountering the issue regularly: \"my 1 TB benchmarking servers have recently been filling up, so I've been seeing these failures more often.\"",
+  "Author identifies the regression origin: \"I introduced this bug in #31551 when adding `BufferedWriter`.\"",
+  "Author provides a minimal sed-based reproducer demonstrating an immediate crash via `std::terminate` without clean shutdown before the patch, and graceful exit status 1 with diagnostic logs after the patch."
+ ],
+ "head_sha": "1584299ae51d5c0bb821f4f51521ec6eaf9bdfbd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36049,
+ "patch_id": "cabbe111b668a1be",
+ "problem": "When disk writes fail (such as when a disk fills up during block or undo writes), `AutoFile::write_buffer()` throws `std::ios_base::failure`. Because `BufferedWriter`'s destructor was implicitly non-throwing, unflushed buffer exceptions in the destructor triggered an abrupt `std::terminate` crash instead of a graceful shutdown, and failed flushes left pending bytes that caused the destructor to attempt re-writing while an exception was already unwinding.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "Alters error handling and buffering during block and undo file writes, where a bug could mishandle disk I/O errors or leave partially written data unclosed."
+ },
+ "run": "run:20261119-0118-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 55,
+  "deletions": 15,
+  "files": 3,
+  "test_lines": 19
+ },
+ "summary": "Flushes buffered block and undo data explicitly before destruction, catching write exceptions to log them, close the file, and trigger a clean fatal shutdown. In `BufferedWriter`, clears pending bytes before writing so failed flushes do not re-throw during exception unwinding, provides an explicit `discard()` method on errors, and asserts empty buffers on destruction with `Assume`.",
+ "uncertainties": []
+}

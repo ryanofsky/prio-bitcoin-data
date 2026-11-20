@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-20T01:13:38+00:00",
+ "card": "Adds an interfaces::Block handle and refactors the mining IPC interface so submitSolution operates on a copy instead of modifying the template in place, fixing a concurrent data race between solution submission and template reads (issue #36515). Block retrieval methods are migrated to the Block interface, and submission methods now return a Block handle even when blocks are rejected. This is a breaking change for IPC mining clients (e.g. sv2-tp) using the Cap'n Proto interface.",
+ "changed_since_previous": "Replaced the previous mutex-locking and `getTotalFees()` approach with an immutable template design using an `interfaces::Block` handle. `submitSolution()` now operates on a copy of the template block rather than mutating the template under a lock.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes #36515: 'ipc: data race on `m_block_template` members'",
+  "Author PR description: 'submitSolution() no longer modifies the template. It applies the solution to a copy of the template block and returns a Block handle for that copy, also when the block is rejected.'"
+ ],
+ "head_sha": "4eed0dff2a89bf687b50761789fc23135cbb8dce",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36525,
+ "patch_id": "770147d3dce501a6",
+ "problem": "Concurrent IPC calls across worker threads can race on `CBlockTemplate` members when `submitSolution()` mutates the template's block in place while another thread reads from it via template getters (issue #36515). Additionally, external IPC callers could not inspect or retain rejected blocks submitted through the interface.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "other"
+  ],
+  "why": "Modifies the mining IPC interface and Cap'n Proto schemas with breaking changes; bugs could disrupt external mining callers or pool daemons using multiprocess Bitcoin Core."
+ },
+ "run": "run:20261120-0113-assess",
+ "scope_notes": "Introduces breaking IPC interface changes in `mining.capnp` (assigning new Cap'n Proto method ordinals and throwing deprecation errors on old ones).",
+ "size": {
+  "additions": 264,
+  "deletions": 88,
+  "files": 7,
+  "test_lines": 186
+ },
+ "summary": "Adds an `interfaces::Block` IPC handle and refactors `BlockTemplate` so `submitSolution()` applies solutions to a copy of the block rather than modifying the template in place. Migrates block retrieval methods (`header()`, `data()`, and `coinbaseMerklePath()`) to the new `Block` interface and changes `submitBlock()` and `submitSolution()` to return a `Block` handle alongside acceptance status. Adds functional tests exercising concurrent template reads and solution submissions.",
+ "uncertainties": []
+}

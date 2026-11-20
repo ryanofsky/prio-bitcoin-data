@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-20T01:13:46+00:00",
+ "card": "Restricts select() exception monitoring across all platforms to non-blocking connection attempts, preventing established connections from monitoring the exception set. This resolves an issue where incoming TCP urgent data could cause select() event loops to spin indefinitely without consuming out-of-band data. For poll(), socket errors or hangups detected while reads are paused under backpressure now disconnect the peer immediately rather than attempting doomed sends. Functional tests are added covering TCP urgent data, send stalls, and HTTP socket error handling.",
+ "changed_since_previous": "Replaced the OS-dependent approach (which kept monitoring exceptions on Windows while ignoring them elsewhere) with a platform-independent ConnErrorEventFlag. The flag restricts select() exception monitoring to ConnectToSocket(); established connections now omit the exception set across all platforms.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 6919268d71: 'Windows uses the select() error set to report a failed non-blocking connect(). Add ConnErrorEventFlag, which ConnectToSocket() passes to Sock::Wait() to opt in to the error set while connecting... With select(), sockets waited on without the flag no longer wake up for or report exceptional conditions, such as TCP urgent data on an established connection.'",
+  "PR description: provides an alternative approach to #36688 ('net: receive TCP urgent data inline') without needing SO_OOBINLINE, preventing urgent data from disrupting event polling."
+ ],
+ "head_sha": "05084e7879140aaf7c9b77e372ebc828f98e3153",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36716,
+ "patch_id": "c092d09a25a4215f",
+ "problem": "When select() monitors socket exceptions on established connections, TCP urgent data sets the exception mask; because Bitcoin Core does not consume out-of-band data, select() can busy-spin continuously without progressing. Additionally, under poll(), sockets report POLLERR/POLLHUP even when reading is paused, which previously led to executing doomed sends or potentially mishandling backpressure.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p",
+   "tests"
+  ],
+  "why": "Mistakes in socket event multiplexing or connection failure detection could prevent outbound peer connections from completing on Windows or prematurely terminate healthy connections."
+ },
+ "run": "run:20261120-0113-assess",
+ "scope_notes": "Touches core networking (Sock abstraction, CConnman socket handler, and HTTPServer) as well as adding a new functional test file p2p_socket_errors.py.",
+ "size": {
+  "additions": 274,
+  "deletions": 18,
+  "files": 12,
+  "test_lines": 221
+ },
+ "summary": "Restricts select() exception monitoring strictly to non-blocking connection attempts via an opt-in ConnErrorEventFlag, stopping established connections from monitoring the exception set on all platforms. When poll() reports an error or hangup on an established P2P or HTTP connection whose reads are paused by backpressure, the socket is disconnected immediately instead of attempting a doomed send.",
+ "uncertainties": []
+}

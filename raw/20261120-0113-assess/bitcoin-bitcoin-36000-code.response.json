@@ -1,0 +1,42 @@
+{
+ "run": "run:20261120-0113-assess",
+ "pr": "bitcoin/bitcoin#36000",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-20T01:13:33+00:00",
+ "usage": {
+  "input_tokens": 17440,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1640
+ },
+ "cost_usd": 0.01923,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Introduces an asynchronous block read-ahead mechanism (node::BlockFetcher) owned by Chainstate that prefetches and deserializes upcoming blocks from disk in background worker threads while earlier blocks are connected. The fetcher maintains a sliding window of queued reads (defaulting to two threads and four blocks) and queues sibling blocks on fork branches during reorgs. It is exposed as the -blockfetchthreads configuration option, where 0 disables read-ahead.\",\n \"problem\": \"Blocks stored on disk are read and deserialized synchronously on the main validation thread in ConnectTip. This disk I/O stalls the validation thread, slowing down initial block download and reindexing.\",\n \"evidence\": [\n  \"Author benchmark for reindex-chainstate across 964,469 blocks on HDD: elapsed time dropped from 30,017 s to 19,609 s (1.53x speedup).\",\n  \"Author benchmark for reindex-chainstate across 968,869 blocks on SSD: elapsed time dropped from 12,430 s to 9,562 s (1.30x speedup).\",\n  \"Author benchmark for initial block download across 968,869 blocks on SSD: elapsed time dropped from 19,273 s to 16,766 s (1.15x speedup).\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"Adds a new node::BlockFetcher class and associated thread pool to both the node and kernel libraries, and wires -blockfetchthreads into ChainstateManagerOpts.\",\n \"changed_since_previous\": \"Skips threadpool notification when submitting empty batches, and expands functional test checks around invalidating and reconsidering blocks during reindex.\",\n \"card\": \"Validation reads and deserializes blocks from disk synchronously on the main thread during block connection, stalling validation during initial block download and reindexing. This pull request adds an asynchronous BlockFetcher thread pool owned by Chainstate that prefetches blocks in a sliding read-ahead window while earlier blocks connect, including prefetching sibling blocks during reorgs. Configured via -blockfetchthreads, defaulting to two threads and four retained blocks. Author benchmarks show reindex-chainstate speedups of 1.53x on HDD and 1.30x on SSD, as well as a 1.15x speedup for IBD. It has no open dependencies.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"validation\"\n  ],\n  \"why\": \"Mistakes in block prefetching or cache invalidation during reorgs could cause block connection failures or read errors that stall node synchronization.\"\n }\n}",
+ "result": {
+  "summary": "Introduces an asynchronous block read-ahead mechanism (node::BlockFetcher) owned by Chainstate that prefetches and deserializes upcoming blocks from disk in background worker threads while earlier blocks are connected. The fetcher maintains a sliding window of queued reads (defaulting to two threads and four blocks) and queues sibling blocks on fork branches during reorgs. It is exposed as the -blockfetchthreads configuration option, where 0 disables read-ahead.",
+  "problem": "Blocks stored on disk are read and deserialized synchronously on the main validation thread in ConnectTip. This disk I/O stalls the validation thread, slowing down initial block download and reindexing.",
+  "evidence": [
+   "Author benchmark for reindex-chainstate across 964,469 blocks on HDD: elapsed time dropped from 30,017 s to 19,609 s (1.53x speedup).",
+   "Author benchmark for reindex-chainstate across 968,869 blocks on SSD: elapsed time dropped from 12,430 s to 9,562 s (1.30x speedup).",
+   "Author benchmark for initial block download across 968,869 blocks on SSD: elapsed time dropped from 19,273 s to 16,766 s (1.15x speedup)."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Adds a new node::BlockFetcher class and associated thread pool to both the node and kernel libraries, and wires -blockfetchthreads into ChainstateManagerOpts.",
+  "changed_since_previous": "Skips threadpool notification when submitting empty batches, and expands functional test checks around invalidating and reconsidering blocks during reindex.",
+  "card": "Validation reads and deserializes blocks from disk synchronously on the main thread during block connection, stalling validation during initial block download and reindexing. This pull request adds an asynchronous BlockFetcher thread pool owned by Chainstate that prefetches blocks in a sliding read-ahead window while earlier blocks connect, including prefetching sibling blocks during reorgs. Configured via -blockfetchthreads, defaulting to two threads and four retained blocks. Author benchmarks show reindex-chainstate speedups of 1.53x on HDD and 1.30x on SSD, as well as a 1.15x speedup for IBD. It has no open dependencies.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "Mistakes in block prefetching or cache invalidation during reorgs could cause block connection failures or read errors that stall node synchronization."
+  }
+ }
+}

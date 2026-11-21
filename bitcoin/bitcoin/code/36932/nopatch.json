@@ -1,0 +1,39 @@
+{
+ "assessed_at": "2026-11-21T01:21:19+00:00",
+ "card": "This PR modifies AddrMan collision selection to filter pending collisions by reachable networks during feeler connection attempts. Previously, if an address involved in a tried collision was unreachable (such as after switching to -onlynet=ipv4), feeler logic repeatedly selected it, failed to connect, and stalled all feeler connections for up to 40 minutes. Now, unreachable collisions are bypassed so ordinary feelers can continue unblocked. The author identified the bug after observing stalled feelers following a network configuration change.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "\"When the old entry in a collision is unreachable and hasn't connected successfully in the last 4 hours, it can only leave the collision set through the 40-minute ADDRMAN_TEST_WINDOW branch. Until then, if it's the only pending collision, no feeler connections are made at all. This is a rare occurrence I ran into when I switched from dual-homed (IPv4 + Tor) to -onlynet=ipv4.\" (PR description)"
+ ],
+ "head_sha": "fc9f536d177c73e63424075e60da319c992c6a38",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36932,
+ "patch_id": "nopatch",
+ "problem": "When a node's network configuration changes (such as dropping Tor or IPv6) and an existing tried table entry becomes unreachable while in a collision, `ThreadOpenConnections()` continuously selects that unreachable entry for testing. Because the address cannot be dialed, feeler attempts abort and all feeler connections stall completely for up to 40 minutes until `ResolveCollisions()` expires the entry.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Bugs in address manager collision selection or feeler connection handling could degrade peer discovery or incorrectly evict valid peer addresses from the tried table."
+ },
+ "run": "run:20261121-0120-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 77,
+  "deletions": 23,
+  "files": 5,
+  "test_lines": null
+ },
+ "summary": "Pass reachable networks to `AddrMan::SelectTriedCollision()` so feeler connections ignore collisions where the existing entry belongs to an unreachable network. If no collisions on reachable networks are pending, the node proceeds with a normal feeler connection instead of repeatedly attempting and skipping the unreachable address.",
+ "uncertainties": []
+}

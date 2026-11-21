@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-11-21T01:21:11+00:00",
+ "card": "This draft PR adds performance optimizations on top of PR 36895's serialized witness stack storage. It streams serialized witness stacks directly into raw byte storage during deserialization, inlines CompactSize parsing for 5-7x faster iteration, indexes the last element offset for O(1) back() access, and defers witness-to-vector conversion during script verification until rules actually evaluate the witness. Author benchmarks show validation time for synthetic blocks packed with millions of tiny witness items drops by up to 9x (128ms to 14ms). Depends on #36895.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36895"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmarks on Zen5 show total receipt-to-accept/reject time dropping from 128ms to 14ms for synthetic blocks with 2.0M 1-byte items on unknown versions, and 346ms down to 59ms for blocks with 4.0M 0-byte items exceeding stack limits (PR description).",
+  "Commit d4f200ef35 notes direct deserialization makes reading a block with millions of 1-byte elements about 10x faster, while commit 5efcd887c5 notes inlined CompactSize decoding speeds up iteration 5-7x."
+ ],
+ "head_sha": "ced8967731a2dab2f4bb24a16ef4d64be172666a",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "rest_of_diff"
+ ],
+ "number": 36918,
+ "patch_id": "045126a6a9b3e185",
+ "problem": "Even with serialized witness storage, deserialization through intermediate vector structures and parsing CompactSizes with general stream readers add substantial CPU overhead. Moreover, verifying blocks containing millions of witness elements incurs wasted time converting full witness stacks into vector objects even for witness programs that never execute the stack (such as unknown witness versions, pay-to-anchor, or taproot when unverified).",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "A flaw in witness deserialization, CompactSize decoding, or lazy execution handling in VerifyWitnessProgram could cause nodes to reject valid blocks or accept invalid ones, causing a consensus fork."
+ },
+ "run": "run:20261121-0120-assess",
+ "scope_notes": "Stacked on PR 36895; 13 of the 19 commits and the mechanical CScriptWitness interface conversions across the codebase belong to the base PR.",
+ "size": {
+  "additions": 876,
+  "deletions": 244,
+  "files": 66,
+  "test_lines": 632
+ },
+ "summary": "Builds follow-up optimizations on top of PR 36895's serialized CScriptWitness representation. It deserializes witness stacks directly into serialized byte storage without intermediate vector-of-vector allocations, inlines CompactSize decoding for faster iteration, and stores the offset of the last element for O(1) back() access. It also avoids eager vector conversion in VerifyWitnessProgram, deferring it until the specific script rules (e.g., P2WSH or Taproot) require it.",
+ "uncertainties": []
+}

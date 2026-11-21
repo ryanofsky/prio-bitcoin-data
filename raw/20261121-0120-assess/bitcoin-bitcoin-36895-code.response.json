@@ -1,0 +1,46 @@
+{
+ "run": "run:20261121-0120-assess",
+ "pr": "bitcoin/bitcoin#36895",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-21T01:21:06+00:00",
+ "usage": {
+  "input_tokens": 20689,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1591
+ },
+ "cost_usd": 0.021483,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Encapsulates `CScriptWitness` behind an immutable interface and replaces its `std::vector<std::vector<unsigned char>>` storage with a single length-prefixed heap allocation containing the serialized witness. Individual witness stack elements are parsed on the fly as spans rather than held as separately allocated vectors. Call sites across consensus, RPC, mempool, wallet, and tests are mechanically converted to the new interface.\",\n  \"problem\": \"Storing witness stacks as vectors of vectors costs a 24-byte vector and a separate heap allocation for each non-empty stack element. Specially constructed transactions with millions of tiny witness elements can consume an excessive amount of node memory after deserialization (up to roughly 28 bytes per weight unit), creating a potential memory-amplification denial-of-service vector.\",\n  \"evidence\": [\n    \"PR description: \\\"Worst-case allocated size for transactions kept in memory drops from roughly 28 bytes/WU to 1.6 bytes/WU.\\\"\",\n    \"PR description: \\\"CScriptWitness shrinks from 24 to 8 bytes, and CTxIn from 112 to 96 bytes.\\\"\",\n    \"PR description notes a known trade-off: \\\"This worsens deserialization and validation time, adding some 50-70 ms per block to the worst case for me.\\\"\",\n    \"PR description: \\\"Issue reported by furszy and 0xB10C.\\\"\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#36918\"\n    ]\n  },\n  \"scope_notes\": \"A substantial portion of the diff across 62 files consists of scripted diffs migrating call sites from direct `.stack` manipulation to `CScriptWitness` member functions. A dedicated fuzz test for `CScriptWitness` is also added.\",\n  \"changed_since_previous\": \"No substantial conceptual changes; the branch was rebased and minor updates were made across the stack without altering the underlying serialization approach.\",\n  \"card\": \"This PR encapsulates CScriptWitness and replaces its vector-of-vectors layout with a single contiguous allocation storing the serialized witness stack. This addresses an in-memory amplification issue where transactions with large numbers of small witness items consume up to ~28 bytes per weight unit, reducing worst-case memory usage to ~1.6 bytes per weight unit. Because stack elements are deserialized on demand, worst-case validation time increases by roughly 50-70 ms per block on the author's machine, which follow-up PR 36918 aims to optimize. Scripted diffs convert all call sites across 62 files to treat witness objects as immutable.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"consensus\",\n      \"validation\"\n    ],\n    \"why\": \"Flaws in witness deserialization or stack element parsing would directly alter script execution and validation results, risking consensus divergences or crashes during block connection.\"\n  }\n}",
+ "result": {
+  "summary": "Encapsulates `CScriptWitness` behind an immutable interface and replaces its `std::vector<std::vector<unsigned char>>` storage with a single length-prefixed heap allocation containing the serialized witness. Individual witness stack elements are parsed on the fly as spans rather than held as separately allocated vectors. Call sites across consensus, RPC, mempool, wallet, and tests are mechanically converted to the new interface.",
+  "problem": "Storing witness stacks as vectors of vectors costs a 24-byte vector and a separate heap allocation for each non-empty stack element. Specially constructed transactions with millions of tiny witness elements can consume an excessive amount of node memory after deserialization (up to roughly 28 bytes per weight unit), creating a potential memory-amplification denial-of-service vector.",
+  "evidence": [
+   "PR description: \"Worst-case allocated size for transactions kept in memory drops from roughly 28 bytes/WU to 1.6 bytes/WU.\"",
+   "PR description: \"CScriptWitness shrinks from 24 to 8 bytes, and CTxIn from 112 to 96 bytes.\"",
+   "PR description notes a known trade-off: \"This worsens deserialization and validation time, adding some 50-70 ms per block to the worst case for me.\"",
+   "PR description: \"Issue reported by furszy and 0xB10C.\""
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36918"
+   ]
+  },
+  "scope_notes": "A substantial portion of the diff across 62 files consists of scripted diffs migrating call sites from direct `.stack` manipulation to `CScriptWitness` member functions. A dedicated fuzz test for `CScriptWitness` is also added.",
+  "changed_since_previous": "No substantial conceptual changes; the branch was rebased and minor updates were made across the stack without altering the underlying serialization approach.",
+  "card": "This PR encapsulates CScriptWitness and replaces its vector-of-vectors layout with a single contiguous allocation storing the serialized witness stack. This addresses an in-memory amplification issue where transactions with large numbers of small witness items consume up to ~28 bytes per weight unit, reducing worst-case memory usage to ~1.6 bytes per weight unit. Because stack elements are deserialized on demand, worst-case validation time increases by roughly 50-70 ms per block on the author's machine, which follow-up PR 36918 aims to optimize. Scripted diffs convert all call sites across 62 files to treat witness objects as immutable.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "validation"
+   ],
+   "why": "Flaws in witness deserialization or stack element parsing would directly alter script execution and validation results, risking consensus divergences or crashes during block connection."
+  }
+ }
+}

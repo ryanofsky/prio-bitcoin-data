@@ -1,0 +1,41 @@
+{
+ "run": "run:20261122-0110-assess",
+ "pr": "bitcoin/bitcoin#36245",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-22T01:10:52+00:00",
+ "usage": {
+  "input_tokens": 5557,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2055
+ },
+ "cost_usd": 0.011874,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Restricts descriptor expansion in DescriptorScriptPubKeyMan::TopUpWithDB() to begin at range_start rather than index 0 for descriptors with a non-zero range start. In both TopUpWithDB() and Load(), sets m_max_cached_index directly to the derived index rather than incrementing from an initial value of -1.\",\n \"problem\": \"Importing a descriptor with range [N, M] derives and watches all keys from index 0 to M because top-up begins from m_max_cached_index + 1 (which starts at 0). This makes imports take O(M) time instead of O(M - N), temporarily treats scriptPubKeys below N as owned until the wallet is reopened (causing rescanned transactions below N to drop out of wallet balance upon reload), allows pathological range starts near 2^31 to stall the node, and causes redundant re-derivations on reload because m_max_cached_index was tracking a count instead of the actual derived index.\",\n \"evidence\": [\n  \"Author benchmark: 'Importing wpkh(xpub/0/*) with \\\"range\\\": [600000, 600009] into a blank watch-only wallet goes from 19.5s to 0.09s on this machine.'\",\n  \"PR description notes that Load() only expands [range_start, range_end), creating a discrepancy where keys below range_start are IsMine during import rescan but no longer IsMine after restarting the wallet.\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": []\n },\n \"scope_notes\": \"\",\n \"changed_since_previous\": \"No functional or diff changes; rebased or updated commit message metadata.\",\n \"card\": \"Bounds descriptor key expansion during import top-ups to start at range_start rather than index 0, and records the derived index directly. Currently, importing a descriptor with range [N, M] derives and caches all keys from 0 to M, making import cost O(M) instead of O(M - N) and causing keys below N to appear as owned during import only to disappear when the wallet is reloaded. The author reports that importing a 10-key range starting at index 600,000 drops from 19.5 seconds to 0.09 seconds, and prevents pathological large range starts from attempting to derive up to 2^31 keys.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"high\",\n  \"touches\": [\n   \"wallet\"\n  ],\n  \"why\": \"A mistake in descriptor range derivation could cause the wallet to fail to watch expected scriptPubKeys, leading to missed transactions and incorrect balances.\"\n }\n}",
+ "result": {
+  "summary": "Restricts descriptor expansion in DescriptorScriptPubKeyMan::TopUpWithDB() to begin at range_start rather than index 0 for descriptors with a non-zero range start. In both TopUpWithDB() and Load(), sets m_max_cached_index directly to the derived index rather than incrementing from an initial value of -1.",
+  "problem": "Importing a descriptor with range [N, M] derives and watches all keys from index 0 to M because top-up begins from m_max_cached_index + 1 (which starts at 0). This makes imports take O(M) time instead of O(M - N), temporarily treats scriptPubKeys below N as owned until the wallet is reopened (causing rescanned transactions below N to drop out of wallet balance upon reload), allows pathological range starts near 2^31 to stall the node, and causes redundant re-derivations on reload because m_max_cached_index was tracking a count instead of the actual derived index.",
+  "evidence": [
+   "Author benchmark: 'Importing wpkh(xpub/0/*) with \"range\": [600000, 600009] into a blank watch-only wallet goes from 19.5s to 0.09s on this machine.'",
+   "PR description notes that Load() only expands [range_start, range_end), creating a discrepancy where keys below range_start are IsMine during import rescan but no longer IsMine after restarting the wallet."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "No functional or diff changes; rebased or updated commit message metadata.",
+  "card": "Bounds descriptor key expansion during import top-ups to start at range_start rather than index 0, and records the derived index directly. Currently, importing a descriptor with range [N, M] derives and caches all keys from 0 to M, making import cost O(M) instead of O(M - N) and causing keys below N to appear as owned during import only to disappear when the wallet is reloaded. The author reports that importing a 10-key range starting at index 600,000 drops from 19.5 seconds to 0.09 seconds, and prevents pathological large range starts from attempting to derive up to 2^31 keys.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "wallet"
+   ],
+   "why": "A mistake in descriptor range derivation could cause the wallet to fail to watch expected scriptPubKeys, leading to missed transactions and incorrect balances."
+  }
+ }
+}

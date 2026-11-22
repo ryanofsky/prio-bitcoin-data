@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-22T01:10:52+00:00",
+ "card": "Bounds descriptor key expansion during import top-ups to start at range_start rather than index 0, and records the derived index directly. Currently, importing a descriptor with range [N, M] derives and caches all keys from 0 to M, making import cost O(M) instead of O(M - N) and causing keys below N to appear as owned during import only to disappear when the wallet is reloaded. The author reports that importing a 10-key range starting at index 600,000 drops from 19.5 seconds to 0.09 seconds, and prevents pathological large range starts from attempting to derive up to 2^31 keys.",
+ "changed_since_previous": "No functional or diff changes; rebased or updated commit message metadata.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmark: 'Importing wpkh(xpub/0/*) with \"range\": [600000, 600009] into a blank watch-only wallet goes from 19.5s to 0.09s on this machine.'",
+  "PR description notes that Load() only expands [range_start, range_end), creating a discrepancy where keys below range_start are IsMine during import rescan but no longer IsMine after restarting the wallet."
+ ],
+ "head_sha": "012dd0d6e40ef5e63a875abfb4ec9d7b0906ea1c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36245,
+ "patch_id": "dea5ec125587b483",
+ "problem": "Importing a descriptor with range [N, M] derives and watches all keys from index 0 to M because top-up begins from m_max_cached_index + 1 (which starts at 0). This makes imports take O(M) time instead of O(M - N), temporarily treats scriptPubKeys below N as owned until the wallet is reopened (causing rescanned transactions below N to drop out of wallet balance upon reload), allows pathological range starts near 2^31 to stall the node, and causes redundant re-derivations on reload because m_max_cached_index was tracking a count instead of the actual derived index.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "wallet"
+  ],
+  "why": "A mistake in descriptor range derivation could cause the wallet to fail to watch expected scriptPubKeys, leading to missed transactions and incorrect balances."
+ },
+ "run": "run:20261122-0110-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 44,
+  "deletions": 4,
+  "files": 3,
+  "test_lines": 37
+ },
+ "summary": "Restricts descriptor expansion in DescriptorScriptPubKeyMan::TopUpWithDB() to begin at range_start rather than index 0 for descriptors with a non-zero range start. In both TopUpWithDB() and Load(), sets m_max_cached_index directly to the derived index rather than incrementing from an initial value of -1.",
+ "uncertainties": []
+}

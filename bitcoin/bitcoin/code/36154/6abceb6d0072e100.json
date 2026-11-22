@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-22T01:10:46+00:00",
+ "card": "Bitcoin Core now populates BIP 174 PSBT_GLOBAL_XPUB fields when creating or updating PSBTs in descriptor wallets with bip32derivs enabled. Previously, Core never wrote this field, preventing stateless hardware signers from reconstructing multisig scripts or verifying change outputs without coordinator workarounds. Testing shows BitBox02 refuses multisig signing without global xpubs and succeeds with them, while Trezor receives accurate derivation paths instead of zeroed chain codes. Extended keys are filtered to only those that unhardenedly derive keys appearing in transaction inputs or outputs.",
+ "changed_since_previous": "Rebased or updated with minor adjustments; no structural change in the approach or scope.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author testing shows BitBox02 refuses to sign a 2-of-3 multisig transaction without PSBT_GLOBAL_XPUB ('This BitBox02 is not one of the cosigners') and signs successfully with it.",
+  "Author testing shows Trezor T receives real chain codes and derivation paths for multisig change outputs rather than zeroed chain codes and empty paths.",
+  "Specter Desktop maintains dedicated code (wallet.py) solely to manually inject PSBT_GLOBAL_XPUB after receiving PSBTs from Bitcoin Core.",
+  "Closes issue #27583 ('psbt: set global_xpubs (at least for multisig descriptors)')."
+ ],
+ "head_sha": "8ae5b94cadccc6d78eccc9d17928876f2340f72e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36154,
+ "patch_id": "6abceb6d0072e100",
+ "problem": "Bitcoin Core's wallet never writes PSBT_GLOBAL_XPUB records despite supporting their serialization and merging. Stateless hardware signers cannot reconstruct multisig script context or verify change outputs from the PSBT alone, causing signers like BitBox02 to reject signing and forcing wallet coordinators like Specter to manually inject xpubs.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "rpc_api"
+  ],
+  "why": "Incorrect xpub derivations or key inclusions could produce invalid PSBTs or expose unexpected extended public keys in PSBT outputs."
+ },
+ "run": "run:20261122-0110-assess",
+ "scope_notes": "Adds descriptor inspection logic in descriptor.cpp and PSBT population in scriptpubkeyman.cpp, accompanied by descriptor unit tests and wallet functional tests.",
+ "size": {
+  "additions": 588,
+  "deletions": 11,
+  "files": 17,
+  "test_lines": 379
+ },
+ "summary": "Populates BIP 174's PSBT_GLOBAL_XPUB field in descriptor wallets during CWallet::FillPSBT when bip32derivs is enabled. Adds a Descriptor::GetExtPubKeysWithOrigins interface to extract extended public keys stamped with network version bytes and their origins. Restricts added xpubs to those that derive keys present in the PSBT inputs or outputs through unhardened derivation steps.",
+ "uncertainties": []
+}

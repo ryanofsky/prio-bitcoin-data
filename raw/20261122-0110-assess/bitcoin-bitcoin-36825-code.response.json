@@ -1,0 +1,42 @@
+{
+ "run": "run:20261122-0110-assess",
+ "pr": "bitcoin/bitcoin#36825",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-22T01:10:47+00:00",
+ "usage": {
+  "input_tokens": 6110,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1370
+ },
+ "cost_usd": 0.00972,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Fixes legacy-to-descriptor wallet migration for legacy wallets containing watch-only transactions and no spendable keys. Replaces an empty on_abort callback in RemoveTxs with a no-op function to prevent throwing std::bad_function_call when a database transaction aborts. Moves the emptiness checks for address book records and mapWallet from ApplyMigrationData to DoMigration so they evaluate after the database commit callback deletes removed transactions from memory.\",\n  \"problem\": \"Migrating a legacy wallet tracking watch-only transactions without private keys fails. In-memory transactions in mapWallet are only cleared after the database transaction commits, but validation in ApplyMigrationData checked for an empty map before commit. When the transaction subsequently aborted, an empty std::function callback threw std::bad_function_call and masked the underlying migration error.\",\n  \"evidence\": [\n    \"Fixes linked issue #36483 ('wallet: Migration fails for legacy wallet with no keys watching an address')\",\n    \"PR description notes that replacing the abort callback changed the failure from an unhandled exception to 'Error: Not all transaction records were migrated (-4)', revealing the timing issue in mapWallet clearance\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"Rather than modifying ApplyMigrationData to account for pending deletions, the emptiness checks for mapWallet and address book records were moved entirely to DoMigration after RunWithinTxn commits.\",\n  \"card\": \"Fixes a bug where migrating a legacy wallet with watch-only transactions and no private keys to descriptor format fails. Pre-commit migration checks expected mapWallet to already be cleared, but RemoveTxs defers memory deletion until after the database transaction commits, and the subsequent abort threw std::bad_function_call due to an uninitialized callback. The PR makes the abort callback a no-op and defers the emptiness checks to DoMigration after the database transaction successfully commits. Resolves issue #36483 with unit and functional regression test coverage.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"wallet\",\n      \"wallet_storage\"\n    ],\n    \"why\": \"A mistake in wallet migration cleanup checks could leave unmigrated records behind or fail migration for legacy wallets.\"\n  }\n}",
+ "result": {
+  "summary": "Fixes legacy-to-descriptor wallet migration for legacy wallets containing watch-only transactions and no spendable keys. Replaces an empty on_abort callback in RemoveTxs with a no-op function to prevent throwing std::bad_function_call when a database transaction aborts. Moves the emptiness checks for address book records and mapWallet from ApplyMigrationData to DoMigration so they evaluate after the database commit callback deletes removed transactions from memory.",
+  "problem": "Migrating a legacy wallet tracking watch-only transactions without private keys fails. In-memory transactions in mapWallet are only cleared after the database transaction commits, but validation in ApplyMigrationData checked for an empty map before commit. When the transaction subsequently aborted, an empty std::function callback threw std::bad_function_call and masked the underlying migration error.",
+  "evidence": [
+   "Fixes linked issue #36483 ('wallet: Migration fails for legacy wallet with no keys watching an address')",
+   "PR description notes that replacing the abort callback changed the failure from an unhandled exception to 'Error: Not all transaction records were migrated (-4)', revealing the timing issue in mapWallet clearance"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "Rather than modifying ApplyMigrationData to account for pending deletions, the emptiness checks for mapWallet and address book records were moved entirely to DoMigration after RunWithinTxn commits.",
+  "card": "Fixes a bug where migrating a legacy wallet with watch-only transactions and no private keys to descriptor format fails. Pre-commit migration checks expected mapWallet to already be cleared, but RemoveTxs defers memory deletion until after the database transaction commits, and the subsequent abort threw std::bad_function_call due to an uninitialized callback. The PR makes the abort callback a no-op and defers the emptiness checks to DoMigration after the database transaction successfully commits. Resolves issue #36483 with unit and functional regression test coverage.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "wallet",
+    "wallet_storage"
+   ],
+   "why": "A mistake in wallet migration cleanup checks could leave unmigrated records behind or fail migration for legacy wallets."
+  }
+ }
+}

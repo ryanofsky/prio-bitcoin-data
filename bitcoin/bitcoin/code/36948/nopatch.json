@@ -1,0 +1,43 @@
+{
+ "assessed_at": "2026-11-23T01:15:30+00:00",
+ "card": "This pull request fixes a bug where pruned nodes running blockfilterindex or coinstatsindex crash upon completing assumeutxo background validation. Following PR #34897, chainstate flushes that report blocks ahead of the index tip cause the index to skip persisting its progress, eventually leaving it stranded when older blocks are pruned. The patch removes the strict locator check in ChainStateFlushed and permits flushing as long as the index tip is an ancestor of the flushed chainstate. Linked issue #36939 documents the crash in v32.1.",
+ "changed_since_previous": "",
+ "confidence": "medium",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Linked issue #36939 states: 'Pruned node with blockfilterindex or coinstatsindex crashes when assumeutxo background validation completes (v32.1)'",
+  "PR description explains the regression mechanism: 'Since #34897, a flush in ConnectTip() can report a block before the index receives BlockConnected for it... On a pruned assumeutxo node, repeated skips can leave the saved tip so far behind that the index needs blocks that were pruned by the time it restarts after background validation.'"
+ ],
+ "head_sha": "ea1b6cba295b3e23afda2643ab7460ef09cb3620",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36948,
+ "patch_id": "nopatch",
+ "problem": "Since PR #34897, a chainstate flush occurring during ConnectTip() can trigger before the index has received the corresponding BlockConnected notification. A locator check in ChainStateFlushed() skips saving the index tip when this happens; on pruned nodes using assumeutxo, repeatedly skipped writes leave the saved index tip behind, causing the node to crash when assumeutxo background validation finishes because the required historical blocks have already been pruned.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "other"
+  ],
+  "why": "Incorrectly committing index progress ahead of or out of sync with flushed chainstate could corrupt index databases or trigger reindexing."
+ },
+ "run": "run:20261123-0115-assess",
+ "scope_notes": "Reuses two commits authored by Fabian Jahr containing a unit test reproducing the skipped commit and the index flush logic fix.",
+ "size": {
+  "additions": 48,
+  "deletions": 14,
+  "files": 2,
+  "test_lines": null
+ },
+ "summary": "Allows secondary indexes (such as blockfilterindex or coinstatsindex) to persist their progress during chainstate flushes even when the notification reports a block ahead of the index tip. It removes the locator check in ChainStateFlushed and permits Commit() whenever the index tip is an ancestor of or equal to the flushed chainstate block.",
+ "uncertainties": [
+  "Full diff was unavailable to verify the exact ancestry check implementation in Commit()."
+ ]
+}

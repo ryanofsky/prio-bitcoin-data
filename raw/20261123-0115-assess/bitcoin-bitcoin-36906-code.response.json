@@ -1,0 +1,44 @@
+{
+ "run": "run:20261123-0115-assess",
+ "pr": "bitcoin/bitcoin#36906",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-23T01:15:26+00:00",
+ "usage": {
+  "input_tokens": 9440,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1327
+ },
+ "cost_usd": 0.01205625,
+ "error": null,
+ "raw_text": "{\n \"summary\": \"Adds checks during transaction deserialization to reject transactions that could never be valid. Transactions claiming more inputs or outputs than could possibly fit in a block are rejected everywhere, bounding vector allocation sizes. Additionally, transactions with zero inputs or zero outputs are rejected early in P2P message deserialization via a new serializer parameter.\",\n \"problem\": \"Nodes fully deserialize transactions and blocks before passing them to validation, exposing nodes to worst-case memory allocation. A malicious peer can send a 4 MB block containing roughly 400,000 empty transactions (10 bytes each) that each allocate a full CTransaction object, or transactions specifying huge vector counts that trigger repeated multi-megabyte reallocations.\",\n \"evidence\": [\n  \"Commit 82cd7e7427: 'This reduces the memory a peer can make us allocate by sending a block full of such transactions. At 10 bytes each, about 400000 of them fit in a block message, each of which gets its own CTransaction.'\",\n  \"Commit ec2cabb795: 'This allows us to allocate the vin and vout vectors immediately, rather than sequentially in batches of 5 MB as the std::vector deserializer does, because that memory becomes bounded: to 2.7 MB for 24390 inputs, and 5.3 MB for 111111 outputs.'\"\n ],\n \"dependencies\": {\n  \"depends_on\": [],\n  \"enables\": [\n   \"#36895\"\n  ]\n },\n \"scope_notes\": \"Changes P2P behavior slightly: blocks and transactions with zero inputs or outputs or excessive input/output counts are now treated as stream deserialization errors (the message is dropped/ignored) rather than passing to validation where an invalid block would cause peer disconnection or an invalid transaction would enter the reject filter.\",\n \"changed_since_previous\": \"Dropped cumulative block weight tracking during deserialization and the accompanying mutable stream parameter changes, leaving only the per-transaction input/output count limits and the P2P rejection of empty inputs or outputs.\",\n \"card\": \"This PR adds early checks during transaction deserialization to prevent malicious peers from exploiting worst-case memory allocations. It globally rejects transactions specifying more inputs or outputs than can fit in a block, allowing immediate vector capacity reservation bounded to at most 5.3 MB. It also rejects transactions with zero inputs or zero outputs across P2P message handling, preventing peers from flooding a node with up to 400,000 10-byte empty transactions in a single 4 MB block. As a behavioral change, these malformed transactions and blocks are ignored as deserialization failures rather than being rejected in validation and triggering peer disconnection.\",\n \"needs\": [],\n \"confidence\": \"high\",\n \"uncertainties\": [],\n \"risk\": {\n  \"level\": \"medium\",\n  \"touches\": [\n   \"p2p\",\n   \"validation\"\n  ],\n  \"why\": \"A flaw in deserialization limits could inadvertently reject valid consensus data or alter peer misbehavior handling.\"\n }\n}",
+ "result": {
+  "summary": "Adds checks during transaction deserialization to reject transactions that could never be valid. Transactions claiming more inputs or outputs than could possibly fit in a block are rejected everywhere, bounding vector allocation sizes. Additionally, transactions with zero inputs or zero outputs are rejected early in P2P message deserialization via a new serializer parameter.",
+  "problem": "Nodes fully deserialize transactions and blocks before passing them to validation, exposing nodes to worst-case memory allocation. A malicious peer can send a 4 MB block containing roughly 400,000 empty transactions (10 bytes each) that each allocate a full CTransaction object, or transactions specifying huge vector counts that trigger repeated multi-megabyte reallocations.",
+  "evidence": [
+   "Commit 82cd7e7427: 'This reduces the memory a peer can make us allocate by sending a block full of such transactions. At 10 bytes each, about 400000 of them fit in a block message, each of which gets its own CTransaction.'",
+   "Commit ec2cabb795: 'This allows us to allocate the vin and vout vectors immediately, rather than sequentially in batches of 5 MB as the std::vector deserializer does, because that memory becomes bounded: to 2.7 MB for 24390 inputs, and 5.3 MB for 111111 outputs.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36895"
+   ]
+  },
+  "scope_notes": "Changes P2P behavior slightly: blocks and transactions with zero inputs or outputs or excessive input/output counts are now treated as stream deserialization errors (the message is dropped/ignored) rather than passing to validation where an invalid block would cause peer disconnection or an invalid transaction would enter the reject filter.",
+  "changed_since_previous": "Dropped cumulative block weight tracking during deserialization and the accompanying mutable stream parameter changes, leaving only the per-transaction input/output count limits and the P2P rejection of empty inputs or outputs.",
+  "card": "This PR adds early checks during transaction deserialization to prevent malicious peers from exploiting worst-case memory allocations. It globally rejects transactions specifying more inputs or outputs than can fit in a block, allowing immediate vector capacity reservation bounded to at most 5.3 MB. It also rejects transactions with zero inputs or zero outputs across P2P message handling, preventing peers from flooding a node with up to 400,000 10-byte empty transactions in a single 4 MB block. As a behavioral change, these malformed transactions and blocks are ignored as deserialization failures rather than being rejected in validation and triggering peer disconnection.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p",
+    "validation"
+   ],
+   "why": "A flaw in deserialization limits could inadvertently reject valid consensus data or alter peer misbehavior handling."
+  }
+ }
+}

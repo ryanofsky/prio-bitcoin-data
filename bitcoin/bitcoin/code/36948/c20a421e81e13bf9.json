@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-24T01:19:32+00:00",
+ "card": "This pull request fixes a crash on pruned assumeutxo nodes running blockfilterindex or coinstatsindex. Chainstate flushes during ConnectTip can fire before the index receives BlockConnected for that block, causing an ancestor check in ChainStateFlushed to skip committing index progress to disk. Over time, the saved index tip falls so far behind that the node crashes upon completing assumeutxo background validation when historical blocks are pruned. The patch removes this check, relying on Commit() to ensure the index never writes past the flushed chainstate.",
+ "changed_since_previous": "Diff inspected; the patch specifically deletes the locator ancestor check in BaseIndex::ChainStateFlushed and adds a test fixture reproducing and validating the fix.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Fixes issue #36939: 'Pruned node with blockfilterindex or coinstatsindex crashes when assumeutxo background validation completes (v32.1)'",
+  "Unit test baseindex_commit_when_flush_ahead_of_index reproduces and verifies the persistence of the index tip when a flush notification arrives ahead of block connection."
+ ],
+ "head_sha": "ea1b6cba295b3e23afda2643ab7460ef09cb3620",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36948,
+ "patch_id": "c20a421e81e13bf9",
+ "problem": "Since PR #34897, chainstate flushes in ConnectTip() can be signaled to indexes before the corresponding BlockConnected callback is delivered. A locator check in ChainStateFlushed() caused the index to discard the flush notification and skip committing its progress; on pruned nodes using assumeutxo, repeatedly skipped commits left the saved index tip so far behind that the node crashed when background validation completed because required blocks had already been pruned.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation"
+  ],
+  "why": "Incorrect flush or commit ordering in base indexes could cause index state corruption or data desynchronization with the chainstate."
+ },
+ "run": "run:20261124-0119-assess",
+ "scope_notes": "Small patch removing a 10-line locator check in BaseIndex and adding a unit test.",
+ "size": {
+  "additions": 48,
+  "deletions": 14,
+  "files": 2,
+  "test_lines": 44
+ },
+ "summary": "Removes the ancestor check in BaseIndex::ChainStateFlushed so that secondary indexes can persist their current progress even when a chainstate flush notification arrives ahead of the index's BlockConnected notification. The existing check in Commit() already ensures the index only writes up to an ancestor of the flushed chainstate, preventing indexes from committing un-flushed blocks.",
+ "uncertainties": []
+}

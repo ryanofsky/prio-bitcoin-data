@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-25T01:16:19+00:00",
+ "card": "This PR isolates all legacy wallet loading and migration logic into a dedicated wallet/legacy directory and LegacyWallet subclass, while hardening the migration process against failures. Decoupling legacy routines prevents accidental use within descriptor wallet workflows, and new error handling ensures SQLite databases are built in temporary locations, stale journals are caught before corruption occurs, and backups are automatically restored on exceptions. Evidence includes fixing failure paths where users were previously stranded with partially migrated wallets or corrupted databases. Depends on #36823.",
+ "changed_since_previous": "Now bundles several commits addressing migration safety and atomic SQLite database creation (stale journal checks, graceful failures for read-only wallets, and automated rollback on exceptions), along with new functional test coverage.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36823"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Having this co-mingling of never-to-be-changed legacy wallet code and new descriptor wallet code makes it difficult to implement new things into the wallet.'",
+  "Commit 0b636b5c86: 'Before the move, check that no other files of the db, such as a leftover journal, are at the destination... SQLite would otherwise roll a leftover journal back into the new db when opening it, corrupting it.'",
+  "Commit 0fb317a605: 'If MigrateToSQLite or DoMigration throws, the exception previously skipped the failure handling... user was left with a partially migrated wallet and had to restore the .legacy.bak backup and delete the new wallet files manually.'"
+ ],
+ "head_sha": "7d6b7094731837d7b80def7317146acba9c23a15",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36897,
+ "patch_id": "c660a24432e1083b",
+ "problem": "Legacy wallet loading and migration code remained coupled with active `CWallet` logic even though legacy wallets can no longer be loaded directly, complicating descriptor wallet development and risking accidental use of legacy methods. Additionally, errors during migration (such as uncaught exceptions, unwritable directories, or stale journal files) could leave wallets partially migrated or corrupted, requiring manual user intervention to recover from backups.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "Mistakes in database file movement, transaction handling, or legacy key migration could corrupt wallet databases or leave user funds inaccessible after migration."
+ },
+ "run": "run:20261125-0115-assess",
+ "scope_notes": "Combines a large file move and architectural split (relocating SPKM and BDB loading to `wallet/legacy/`) with substantive database and migration error handling changes in `src/wallet/db.cpp` and `test/functional/wallet_migration.py`.",
+ "size": {
+  "additions": 2144,
+  "deletions": 1694,
+  "files": 26,
+  "test_lines": 165
+ },
+ "summary": "Isolates legacy wallet loading and migration code into a dedicated `wallet/legacy/` directory and `wallet::legacy_migration` namespace, introducing a `LegacyWallet` subclass of `CWallet`. It also improves migration reliability by creating SQLite databases in a temporary location before atomically moving them, detecting stale journals, and rolling back to backups if exceptions occur during wallet creation.",
+ "uncertainties": []
+}

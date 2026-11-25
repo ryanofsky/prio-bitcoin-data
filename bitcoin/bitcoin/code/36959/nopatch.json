@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-25T01:16:27+00:00",
+ "card": "Prevents overlapping scantxoutset RPC calls from permanently bricking the RPC until node restart. Currently, a finishing scan clears the reservation flag before resetting the progress indicator, allowing a subsequent scan caller to acquire the reservation, fail a progress check, and throw an uncaught exception before registering its cleanup guard. The fix resets progress while the reservation is still held. This fixes a node-restart-requiring deadlock bug in RPC utxo scanning.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'Overlapping scantxoutset calls can leave the node reporting \"Scan already in progress\" until restart, even though the scan has finished.'",
+  "Commit 5043b75e01: 'Once a scan clears g_scan_in_progress, another caller can acquire the reservation and check g_scan_progress before the old scan resets it. Reset progress first so the new caller sees zero as expected.'",
+  "PR description quotes PR #19362 review discussion where Luke Dashjr noted a failed progress check could block all future scans."
+ ],
+ "head_sha": "5043b75e01c50b4b3fef3f332e46f401ee7b0a97",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [
+  "diff"
+ ],
+ "number": 36959,
+ "patch_id": "nopatch",
+ "problem": "Overlapping scantxoutset RPC invocations can race when one scan finishes and another starts. If the new caller acquires the in-progress reservation while the old scan has not yet zeroed the progress counter, the progress sanity check throws an exception before the caller sets up its RAII lock guard, leaving the RPC permanently claiming a scan is in progress until the node restarts.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "A flaw in concurrency control or state cleanup in scantxoutset could cause unexpected exceptions or deadlock future UTXO set scans for RPC users."
+ },
+ "run": "run:20261125-0115-assess",
+ "scope_notes": "Single-line reordering in scantxoutset RPC cleanup logic.",
+ "size": {
+  "additions": 1,
+  "deletions": 1,
+  "files": 1,
+  "test_lines": null
+ },
+ "summary": "Fix a race condition in the scantxoutset RPC by resetting the global scan progress counter before clearing the in-progress flag. This ensures any concurrent caller acquiring the scan reservation observes a progress value of zero and does not throw an exception that permanently locks the RPC.",
+ "uncertainties": []
+}

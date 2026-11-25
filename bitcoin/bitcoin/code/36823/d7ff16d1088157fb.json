@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-25T01:16:15+00:00",
+ "card": "This PR optimizes legacy wallet migration to SQLite by skipping legacy records and transaction records during the initial copy pass rather than writing and then erasing them. Because descriptor records replace legacy entries and transaction records are rewritten later in migration, omitting them upfront avoids redundant database writes. Removing these erase steps allows dropping unused database deletion routines (EraseTx, RemoveTxs, DeleteRecordsWithDB, EraseRecords) and privatizing HasLegacyRecords within walletdb.cpp. It has no dependencies.",
+ "changed_since_previous": "Replaced AssertUnreachable() with assert(false) on SQLite database write failure in CWallet::MigrateToSQLite.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'The legacy wallet records are replaced with descriptor records produced during migration, and transaction records are already being rewritten by migration, so not writing them in the first place is also fine. This allows us to remove several database record erase functions, specifically EraseTx and EraseRecords.'"
+ ],
+ "head_sha": "894c154e9cb532f34e5853b438f55b7aa7921881",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36823,
+ "patch_id": "d7ff16d1088157fb",
+ "problem": "Legacy wallet migration dumps all BDB records into a new SQLite database, only for subsequent steps to immediately erase legacy key and script records and delete or rewrite transaction records. This incurs unnecessary disk I/O during migration and requires maintaining dead record-erasure code paths in the wallet.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "A mistake in record filtering during migration could drop necessary wallet data and leave the newly migrated SQLite wallet in an incomplete or corrupted state."
+ },
+ "run": "run:20261125-0115-assess",
+ "scope_notes": "Removes CWallet::RemoveTxs along with its corresponding unit test in wallet_tests.cpp.",
+ "size": {
+  "additions": 18,
+  "deletions": 157,
+  "files": 8,
+  "test_lines": 34
+ },
+ "summary": "Updates the legacy-to-SQLite wallet migration process to skip copying legacy records and transaction records upfront rather than copying and subsequently erasing them. Because migration generates replacement descriptor records and rewrites transactions anyway, filtering these record types during MigrateToSQLite avoids redundant database writes. Removing the post-migration deletion steps allows dropping unused database erase functions (EraseTx, RemoveTxs, DeleteRecordsWithDB, EraseRecords) and scoping HasLegacyRecords as static to walletdb.cpp.",
+ "uncertainties": []
+}

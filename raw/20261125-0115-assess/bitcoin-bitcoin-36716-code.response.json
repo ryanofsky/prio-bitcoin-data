@@ -1,0 +1,43 @@
+{
+ "run": "run:20261125-0115-assess",
+ "pr": "bitcoin/bitcoin#36716",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-25T01:16:13+00:00",
+ "usage": {
+  "input_tokens": 6525,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1326
+ },
+ "cost_usd": 0.00986625,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Restricts select() socket exception monitoring exclusively to non-blocking connection attempts using a new Sock::ConnErrorEventFlag. Established connections no longer monitor the exception set on any platform, ensuring that incoming TCP urgent data does not trigger spurious socket readiness notifications.\",\n  \"problem\": \"When select() monitors the exception set on established sockets, receipt of TCP urgent (out-of-band) data repeatedly wakes the socket wait loop. Because standard recv() calls do not consume out-of-band data without special flags, the event loop busy-spins continuously with nothing to read. Conversely, Windows requires monitoring the exception set during non-blocking connect() to detect failed connection attempts.\",\n  \"evidence\": [\n    \"Commit message: 'With select(), sockets waited on without the flag no longer wake up for or report exceptional conditions, such as TCP urgent data on an established connection. No behavior change with poll().'\",\n    \"PR description: 'Windows needs that to detect a failed connection. Established connections no longer monitor the exception set on any platform. ... A new unit test in sock_tests covers the fix itself: with an urgent byte pending, waiting for RecvEvent must time out. Without the fix it fails on a select() build.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\"#36963\"]\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"The PR was narrowed to only address select() error-set handling and TCP urgent data: the earlier commits handling poll() socket errors, backpressure-related disconnects, and HTTP socket error handling were split out into #36963.\",\n  \"card\": \"Restricts select() socket exception monitoring to non-blocking connection attempts via a new ConnErrorEventFlag, preventing established connections from monitoring the exception set. On systems using select(), receiving TCP urgent data previously triggered the exception set without being consumed by standard recv(), causing the socket event loop to spin continuously at 100% CPU. Windows still relies on the exception set to detect non-blocking connect failures, so the flag keeps that mechanism intact while protecting established connections. PR #36963 is stacked on top of this change.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\"p2p\"],\n    \"why\": \"A flaw in socket readiness flags could break connection failure detection on Windows or cause network event loops to miss read/write events or spin.\"\n  }\n}",
+ "result": {
+  "summary": "Restricts select() socket exception monitoring exclusively to non-blocking connection attempts using a new Sock::ConnErrorEventFlag. Established connections no longer monitor the exception set on any platform, ensuring that incoming TCP urgent data does not trigger spurious socket readiness notifications.",
+  "problem": "When select() monitors the exception set on established sockets, receipt of TCP urgent (out-of-band) data repeatedly wakes the socket wait loop. Because standard recv() calls do not consume out-of-band data without special flags, the event loop busy-spins continuously with nothing to read. Conversely, Windows requires monitoring the exception set during non-blocking connect() to detect failed connection attempts.",
+  "evidence": [
+   "Commit message: 'With select(), sockets waited on without the flag no longer wake up for or report exceptional conditions, such as TCP urgent data on an established connection. No behavior change with poll().'",
+   "PR description: 'Windows needs that to detect a failed connection. Established connections no longer monitor the exception set on any platform. ... A new unit test in sock_tests covers the fix itself: with an urgent byte pending, waiting for RecvEvent must time out. Without the fix it fails on a select() build.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36963"
+   ]
+  },
+  "scope_notes": "",
+  "changed_since_previous": "The PR was narrowed to only address select() error-set handling and TCP urgent data: the earlier commits handling poll() socket errors, backpressure-related disconnects, and HTTP socket error handling were split out into #36963.",
+  "card": "Restricts select() socket exception monitoring to non-blocking connection attempts via a new ConnErrorEventFlag, preventing established connections from monitoring the exception set. On systems using select(), receiving TCP urgent data previously triggered the exception set without being consumed by standard recv(), causing the socket event loop to spin continuously at 100% CPU. Windows still relies on the exception set to detect non-blocking connect failures, so the flag keeps that mechanism intact while protecting established connections. PR #36963 is stacked on top of this change.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "p2p"
+   ],
+   "why": "A flaw in socket readiness flags could break connection failure detection on Windows or cause network event loops to miss read/write events or spin."
+  }
+ }
+}

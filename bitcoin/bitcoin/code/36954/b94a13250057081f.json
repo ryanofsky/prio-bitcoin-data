@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-25T01:16:25+00:00",
+ "card": "Adds the network type to CService::GetKey() to prevent address key collisions across different networks such as Tor and I2P. Without network discrimination, per-peer address bloom filters tracking known addresses could mistake a Tor address for an I2P address sharing identical payload bytes, suppressing legitimate address announcements. A parameter preserving network-less key derivation is kept for AddrMan bucket indexing to maintain backward compatibility with existing peers.dat files.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"CService::GetKey() didn't include the network in the output. So in theory it would be possible for two IP2 and Tor addresses to have the same output from CService::GetKey(). This would have unexpected results when used in the per-peer bloom filter of known addresses - we may wrongfully assume that a peer knows foo.onion when we have sent to them foo.i2p.\"",
+  "Net test `tor_i2p_same_bytes` demonstrates that an I2P address and Tor address constructed with matching 32-byte payloads collide under the old `GetKey()` method."
+ ],
+ "head_sha": "f5a425dee31eaa93aecbd8d5d7e459207f51937e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36954,
+ "patch_id": "b94a13250057081f",
+ "problem": "Because `CService::GetKey()` previously only serialized address bytes and port without the network identifier, addresses on different networks (such as Tor and I2P) could produce identical key bytes. When used in per-peer Bloom filters tracking known addresses during addr relay, a node could falsely believe a peer already knows an address (e.g. `foo.onion` after sending `foo.i2p`), suppressing address relay.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A bug in address key serialization or an unexpected network enum hitting AssertUnreachable() could crash the node or corrupt address relay Bloom filters."
+ },
+ "run": "run:20261125-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 51,
+  "deletions": 9,
+  "files": 4,
+  "test_lines": 18
+ },
+ "summary": "Includes the network type in `CService::GetKey()` by default so that addresses across different networks cannot produce identical key representations. Retains an optional network-less key calculation for `AddrMan` bucket positioning to preserve compatibility with existing `peers.dat` databases.",
+ "uncertainties": []
+}

@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-25T01:16:05+00:00",
+ "card": "This pull request hardens legacy wallet migration against filesystem failures, mid-process exceptions, and destination directory corruption. Previously, unexpected errors or exceptions bypassed post-failure cleanup and left wallets in a broken intermediate state requiring manual backup restoration, and MigrateToSQLite deleted the original database before confirming SQLite creation succeeded. The changes stage the SQLite database in a temporary directory before replacing the original files, abort cleanly if unexpected files like stale journals exist at the destination, and ensure all exceptions trigger automatic restoration of the original wallet.",
+ "changed_since_previous": "Rather than attempting to remove leftover files such as stale database journals, MoveDatabase now returns an error and halts migration if any unexpected file is detected at the destination path.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Description: 'There are methods that can throw exceptions and abruptly abort the process. Instead of crashing (GUI) or returning a generic exception, we now will catch and return the error gracefully. This lets the process restore the original wallet automatically.'",
+  "Commit b8ef499909: 'Currently, MigrateToSQLite loads all BDB records into memory, deletes the original database, creates the sqlite db in its place, and writes the records to it. If anything fails after the delete, the wallet is left partly in sqlite format with legacy records, and the user has to restore the backup manually.'",
+  "Commit 399a5a3805: 'Without it, SQLite rolls the stale journal back into the migrated db once it is moved into place, writing pages of an unrelated database into it.'"
+ ],
+ "head_sha": "399a5a3805884e7ac5a2cbdf616be8c9041bc2bd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 34193,
+ "patch_id": "975a0e9f23250f25",
+ "problem": "Failures during legacy wallet migration (such as read-only directories, exceptions in auxiliary wallet creation, or write failures in MigrateToSQLite) could crash the node, bypass cleanup logic, and leave users with partially migrated databases or missing original files, requiring manual restoration from backups. Additionally, if an unexpected file such as a leftover SQLite journal exists at the destination, SQLite would roll it back into the newly placed database upon opening, corrupting wallet data.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "wallet",
+   "wallet_storage"
+  ],
+  "why": "Flaws in wallet migration file moving or exception handling could corrupt wallet databases or fail to properly restore the BerkeleyDB backup on migration failure."
+ },
+ "run": "run:20261125-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 335,
+  "deletions": 111,
+  "files": 7,
+  "test_lines": 107
+ },
+ "summary": "Hardens legacy-to-descriptor wallet migration against filesystem failures, unexpected exceptions, and corrupted destination files. It writes the new SQLite database into a temporary directory and atomically moves it into place rather than deleting the BerkeleyDB database first. If any unhandled exception or error occurs during migration, the process cleanly aborts, reports a descriptive error, and automatically rolls back changes from the backup without leaving partial state.",
+ "uncertainties": []
+}

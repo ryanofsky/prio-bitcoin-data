@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-25T01:16:25+00:00",
+ "card": "ThreadOpenConnections now pauses when network activity is disabled instead of cycling through connection attempts. Previously, running the connection loop while inactive caused configured seednodes and address-fetch queues to be popped and permanently discarded because OpenNetworkConnection refused outgoing connections, leaving the node unable to dial seednodes once re-enabled without a restart. The change prevents this state loss by sleeping until fNetworkActive is true and simplifies anchor connection test synchronization.",
+ "changed_since_previous": "Now includes the complete implementation diff in src/net.cpp and functional test coverage in p2p_seednode.py and feature_anchors.py.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: 'When the network is disabled (networkactive=0 or setnetworkactive false), the seednodes are consumed without ever being dialled and When the network becomes active again, no further addr-fetch attempts are made, even though the seednodes are still configured. They remain unavailable until the node is restarted.'",
+  "Commit 405ea4a6a3: 'ThreadOpenConnections kept running its loop while the network was inactive. OpenNetworkConnection() refused every attempt, but by then the loop had already popped seednodes and addr-fetch entries, which were then lost.'"
+ ],
+ "head_sha": "31129ec13ed54cee7bde86ee734a7b40baa682f4",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36956,
+ "patch_id": "36a3841673c864c5",
+ "problem": "When network activity is disabled via -networkactive=0 or setnetworkactive false, ThreadOpenConnections continues looping. With fewer than two outbound peers or an empty addrman, it pops configured seednodes into addr-fetch queues and discards them when OpenNetworkConnection returns early, leaving no seednodes to query after the network is re-enabled until the node is restarted.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "p2p"
+  ],
+  "why": "A flaw in the connection loop or network activity check could delay or completely block outbound peer connections."
+ },
+ "run": "run:20261125-0115-assess",
+ "scope_notes": "Touches the main connection loop in net.cpp alongside functional test additions for seednode persistence and simplification of anchor connection tests.",
+ "size": {
+  "additions": 24,
+  "deletions": 19,
+  "files": 3,
+  "test_lines": 37
+ },
+ "summary": "Pause ThreadOpenConnections when network activity is disabled rather than running through its connection logic. The thread checks fNetworkActive at the top of its loop and sleeps for 500ms before checking again. This prevents the node from draining connection state such as seednodes and address-fetch queues while connections cannot be made.",
+ "uncertainties": []
+}

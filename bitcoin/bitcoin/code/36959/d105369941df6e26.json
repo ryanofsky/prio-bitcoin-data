@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-26T01:17:28+00:00",
+ "card": "Fixes a race condition in the scantxoutset RPC that can permanently disable the command until the node restarts. If a new scan acquires the reservation after an exiting scan clears its in-progress flag but before it clears its progress counter, the sanity check throws an exception before ownership is recorded, leaking the reservation. The change reorders cleanup so the progress counter is zeroed before releasing the in-progress flag.",
+ "changed_since_previous": "",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"Overlapping scantxoutset calls can leave the node reporting 'Scan already in progress' until restart, even though the scan has finished.\"",
+  "PR description quotes PR #19362 review discussion where Luke Dashjr noted that a failed progress check permanently blocks future scans."
+ ],
+ "head_sha": "5043b75e01c50b4b3fef3f332e46f401ee7b0a97",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36959,
+ "patch_id": "d105369941df6e26",
+ "problem": "When overlapping `scantxoutset` RPC calls occur, a new scan can acquire the scan reservation immediately after an old scan unsets `g_scan_in_progress` but before it resets `g_scan_progress`. The new caller's progress check then throws an exception before its reserver records ownership, leaving the node reporting \"Scan already in progress\" on all future calls until the node is restarted.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "rpc_api"
+  ],
+  "why": "The one-line reordering inside the scantxoutset reserver destructor only affects cleanup order during RPC teardown and has no consensus or validation impact."
+ },
+ "run": "run:20261126-0116-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 1,
+  "deletions": 1,
+  "files": 1,
+  "test_lines": 0
+ },
+ "summary": "Fix a race condition in `scantxoutset` by zeroing the scan progress counter before clearing the in-progress flag in `CoinsViewScanReserver`. This ensures subsequent scan calls cannot acquire the reservation while observing stale, non-zero progress.",
+ "uncertainties": []
+}

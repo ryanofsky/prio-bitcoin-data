@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-26T01:17:30+00:00",
+ "card": "This draft PR adds performance optimizations on top of PR 36895's serialized witness stack storage. It streams serialized witness stacks directly into raw byte storage during deserialization, inlines CompactSize parsing for 5-7x faster iteration, stores the last element offset for O(1) back() access, and defers witness-to-vector conversion during script verification until rules actually evaluate the witness. Author benchmarks show validation time for synthetic blocks packed with millions of tiny witness items drops by up to 9x (128ms to 14ms). Depends on #36895.",
+ "changed_since_previous": "Rebased without substantive changes to the approach or commit structure.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [
+   "#36895"
+  ],
+  "enables": []
+ },
+ "evidence": [
+  "Author's benchmarks across synthetic stress blocks show validation/deserialization latency dropping dramatically across successive optimizations: for unknown witness version blocks with 2.0M 1-byte elements, runtime drops from 128ms on master (185ms minimal serialized) to 14ms with all optimizations; an invalid commitment block drops from 101ms on master to 14ms (PR description)."
+ ],
+ "head_sha": "9d160722716131b35d03a3ab0f7e4b3a154509ce",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36918,
+ "patch_id": "9f86fc5599417ee2",
+ "problem": "Even with serialized witness storage, round-tripping through intermediate std::vector<std::vector<unsigned char>> structures and decoding CompactSizes via general stream readers adds unnecessary CPU overhead during block deserialization and iteration. Furthermore, eagerly materializing vector stacks in script validation wastes significant CPU time on transactions with large witness stacks that are never evaluated (such as unknown witness versions, pay-to-anchor, or taproot when flags are unset).",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "consensus",
+   "validation",
+   "p2p"
+  ],
+  "why": "A flaw in witness deserialization, CompactSize parsing, or script interpreter stack conversion could cause consensus failure or lead nodes to accept invalid blocks."
+ },
+ "run": "run:20261126-0116-assess",
+ "scope_notes": "Stacked on open PR #36895 and includes that PR's commits in the diff. Includes synthetic block deserialization benchmarks and script witness fuzz tests.",
+ "size": {
+  "additions": 1040,
+  "deletions": 249,
+  "files": 67,
+  "test_lines": 783
+ },
+ "summary": "Builds follow-up performance optimizations on top of PR 36895's serialized CScriptWitness representation. It deserializes witness stacks directly into byte storage without intermediate vector-of-vectors allocations, inlines CompactSize decoding for faster element iteration, and caches the offset of the last element for O(1) back() access. It also defers converting witness stacks to std::vector in VerifyWitnessProgram until specific script rules (P2WSH, Taproot) actually require it.",
+ "uncertainties": []
+}

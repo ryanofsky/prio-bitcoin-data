@@ -1,0 +1,42 @@
+{
+ "run": "run:20261126-0116-assess",
+ "pr": "bitcoin/bitcoin#27865",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-26T01:17:10+00:00",
+ "usage": {
+  "input_tokens": 16030,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1902
+ },
+ "cost_usd": 0.019155,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Segregates confirmed spent and conflicted transaction outputs from `m_txos` into a separate `m_unusable_txos` map, leaving only spendable or mempool-spent outputs in the active set. In addition, embeds output-level metadata (`TxState`, coinbase flag, `m_from_me`, timestamp, and transaction version) directly into `WalletTXO` to avoid dereferencing parent `CWalletTx` instances during iteration. Transaction state and TXO maps are kept synchronized across confirmations, block disconnections, reorgs, and wallet loading.\",\n  \"problem\": \"After #27286 introduced in-memory indexing of wallet transaction outputs, routines like balance calculation and coin selection still iterate across all outputs the wallet ever owned. For wallets with extensive transaction histories, iterating through large sets of permanently spent or conflicted outputs adds unnecessary CPU overhead and causes user-facing latency.\",\n  \"evidence\": [\n    \"PR description: 'This TXO set is iterated for balance checking and coin selection preparation, which can still be slow for wallets that have had a lot of activity. This PR aims to improve the performance of such wallets by moving UTXOs that are definitely no longer spendable to a different map in the wallet so that far fewer TXOs need to be iterated for the aforementioned functions.'\",\n    \"Open benchmark PR #34360 ('bench: add WalletBalanceManySpent for high-history wallet scenario') was created to measure performance in the exact high-history scenario this PR targets.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Modifies the on-disk serialization format of `CWalletTx` by appending an optional `m_from_me` boolean field, and touches state transitions across block attachment, disconnections, and wallet loading.\",\n  \"changed_since_previous\": \"Embedded transaction version into `WalletTXO` to support TRUC/v3 unconfirmed spend checks without parent transaction lookups, added disk serialization and migration handling for `m_from_me` with backwards compatibility tests, and refactored wallet test fixtures to use `CWallet::CreateNew`.\",\n  \"card\": \"Bitcoin Core's in-memory TXO index iterates over every historical output owned by a wallet during balance calculations and coin selection, degrading performance on wallets with long histories. This PR moves confirmed spent and conflicted outputs to a separate unusable map so that active coin selection and balance checks operate on a significantly reduced set. It also caches transaction state, version, and confirmation details directly inside each WalletTXO to eliminate parent transaction lookups and serializes the from-me flag to disk. The change targets noticeable latency reductions for wallets with large transaction histories.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"wallet\",\n      \"wallet_storage\"\n    ],\n    \"why\": \"Mistakes in wallet output tracking, state synchronization during reorgs, or database serialization could lead to incorrect balance reporting, inability to spend valid funds, or wallet database corruption.\"\n  }\n}",
+ "result": {
+  "summary": "Segregates confirmed spent and conflicted transaction outputs from `m_txos` into a separate `m_unusable_txos` map, leaving only spendable or mempool-spent outputs in the active set. In addition, embeds output-level metadata (`TxState`, coinbase flag, `m_from_me`, timestamp, and transaction version) directly into `WalletTXO` to avoid dereferencing parent `CWalletTx` instances during iteration. Transaction state and TXO maps are kept synchronized across confirmations, block disconnections, reorgs, and wallet loading.",
+  "problem": "After #27286 introduced in-memory indexing of wallet transaction outputs, routines like balance calculation and coin selection still iterate across all outputs the wallet ever owned. For wallets with extensive transaction histories, iterating through large sets of permanently spent or conflicted outputs adds unnecessary CPU overhead and causes user-facing latency.",
+  "evidence": [
+   "PR description: 'This TXO set is iterated for balance checking and coin selection preparation, which can still be slow for wallets that have had a lot of activity. This PR aims to improve the performance of such wallets by moving UTXOs that are definitely no longer spendable to a different map in the wallet so that far fewer TXOs need to be iterated for the aforementioned functions.'",
+   "Open benchmark PR #34360 ('bench: add WalletBalanceManySpent for high-history wallet scenario') was created to measure performance in the exact high-history scenario this PR targets."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Modifies the on-disk serialization format of `CWalletTx` by appending an optional `m_from_me` boolean field, and touches state transitions across block attachment, disconnections, and wallet loading.",
+  "changed_since_previous": "Embedded transaction version into `WalletTXO` to support TRUC/v3 unconfirmed spend checks without parent transaction lookups, added disk serialization and migration handling for `m_from_me` with backwards compatibility tests, and refactored wallet test fixtures to use `CWallet::CreateNew`.",
+  "card": "Bitcoin Core's in-memory TXO index iterates over every historical output owned by a wallet during balance calculations and coin selection, degrading performance on wallets with long histories. This PR moves confirmed spent and conflicted outputs to a separate unusable map so that active coin selection and balance checks operate on a significantly reduced set. It also caches transaction state, version, and confirmation details directly inside each WalletTXO to eliminate parent transaction lookups and serializes the from-me flag to disk. The change targets noticeable latency reductions for wallets with large transaction histories.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "wallet",
+    "wallet_storage"
+   ],
+   "why": "Mistakes in wallet output tracking, state synchronization during reorgs, or database serialization could lead to incorrect balance reporting, inability to spend valid funds, or wallet database corruption."
+  }
+ }
+}

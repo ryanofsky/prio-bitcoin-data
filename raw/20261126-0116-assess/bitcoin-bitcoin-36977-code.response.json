@@ -1,0 +1,44 @@
+{
+ "run": "run:20261126-0116-assess",
+ "pr": "bitcoin/bitcoin#36977",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-26T01:17:47+00:00",
+ "usage": {
+  "input_tokens": 3128,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1282
+ },
+ "cost_usd": 0.0071535,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Optimize `CTxMemPool::GetSortedScoreWithTopology()` by replacing an `O(N log N)` `std::sort` with an `O(N)` traversal of `TxGraph`'s pre-ordered chunk index. Add `TxGraph::GetMainOrder()` to expand chunks in linearization order without comparator calls, and verify equivalence against the old sorting logic in `check()`. Also add a benchmark `RpcMempoolTxids` measuring non-verbose `getrawmempool` performance.\",\n  \"problem\": \"Retrieving the global mempool transaction order requires an `O(N log N)` sort using `TxGraph::CompareMainOrder` while holding the main mempool lock `cs`. Callers of `GetSortedScoreWithTopology()`\u2014including `getrawmempool`, P2P `mempool` dumps, and `mempool.dat` serialization\u2014block other mempool operations longer than necessary.\",\n  \"evidence\": [\n    \"PR description benchmarks show `RpcMempoolTxids` (10k txs) dropping from 5.10 ms to 1.07 ms and `getrawmempool false` (60k txs) dropping from 99 ms to 24 ms on a Ryzen 5 3600.\",\n    \"PR description notes that 'time with cs held goes down in the same way, which matters for indexers that call getrawmempool every few seconds.'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"The diff was not provided in the prompt, but metadata indicates a small change (+119/-6 across 6 files) containing the core logic, benchmark, and fuzz/unit test updates.\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"This pull request replaces the O(N log N) sort in CTxMemPool::GetSortedScoreWithTopology() with an O(N) traversal over TxGraph's chunk index. Currently, retrieving the topological and fee-rate order of the mempool requires sorting all transactions while holding the cs lock, which delays concurrent operations during getrawmempool queries, P2P mempool message handling, and mempool persistence. The author reports reducing getrawmempool execution time on 60k transactions from 99 ms to 24 ms, significantly reducing mempool lock contention for indexers.\",\n  \"needs\": [\n    \"diff\"\n  ],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"mempool_policy\",\n      \"rpc_api\"\n    ],\n    \"why\": \"A flaw in the chunk index walk could output an invalid transaction order or omit transactions, impacting RPC callers, P2P responses, and mempool disk persistence.\"\n  }\n}",
+ "result": {
+  "summary": "Optimize `CTxMemPool::GetSortedScoreWithTopology()` by replacing an `O(N log N)` `std::sort` with an `O(N)` traversal of `TxGraph`'s pre-ordered chunk index. Add `TxGraph::GetMainOrder()` to expand chunks in linearization order without comparator calls, and verify equivalence against the old sorting logic in `check()`. Also add a benchmark `RpcMempoolTxids` measuring non-verbose `getrawmempool` performance.",
+  "problem": "Retrieving the global mempool transaction order requires an `O(N log N)` sort using `TxGraph::CompareMainOrder` while holding the main mempool lock `cs`. Callers of `GetSortedScoreWithTopology()`\u2014including `getrawmempool`, P2P `mempool` dumps, and `mempool.dat` serialization\u2014block other mempool operations longer than necessary.",
+  "evidence": [
+   "PR description benchmarks show `RpcMempoolTxids` (10k txs) dropping from 5.10 ms to 1.07 ms and `getrawmempool false` (60k txs) dropping from 99 ms to 24 ms on a Ryzen 5 3600.",
+   "PR description notes that 'time with cs held goes down in the same way, which matters for indexers that call getrawmempool every few seconds.'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "The diff was not provided in the prompt, but metadata indicates a small change (+119/-6 across 6 files) containing the core logic, benchmark, and fuzz/unit test updates.",
+  "changed_since_previous": "",
+  "card": "This pull request replaces the O(N log N) sort in CTxMemPool::GetSortedScoreWithTopology() with an O(N) traversal over TxGraph's chunk index. Currently, retrieving the topological and fee-rate order of the mempool requires sorting all transactions while holding the cs lock, which delays concurrent operations during getrawmempool queries, P2P mempool message handling, and mempool persistence. The author reports reducing getrawmempool execution time on 60k transactions from 99 ms to 24 ms, significantly reducing mempool lock contention for indexers.",
+  "needs": [
+   "diff"
+  ],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "mempool_policy",
+    "rpc_api"
+   ],
+   "why": "A flaw in the chunk index walk could output an invalid transaction order or omit transactions, impacting RPC callers, P2P responses, and mempool disk persistence."
+  }
+ }
+}

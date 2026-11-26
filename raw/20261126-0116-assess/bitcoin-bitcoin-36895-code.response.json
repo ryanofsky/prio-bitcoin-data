@@ -1,0 +1,49 @@
+{
+ "run": "run:20261126-0116-assess",
+ "pr": "bitcoin/bitcoin#36895",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-26T01:17:35+00:00",
+ "usage": {
+  "input_tokens": 21050,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2379
+ },
+ "cost_usd": 0.02470875,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"CScriptWitness is encapsulated behind an immutable interface and its internal std::vector<std::vector<unsigned char>> storage is replaced with a single heap allocation storing the serialized witness stack prefixed by a 4-byte length. Call sites can no longer mutate witness stacks in place, and witness stack elements are parsed on the fly as spans. Changes across validation, consensus, policy, RPC, wallet, and tests adapt callers to the new interface, largely via scripted diffs.\",\n  \"problem\": \"Storing witness elements as individual vectors requires a 24-byte vector object and a heap allocation per non-empty element. Specially constructed transactions with large numbers of small witness items can consume up to roughly 28 bytes per weight unit in memory after deserialization, creating excessive memory usage in the mempool and an amplification denial-of-service risk.\",\n  \"evidence\": [\n    \"Author measurements indicate CScriptWitness shrinks from 24 to 8 bytes, CTxIn shrinks from 112 to 96 bytes, and worst-case transaction memory usage drops from ~28 bytes/WU to 1.6 bytes/WU.\",\n    \"Author benchmarks worst-case deserialization and validation time degradation at roughly 50-70 ms per block on their machine before follow-up optimizations in #36918.\",\n    \"PR description credits furszy and 0xB10C with reporting the issue.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#36909\",\n      \"#36918\"\n    ]\n  },\n  \"scope_notes\": \"Contains four scripted-diff commits that mechanically refactor CScriptWitness access patterns across dozens of files, followed by manual refactoring in script execution, policy, and tests.\",\n  \"changed_since_previous\": \"Minor updates across files (now spanning 63 files vs 62 previously) while retaining the same serialized-representation design and commit structure.\",\n  \"card\": \"This PR encapsulates CScriptWitness behind an immutable interface and replaces its vector-of-vectors layout with a single contiguous allocation storing the serialized witness stack. Storing each element as an allocated vector allowed specially crafted transactions with many small witness elements to consume up to 28 bytes per weight unit in memory, enabling memory-amplification denial-of-service against mempools. The change shrinks CScriptWitness from 24 to 8 bytes and limits worst-case transaction memory usage to 1.6 bytes per weight unit, at the cost of roughly 50 to 70 ms added block validation time in the worst case. Optimization follow-ups in PR 36918 and kernel additions in PR 36909 build on this change.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\n      \"consensus\",\n      \"validation\",\n      \"mempool_policy\",\n      \"wallet\",\n      \"rpc_api\"\n    ],\n    \"why\": \"A bug in witness serialization, span decoding, or witness stack passing to the script execution engine could cause consensus validation mismatches and chain splits.\"\n  }\n}",
+ "result": {
+  "summary": "CScriptWitness is encapsulated behind an immutable interface and its internal std::vector<std::vector<unsigned char>> storage is replaced with a single heap allocation storing the serialized witness stack prefixed by a 4-byte length. Call sites can no longer mutate witness stacks in place, and witness stack elements are parsed on the fly as spans. Changes across validation, consensus, policy, RPC, wallet, and tests adapt callers to the new interface, largely via scripted diffs.",
+  "problem": "Storing witness elements as individual vectors requires a 24-byte vector object and a heap allocation per non-empty element. Specially constructed transactions with large numbers of small witness items can consume up to roughly 28 bytes per weight unit in memory after deserialization, creating excessive memory usage in the mempool and an amplification denial-of-service risk.",
+  "evidence": [
+   "Author measurements indicate CScriptWitness shrinks from 24 to 8 bytes, CTxIn shrinks from 112 to 96 bytes, and worst-case transaction memory usage drops from ~28 bytes/WU to 1.6 bytes/WU.",
+   "Author benchmarks worst-case deserialization and validation time degradation at roughly 50-70 ms per block on their machine before follow-up optimizations in #36918.",
+   "PR description credits furszy and 0xB10C with reporting the issue."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#36909",
+    "#36918"
+   ]
+  },
+  "scope_notes": "Contains four scripted-diff commits that mechanically refactor CScriptWitness access patterns across dozens of files, followed by manual refactoring in script execution, policy, and tests.",
+  "changed_since_previous": "Minor updates across files (now spanning 63 files vs 62 previously) while retaining the same serialized-representation design and commit structure.",
+  "card": "This PR encapsulates CScriptWitness behind an immutable interface and replaces its vector-of-vectors layout with a single contiguous allocation storing the serialized witness stack. Storing each element as an allocated vector allowed specially crafted transactions with many small witness elements to consume up to 28 bytes per weight unit in memory, enabling memory-amplification denial-of-service against mempools. The change shrinks CScriptWitness from 24 to 8 bytes and limits worst-case transaction memory usage to 1.6 bytes per weight unit, at the cost of roughly 50 to 70 ms added block validation time in the worst case. Optimization follow-ups in PR 36918 and kernel additions in PR 36909 build on this change.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "validation",
+    "mempool_policy",
+    "wallet",
+    "rpc_api"
+   ],
+   "why": "A bug in witness serialization, span decoding, or witness stack passing to the script execution engine could cause consensus validation mismatches and chain splits."
+  }
+ }
+}

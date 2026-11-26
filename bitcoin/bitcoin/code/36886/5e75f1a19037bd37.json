@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-26T01:17:31+00:00",
+ "card": "Reject empty overflow pages as database corruption in the read-only Berkeley DB parser. When a corrupted BDB wallet contains an overflow page with zero data that links cyclically, parsing loops indefinitely, pinning a CPU core at 100% and hanging wallet migration, wallet dump tools, and node shutdown. The author demonstrates master hanging indefinitely until killed while this PR fails immediately, verified by a new functional test constructing a cyclic BDB file.",
+ "changed_since_previous": "Rebased with no substantive changes to code or approach.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description benchmarks show bitcoin-wallet dump hanging at 100% CPU for 60 seconds until killed on master, whereas this PR fails immediately with exit code 1",
+  "PR description notes migratewallet on master pegs an HTTP worker thread at 100% CPU and leaves bitcoind stop incomplete after 30 seconds"
+ ],
+ "head_sha": "8bd60a4126e84d958a075d86561841c7dc8198d7",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36886,
+ "patch_id": "5e75f1a19037bd37",
+ "problem": "When reading BDB overflow records, the traversal loop terminates only on reaching page 0 or when accumulated data exceeds item_len. An empty overflow page with an hf_offset of 0 adds no bytes to the accumulator, so an empty page linking back to itself or forming a cycle spins indefinitely at 100% CPU, hanging bitcoin-wallet dump, migratewallet RPC workers, and bitcoind shutdown.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "low",
+  "touches": [
+   "wallet",
+   "wallet_storage",
+   "tests"
+  ],
+  "why": "A false positive check could prevent opening a legacy wallet, but Berkeley DB never writes overflow pages without data."
+ },
+ "run": "run:20261126-0116-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 66,
+  "deletions": 0,
+  "files": 2,
+  "test_lines": 61
+ },
+ "summary": "Reject empty overflow pages as corruption during read-only Berkeley DB parsing in BerkeleyRODatabase::Open. When an overflow page yields no data, the parser throws a runtime error instead of continuing to follow next-page pointers.",
+ "uncertainties": []
+}

@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-27T01:15:59+00:00",
+ "card": "This PR fixes four distinct liveness bugs in 1-parent-1-child (1p1c) package relay and orphan handling that allow peers to stall CPFP fee bumps. Previously, peer disconnections could permanently stall orphan reconsideration, reject filters could be poisoned by known transactions or witnessless copies, malleated parent announcements could purge valid child orphans across all peers, and witnessless parent rejections canceled pending txid orphan-parent requests. The patch ensures orphan handover on disconnect, prevents known transactions from entering reject filters, preserves orphans across package feerate failures, and adds typed announcement tracking in TxRequestTracker.",
+ "changed_since_previous": "The dedicated end-to-end fuzz harness (`p2p_1p1c_liveness`) was deferred out of this PR, and the dependency on #36437 was dropped.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 63cdd0ce02 notes that if an assigned announcer disconnects, 'the orphan is never retried, and re-announcements by the other announcers don't fetch it again since it is already held... and an announcer can cause it on purpose.'",
+  "Commit a30665c3c6 explains that for witnessless transactions where txid equals wtxid, forgetting the rejected wtxid 'also cancelled every peer's txid-typed request for the transaction, including orphan resolution requests for a missing parent.'"
+ ],
+ "head_sha": "a30665c3c66f90f9130e43bcd231f26ddd89f73e",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36506,
+ "patch_id": "c122e439bb8b76e6",
+ "problem": "Adversaries or normal peer churn can prevent valid CPFP fee-bump packages from reaching node mempools. If an announcer assigned to reconsider an orphan disconnects, the orphan is abandoned; adding known transactions (`TX_CONFLICT` or `DIFFERENT_WITNESS`) to reject filters drops valid children when parents leave the mempool; package feerate failures from malleated parents prematurely evict the child orphan; and rejecting witnessless parents cancels txid-based parent resolution across all peers because `wtxid == txid`.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "high",
+  "touches": [
+   "p2p"
+  ],
+  "why": "Flaws in transaction request tracking, orphan handling, or reject filtering could stall transaction propagation across the network or allow peers to exhaust memory with orphaned transactions."
+ },
+ "run": "run:20261127-0115-assess",
+ "scope_notes": "Touches core P2P transaction download and orphanage logic across net_processing, TxOrphanage, and TxRequestTracker, accompanied by unit, fuzz, and functional tests.",
+ "size": {
+  "additions": 590,
+  "deletions": 22,
+  "files": 13,
+  "test_lines": 488
+ },
+ "summary": "Fixes four edge cases in transaction orphan handling, rejection filtering, and request tracking that can stall opportunistic 1-parent-1-child (1p1c) relay. Orphan reconsideration is handed over to a remaining announcer if the assigned peer disconnects, known transactions are kept out of reject filters, orphans are retained after package feerate failures with malleated parents, and `TxRequestTracker` gains type-aware forgetting so witnessless rejections do not cancel txid parent requests.",
+ "uncertainties": []
+}

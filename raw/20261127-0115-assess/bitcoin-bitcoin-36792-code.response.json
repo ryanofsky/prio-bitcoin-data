@@ -1,0 +1,42 @@
+{
+ "run": "run:20261127-0115-assess",
+ "pr": "bitcoin/bitcoin#36792",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-27T01:16:14+00:00",
+ "usage": {
+  "input_tokens": 5218,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 2494
+ },
+ "cost_usd": 0.013266,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Prevents partial overrides of BlockValidationState in two validation error paths. When ConnectBlock encounters a mutated block from CheckBlock, it logs the invalid state and resets it before triggering a fatal corruption error, avoiding a hybrid state with leftover reject reasons. When DisconnectTip fails with an existing error state, ActivateBestChainStep logs and propagates the error directly instead of emitting a redundant, less specific fatal-error notification.\",\n  \"problem\": \"ValidationState::Error() only sets reject reasons if the state is still valid. When invoked on an already invalid or errored state, it changes the mode to error while preserving the earlier reason and debug message, producing confusing hybrid states. Furthermore, calling FatalError in ActivateBestChainStep after DisconnectTip already encountered a disk flush failure emits a duplicate fatal error notification, complicating ongoing refactoring to return validation states by value.\",\n  \"evidence\": [\n    \"ValidationState::Error() only sets the reject reason if the state is still valid. When it is called on a state that is already Invalid or Error, the mode changes but the earlier reason, result and debug message are kept. The result is a mix of the old and new error. Code review in #35570 found two places where this happens. This makes the in-and-out use of the state parameter harder to follow and to remove later. (PR description)\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": [\n      \"#35570\"\n    ]\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"\",\n  \"card\": \"Cleans up validation error handling by preventing hybrid BlockValidationState states in ConnectBlock and ActivateBestChainStep. ValidationState Error only sets reject reasons on valid states, so invoking FatalError on an already-invalid or errored state leaves a mix of old reject reasons and new error modes. In ConnectBlock, mutated blocks now have their invalid state logged and cleared before recording a fatal corruption error. In ActivateBestChainStep, tip disconnection failures that already hit a disk flush error are logged and returned directly instead of triggering a redundant second fatal-error notification. These quirks were uncovered during review of PR 35570, which refactors validation methods to return validation states by value.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"validation\"\n    ],\n    \"why\": \"A mistake in validation error handling during block connection or disconnection could cause improper fatal aborts or suppress required error notifications during chain reorganizations.\"\n  }\n}",
+ "result": {
+  "summary": "Prevents partial overrides of BlockValidationState in two validation error paths. When ConnectBlock encounters a mutated block from CheckBlock, it logs the invalid state and resets it before triggering a fatal corruption error, avoiding a hybrid state with leftover reject reasons. When DisconnectTip fails with an existing error state, ActivateBestChainStep logs and propagates the error directly instead of emitting a redundant, less specific fatal-error notification.",
+  "problem": "ValidationState::Error() only sets reject reasons if the state is still valid. When invoked on an already invalid or errored state, it changes the mode to error while preserving the earlier reason and debug message, producing confusing hybrid states. Furthermore, calling FatalError in ActivateBestChainStep after DisconnectTip already encountered a disk flush failure emits a duplicate fatal error notification, complicating ongoing refactoring to return validation states by value.",
+  "evidence": [
+   "ValidationState::Error() only sets the reject reason if the state is still valid. When it is called on a state that is already Invalid or Error, the mode changes but the earlier reason, result and debug message are kept. The result is a mix of the old and new error. Code review in #35570 found two places where this happens. This makes the in-and-out use of the state parameter harder to follow and to remove later. (PR description)"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": [
+    "#35570"
+   ]
+  },
+  "scope_notes": "",
+  "changed_since_previous": "",
+  "card": "Cleans up validation error handling by preventing hybrid BlockValidationState states in ConnectBlock and ActivateBestChainStep. ValidationState Error only sets reject reasons on valid states, so invoking FatalError on an already-invalid or errored state leaves a mix of old reject reasons and new error modes. In ConnectBlock, mutated blocks now have their invalid state logged and cleared before recording a fatal corruption error. In ActivateBestChainStep, tip disconnection failures that already hit a disk flush error are logged and returned directly instead of triggering a redundant second fatal-error notification. These quirks were uncovered during review of PR 35570, which refactors validation methods to return validation states by value.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "validation"
+   ],
+   "why": "A mistake in validation error handling during block connection or disconnection could cause improper fatal aborts or suppress required error notifications during chain reorganizations."
+  }
+ }
+}

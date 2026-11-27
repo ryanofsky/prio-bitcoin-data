@@ -1,0 +1,40 @@
+{
+ "run": "run:20261127-0115-assess",
+ "pr": "bitcoin/bitcoin#36909",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-27T01:16:25+00:00",
+ "usage": {
+  "input_tokens": 6920,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1891
+ },
+ "cost_usd": 0.01228125,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Optimizes `btck_witness_stack_get_item_at` in the libbitcoinkernel C API from O(n) to O(1) by pre-parsing and caching spans to witness items in `btck_WitnessStack`. Changes `btck_transaction_input_get_witness_stack` to return a newly allocated, owned `btck_WitnessStack*` handle rather than an unowned pointer, and removes the C++ wrapper's `WitnessStackView` in favor of returning an owned `WitnessStack`.\",\n  \"problem\": \"Since #36895 changed `CScriptWitness` to store witness stacks in serialized form, `btck_witness_stack_get_item_at` scans from the start of the serialized data on each call, resulting in O(n^2) runtime when consumers read all items in a witness stack.\",\n  \"evidence\": [\n   \"PR description: 'Since #36895, `btck_witness_stack_get_item_at` walks the items before the one it returns, so reading a whole witness stack through it is O(n^2).'\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"Contains breaking changes to libbitcoinkernel's C and C++ APIs: `btck_transaction_input_get_witness_stack` returns an allocated handle requiring `btck_witness_stack_destroy`, and `WitnessStackView` is removed from the C++ wrapper.\",\n  \"changed_since_previous\": \"Replaced the previous approach of introducing a new `btck_witness_stack_get_items` bulk retrieval function. Instead, `btck_WitnessStack` now parses and caches spans for each item on creation, making `btck_witness_stack_get_item_at` O(1) and changing `btck_transaction_input_get_witness_stack` to return an owned handle.\",\n  \"card\": \"Makes btck_witness_stack_get_item_at O(1) in libbitcoinkernel by pre-parsing item spans into btck_WitnessStack. After serialized witness storage was introduced in #36895, accessing witness items sequentially required scanning from the beginning each time, yielding O(n^2) total traversal time. This change eliminates the quadratic bottleneck while introducing a breaking C/C++ API change: btck_transaction_input_get_witness_stack now returns an owned handle that callers must destroy, and WitnessStackView is dropped.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"medium\",\n    \"touches\": [\n      \"other\"\n    ],\n    \"why\": \"Alters memory ownership semantics in the public C/C++ kernel API; incorrect handle destruction or lifetime mismanagement could cause memory leaks or crashes in external callers.\"\n  }\n}",
+ "result": {
+  "summary": "Optimizes `btck_witness_stack_get_item_at` in the libbitcoinkernel C API from O(n) to O(1) by pre-parsing and caching spans to witness items in `btck_WitnessStack`. Changes `btck_transaction_input_get_witness_stack` to return a newly allocated, owned `btck_WitnessStack*` handle rather than an unowned pointer, and removes the C++ wrapper's `WitnessStackView` in favor of returning an owned `WitnessStack`.",
+  "problem": "Since #36895 changed `CScriptWitness` to store witness stacks in serialized form, `btck_witness_stack_get_item_at` scans from the start of the serialized data on each call, resulting in O(n^2) runtime when consumers read all items in a witness stack.",
+  "evidence": [
+   "PR description: 'Since #36895, `btck_witness_stack_get_item_at` walks the items before the one it returns, so reading a whole witness stack through it is O(n^2).'"
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "Contains breaking changes to libbitcoinkernel's C and C++ APIs: `btck_transaction_input_get_witness_stack` returns an allocated handle requiring `btck_witness_stack_destroy`, and `WitnessStackView` is removed from the C++ wrapper.",
+  "changed_since_previous": "Replaced the previous approach of introducing a new `btck_witness_stack_get_items` bulk retrieval function. Instead, `btck_WitnessStack` now parses and caches spans for each item on creation, making `btck_witness_stack_get_item_at` O(1) and changing `btck_transaction_input_get_witness_stack` to return an owned handle.",
+  "card": "Makes btck_witness_stack_get_item_at O(1) in libbitcoinkernel by pre-parsing item spans into btck_WitnessStack. After serialized witness storage was introduced in #36895, accessing witness items sequentially required scanning from the beginning each time, yielding O(n^2) total traversal time. This change eliminates the quadratic bottleneck while introducing a breaking C/C++ API change: btck_transaction_input_get_witness_stack now returns an owned handle that callers must destroy, and WitnessStackView is dropped.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "medium",
+   "touches": [
+    "other"
+   ],
+   "why": "Alters memory ownership semantics in the public C/C++ kernel API; incorrect handle destruction or lifetime mismanagement could cause memory leaks or crashes in external callers."
+  }
+ }
+}

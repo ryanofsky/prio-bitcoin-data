@@ -1,0 +1,38 @@
+{
+ "assessed_at": "2026-11-27T01:16:28+00:00",
+ "card": "This pull request replaces the O(N log N) pairwise sorting in CTxMemPool::GetSortedScoreWithTopology() with an O(N) traversal of TxGraph's internal chunk index. Sorting the entire mempool while holding CTxMemPool::cs creates lock contention for operations such as getrawmempool, P2P mempool messages, and mempool serialization. In author benchmarks with 60k transactions, non-verbose getrawmempool time dropped from 99 ms to 24 ms, significantly reducing lock hold times for indexers.",
+ "changed_since_previous": "First evaluation with diff available; no changes to the PR's implementation or commits.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmark on Ryzen 5 3600 (x86): RpcMempoolTxids with 10k transactions drops from 5.10 ms to 1.07 ms, and getrawmempool false handler with 60k transactions drops from 99 ms to 24 ms (PR description)."
+ ],
+ "head_sha": "a007033a9fb9aad5ac5f020ce78a02e3edc8af1c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36977,
+ "patch_id": "5b7747e46ec1a610",
+ "problem": "Generating the global mempool transaction order requires sorting all transactions with TxGraph::CompareMainOrder while holding CTxMemPool::cs. Callers like getrawmempool, P2P mempool message responses, and mempool dump operations hold the mempool lock longer than necessary, causing contention for other threads.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "mempool_policy",
+   "rpc_api"
+  ],
+  "why": "A bug in GetMainOrder could misorder or drop transactions in getrawmempool output, P2P mempool responses, and mempool.dat persistence."
+ },
+ "run": "run:20261127-0115-assess",
+ "scope_notes": "",
+ "size": {
+  "additions": 119,
+  "deletions": 6,
+  "files": 6,
+  "test_lines": 82
+ },
+ "summary": "Replace the O(N log N) pairwise sorting in CTxMemPool::GetSortedScoreWithTopology() with an O(N) traversal of TxGraph's chunk index via a new TxGraph::GetMainOrder() method. The previous comparator-based sort is retained as an invariant check in CTxMemPool::check(). A new benchmark, RpcMempoolTxids, measures non-verbose getrawmempool performance.",
+ "uncertainties": []
+}

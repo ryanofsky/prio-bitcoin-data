@@ -1,0 +1,42 @@
+{
+ "assessed_at": "2026-11-27T01:16:18+00:00",
+ "card": "Adds strict range and bounds checks for numeric configuration settings across node initialization, chainstate, mempool, network buffer, and wallet options. Previously, out-of-range or negative inputs silently wrapped into unsigned types or overflowed, which could disable database cache flushing, strand nodes permanently in initial block download, or force wallet transactions onto fallback fees. Invalid values or improper negation flags now fail startup with an explicit error.",
+ "changed_since_previous": "Added DISALLOW_NEGATION for settings where zero is valid but distinct from 'no limit' (such as -dbbatchsize and -maxtipage) to prevent -nofoo from silently disabling limits, and added functional tests for negated options.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Commit 830af36b82 details specific failure modes: a negative -dbbatchsize 'wrapped to a huge batch size and disabled flushing', -maxtipage 'placed the IBD cutoff in the future, so the node never treated its tip as recent', and an out-of-bounds -txconfirmtarget 'made every transaction fall back to -fallbackfee'.",
+  "Release notes doc/release-notes-36861.md document that previously accepted inputs (such as -timeout=0, -bantime=0, and -limitclustersize=0) and negated flags (like -nodbbatchsize) will now abort initialization with an error."
+ ],
+ "head_sha": "830af36b820d3e4f331d34023aef44e3f687d927",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36861,
+ "patch_id": "c5adcccc9f730a69",
+ "problem": "Numeric options read into signed types without range checks silently wrapped into huge unsigned values or truncated when narrowed into internal members. Depending on the setting, negative or out-of-range inputs could disable database flushing (-dbbatchsize), permanently keep nodes in initial block download (-maxtipage), expire all mempool entries immediately (-mempoolexpiry), allow unbounded OP_RETURN sizes (-datacarriersize), make all transactions non-standard (-bytespersigop), or silently force wallet transactions to fallback fees (-txconfirmtarget).",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "validation",
+   "mempool_policy",
+   "wallet",
+   "docs",
+   "tests"
+  ],
+  "why": "Incorrectly bounded or parsed configuration options could cause valid node configurations to fail at startup."
+ },
+ "run": "run:20261127-0115-assess",
+ "scope_notes": "Touches startup argument validation across multiple subsystems (chainstate, mempool, wallet, networking), with functional tests covering accepted, rejected, and negated argument forms.",
+ "size": {
+  "additions": 460,
+  "deletions": 43,
+  "files": 14,
+  "test_lines": 190
+ },
+ "summary": "Validates numeric command-line and configuration file options to ensure they fit their destination types and logical bounds, failing startup with an error on out-of-bounds values. Options parsed into unsigned types now use strict string-to-integral parsing instead of saturating getters, rejecting negative numbers, overflow, and trailing characters. Negation via -nofoo is explicitly disallowed for options where zero is valid but distinct from having no limit.",
+ "uncertainties": []
+}

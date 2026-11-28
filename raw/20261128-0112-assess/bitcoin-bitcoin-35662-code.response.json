@@ -1,0 +1,42 @@
+{
+ "run": "run:20261128-0112-assess",
+ "pr": "bitcoin/bitcoin#35662",
+ "stage": "code",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "created": "2026-11-28T01:12:52+00:00",
+ "usage": {
+  "input_tokens": 13242,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 1492
+ },
+ "cost_usd": 0.0155265,
+ "error": null,
+ "raw_text": "{\n  \"summary\": \"Removes the default constructor and `Init()` method from `PrecomputedTransactionData`, enforcing that transaction data and any spent outputs are provided at construction time. Validation and test paths that require deferred evaluation switch to `std::optional<PrecomputedTransactionData>`, emplacing the object only after a script-cache miss. The change also avoids allocating unused txdata storage during `ConnectBlock()` when assumevalid skips script verification, and eliminates an unintended copy of caller-supplied txdata in the experimental bitcoinkernel C verification API.\",\n  \"problem\": \"`PrecomputedTransactionData` could exist without transaction data and be reinitialized via `Init()`. Its old guard only checked `m_spent_outputs_ready`, leaving BIP143 sighash caches vulnerable to partial overwrite if `Init()` were called again. Additionally, ternary expression typing caused the kernel C verification API to copy caller txdata on every verification call, and `ConnectBlock()` allocated vector elements for transactions even when assumevalid skipped script checks.\",\n  \"evidence\": [\n    \"PR description: 'The old Init() guard only checked m_spent_outputs_ready, which remained false after initialization without spent outputs even when the BIP143 prevout, sequence, and output hashes were already cached.'\",\n    \"Commit d432b35312 links a Compiler Explorer reproducer (https://godbolt.org/z/PzcKGW9da) demonstrating the unintended copy in GCC 15.2 before the fix and none after.\"\n  ],\n  \"dependencies\": {\n    \"depends_on\": [],\n    \"enables\": []\n  },\n  \"scope_notes\": \"\",\n  \"changed_since_previous\": \"The overall architecture remains the same; static assertions and constructor tests in sighash_tests.cpp were added or refined to verify that default construction is rejected at compile time.\",\n  \"card\": \"Removes default construction and the Init() method from PrecomputedTransactionData, requiring transaction data and optional spent outputs at construction time to prevent uninitialized state or cross-transaction reuse. Validation and test call sites adopt std::optional to preserve lazy construction upon script-cache misses, while ConnectBlock omits txdata allocation entirely when assumevalid skips script checks. It also fixes an unintended copy of caller txdata on every verification call in the bitcoinkernel C API, corroborated with a compiler reproducer.\",\n  \"needs\": [],\n  \"confidence\": \"high\",\n  \"uncertainties\": [],\n  \"risk\": {\n    \"level\": \"high\",\n    \"touches\": [\"consensus\", \"validation\"],\n    \"why\": \"A flaw in sighash cache initialization or spent output passing during script check queue processing could misverify signatures, leading to an accidental chain split or invalid block acceptance.\"\n  }\n}",
+ "result": {
+  "summary": "Removes the default constructor and `Init()` method from `PrecomputedTransactionData`, enforcing that transaction data and any spent outputs are provided at construction time. Validation and test paths that require deferred evaluation switch to `std::optional<PrecomputedTransactionData>`, emplacing the object only after a script-cache miss. The change also avoids allocating unused txdata storage during `ConnectBlock()` when assumevalid skips script verification, and eliminates an unintended copy of caller-supplied txdata in the experimental bitcoinkernel C verification API.",
+  "problem": "`PrecomputedTransactionData` could exist without transaction data and be reinitialized via `Init()`. Its old guard only checked `m_spent_outputs_ready`, leaving BIP143 sighash caches vulnerable to partial overwrite if `Init()` were called again. Additionally, ternary expression typing caused the kernel C verification API to copy caller txdata on every verification call, and `ConnectBlock()` allocated vector elements for transactions even when assumevalid skipped script checks.",
+  "evidence": [
+   "PR description: 'The old Init() guard only checked m_spent_outputs_ready, which remained false after initialization without spent outputs even when the BIP143 prevout, sequence, and output hashes were already cached.'",
+   "Commit d432b35312 links a Compiler Explorer reproducer (https://godbolt.org/z/PzcKGW9da) demonstrating the unintended copy in GCC 15.2 before the fix and none after."
+  ],
+  "dependencies": {
+   "depends_on": [],
+   "enables": []
+  },
+  "scope_notes": "",
+  "changed_since_previous": "The overall architecture remains the same; static assertions and constructor tests in sighash_tests.cpp were added or refined to verify that default construction is rejected at compile time.",
+  "card": "Removes default construction and the Init() method from PrecomputedTransactionData, requiring transaction data and optional spent outputs at construction time to prevent uninitialized state or cross-transaction reuse. Validation and test call sites adopt std::optional to preserve lazy construction upon script-cache misses, while ConnectBlock omits txdata allocation entirely when assumevalid skips script checks. It also fixes an unintended copy of caller txdata on every verification call in the bitcoinkernel C API, corroborated with a compiler reproducer.",
+  "needs": [],
+  "confidence": "high",
+  "uncertainties": [],
+  "risk": {
+   "level": "high",
+   "touches": [
+    "consensus",
+    "validation"
+   ],
+   "why": "A flaw in sighash cache initialization or spent output passing during script check queue processing could misverify signatures, leading to an accidental chain split or invalid block acceptance."
+  }
+ }
+}

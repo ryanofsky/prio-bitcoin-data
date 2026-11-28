@@ -1,0 +1,41 @@
+{
+ "assessed_at": "2026-11-28T01:12:51+00:00",
+ "card": "Negating configuration arguments via -nofoo or -foo=0 frequently produces surprising or broken behavior because Bitcoin Core parses negated arguments as the string \"0\" or inspects option presence without checking boolean values. This PR introduces a NEGATE_TO_EMPTY flag for string options, disallows negating arguments where negation is meaningless, enforces positive cluster limits, treats empty directory paths as unset, and requires -nolistenonion when -notorcontrol is passed. This eliminates an assertion failure in TxGraph on startup with -nolimitclustercount, prevents -norpcpassword from setting an RPC password of \"0\", stops notification hooks from running a binary named \"0\", and prevents -notorcontrol from connecting to 0.0.0.0:9051.",
+ "changed_since_previous": "Added commit moving `-signer` registration from wallet options to server args so flags like `NEGATE_TO_EMPTY` apply in builds without the wallet, and added release notes.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "PR description: \"-nolimitclustercount hits an assertion in TxGraph on the first mempool transaction. -nolimitclustersize rejects every transaction.\"",
+  "Commit message c3b35225b5: \"GetArg() returns '0' for a negated option, so -noblocknotify, -nowalletnotify, -nostartupnotify and -noalertnotify ran the command '0', -nosigner used '0' as the signer command, -noi2psam failed at startup and -norpcpassword set the RPC password to '0' instead of using cookie authentication.\"",
+  "Commit message f204dc026a: \"-notorcontrol made the node connect to the Tor control port at '0', i.e. 0.0.0.0:9051, which reaches a local Tor on most systems.\""
+ ],
+ "head_sha": "9cf00ac7ae7f35ccdfa8f511e55a6a78bc3075dd",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36880,
+ "patch_id": "9e83b2812c437ca0",
+ "problem": "Bitcoin Core historically evaluates negated options as the string `\"0\"` or checks only whether the option is set. For options expecting paths, strings, or positive numbers, this causes unexpected behavior: `-nolimitclustercount` triggers an assertion failure in `TxGraph`, `-norpcpassword` sets the RPC password to `\"0\"` instead of using cookie authentication, `-noblocksdir` can write block files to the current working directory, `-notorcontrol` attempts to connect to `0.0.0.0:9051`, notify options invoke an executable named `0`, and `-cjdnsreachable=0` actually enables CJDNS reachability.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "rpc_api",
+   "wallet",
+   "mempool_policy"
+  ],
+  "why": "Incorrect handling of configuration flags or fallback paths could break node startup, misconfigure wallet directories, or alter RPC authentication behavior."
+ },
+ "run": "run:20261128-0112-assess",
+ "scope_notes": "Touches startup argument parsing and validation across mempool, wallet, RPC CLI, Tor, I2P, and notification handling.",
+ "size": {
+  "additions": 223,
+  "deletions": 35,
+  "files": 24,
+  "test_lines": 164
+ },
+ "summary": "Fixes counterintuitive and buggy behaviors when configuration options are negated via `-nofoo` or `-foo=0`. The PR introduces an opt-in `NEGATE_TO_EMPTY` flag so `GetArg()` returns an empty string instead of `\"0\"`, registers `-signer` globally in server args, rejects negating options where negation has no meaning, validates cluster limits at startup, treats empty directory paths as unset, and evaluates `-cjdnsreachable` and `-help` as booleans rather than by flag presence.",
+ "uncertainties": []
+}

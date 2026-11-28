@@ -1,0 +1,40 @@
+{
+ "assessed_at": "2026-11-28T01:12:53+00:00",
+ "card": "This PR optimizes witness handling on top of CScriptWitness's serialized representation. It deserializes witness stacks directly into raw byte storage, decodes CompactSizes inline during iteration, stores the byte offset of the last element for O(1) access, and delays converting witness data into vectors during verification until script rules require it. Author benchmarks show synthetic blocks with millions of small witness items drop processing time from 275ms to 21ms, reducing worst-case block processing overhead.",
+ "changed_since_previous": "Added synthetic block deserialization benchmarks in `src/bench/block_deserialize.cpp` to measure deserialization performance across different transaction and witness shapes.",
+ "confidence": "high",
+ "dependencies": {
+  "depends_on": [],
+  "enables": []
+ },
+ "evidence": [
+  "Author benchmarks show block deserialization and validation time for blocks with 4M 0-byte witness items drops from 275ms on master to 21ms.",
+  "Valid synthetic blocks with unknown witness versions drop from 316ms to 21ms.",
+  "Commit 2d5b121db2 notes that deserializing directly into serialization format makes deserializing a block with millions of 1-byte witness elements about 10x faster."
+ ],
+ "head_sha": "32a29373e0c8f0a7c9bfe8ab92e60d02b93ceb6c",
+ "model": "openrouter/google/gemini-3.8-flash",
+ "needs": [],
+ "number": 36918,
+ "patch_id": "9e5b3d9276e5da8d",
+ "problem": "Blocks containing transactions with millions of small witness elements (or non-evaluated witness programs like unknown versions or Pay-to-Anchor) suffer CPU bottlenecks from intermediate memory allocations during deserialization and eager conversion of the full witness stack into heap-allocated standard vectors prior to script inspection.",
+ "repo": "bitcoin/bitcoin",
+ "risk": {
+  "level": "medium",
+  "touches": [
+   "consensus",
+   "validation"
+  ],
+  "why": "A flaw in unchecked CompactSize decoding, direct witness deserialization, or script verification deferral could cause consensus bugs, invalid script execution, or out-of-bounds memory reads."
+ },
+ "run": "run:20261128-0112-assess",
+ "scope_notes": "Adds a new microbenchmark file `src/bench/block_deserialize.cpp` with synthetic block benchmarks testing various transaction and witness structures.",
+ "size": {
+  "additions": 316,
+  "deletions": 63,
+  "files": 7,
+  "test_lines": 178
+ },
+ "summary": "Implements performance follow-ups to the serialized witness stack representation in CScriptWitness. It deserializes witness data directly into the serialized layout without intermediate vector-of-vectors allocations, inlines an unchecked CompactSize decoder for stack iteration, caches the last element's byte offset for O(1) back() access, and defers converting witness items to vector objects until script verification branches (such as P2WSH or Taproot) actually require them.",
+ "uncertainties": []
+}
